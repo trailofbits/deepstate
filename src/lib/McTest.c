@@ -22,34 +22,76 @@
 extern "C" {
 #endif  /* __cplusplus */
 
-static uint32_t gPlaybookIndex = 0;
-static uint32_t gPlaybook[8192] = {};
+volatile uint8_t McTest_Input[8192]
+    __attribute__((section(".mctest_input_data")));
+
+uint32_t McTest_InputIndex = 0;
+
+__attribute__((noreturn))
+extern void McTest_Fail(void) {
+  exit(EXIT_FAILURE);
+}
+
+__attribute__((noreturn))
+extern void McTest_Pass(void) {
+  exit(EXIT_SUCCESS);
+}
 
 void McTest_SymbolizeData(void *begin, void *end) {
-  (void) begin;
-  (void) end;
+  uintptr_t begin_addr = (uintptr_t) begin;
+  uintptr_t end_addr = (uintptr_t) end;
+
+  if (begin_addr > end_addr) {
+    abort();
+  } else if (begin_addr == end_addr) {
+    return;
+  } else {
+    uint8_t *bytes = (uint8_t *) begin;
+    for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
+      bytes[i] = McTest_Input[McTest_InputIndex++];
+    }
+  }
 }
 
 /* Return a symbolic value of a given type. */
 int McTest_Bool(void) {
-  return 0;
+  return McTest_Input[McTest_InputIndex++] & 1;
 }
 
-size_t McTest_Size(void) {
-  return 0;
+#define MAKE_SYMBOL_FUNC(Type, type) \
+    type McTest_ ## Type(void) { \
+      type val = 0; \
+      _Pragma("unroll") \
+      for (size_t i = 0; i < sizeof(type); ++i) { \
+        val = (val << 8) | ((type) McTest_Input[McTest_InputIndex++]); \
+      } \
+      return val; \
+    }
+
+MAKE_SYMBOL_FUNC(UInt64, uint64_t)
+int64_t McTest_Int64(void) {
+  return (int64_t) McTest_UInt64();
 }
 
-uint64_t McTest_UInt64(void) {
-  return 0;
+MAKE_SYMBOL_FUNC(UInt, uint32_t)
+int32_t McTest_Int(void) {
+  return (int32_t) McTest_UInt();
 }
 
-uint32_t McTest_UInt(void) {
-  return 0;
+MAKE_SYMBOL_FUNC(UShort, uint16_t)
+int16_t McTest_Short(void) {
+  return (int16_t) McTest_UShort();
 }
 
-int McTest_Assume(int expr) {
+MAKE_SYMBOL_FUNC(UChar, uint8_t)
+int8_t McTest_Char(void) {
+  return (int8_t) McTest_UChar();
+}
+
+#undef MAKE_SYMBOL_FUNC
+
+void _McTest_Assume(int expr) {
   assert(expr);
-  return 1;
 }
 
 int McTest_IsSymbolicUInt(uint32_t x) {
@@ -63,11 +105,6 @@ void McTest_DoneTestCase(void) {
 
 /* McTest implements the `main` function so that test code can focus on tests */
 int main(void) {
-#if defined(__x86_64__) || defined(__i386__) || defined(_M_X86)
-  asm("ud2; .asciz \"I'm McTest'in it\";");
-#else
-# error "Unsupported platform (for now)."
-#endif
   return EXIT_SUCCESS;
 }
 

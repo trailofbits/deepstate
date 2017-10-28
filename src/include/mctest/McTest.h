@@ -25,6 +25,18 @@
 extern "C" {
 #endif  /* __cplusplus */
 
+/* Return a symbolic value of a given type. */
+extern int McTest_Bool(void);
+extern size_t McTest_Size(void);
+extern uint64_t McTest_UInt64(void);
+extern int64_t McTest_Int64(void);
+extern uint32_t McTest_UInt(void);
+extern int32_t McTest_Int(void);
+extern uint16_t McTest_UShort(void);
+extern int16_t McTest_Short(void);
+extern uint8_t McTest_UChar(void);
+extern int8_t McTest_Char(void);
+
 /* Symbolize the data in the range `[begin, end)`. */
 extern void McTest_SymbolizeData(void *begin, void *end);
 
@@ -65,43 +77,21 @@ inline static char *McTest_CStr(size_t len) {
 
 /* Creates an assumption about a symbolic value. Returns `1` if the assumption
  * can hold and was asserted. */
-extern int McTest_Assume(int expr);
+extern void _McTest_Assume(int expr);
+
+#define McTest_Assume(x) _McTest_Assume(!!(x))
+
+__attribute__((noreturn))
+extern void McTest_Fail(void);
+
+__attribute__((noreturn))
+extern void McTest_Pass(void);
 
 /* Asserts that `expr` must hold. */
 inline static void McTest_Assert(int expr) {
-  if (McTest_Assume(!expr)) {
-    abort();
+  if (!expr) {
+    McTest_Fail();
   }
-}
-
-/* Return a symbolic value of a given type. */
-extern int McTest_Bool(void);
-extern size_t McTest_Size(void);
-extern uint64_t McTest_UInt64(void);
-extern uint32_t McTest_UInt(void);
-
-inline static int64_t McTest_Int64(void) {
-  return (int64_t) McTest_UInt64();
-}
-
-inline static int32_t McTest_Int(void) {
-  return (int32_t) McTest_UInt();
-}
-
-inline static uint16_t McTest_UShort(void) {
-  return (uint16_t) McTest_UInt();
-}
-
-inline static int16_t McTest_Short(void) {
-  return (int16_t) McTest_UInt();
-}
-
-inline static unsigned char McTest_UChar(void) {
-  return (unsigned char) McTest_UInt();
-}
-
-inline static char McTest_Char(void) {
-  return (char) McTest_UInt();
 }
 
 /* Return a symbolic value in a the range `[low_inc, high_inc]`. */
@@ -123,19 +113,6 @@ MCTEST_MAKE_SYMBOLIC_RANGE(Char, char)
 MCTEST_MAKE_SYMBOLIC_RANGE(UChar, unsigned char)
 
 #undef MCTEST_MAKE_SYMBOLIC_RANGE
-
-
-/* Return a symbolic value of a given type. */
-extern int McTest_Bool(void);
-extern size_t McTest_Size(void);
-extern uint64_t McTest_UInt64(void);
-extern int64_t McTest_Int64(void);
-extern uint32_t McTest_UInt(void);
-extern int32_t McTest_Int(void);
-extern uint16_t McTest_UShort(void);
-extern int16_t McTest_Short(void);
-extern unsigned char McTest_UChar(void);
-extern char McTest_Char(void);
 
 /* Predicates to check whether or not a particular value is symbolic */
 extern int McTest_IsSymbolicUInt(uint32_t x);
@@ -210,29 +187,28 @@ inline static int McTest_IsSymbolicDouble(double x) {
 #define McTest_EntryPoint(test_name) \
     _McTest_EntryPoint(test_name, __FILE__, __LINE__)
 
+struct __attribute__((packed)) McTest_TestInfo {
+  void (*test_func)(void);
+  const char *test_name;
+  const char *file_name;
+  unsigned line_number;
+  uint8_t padding[28 - (3 * sizeof(void *))];
+};
+
 #define _McTest_EntryPoint(test_name, file, line) \
-    static void McTest_Run_ ## test_name (void); \
-    __attribute__((noinline, used)) \
-    MCTEST_EXTERN_C void McTest_Register_ ## test_name (void) { \
-      __asm__ __volatile__ ( \
-        ".pushsection .mctest_strtab,\"a\" \n" \
-        "1: \n" \
-        ".asciz \"" _MCTEST_TO_STR(test_name) "\" \n" \
-        "2: \n" \
-        ".asciz \"" file "\" \n" \
-        ".popsection \n" \
-        ".pushsection .mctest_entrypoints,\"a\" \n" \
-        ".balign 16 \n" \
-        ".quad %p0 \n" \
-        ".quad 1b \n" \
-        ".quad 2b \n" \
-        ".quad " _MCTEST_TO_STR(line) " \n" \
-        ".popsection \n" \
-        : \
-        : "i"(McTest_Run_ ## test_name) \
-      ); \
+    static void McTest_Test_ ## test_name (void); \
+    static void McTest_Run_ ## test_name (void) { \
+      McTest_Test_ ## test_name(); \
+      McTest_Pass(); \
     } \
-    void McTest_Run_ ## test_name(void)
+    MCTEST_EXTERN_C struct McTest_TestInfo McTest_Register_ ## test_name \
+    __attribute__((section(".mctest_entrypoints"))) = { \
+      McTest_Run_ ## test_name, \
+      _MCTEST_TO_STR(test_name), \
+      file, \
+      line \
+    }; \
+    void McTest_Test_ ## test_name(void)
 
 
 #ifdef __cplusplus

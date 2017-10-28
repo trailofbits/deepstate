@@ -22,7 +22,7 @@ McTest_EntryPoint(YIsAlwaysPositive) {
   McTest_Assert(y >= 0);
 }
 
-McTest_EntryPoint(YIsAlwaysPositive_WillFail) {
+McTest_EntryPoint(YIsAlwaysPositive_CanFail) {
   int x = McTest_IntInRange(-10, 10);
   int y = x * x * x;
   McTest_Assert(y >= 0);  /* This will fail */

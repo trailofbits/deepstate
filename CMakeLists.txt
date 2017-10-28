@@ -18,6 +18,16 @@ cmake_minimum_required(VERSION 2.8)
 enable_language(C)
 enable_language(CXX)
 
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
+set(CMAKE_C_FLAGS_DEBUG "-O3")
+set(CMAKE_C_FLAGS_RELEASE "-O3")
+
+set(CMAKE_CXX_FLAGS_DEBUG "-O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
 find_program(PYTHON "python")
 
 # Enable the GNU extensions
