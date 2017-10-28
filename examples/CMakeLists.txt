@@ -14,3 +14,6 @@
 
 add_executable(OutOfBoundsInt OutOfBoundsInt.c)
 target_link_libraries(OutOfBoundsInt mctest)
+
+add_executable(ArithmeticProperties ArithmeticProperties.cpp)
+target_link_libraries(ArithmeticProperties mctest)

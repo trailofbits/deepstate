@@ -57,7 +57,7 @@ def find_test_cases(project, state):
   tests = []
   addr_size_bytes = state.arch.bits // 8
   for sec in obj.sections:
-    if sec.name != ".mctest_entrypoints":
+    if sec.name != ".mctest_funcs":
       continue
 
     for ea in xrange(sec.vaddr, sec.vaddr + sec.memsize, 32):
@@ -85,7 +85,7 @@ def make_symbolic_input(project, state):
   """Fill in the input data array with symbolic data."""
   obj = project.loader.main_object
   for sec in obj.sections:
-    if sec.name == ".mctest_input_data":
+    if sec.name == ".mctest_data":
       data = state.se.Unconstrained('MCTEST_INPUT', sec.memsize * 8)
       state.memory.store(sec.vaddr, data)
       return data

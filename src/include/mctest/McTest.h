@@ -17,9 +17,15 @@
 #ifndef INCLUDE_MCTEST_MCTEST_H_
 #define INCLUDE_MCTEST_MCTEST_H_
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+
+#ifdef assert
+# undef assert
+#endif
+#define assert McTest_Assert
 
 #ifdef __cplusplus
 extern "C" {
@@ -103,6 +109,8 @@ inline static void McTest_Assert(int expr) {
       return x; \
     }
 
+
+MCTEST_MAKE_SYMBOLIC_RANGE(Size, size_t)
 MCTEST_MAKE_SYMBOLIC_RANGE(Int64, int64_t)
 MCTEST_MAKE_SYMBOLIC_RANGE(UInt64, uint64_t)
 MCTEST_MAKE_SYMBOLIC_RANGE(Int, int)
@@ -150,23 +158,6 @@ inline static int McTest_IsSymbolicBool(int x) {
   return McTest_IsSymbolicInt(x);
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpointer-to-int-cast"
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
-
-inline static int McTest_IsSymbolicPtr(void *x) {
-  if (sizeof(void *) == 8) {
-    return McTest_IsSymbolicUInt64((uint64_t) x);
-  } else {
-    return McTest_IsSymbolicUInt((uint32_t) x);
-  }
-}
-
-#pragma GCC diagnostic pop
-#pragma clang diagnostic pop
-
 inline static int McTest_IsSymbolicFloat(float x) {
   return McTest_IsSymbolicUInt(*((uint32_t *) &x));
 }
@@ -179,9 +170,11 @@ inline static int McTest_IsSymbolicDouble(double x) {
 #define __MCTEST_TO_STR(a) #a
 
 #ifdef __cplusplus
-# define MCTEST_EXTERN_C extern "C"
+# define MCTEST_BEGIN_EXTERN_C extern "C" {
+# define MCTEST_END_EXTERN_C }
 #else
-# define MCTEST_EXTERN_C
+# define MCTEST_BEGIN_EXTERN_C
+# define MCTEST_END_EXTERN_C
 #endif
 
 #define McTest_EntryPoint(test_name) \
@@ -201,13 +194,15 @@ struct __attribute__((packed)) McTest_TestInfo {
       McTest_Test_ ## test_name(); \
       McTest_Pass(); \
     } \
-    MCTEST_EXTERN_C struct McTest_TestInfo McTest_Register_ ## test_name \
-    __attribute__((section(".mctest_entrypoints"))) = { \
+    MCTEST_BEGIN_EXTERN_C \
+    struct McTest_TestInfo McTest_Register_ ## test_name \
+    __attribute__((section(".mctest_funcs"))) = { \
       McTest_Run_ ## test_name, \
       _MCTEST_TO_STR(test_name), \
       file, \
       line \
     }; \
+    MCTEST_END_EXTERN_C \
     void McTest_Test_ ## test_name(void)
 
 

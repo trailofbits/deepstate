@@ -23,7 +23,7 @@ extern "C" {
 #endif  /* __cplusplus */
 
 volatile uint8_t McTest_Input[8192]
-    __attribute__((section(".mctest_input_data")));
+    __attribute__((section(".mctest_data")));
 
 uint32_t McTest_InputIndex = 0;
 

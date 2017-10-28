@@ -73,7 +73,7 @@ inline static char Char(void) {
   return McTest_Char();
 }
 
-inline static int IsSymbolic(uint64_t x) {
+inline static bool IsSymbolic(uint64_t x) {
   return McTest_IsSymbolicUInt64(x);
 }
 
@@ -81,11 +81,11 @@ inline static int IsSymbolic(int64_t x) {
   return McTest_IsSymbolicInt64(x);
 }
 
-inline static int IsSymbolic(uint32_t x) {
+inline static bool IsSymbolic(uint32_t x) {
   return McTest_IsSymbolicUInt(x);
 }
 
-inline static int IsSymbolic(int32_t x) {
+inline static bool IsSymbolic(int32_t x) {
   return McTest_IsSymbolicInt(x);
 }
 
@@ -93,28 +93,28 @@ inline static int IsSymbolic(uint16_t x) {
   return McTest_IsSymbolicUShort(x);
 }
 
-inline static int IsSymbolic(int16_t x) {
+inline static bool IsSymbolic(int16_t x) {
   return McTest_IsSymbolicShort(x);
 }
 
-inline static int IsSymbolic(unsigned char x) {
+inline static bool IsSymbolic(unsigned char x) {
   return McTest_IsSymbolicUChar(x);
 }
 
-inline static int IsSymbolic(char x) {
+inline static bool IsSymbolic(char x) {
   return McTest_IsSymbolicChar(x);
 }
 
-inline static int IsSymbolic(float x) {
+inline static bool IsSymbolic(float x) {
   return McTest_IsSymbolicFloat(x);
 }
 
-inline static int IsSymbolic(double x) {
+inline static bool IsSymbolic(double x) {
   return McTest_IsSymbolicDouble(x);
 }
 
-inline static int IsSymbolic(void *x) {
-  return McTest_IsSymbolicPtr(x);
+inline static bool IsSymbolic(void *x) {
+  return IsSymbolic((uintptr_t) x);
 }
 
 template <typename T>
@@ -136,31 +136,35 @@ class Symbolic {
   T value;
 };
 
-template <T>
+template <typename T>
 class SymbolicLinearContainer {
  public:
-  inline explicit Symbolic(size_t len)
+  inline explicit SymbolicLinearContainer(size_t len)
       : value(len) {
     if (len) {
-      McTest_SymbolizeData(&(str.begin()), &(str.end()));
+      McTest_SymbolizeData(&(value.begin()), &(value.end()));
     }
   }
+
+  inline SymbolicLinearContainer(void)
+      : SymbolicLinearContainer(McTest_SizeInRange(0, 32)) {}
 
   inline operator T (void) const {
     return value;
   }
 
   T value;
-
- private:
-  Symblic(void) = delete;
 };
 
 template <>
-class Symbolic<std::string> : public SymbolicLinearContainer<std::string> {};
+class Symbolic<std::string> : public SymbolicLinearContainer<std::string> {
+  using SymbolicLinearContainer::SymbolicLinearContainer;
+};
 
 template <>
-class Symbolic<std::wstring> : public SymbolicLinearContainer<std::wstring> {};
+class Symbolic<std::wstring> : public SymbolicLinearContainer<std::wstring> {
+  using SymbolicLinearContainer::SymbolicLinearContainer;
+};
 
 template <typename T>
 class Symbolic<std::vector<T>> : 
@@ -170,8 +174,8 @@ class Symbolic<std::vector<T>> :
     template <> \
     class Symbolic<tname> { \
      public: \
-      inline Symbolic(void)
-          : value(McTest_ ## Tname) {} \
+      inline Symbolic(void) \
+          : value(McTest_ ## Tname()) {} \
       inline operator tname (void) const { \
         return value; \
       } \
