@@ -17,24 +17,47 @@
 #include <mctest/McTest.h>
 
 #include <assert.h>
+#include <setjmp.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif  /* __cplusplus */
+#if defined(unix) || defined(__unix) || defined(__unix__)
+# define _GNU_SOURCE
+# include <unistd.h>  /* For `syscall` */
+#endif
 
-volatile uint8_t McTest_Input[8192]
-    __attribute__((section(".mctest_data")));
+MCTEST_BEGIN_EXTERN_C
 
-uint32_t McTest_InputIndex = 0;
+/* Pointer to the last registers McTest_TestInfo data structure */
+struct McTest_TestInfo *McTest_LastTestInfo = NULL;
 
-__attribute__((noreturn))
+enum {
+  McTest_InputLength = 8192
+};
+
+/* Byte buffer that will contain symbolic data that is used to supply requests
+ * for symbolic values (e.g. `int`s). */
+static volatile uint8_t McTest_Input[McTest_InputLength];
+
+/* Index into the `McTest_Input` array that tracks how many input bytes have
+ * been consumed. */
+static uint32_t McTest_InputIndex = 0;
+
+/* Jump buffer for returning to `McTest_Main`. */
+static jmp_buf McTest_ReturnToMain;
+
+static int McTest_TestPassed = 0;
+
+/* Mark this test as failing. */
+MCTEST_NORETURN
 extern void McTest_Fail(void) {
-  exit(EXIT_FAILURE);
+  McTest_TestPassed = 0;
+  longjmp(McTest_ReturnToMain, 1);
 }
 
-__attribute__((noreturn))
+/* Mark this test as passing. */
+MCTEST_NORETURN
 extern void McTest_Pass(void) {
-  exit(EXIT_SUCCESS);
+  McTest_TestPassed = 1;
+  longjmp(McTest_ReturnToMain, 0);
 }
 
 void McTest_SymbolizeData(void *begin, void *end) {
@@ -99,15 +122,56 @@ int McTest_IsSymbolicUInt(uint32_t x) {
   return 0;
 }
 
-void McTest_DoneTestCase(void) {
-  exit(EXIT_SUCCESS);
+/* A McTest-specific symbol that is needed for hooking. */
+struct McTest_IndexEntry {
+  const char * const name;
+  void * const address;
+};
+
+/* An index of symbols that the symbolic executors will hook or
+ * need access to. */
+const struct McTest_IndexEntry McTest_API[] = {
+  {"Pass",            (void *) McTest_Pass},
+  {"Fail",            (void *) McTest_Fail},
+  {"Assume",          (void *) _McTest_Assume},
+  {"IsSymbolicUInt",  (void *) McTest_IsSymbolicUInt},
+  {"InputBegin",      (void *) &(McTest_Input[0])},
+  {"InputEnd",        (void *) &(McTest_Input[McTest_InputLength])},
+  {"InputIndex",      (void *) &McTest_InputIndex},
+  {"LastTestInfo",    (void *) &McTest_LastTestInfo},
+  {NULL, NULL},
+};
+
+int McTest_Run(void) {
+
+  /* Manticore entrypoint. Manticore doesn't (yet?) support symbol lookups, so
+   * we instead interpose on this fake system call, and discover the API table
+   * via the first argument to the system call. */
+#if defined(_MSC_VER)
+# warning "TODO: Implement Windows interception support for Manticore."
+#else
+  syscall(0x41414141, &McTest_API);
+#endif
+
+  int num_failed_tests = 0;
+  for (struct McTest_TestInfo *info = McTest_LastTestInfo;
+       info != NULL;
+       info = info->prev) {
+
+    McTest_TestPassed = 0;
+    if (!setjmp(McTest_ReturnToMain)) {
+      printf("Running %s from %s:%u\n", info->test_name, info->file_name,
+             info->line_number);
+      info->test_func();
+
+    } else if (McTest_TestPassed) {
+      printf("  %s Passed\n", info->test_name);
+    } else {
+      printf("  %s Failed\n", info->test_name);
+      num_failed_tests += 1;
+    }
+  }
+  return num_failed_tests;
 }
 
-/* McTest implements the `main` function so that test code can focus on tests */
-int main(void) {
-  return EXIT_SUCCESS;
-}
-
-#ifdef __cplusplus
-}  /* extern C */
-#endif  /* __cplusplus */
+MCTEST_END_EXTERN_C

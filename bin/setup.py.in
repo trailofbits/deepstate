@@ -30,9 +30,10 @@ setuptools.setup(
     author_email="peter@trailofbits.com",
     license="Apache-2.0",
     keywords="tdd testing symbolic execution",
-    install_requires=['angr'],
+    install_requires=['angr', 'manticore'],
     entry_points={
         'console_scripts': [
-            'mctest = mctest.__main__:main'
+            'mctest = mctest.__main__:main',
+            'mctest-angr = mctest.angr:main'
         ]
     })

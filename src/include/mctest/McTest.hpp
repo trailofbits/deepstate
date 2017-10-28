@@ -25,95 +25,95 @@
 
 namespace mctest {
 
-inline static void *Malloc(size_t num_bytes) {
+MCTEST_INLINE static void *Malloc(size_t num_bytes) {
   return McTest_Malloc(num_bytes);
 }
 
-inline static void SymbolizeData(void *begin, void *end) {
+MCTEST_INLINE static void SymbolizeData(void *begin, void *end) {
   McTest_SymbolizeData(begin, end);
 }
 
-inline static bool Bool(void) {
+MCTEST_INLINE static bool Bool(void) {
   return static_cast<bool>(McTest_Bool());
 }
 
-inline static size_t Size(void) {
+MCTEST_INLINE static size_t Size(void) {
   return McTest_Size();
 }
 
-inline static uint64_t UInt64(void) {
+MCTEST_INLINE static uint64_t UInt64(void) {
   return McTest_UInt64();
 }
 
-inline static int64_t Int64(void) {
+MCTEST_INLINE static int64_t Int64(void) {
   return McTest_Int64();
 }
 
-inline static uint32_t UInt(void) {
+MCTEST_INLINE static uint32_t UInt(void) {
   return McTest_UInt();
 }
 
-inline static int32_t Int(void) {
+MCTEST_INLINE static int32_t Int(void) {
   return McTest_Int();
 }
 
-inline static uint16_t UShort(void) {
+MCTEST_INLINE static uint16_t UShort(void) {
   return McTest_UShort();
 }
 
-inline static int16_t Short(void) {
+MCTEST_INLINE static int16_t Short(void) {
   return McTest_Short();
 }
 
-inline static unsigned char UChar(void) {
+MCTEST_INLINE static unsigned char UChar(void) {
   return McTest_UChar();
 }
 
-inline static char Char(void) {
+MCTEST_INLINE static char Char(void) {
   return McTest_Char();
 }
 
-inline static bool IsSymbolic(uint64_t x) {
+MCTEST_INLINE static bool IsSymbolic(uint64_t x) {
   return McTest_IsSymbolicUInt64(x);
 }
 
-inline static int IsSymbolic(int64_t x) {
+MCTEST_INLINE static int IsSymbolic(int64_t x) {
   return McTest_IsSymbolicInt64(x);
 }
 
-inline static bool IsSymbolic(uint32_t x) {
+MCTEST_INLINE static bool IsSymbolic(uint32_t x) {
   return McTest_IsSymbolicUInt(x);
 }
 
-inline static bool IsSymbolic(int32_t x) {
+MCTEST_INLINE static bool IsSymbolic(int32_t x) {
   return McTest_IsSymbolicInt(x);
 }
 
-inline static int IsSymbolic(uint16_t x) {
+MCTEST_INLINE static int IsSymbolic(uint16_t x) {
   return McTest_IsSymbolicUShort(x);
 }
 
-inline static bool IsSymbolic(int16_t x) {
+MCTEST_INLINE static bool IsSymbolic(int16_t x) {
   return McTest_IsSymbolicShort(x);
 }
 
-inline static bool IsSymbolic(unsigned char x) {
+MCTEST_INLINE static bool IsSymbolic(unsigned char x) {
   return McTest_IsSymbolicUChar(x);
 }
 
-inline static bool IsSymbolic(char x) {
+MCTEST_INLINE static bool IsSymbolic(char x) {
   return McTest_IsSymbolicChar(x);
 }
 
-inline static bool IsSymbolic(float x) {
+MCTEST_INLINE static bool IsSymbolic(float x) {
   return McTest_IsSymbolicFloat(x);
 }
 
-inline static bool IsSymbolic(double x) {
+MCTEST_INLINE static bool IsSymbolic(double x) {
   return McTest_IsSymbolicDouble(x);
 }
 
-inline static bool IsSymbolic(void *x) {
+MCTEST_INLINE static bool IsSymbolic(void *x) {
   return IsSymbolic((uintptr_t) x);
 }
 
@@ -121,15 +121,15 @@ template <typename T>
 class Symbolic {
  public:
   template <typename... Args>
-  inline Symbolic(Args&& ...args)
+  MCTEST_INLINE Symbolic(Args&& ...args)
       : value(std::forward<Args...>(args)...) {}
 
-  inline Symbolic(void) {
+  MCTEST_INLINE Symbolic(void) {
     T *val_ptr = &value;
     McTest_SymbolizeData(val_ptr, &(val_ptr[1]));
   }
 
-  inline operator T (void) const {
+  MCTEST_INLINE operator T (void) const {
     return value;
   }
 
@@ -139,17 +139,17 @@ class Symbolic {
 template <typename T>
 class SymbolicLinearContainer {
  public:
-  inline explicit SymbolicLinearContainer(size_t len)
+  MCTEST_INLINE explicit SymbolicLinearContainer(size_t len)
       : value(len) {
     if (len) {
       McTest_SymbolizeData(&(value.begin()), &(value.end()));
     }
   }
 
-  inline SymbolicLinearContainer(void)
+  MCTEST_INLINE SymbolicLinearContainer(void)
       : SymbolicLinearContainer(McTest_SizeInRange(0, 32)) {}
 
-  inline operator T (void) const {
+  MCTEST_INLINE operator T (void) const {
     return value;
   }
 
@@ -174,9 +174,9 @@ class Symbolic<std::vector<T>> :
     template <> \
     class Symbolic<tname> { \
      public: \
-      inline Symbolic(void) \
+      MCTEST_INLINE Symbolic(void) \
           : value(McTest_ ## Tname()) {} \
-      inline operator tname (void) const { \
+      MCTEST_INLINE operator tname (void) const { \
         return value; \
       } \
       tname value; \

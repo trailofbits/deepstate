@@ -22,14 +22,14 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include <mctest/Compiler.h>
+
 #ifdef assert
 # undef assert
 #endif
 #define assert McTest_Assert
 
-#ifdef __cplusplus
-extern "C" {
-#endif  /* __cplusplus */
+MCTEST_BEGIN_EXTERN_C
 
 /* Return a symbolic value of a given type. */
 extern int McTest_Bool(void);
@@ -46,7 +46,7 @@ extern int8_t McTest_Char(void);
 /* Symbolize the data in the range `[begin, end)`. */
 extern void McTest_SymbolizeData(void *begin, void *end);
 
-inline static void *McTest_Malloc(size_t num_bytes) {
+MCTEST_INLINE static void *McTest_Malloc(size_t num_bytes) {
   void *data = malloc(num_bytes);
   uintptr_t data_end = ((uintptr_t) data) + num_bytes;
   McTest_SymbolizeData(data, (void *) data_end);
@@ -54,7 +54,8 @@ inline static void *McTest_Malloc(size_t num_bytes) {
 }
 
 #define MCTEST_MAKE_SYMBOLIC_ARRAY(Tname, tname) \
-    inline static tname *McTest_Symbolic ## Tname ## Array(size_t num_elms) { \
+    MCTEST_INLINE static \
+    tname *McTest_Symbolic ## Tname ## Array(size_t num_elms) { \
       tname *arr = (tname *) malloc(sizeof(tname) * num_elms); \
       McTest_SymbolizeData(arr, &(arr[num_elms])); \
       return arr; \
@@ -72,7 +73,7 @@ MCTEST_MAKE_SYMBOLIC_ARRAY(UChar, unsigned char)
 #undef MCTEST_MAKE_SYMBOLIC_ARRAY
 
 /* Return a symbolic C string. */
-inline static char *McTest_CStr(size_t len) {
+MCTEST_INLINE static char *McTest_CStr(size_t len) {
   char *str = (char *) malloc(sizeof(char) * len);
   if (len) {
     McTest_SymbolizeData(str, &(str[len - 1]));
@@ -87,14 +88,14 @@ extern void _McTest_Assume(int expr);
 
 #define McTest_Assume(x) _McTest_Assume(!!(x))
 
-__attribute__((noreturn))
+MCTEST_NORETURN
 extern void McTest_Fail(void);
 
-__attribute__((noreturn))
+MCTEST_NORETURN
 extern void McTest_Pass(void);
 
 /* Asserts that `expr` must hold. */
-inline static void McTest_Assert(int expr) {
+MCTEST_INLINE static void McTest_Assert(int expr) {
   if (!expr) {
     McTest_Fail();
   }
@@ -102,13 +103,12 @@ inline static void McTest_Assert(int expr) {
 
 /* Return a symbolic value in a the range `[low_inc, high_inc]`. */
 #define MCTEST_MAKE_SYMBOLIC_RANGE(Tname, tname) \
-    inline static tname McTest_ ## Tname ## InRange( \
+    MCTEST_INLINE static tname McTest_ ## Tname ## InRange( \
         tname low, tname high) { \
       tname x = McTest_ ## Tname(); \
       (void) McTest_Assume(low <= x && x <= high); \
       return x; \
     }
-
 
 MCTEST_MAKE_SYMBOLIC_RANGE(Size, size_t)
 MCTEST_MAKE_SYMBOLIC_RANGE(Int64, int64_t)
@@ -125,88 +125,96 @@ MCTEST_MAKE_SYMBOLIC_RANGE(UChar, unsigned char)
 /* Predicates to check whether or not a particular value is symbolic */
 extern int McTest_IsSymbolicUInt(uint32_t x);
 
-inline static int McTest_IsSymbolicInt(int x) {
+/* The following predicates are implemented in terms of `McTest_IsSymbolicUInt`.
+ * This simplifies the portability of hooking this predicate interface across
+ * architectures, because basically all hooking mechanisms know how to get at
+ * the first integer argument. Passing in floating point values, or 64-bit
+ * integers on 32-bit architectures, can be more subtle. */
+
+MCTEST_INLINE static int McTest_IsSymbolicInt(int x) {
   return McTest_IsSymbolicUInt((uint32_t) x);
 }
 
-inline static int McTest_IsSymbolicUShort(uint16_t x) {
+MCTEST_INLINE static int McTest_IsSymbolicUShort(uint16_t x) {
   return McTest_IsSymbolicUInt((uint32_t) x);
 }
 
-inline static int McTest_IsSymbolicShort(int16_t x) {
+MCTEST_INLINE static int McTest_IsSymbolicShort(int16_t x) {
   return McTest_IsSymbolicUInt((uint32_t) (uint16_t) x);
 }
 
-inline static int McTest_IsSymbolicUChar(unsigned char x) {
+MCTEST_INLINE static int McTest_IsSymbolicUChar(unsigned char x) {
   return McTest_IsSymbolicUInt((uint32_t) x);
 }
 
-inline static int McTest_IsSymbolicChar(char x) {
+MCTEST_INLINE static int McTest_IsSymbolicChar(char x) {
   return McTest_IsSymbolicUInt((uint32_t) (unsigned char) x);
 }
 
-inline static int McTest_IsSymbolicUInt64(uint64_t x) {
+MCTEST_INLINE static int McTest_IsSymbolicUInt64(uint64_t x) {
   return McTest_IsSymbolicUInt((uint32_t) x) ||
          McTest_IsSymbolicUInt((uint32_t) (x >> 32U));
 }
 
-inline static int McTest_IsSymbolicInt64(int64_t x) {
+MCTEST_INLINE static int McTest_IsSymbolicInt64(int64_t x) {
   return McTest_IsSymbolicUInt64((uint64_t) x);
 }
 
-inline static int McTest_IsSymbolicBool(int x) {
+MCTEST_INLINE static int McTest_IsSymbolicBool(int x) {
   return McTest_IsSymbolicInt(x);
 }
 
-inline static int McTest_IsSymbolicFloat(float x) {
+MCTEST_INLINE static int McTest_IsSymbolicFloat(float x) {
   return McTest_IsSymbolicUInt(*((uint32_t *) &x));
 }
 
-inline static int McTest_IsSymbolicDouble(double x) {
+MCTEST_INLINE static int McTest_IsSymbolicDouble(double x) {
   return McTest_IsSymbolicUInt64(*((uint64_t *) &x));
 }
 
-#define _MCTEST_TO_STR(a) __MCTEST_TO_STR(a)
-#define __MCTEST_TO_STR(a) #a
-
-#ifdef __cplusplus
-# define MCTEST_BEGIN_EXTERN_C extern "C" {
-# define MCTEST_END_EXTERN_C }
-#else
-# define MCTEST_BEGIN_EXTERN_C
-# define MCTEST_END_EXTERN_C
-#endif
-
+/* Used to define the entrypoint of a test case. */
 #define McTest_EntryPoint(test_name) \
     _McTest_EntryPoint(test_name, __FILE__, __LINE__)
 
-struct __attribute__((packed)) McTest_TestInfo {
+/* Contains information about a test case */
+struct McTest_TestInfo {
+  struct McTest_TestInfo *prev;
   void (*test_func)(void);
   const char *test_name;
   const char *file_name;
   unsigned line_number;
-  uint8_t padding[28 - (3 * sizeof(void *))];
 };
 
+/* Pointer to the last registered `TestInfo` structure. */
+extern struct McTest_TestInfo *McTest_LastTestInfo;
+
+/* Defines the entrypoint of a test case. This creates a data structure that
+ * contains the information about the test, and then creates an initializer
+ * function that runs before `main` that registers the test entrypoint with
+ * McTest. */
 #define _McTest_EntryPoint(test_name, file, line) \
     static void McTest_Test_ ## test_name (void); \
     static void McTest_Run_ ## test_name (void) { \
       McTest_Test_ ## test_name(); \
       McTest_Pass(); \
     } \
-    MCTEST_BEGIN_EXTERN_C \
-    struct McTest_TestInfo McTest_Register_ ## test_name \
-    __attribute__((section(".mctest_funcs"))) = { \
+    static struct McTest_TestInfo McTest_Info_ ## test_name = { \
+      NULL, \
       McTest_Run_ ## test_name, \
-      _MCTEST_TO_STR(test_name), \
+      MCTEST_TO_STR(test_name), \
       file, \
-      line \
+      line, \
     }; \
-    MCTEST_END_EXTERN_C \
+    MCTEST_INITIALIZER(McTest_Register_ ## test_name) { \
+      McTest_Info_ ## test_name.prev = McTest_LastTestInfo; \
+      McTest_LastTestInfo = &(McTest_Info_ ## test_name); \
+    } \
     void McTest_Test_ ## test_name(void)
 
 
-#ifdef __cplusplus
-}  /* extern C */
-#endif  /* __cplusplus */
+/* Start McTest and run the tests. Returns the number of failed tests. */
+extern int McTest_Run(void);
+
+MCTEST_END_EXTERN_C
+
 #endif  /* INCLUDE_MCTEST_MCTEST_H_ */

@@ -18,8 +18,7 @@
 
 using namespace mctest;
 
-__attribute__((noinline))
-int add(int x, int y) {
+MCTEST_NOINLINE int add(int x, int y) {
   return x + y;
 }
 
@@ -27,4 +26,8 @@ McTest_EntryPoint(AdditionIsCommutative) {
   ForAll<int, int>([] (int x, int y) {
     McTest_Assert(add(x, y) == add(y, x));
   });
+}
+
+int main(int argc, char *argv[]) {
+  return McTest_Run();
 }

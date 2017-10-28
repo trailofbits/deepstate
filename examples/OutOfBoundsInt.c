@@ -25,5 +25,9 @@ McTest_EntryPoint(YIsAlwaysPositive) {
 McTest_EntryPoint(YIsAlwaysPositive_CanFail) {
   int x = McTest_IntInRange(-10, 10);
   int y = x * x * x;
-  McTest_Assert(y >= 0);  /* This will fail */
+  McTest_Assert(y >= 0);  /* This can fail */
+}
+
+int main(int argc, char *argv[]) {
+  return McTest_Run();
 }
