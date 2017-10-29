@@ -113,10 +113,6 @@ MCTEST_INLINE static bool IsSymbolic(double x) {
   return McTest_IsSymbolicDouble(x);
 }
 
-MCTEST_INLINE static bool IsSymbolic(void *x) {
-  return IsSymbolic(reinterpret_cast<uintptr_t>(x));
-}
-
 template <typename T>
 class Symbolic {
  public:
