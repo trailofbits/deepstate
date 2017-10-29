@@ -30,8 +30,8 @@ class EntryPointPlugin(manticore.core.plugin.Plugin):
   def on_syscall_callback(self, state, index):
     if 0x41414141 == index:
       print 'here!!!!!'
-      state_id = self._executor._workspace.save_state(state)
-      self._executor.put(state_id)
+      state_id = self.manticore._executor._workspace.save_state(state)
+      self.manticore._executor.put(state_id)
       raise manticore.TerminateState("Canceled", testcase=False)
 
 
