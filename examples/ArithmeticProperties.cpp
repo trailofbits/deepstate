@@ -14,20 +14,37 @@
  * limitations under the License.
  */
 
+#include <mctest/McUnit.hpp>
 #include <mctest/Quantified.hpp>
 
 using namespace mctest;
 
-MCTEST_NOINLINE int add(int x, int y) {
-  return x + y;
-}
+// MCTEST_NOINLINE int add(int x, int y) {
+//   return x + y;
+// }
 
-McTest_EntryPoint(AdditionIsCommutative) {
+// TEST(Arithmetic, AdditionIsCommutative) {
+//   ForAll<int, int>([] (int x, int y) {
+//     ASSERT_EQ(add(x, y), add(y, x))
+//         << "Addition of signed integers must commute.";
+//   });
+// }
+
+// TEST(Arithmetic, AdditionIsAssociative) {
+//   ForAll<int, int, int>([] (int x, int y, int z) {
+//     ASSERT_EQ(add(x, add(y, z)), add(add(x, y), z))
+//         << "Addition of signed integers must associate.";
+//   });
+// }
+
+TEST(Arithmetic, InvertibleMultiplication_CanFail) {
   ForAll<int, int>([] (int x, int y) {
-    McTest_Assert(add(x, y) == add(y, x));
+    ASSUME_NE(y, 0);
+    ASSERT_EQ(x, (x / y) * y)
+        << x << " != (" << x << " / " << y << ") * " << y;
   });
 }
 
-int main(int argc, char *argv[]) {
+int main(void) {
   return McTest_Run();
 }

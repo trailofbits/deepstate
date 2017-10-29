@@ -137,8 +137,8 @@ class SymbolicLinearContainer {
  public:
   MCTEST_INLINE explicit SymbolicLinearContainer(size_t len)
       : value(len) {
-    if (len) {
-      McTest_SymbolizeData(&(value.begin()), &(value.end()));
+    if (!value.empty()) {
+      McTest_SymbolizeData(&(value.front()), &(value.back()));
     }
   }
 

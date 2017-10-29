@@ -17,3 +17,7 @@ target_link_libraries(OutOfBoundsInt mctest)
 
 add_executable(ArithmeticProperties ArithmeticProperties.cpp)
 target_link_libraries(ArithmeticProperties mctest)
+
+add_executable(Lists Lists.cpp)
+target_link_libraries(Lists mctest)
+

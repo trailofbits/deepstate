@@ -14,13 +14,18 @@
 # limitations under the License.
 
 from __future__ import absolute_import
+
 import angr
+import argparse
 import collections
 import logging
+import multiprocessing
 import sys
+
 
 L = logging.getLogger("mctest")
 L.setLevel(logging.INFO)
+
 
 def hook_function(project, ea, cls):
   """Hook the function `name` with the SimProcedure `cls`."""
@@ -141,23 +146,134 @@ class Pass(angr.SimProcedure):
   """Implements McTest_Pass, which notifies us of a passing test."""
   def run(self):
     L.info("Passed test case")
-    self.exit(0)
+    self.exit(self.state.globals['failed'])
 
 
 class Fail(angr.SimProcedure):
   """Implements McTest_Fail, which notifies us of a passing test."""
   def run(self):
     L.error("Failed test case")
+    self.state.globals['failed'] = 1
     self.exit(1)
 
 
+class SoftFail(angr.SimProcedure):
+  """Implements McTest_SoftFail, which notifies us of a passing test."""
+  def run(self):
+    L.error("Soft failure in test case, continuing")
+    self.state.globals['failed'] = 1
+
+
+class Log(angr.SimProcedure):
+  """Implements McTest_Log, which lets Angr intercept and handle the printing
+  of log messages from the simulated tests."""
+
+  LEVEL_TO_LOGGER = {
+    0: L.debug,
+    1: L.info,
+    2: L.warning,
+    3: L.error,
+    4: L.critical
+  }
+
+  def run(self, level, begin_ea, end_ea):
+    print self.state.regs.rdi, level
+    print self.state.regs.rsi, begin_ea
+    print self.state.regs.rdx, end_ea
+    level = self.state.solver.eval(level, cast_to=int)
+    assert level in self.LEVEL_TO_LOGGER
+
+    begin_ea = self.state.solver.eval(begin_ea, cast_to=int)
+    end_ea = self.state.solver.eval(end_ea, cast_to=int)
+    assert begin_ea <= end_ea
+
+    print level, begin_ea, end_ea
+
+    # Read the message from memory.
+    message = ""
+    if begin_ea < end_ea:
+      size = end_ea - begin_ea
+
+      # If this is an error message, then concretize the message, adding the
+      # concretizations to the state so that errors we output will eventually
+      # match the concrete inputs that we generate.
+      if 3 <= level:
+        message_bytes = []
+        for i in xrange(size):
+          byte = self.state.memory.load(begin_ea + i, size=8)
+          byte_as_ord = self.state.solver.eval(byte, cast_to=int)
+          if self.state.se.symbolic(byte):
+            self.state.solver.add(byte == byte_as_ord)
+          message_bytes.append(chr(byte_as_ord))
+
+        message = "".join(message_bytes)
+      
+      # Warning/informational message, don't assert any new constraints.
+      else:
+        data = self.state.memory.load(begin_ea, size=size)
+        message = self.state.solver.eval(data, cast_to=str)
+
+    # Log the message (produced by the program) through to the Python-based
+    # logger.
+    self.LEVEL_TO_LOGGER[level](message)
+
+    if 3 == level:
+      L.error("Soft failure in test case, continuing")
+      self.state.globals['failed'] = 1  # Soft failure on an error log message.
+    elif 4 == level:
+      L.error("Failed test case")
+      self.state.globals['failed'] = 1
+      self.exit(1)  # Hard failure on a fatal/critical log message.
+
+
+def run_test(project, test, run_state):
+  """Symbolically executes a single test function."""
+  test_state = project.factory.call_state(
+      test.ea,
+      base_state=run_state)
+
+  errored = []
+  test_manager = angr.SimulationManager(
+      project=project,
+      active_states=[test_state],
+      errored=errored)
+
+  L.info("Running test case {} from {}:{}".format(
+      test.name, test.file_name, test.line_number))
+  print 'running...'
+  try:
+    test_manager.run()
+  except Exception as e:
+    import traceback
+    print e
+    print traceback.format_exc()
+    print test_manager
+  print 'done running'
+  print errored
+  for state in test_manager.deadended:
+    last_event = state.history.events[-1]
+    if 'terminate' == last_event.type:
+      code = last_event.objects['exit_code']._model_concrete.value
+  print '???'
+  print test_manager
+
 def main():
   """Run McTest."""
-  if 2 > len(sys.argv):
-    return 1
+
+  parser = argparse.ArgumentParser(
+      description="Symbolically execute unit tests with Angr")
+
+  parser.add_argument(
+      "--num_workers", default=1, type=int,
+      help="Number of workers to spawn for testing and test generation.")
+
+  parser.add_argument(
+      "binary", type=str, help="Path to the test binary to run.")
+
+  args = parser.parse_args()
 
   project = angr.Project(
-      sys.argv[1],
+      args.binary,
       use_sim_procedures=True,
       translation_cache=True,
       support_selfmodifying_code=False,
@@ -170,8 +286,8 @@ def main():
   concrete_manager = angr.SimulationManager(
         project=project,
         active_states=[entry_state])
-  run_ea = project.kb.labels.lookup('McTest_Run')
-  concrete_manager.explore(find=run_ea)
+  setup_ea = project.kb.labels.lookup('McTest_Setup')
+  concrete_manager.explore(find=setup_ea)
   run_state = concrete_manager.found[0]
     
   # Read the API table, which will tell us about the location of various
@@ -190,31 +306,32 @@ def main():
   hook_function(project, apis['Assume'], Assume)
   hook_function(project, apis['Pass'], Pass)
   hook_function(project, apis['Fail'], Fail)
+  hook_function(project, apis['SoftFail'], SoftFail)
+  hook_function(project, apis['Log'], Log)
 
   # Find the test cases that we want to run.
   tests = find_test_cases(run_state, apis['LastTestInfo'])
+
+  # This will track whether or not a particular state has failed. Some states
+  # will soft fail, but continue their execution, and so we want to make sure
+  # that if they continue to a pass function, that they nonetheless are treated
+  # as failing.
+  run_state.globals['failed'] = 0
+  run_state.globals['log_messages'] = []
+
+  pool = multiprocessing.Pool(processes=max(1, args.num_workers))
+  results = []
 
   # For each test, create a simulation manager whose initial state calls into
   # the test case function.
   test_managers = []
   for test in tests:
-    test_state = project.factory.call_state(
-        test.ea,
-        base_state=run_state)
+    res = pool.apply_async(run_test, (project, test, run_state))
+    results.append(res)
 
-    test_manager = angr.SimulationManager(
-        project=project,
-        active_states=[test_state])
+  pool.close()
+  pool.join()
 
-    L.info("Running test case {} from {}:{}".format(
-        test.name, test.file_name, test.line_number))
-    test_manager.run()
-
-    for state in test_manager.deadended:
-      last_event = state.history.events[-1]
-      if 'terminate' == last_event.type:
-        code = last_event.objects['exit_code']._model_concrete.value
-    
   return 0
 
 if "__main__" == __name__:

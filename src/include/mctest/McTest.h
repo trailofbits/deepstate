@@ -18,9 +18,12 @@
 #define INCLUDE_MCTEST_MCTEST_H_
 
 #include <assert.h>
+#include <setjmp.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <mctest/Compiler.h>
 
@@ -42,6 +45,11 @@ extern uint16_t McTest_UShort(void);
 extern int16_t McTest_Short(void);
 extern uint8_t McTest_UChar(void);
 extern int8_t McTest_Char(void);
+
+/* Returns `1` if `expr` is true, and `0` otherwise. This is kind of an indirect
+ * way to take a symbolic value, introduce a fork, and on each size, replace its
+* value with a concrete value. */
+extern int McTest_IsTrue(int expr);
 
 /* Symbolize the data in the range `[begin, end)`. */
 extern void McTest_SymbolizeData(void *begin, void *end);
@@ -91,15 +99,39 @@ extern void _McTest_Assume(int expr);
 MCTEST_NORETURN
 extern void McTest_Fail(void);
 
+/* Mark this test as failing, but don't hard exit. */
+extern void McTest_SoftFail(void);
+
 MCTEST_NORETURN
 extern void McTest_Pass(void);
 
-/* Asserts that `expr` must hold. */
+/* Asserts that `expr` must hold. If it does not, then the test fails and
+ * immediately stops. */
 MCTEST_INLINE static void McTest_Assert(int expr) {
   if (!expr) {
     McTest_Fail();
   }
 }
+
+/* Asserts that `expr` must hold. If it does not, then the test fails, but
+ * nonetheless continues on. */
+MCTEST_INLINE static void McTest_Check(int expr) {
+  if (!expr) {
+    McTest_SoftFail();
+  }
+}
+
+enum McTest_LogLevel {
+  McTest_LogDebug = 0,
+  McTest_LogInfo = 1,
+  McTest_LogWarning = 2,
+  McTest_LogError = 3,
+  McTest_LogFatal = 4,
+};
+
+/* Outputs information to a log, using a specific log level. */
+extern void McTest_Log(enum McTest_LogLevel level, const char *begin,
+                       const char *end);
 
 /* Return a symbolic value in a the range `[low_inc, high_inc]`. */
 #define MCTEST_MAKE_SYMBOLIC_RANGE(Tname, tname) \
@@ -211,9 +243,68 @@ extern struct McTest_TestInfo *McTest_LastTestInfo;
     } \
     void McTest_Test_ ## test_name(void)
 
+/* Set up McTest. */
+extern void McTest_Setup(void);
+
+/* Return the first test case to run. */
+extern struct McTest_TestInfo *McTest_FirstTest(void);
+
+/* Returns 1 if a failure was caught, otherwise 0. */
+extern int McTest_CatchFail(void);
+
+/* Jump buffer for returning to `McTest_Run`. */
+extern jmp_buf McTest_ReturnToRun;
 
 /* Start McTest and run the tests. Returns the number of failed tests. */
-extern int McTest_Run(void);
+static int McTest_Run(void) {
+  int num_failed_tests = 0;
+  struct McTest_TestInfo *test = NULL;
+  char buff[1024];
+  int num_buff_bytes_used = 0;
+
+  McTest_Setup();
+
+  for (test = McTest_FirstTest(); test != NULL; test = test->prev) {
+
+    /* Print the test that we're going to run. */
+    num_buff_bytes_used = sprintf(buff, "Running: %s from %s:%u",
+                                  test->test_name, test->file_name,
+                                  test->line_number);
+    McTest_Log(McTest_LogInfo, buff, &(buff[num_buff_bytes_used]));
+
+    /* Run the test. */
+    if (!setjmp(McTest_ReturnToRun)) {
+      
+      /* Convert uncaught C++ exceptions into a test failure. */
+#if defined(__cplusplus) && defined(__cpp_exceptions)
+      try {
+#endif  /* __cplusplus */
+
+      test->test_func();  /* Run the test function. */
+      McTest_Pass();
+
+#if defined(__cplusplus) && defined(__cpp_exceptions)
+      } catch(...) {
+        McTest_Fail();
+      }
+#endif  /* __cplusplus */
+
+    /* We caught a failure when running the test. */
+    } else if (McTest_CatchFail()) {
+      ++num_failed_tests;
+
+      num_buff_bytes_used = sprintf(buff, "Failed: %s", test->test_name);
+      McTest_Log(McTest_LogInfo, buff, &(buff[num_buff_bytes_used]));
+
+    /* The test passed. */
+    } else {
+      num_buff_bytes_used = sprintf(buff, "Passed: %s", test->test_name);
+      McTest_Log(McTest_LogInfo, buff, &(buff[num_buff_bytes_used]));
+    }
+  }
+
+  return num_failed_tests;
+}
 
 MCTEST_END_EXTERN_C
 

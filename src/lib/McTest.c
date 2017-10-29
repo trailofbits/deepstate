@@ -18,6 +18,7 @@
 
 #include <assert.h>
 #include <setjmp.h>
+#include <stdio.h>
 
 #if defined(unix) || defined(__unix) || defined(__unix__)
 # define _GNU_SOURCE
@@ -41,23 +42,26 @@ static volatile uint8_t McTest_Input[McTest_InputLength];
  * been consumed. */
 static uint32_t McTest_InputIndex = 0;
 
-/* Jump buffer for returning to `McTest_Main`. */
-static jmp_buf McTest_ReturnToMain;
+/* Jump buffer for returning to `McTest_Run`. */
+jmp_buf McTest_ReturnToRun = {};
 
-static int McTest_TestPassed = 0;
+static int McTest_TestFailed = 0;
 
 /* Mark this test as failing. */
 MCTEST_NORETURN
-extern void McTest_Fail(void) {
-  McTest_TestPassed = 0;
-  longjmp(McTest_ReturnToMain, 1);
+void McTest_Fail(void) {
+  McTest_TestFailed = 1;
+  longjmp(McTest_ReturnToRun, 1);
 }
 
 /* Mark this test as passing. */
 MCTEST_NORETURN
-extern void McTest_Pass(void) {
-  McTest_TestPassed = 1;
-  longjmp(McTest_ReturnToMain, 0);
+void McTest_Pass(void) {
+  longjmp(McTest_ReturnToRun, 0);
+}
+
+void McTest_SoftFail(void) {
+  McTest_TestFailed = 1;
 }
 
 void McTest_SymbolizeData(void *begin, void *end) {
@@ -76,6 +80,25 @@ void McTest_SymbolizeData(void *begin, void *end) {
   }
 }
 
+MCTEST_NOINLINE int McTest_One(void) {
+  return 1;
+}
+
+MCTEST_NOINLINE int McTest_Zero(void) {
+  return 0;
+}
+
+/* Returns `1` if `expr` is true, and `0` otherwise. This is kind of an indirect
+ * way to take a symbolic value, introduce a fork, and on each size, replace its
+* value with a concrete value. */
+int McTest_IsTrue(int expr) {
+  if (expr == McTest_Zero()) {
+    return McTest_Zero();
+  } else {
+    return McTest_One();
+  }
+}
+
 /* Return a symbolic value of a given type. */
 int McTest_Bool(void) {
   return McTest_Input[McTest_InputIndex++] & 1;
@@ -90,6 +113,9 @@ int McTest_Bool(void) {
       } \
       return val; \
     }
+
+
+MAKE_SYMBOL_FUNC(Size, size_t)
 
 MAKE_SYMBOL_FUNC(UInt64, uint64_t)
 int64_t McTest_Int64(void) {
@@ -122,6 +148,39 @@ int McTest_IsSymbolicUInt(uint32_t x) {
   return 0;
 }
 
+/* Returns a printable string version of the log level. */
+static const char *McTest_LogLevelStr(enum McTest_LogLevel level) {
+  switch (level) {
+    case McTest_LogDebug:
+      return "DEBUG";
+    case McTest_LogInfo:
+      return "INFO";
+    case McTest_LogWarning:
+      return "WARNING";
+    case McTest_LogError:
+      return "ERROR";
+    case McTest_LogFatal:
+      return "FATAL";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+/* Outputs information to a log, using a specific log level. */
+void McTest_Log(enum McTest_LogLevel level, const char *begin,
+                const char *end) {
+  int str_len = (int) (end - begin);
+  fprintf(stderr, "%s: %.*s\n", McTest_LogLevelStr(level),
+          str_len, begin);
+  
+  if (McTest_LogError == level) {
+    McTest_SoftFail();
+
+  } else if (McTest_LogFatal == level) {
+    McTest_Fail();
+  }
+}
+
 /* A McTest-specific symbol that is needed for hooking. */
 struct McTest_IndexEntry {
   const char * const name;
@@ -133,6 +192,8 @@ struct McTest_IndexEntry {
 const struct McTest_IndexEntry McTest_API[] = {
   {"Pass",            (void *) McTest_Pass},
   {"Fail",            (void *) McTest_Fail},
+  {"SoftFail",        (void *) McTest_SoftFail},
+  {"Log",             (void *) McTest_Log},
   {"Assume",          (void *) _McTest_Assume},
   {"IsSymbolicUInt",  (void *) McTest_IsSymbolicUInt},
   {"InputBegin",      (void *) &(McTest_Input[0])},
@@ -142,8 +203,8 @@ const struct McTest_IndexEntry McTest_API[] = {
   {NULL, NULL},
 };
 
-int McTest_Run(void) {
-
+/* Set up McTest. */
+void McTest_Setup(void) {
   /* Manticore entrypoint. Manticore doesn't (yet?) support symbol lookups, so
    * we instead interpose on this fake system call, and discover the API table
    * via the first argument to the system call. */
@@ -153,25 +214,17 @@ int McTest_Run(void) {
   syscall(0x41414141, &McTest_API);
 #endif
 
-  int num_failed_tests = 0;
-  for (struct McTest_TestInfo *info = McTest_LastTestInfo;
-       info != NULL;
-       info = info->prev) {
+  /* TODO(pag): Sort the test cases by file name and line number. */
+}
 
-    McTest_TestPassed = 0;
-    if (!setjmp(McTest_ReturnToMain)) {
-      printf("Running %s from %s:%u\n", info->test_name, info->file_name,
-             info->line_number);
-      info->test_func();
+/* Return the first test case to run. */
+struct McTest_TestInfo *McTest_FirstTest(void) {
+  return McTest_LastTestInfo;
+}
 
-    } else if (McTest_TestPassed) {
-      printf("  %s Passed\n", info->test_name);
-    } else {
-      printf("  %s Failed\n", info->test_name);
-      num_failed_tests += 1;
-    }
-  }
-  return num_failed_tests;
+/* Returns 1 if a failure was caught, otherwise 0. */
+int McTest_CatchFail(void) {
+  return McTest_TestFailed;
 }
 
 MCTEST_END_EXTERN_C

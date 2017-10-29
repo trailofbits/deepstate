@@ -34,6 +34,6 @@ setuptools.setup(
     entry_points={
         'console_scripts': [
             'mctest = mctest.__main__:main',
-            'mctest-angr = mctest.angr:main'
+            'mctest-angr = mctest.main_angr:main'
         ]
     })
