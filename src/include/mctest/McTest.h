@@ -269,7 +269,7 @@ static int McTest_Run(void) {
   for (test = McTest_FirstTest(); test != NULL; test = test->prev) {
 
     /* Print the test that we're going to run. */
-    num_buff_bytes_used = sprintf(buff, "Running: %s from %s:%u",
+    num_buff_bytes_used = sprintf(buff, "Running: %s from %s(%u)",
                                   test->test_name, test->file_name,
                                   test->line_number);
     McTest_Log(McTest_LogInfo, buff, &(buff[num_buff_bytes_used]));

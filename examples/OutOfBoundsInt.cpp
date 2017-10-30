@@ -14,18 +14,20 @@
  * limitations under the License.
  */
 
-#include <mctest/McTest.h>
+#include <mctest/McUnit.hpp>
 
-McTest_EntryPoint(YIsAlwaysPositive) {
+TEST(BoundsCheck, YIsAlwaysPositive) {
   int x = McTest_IntInRange(-10, 10);
   int y = x * x;
-  McTest_Assert(y >= 0);
+  ASSERT_GE(y, 0)
+      << "Found y=" << y << " was not always positive.";
 }
 
-McTest_EntryPoint(YIsAlwaysPositive_CanFail) {
-  int x = McTest_IntInRange(-10, 10);
-  int y = x * x * x;
-  McTest_Assert(y >= 0);  /* This can fail */
+TEST(BoundsCheck, YIsAlwaysPositive_CanFail) {
+  int x = McTest_Int();
+  int y = x * x;  // Can overflow!
+  ASSERT_GE(y, 0)
+      << "Found y=" << y << " was not always positive.";
 }
 
 int main(int argc, char *argv[]) {

@@ -166,19 +166,43 @@ static const char *McTest_LogLevelStr(enum McTest_LogLevel level) {
   }
 }
 
-/* Outputs information to a log, using a specific log level. */
-void McTest_Log(enum McTest_LogLevel level, const char *begin,
-                const char *end) {
-  int str_len = (int) (end - begin);
-  fprintf(stderr, "%s: %.*s\n", McTest_LogLevelStr(level),
-          str_len, begin);
-  
+enum {
+  McTest_LogBufSize = 4096
+};
+
+char McTest_LogBuf[McTest_LogBufSize + 1] = {};
+
+
+void _McTest_Log(enum McTest_LogLevel level, const char *message) {
+  fprintf(stderr, "%s: %s\n", McTest_LogLevelStr(level), message);
   if (McTest_LogError == level) {
     McTest_SoftFail();
 
   } else if (McTest_LogFatal == level) {
     McTest_Fail();
   }
+}
+
+/* Outputs information to a log, using a specific log level. */
+void McTest_Log(enum McTest_LogLevel level, const char *begin,
+                 const char *end) {
+  if (end <= begin) {
+    return;
+  }
+
+  size_t size = (size_t) (end - begin);
+  if (size > McTest_LogBufSize) {
+    size = McTest_LogBufSize;
+  }
+
+  /* When we interpose on _McTest_Log, we are looking for the first non-symbolic
+   * zero byte as our end of string character, so we want to guarantee that we
+   * have a bunch of those */
+  memset(McTest_LogBuf, 0, McTest_LogBufSize);
+  memcpy(McTest_LogBuf, begin, size);
+  McTest_LogBuf[McTest_LogBufSize] = '\0';
+
+  _McTest_Log(level, McTest_LogBuf);
 }
 
 /* A McTest-specific symbol that is needed for hooking. */
@@ -193,7 +217,7 @@ const struct McTest_IndexEntry McTest_API[] = {
   {"Pass",            (void *) McTest_Pass},
   {"Fail",            (void *) McTest_Fail},
   {"SoftFail",        (void *) McTest_SoftFail},
-  {"Log",             (void *) McTest_Log},
+  {"Log",             (void *) _McTest_Log},
   {"Assume",          (void *) _McTest_Assume},
   {"IsSymbolicUInt",  (void *) McTest_IsSymbolicUInt},
   {"InputBegin",      (void *) &(McTest_Input[0])},

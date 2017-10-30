@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_executable(OutOfBoundsInt OutOfBoundsInt.c)
+add_executable(OutOfBoundsInt OutOfBoundsInt.cpp)
 target_link_libraries(OutOfBoundsInt mctest)
 
 add_executable(ArithmeticProperties ArithmeticProperties.cpp)

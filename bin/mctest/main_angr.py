@@ -29,7 +29,7 @@ L.setLevel(logging.INFO)
 
 
 def hook_function(project, ea, cls):
-  """Hook the function `name` with the SimProcedure `cls`."""
+  """Hook the function `ea` with the SimProcedure `cls`."""
   project.hook(ea, cls(project=project))
 
 
@@ -186,16 +186,22 @@ LEVEL_TO_LOGGER = {
 class Log(angr.SimProcedure):
   """Implements McTest_Log, which lets Angr intercept and handle the
   printing of log messages from the simulated tests."""
-  def run(self, level, begin_ea, end_ea):
+  def run(self, level, begin_ea_):
     level = self.state.solver.eval(level, cast_to=int)
     assert level in LEVEL_TO_LOGGER
 
-    begin_ea = self.state.solver.eval(begin_ea, cast_to=int)
-    end_ea = self.state.solver.eval(end_ea, cast_to=int)
-    assert begin_ea <= end_ea
+    begin_ea = self.state.solver.eval(begin_ea_, cast_to=int)
+    if self.state.se.symbolic(begin_ea_):
+      self.state.solver.add(begin_ea_ == begin_ea)
 
-    size = end_ea - begin_ea
-    data = self.state.memory.load(begin_ea, size=size)
+    data = []
+    for i in xrange(4096):
+      b = self.state.memory.load(begin_ea + i, size=1)
+      solutions = self.state.solver.eval_upto(b, 2, cast_to=int)
+      if 1 == len(solutions) and solutions[0] == 0:
+        break
+      data.append(b)
+
     self.state.globals['log_messages'].append((level, data))
 
     if 3 == level:
@@ -212,9 +218,15 @@ def done_test(state):
   
   # Dump out any pending log messages reported by `McTest_Log`.
   for level, message in state.globals['log_messages']:
-    if not isinstance(message, str):
-      message = state.solver.eval(message, cast_to=str)
-    LEVEL_TO_LOGGER[level]("".join(message))
+    data = []
+    for b in message:
+      if not isinstance(b, str):
+        b = state.solver.eval(b, cast_to=str)
+      if not ord(b):
+        break
+      data.append(b)
+
+    LEVEL_TO_LOGGER[level]("".join(data))
 
   max_length = state.globals['InputEnd'] - state.globals['InputBegin']
   if input_length > max_length:
@@ -239,7 +251,7 @@ def do_run_test(project, test, apis, run_state):
       test.ea,
       base_state=run_state)
 
-  messages = [(1, "Running {} from {}:{}".format(
+  messages = [(1, "Running {} from {}({})".format(
       test.name, test.file_name, test.line_number))]
 
   test_state.globals['InputBegin'] = apis['InputBegin']
@@ -329,6 +341,9 @@ def main():
 
   # Find the test cases that we want to run.
   tests = find_test_cases(run_state, apis['LastTestInfo'])
+
+  L.info("Running {} tests across {} workers".format(
+      len(tests), args.num_workers))
 
   pool = multiprocessing.Pool(processes=max(1, args.num_workers))
   results = []

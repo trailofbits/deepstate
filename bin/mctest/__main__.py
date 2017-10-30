@@ -174,19 +174,20 @@ LEVEL_TO_LOGGER = {
 }
 
 
-def hook_Log(state, level, begin_ea, end_ea):
+def hook_Log(state, level, begin_ea):
   """Implements McTest_Log, which lets Manticore intercept and handle the
   printing of log messages from the simulated tests."""
   level = state.solve_one(level)
   assert level in LEVEL_TO_LOGGER
 
   begin_ea = state.solve_one(begin_ea)
-  end_ea = state.solve_one(end_ea)
-  assert begin_ea <= end_ea
 
   message_bytes = []
-  for i in xrange(end_ea - begin_ea):
-    message_bytes.append(state.cpu.memory[begin_ea + i])
+  for i in xrange(4096):
+    b = state.cpu.read_int(begin_ea + i, 8)
+    if not issymbolic(b) and b == 0:
+      break
+    message_bytes.append(b)
   
   state.context['log_messages'].append((level, message_bytes))
 
@@ -209,14 +210,11 @@ def done_test(_, state, state_id, reason):
   for level, message_bytes in state.context['log_messages']:
     message = []
     for b in message_bytes:
-      if issymbolic(b):
-        b_ord = state.solve_one(b)
-        state.constrain(b == b_ord)
-        message.append(chr(b_ord))
-      elif isinstance(b, (int, long)):
-        message.append(chr(b))
+      b_ord = state.solve_one(b)
+      if b_ord == 0:
+        break
       else:
-        message.append(b)
+        message.append(chr(b_ord))
 
     LEVEL_TO_LOGGER[level]("".join(message))
 
@@ -230,8 +228,7 @@ def done_test(_, state, state_id, reason):
   output = []
   for i in xrange(input_length):
     b = state.cpu.read_int(state.context['InputBegin'] + i, 8)
-    if issymbolic(b):
-      b = state.solve_one(b)
+    b = state.solve_one(b)
     output.append("{:2x}".format(b))
 
   L.info("Input: {}".format(" ".join(output)))
@@ -244,7 +241,7 @@ def do_run_test(state, apis, test):
   m.verbosity(1)
 
   state = m.initial_state
-  messages = [(1, "Running {} from {}:{}".format(
+  messages = [(1, "Running {} from {}({})".format(
       test.name, test.file_name, test.line_number))]
 
   state.context['InputBegin'] = apis['InputBegin']
@@ -279,6 +276,10 @@ def run_tests(args, state, apis):
   pool = multiprocessing.Pool(processes=max(1, args.num_workers))
   results = []
   tests = find_test_cases(state, apis['LastTestInfo'])
+  
+  L.info("Running {} tests across {} workers".format(
+      len(tests), args.num_workers))
+
   for test in tests:
     res = pool.apply_async(run_test, (state, apis, test))
     results.append(res)
@@ -302,7 +303,7 @@ def main():
 
   args = parser.parse_args()
 
-  m = manticore.Manticore(sys.argv[1], sys.argv[1:])
+  m = manticore.Manticore(args.binary)
   m.verbosity(1)
 
   # Hack to get around current broken _get_symbol_address 
