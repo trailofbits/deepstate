@@ -19,23 +19,23 @@
 
 using namespace mctest;
 
-// MCTEST_NOINLINE int add(int x, int y) {
-//   return x + y;
-// }
+MCTEST_NOINLINE int add(int x, int y) {
+  return x + y;
+}
 
-// TEST(Arithmetic, AdditionIsCommutative) {
-//   ForAll<int, int>([] (int x, int y) {
-//     ASSERT_EQ(add(x, y), add(y, x))
-//         << "Addition of signed integers must commute.";
-//   });
-// }
+TEST(Arithmetic, AdditionIsCommutative) {
+  ForAll<int, int>([] (int x, int y) {
+    ASSERT_EQ(add(x, y), add(y, x))
+        << "Addition of signed integers must commute.";
+  });
+}
 
-// TEST(Arithmetic, AdditionIsAssociative) {
-//   ForAll<int, int, int>([] (int x, int y, int z) {
-//     ASSERT_EQ(add(x, add(y, z)), add(add(x, y), z))
-//         << "Addition of signed integers must associate.";
-//   });
-// }
+TEST(Arithmetic, AdditionIsAssociative) {
+  ForAll<int, int, int>([] (int x, int y, int z) {
+    ASSERT_EQ(add(x, add(y, z)), add(add(x, y), z))
+        << "Addition of signed integers must associate.";
+  });
+}
 
 TEST(Arithmetic, InvertibleMultiplication_CanFail) {
   ForAll<int, int>([] (int x, int y) {

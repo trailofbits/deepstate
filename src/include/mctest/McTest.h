@@ -125,8 +125,10 @@ enum McTest_LogLevel {
   McTest_LogDebug = 0,
   McTest_LogInfo = 1,
   McTest_LogWarning = 2,
+  McTest_LogWarn = McTest_LogWarning,
   McTest_LogError = 3,
   McTest_LogFatal = 4,
+  McTest_LogCritical = McTest_LogFatal
 };
 
 /* Outputs information to a log, using a specific log level. */

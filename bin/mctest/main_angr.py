@@ -21,6 +21,7 @@ import collections
 import logging
 import multiprocessing
 import sys
+import traceback
 
 
 L = logging.getLogger("mctest")
@@ -143,95 +144,112 @@ class Assume(angr.SimProcedure):
       self.exit(2)
 
 
+def report_state(state):
+  test = state.globals['test']
+  if state.globals['failed']:
+    message = (3, "Failed: {}".format(test.name))
+  else:
+    message = (1, "Passed: {}".format(test.name))
+  state.globals['log_messages'].append(message)
+
+
 class Pass(angr.SimProcedure):
   """Implements McTest_Pass, which notifies us of a passing test."""
   def run(self):
-    L.info("Passed test case")
+    report_state(self.state)
     self.exit(self.state.globals['failed'])
 
 
 class Fail(angr.SimProcedure):
   """Implements McTest_Fail, which notifies us of a passing test."""
   def run(self):
-    L.error("Failed test case")
     self.state.globals['failed'] = 1
+    report_state(self.state)
     self.exit(1)
 
 
 class SoftFail(angr.SimProcedure):
   """Implements McTest_SoftFail, which notifies us of a passing test."""
   def run(self):
-    L.error("Soft failure in test case, continuing")
     self.state.globals['failed'] = 1
+
+
+LEVEL_TO_LOGGER = {
+  0: L.debug,
+  1: L.info,
+  2: L.warning,
+  3: L.error,
+  4: L.critical
+}
 
 
 class Log(angr.SimProcedure):
   """Implements McTest_Log, which lets Angr intercept and handle the
   printing of log messages from the simulated tests."""
-
-  LEVEL_TO_LOGGER = {
-    0: L.debug,
-    1: L.info,
-    2: L.warning,
-    3: L.error,
-    4: L.critical
-  }
-
   def run(self, level, begin_ea, end_ea):
-    print self.state.regs.rdi, level
-    print self.state.regs.rsi, begin_ea
-    print self.state.regs.rdx, end_ea
     level = self.state.solver.eval(level, cast_to=int)
-    assert level in self.LEVEL_TO_LOGGER
+    assert level in LEVEL_TO_LOGGER
 
     begin_ea = self.state.solver.eval(begin_ea, cast_to=int)
     end_ea = self.state.solver.eval(end_ea, cast_to=int)
     assert begin_ea <= end_ea
 
-    print level, begin_ea, end_ea
-
-    # Read the message from memory.
-    message = ""
-    if begin_ea < end_ea:
-      size = end_ea - begin_ea
-
-      # If this is an error message, then concretize the message, adding the
-      # concretizations to the state so that errors we output will eventually
-      # match the concrete inputs that we generate.
-      if 3 <= level:
-        message_bytes = []
-        for i in xrange(size):
-          byte = self.state.memory.load(begin_ea + i, size=8)
-          byte_as_ord = self.state.solver.eval(byte, cast_to=int)
-          if self.state.se.symbolic(byte):
-            self.state.solver.add(byte == byte_as_ord)
-          message_bytes.append(chr(byte_as_ord))
-
-        message = "".join(message_bytes)
-      
-      # Warning/informational message, don't assert any new constraints.
-      else:
-        data = self.state.memory.load(begin_ea, size=size)
-        message = self.state.solver.eval(data, cast_to=str)
-
-    # Log the message (produced by the program) through to the Python-based
-    # logger.
-    self.LEVEL_TO_LOGGER[level](message)
+    size = end_ea - begin_ea
+    data = self.state.memory.load(begin_ea, size=size)
+    self.state.globals['log_messages'].append((level, data))
 
     if 3 == level:
-      L.error("Soft failure in test case, continuing")
       self.state.globals['failed'] = 1  # Soft failure on an error log message.
     elif 4 == level:
-      L.error("Failed test case")
       self.state.globals['failed'] = 1
-      self.exit(1)  # Hard failure on a fatal/critical log message.
+      report_state(self.state)
+      self.exit(1)
 
 
-def run_test(project, test, run_state):
+def done_test(state):
+  test = state.globals['test']
+  input_length, _ = read_uint32_t(state, state.globals['InputIndex'])
+  
+  # Dump out any pending log messages reported by `McTest_Log`.
+  for level, message in state.globals['log_messages']:
+    if not isinstance(message, str):
+      message = state.solver.eval(message, cast_to=str)
+    LEVEL_TO_LOGGER[level]("".join(message))
+
+  max_length = state.globals['InputEnd'] - state.globals['InputBegin']
+  if input_length > max_length:
+    L.critical("Test used too many input bytes ({} vs. {})".format(
+        input_length, max_length))
+    return
+
+  # Solve for the input bytes.
+  output = []
+  data = state.memory.load(state.globals['InputBegin'], size=input_length)
+  data = state.solver.eval(data, cast_to=str)
+  for i in xrange(input_length):
+    output.append("{:2x}".format(ord(data[i])))
+
+  L.info("Input: {}".format(" ".join(output)))
+
+
+def do_run_test(project, test, apis, run_state):
   """Symbolically executes a single test function."""
+
   test_state = project.factory.call_state(
       test.ea,
       base_state=run_state)
+
+  messages = [(1, "Running {} from {}:{}".format(
+      test.name, test.file_name, test.line_number))]
+
+  test_state.globals['InputBegin'] = apis['InputBegin']
+  test_state.globals['InputEnd'] = apis['InputEnd']
+  test_state.globals['InputIndex'] = apis['InputIndex']
+  test_state.globals['test'] = test
+  test_state.globals['failed'] = 0
+  test_state.globals['log_messages'] = messages
+  
+  make_symbolic_input(test_state, apis['InputBegin'], apis['InputEnd'])
 
   errored = []
   test_manager = angr.SimulationManager(
@@ -239,24 +257,24 @@ def run_test(project, test, run_state):
       active_states=[test_state],
       errored=errored)
 
-  L.info("Running test case {} from {}:{}".format(
-      test.name, test.file_name, test.line_number))
-  print 'running...'
   try:
     test_manager.run()
   except Exception as e:
-    import traceback
-    print e
-    print traceback.format_exc()
-    print test_manager
-  print 'done running'
-  print errored
+    L.error("Uncaught exception: {}\n{}".format(
+        sys.exc_info()[0], traceback.format_exc()))
+
   for state in test_manager.deadended:
-    last_event = state.history.events[-1]
-    if 'terminate' == last_event.type:
-      code = last_event.objects['exit_code']._model_concrete.value
-  print '???'
-  print test_manager
+    done_test(state)
+
+
+def run_test(project, test, apis, run_state):
+  """Symbolically executes a single test function."""
+  try:
+    do_run_test(project, test, apis, run_state)
+  except Exception as e:
+    L.error("Uncaught exception: {}\n{}".format(
+        sys.exc_info()[0], traceback.format_exc()))
+
 
 def main():
   """Run McTest."""
@@ -278,9 +296,12 @@ def main():
       use_sim_procedures=True,
       translation_cache=True,
       support_selfmodifying_code=False,
-      auto_load_libs=False)
+      auto_load_libs=True)
 
-  entry_state = project.factory.entry_state()
+  entry_state = project.factory.entry_state(
+      add_options={angr.options.ZERO_FILL_UNCONSTRAINED_MEMORY,
+                   angr.options.STRICT_PAGE_ACCESS})
+
   addr_size_bits = entry_state.arch.bits
 
   # Concretely execute up until `McTest_InjectAngr`.
@@ -309,15 +330,6 @@ def main():
   # Find the test cases that we want to run.
   tests = find_test_cases(run_state, apis['LastTestInfo'])
 
-  # This will track whether or not a particular state has failed. Some states
-  # will soft fail, but continue their execution, and so we want to make sure
-  # that if they continue to a pass function, that they nonetheless are treated
-  # as failing.
-  run_state.globals['failed'] = 0
-  run_state.globals['log_messages'] = []
-  run_state.globals['input'] = make_symbolic_input(
-      run_state, apis['InputBegin'], apis['InputEnd'])
-
   pool = multiprocessing.Pool(processes=max(1, args.num_workers))
   results = []
 
@@ -325,7 +337,7 @@ def main():
   # the test case function.
   test_managers = []
   for test in tests:
-    res = pool.apply_async(run_test, (project, test, run_state))
+    res = pool.apply_async(run_test, (project, test, apis, run_state))
     results.append(res)
 
   pool.close()

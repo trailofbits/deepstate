@@ -20,6 +20,7 @@ import logging
 import manticore
 import multiprocessing
 import sys
+import traceback
 
 from manticore.core.state import TerminateState
 from manticore.utils.helpers import issymbolic
@@ -105,8 +106,12 @@ def read_api_table(state, ea):
 def make_symbolic_input(state, input_begin_ea, input_end_ea):
   """Fill in the input data array with symbolic data."""
   input_size = input_end_ea - input_begin_ea
-  data = state.new_symbolic_buffer(nbytes=input_size, name='MCTEST_INPUT')
-  state.cpu.write_bytes(input_begin_ea, data)  
+  data = []
+  for i in xrange(input_end_ea - input_begin_ea):
+    input_byte = state.new_symbolic_value(8, "MCTEST_INPUT_{}".format(i))
+    data.append(input_byte)
+    state.cpu.write_int(input_begin_ea + i, input_byte, 8)
+
   return data
 
 
@@ -131,25 +136,32 @@ def hook_Assume(state, arg):
     state.constrain(constraint)
 
 
+OUR_TERMINATION_REASON = "I McTest'd it"
+
+
+def report_state(state):
+  test = state.context['test']
+  if state.context['failed']:
+    message = (3, "Failed: {}".format(test.name))
+  else:
+    message = (1, "Passed: {}".format(test.name))
+  state.context['log_messages'].append(message)
+  raise TerminateState(OUR_TERMINATION_REASON, testcase=False)
+
+
 def hook_Pass(state):
   """Implements McTest_Pass, which notifies us of a passing test."""
-  L.info("Passed test case")
-  if state.context['failed']:
-    raise TerminateState("Got to end of failing test case.")
-  else:
-    raise TerminateState("Passed test case")
+  report_state(state)
 
 
 def hook_Fail(state):
   """Implements McTest_Fail, which notifies us of a passing test."""
-  L.error("Failed test case")
   state.context['failed'] = 1
-  raise TerminateState("Failed test case")
+  report_state(state)
 
 
 def hook_SoftFail(state):
   """Implements McTest_Fail, which notifies us of a passing test."""
-  L.error("Soft failure in test case, continuing")
   state.context['failed'] = 1
 
 
@@ -162,32 +174,104 @@ LEVEL_TO_LOGGER = {
 }
 
 
-def hook_Log(state):
+def hook_Log(state, level, begin_ea, end_ea):
   """Implements McTest_Log, which lets Manticore intercept and handle the
   printing of log messages from the simulated tests."""
-  pass
+  level = state.solve_one(level)
+  assert level in LEVEL_TO_LOGGER
+
+  begin_ea = state.solve_one(begin_ea)
+  end_ea = state.solve_one(end_ea)
+  assert begin_ea <= end_ea
+
+  message_bytes = []
+  for i in xrange(end_ea - begin_ea):
+    message_bytes.append(state.cpu.memory[begin_ea + i])
+  
+  state.context['log_messages'].append((level, message_bytes))
+
 
 def hook(func):
   return lambda state: state.invoke_model(func)
 
 
-def run_test(state, apis, test):
+def done_test(_, state, state_id, reason):
+  """Called when a state is terminated."""
+  if OUR_TERMINATION_REASON not in reason:
+    L.error("State {} terminated for unknown reason: {}".format(
+        state_id, reason))
+    return
+
+  test = state.context['test']
+  input_length, _ = read_uint32_t(state, state.context['InputIndex'])
+  
+  # Dump out any pending log messages reported by `McTest_Log`.
+  for level, message_bytes in state.context['log_messages']:
+    message = []
+    for b in message_bytes:
+      if issymbolic(b):
+        b_ord = state.solve_one(b)
+        state.constrain(b == b_ord)
+        message.append(chr(b_ord))
+      elif isinstance(b, (int, long)):
+        message.append(chr(b))
+      else:
+        message.append(b)
+
+    LEVEL_TO_LOGGER[level]("".join(message))
+
+  max_length = state.context['InputEnd'] - state.context['InputBegin']
+  if input_length > max_length:
+    L.critical("Test used too many input bytes ({} vs. {})".format(
+        input_length, max_length))
+    return
+
+  # Solve for the input bytes.
+  output = []
+  for i in xrange(input_length):
+    b = state.cpu.read_int(state.context['InputBegin'] + i, 8)
+    if issymbolic(b):
+      b = state.solve_one(b)
+    output.append("{:2x}".format(b))
+
+  L.info("Input: {}".format(" ".join(output)))
+
+
+def do_run_test(state, apis, test):
   """Run an individual test case."""
   state.cpu.PC = test.ea
   m = manticore.Manticore(state, sys.argv[1:])
+  m.verbosity(1)
 
   state = m.initial_state
+  messages = [(1, "Running {} from {}:{}".format(
+      test.name, test.file_name, test.line_number))]
+
+  state.context['InputBegin'] = apis['InputBegin']
+  state.context['InputEnd'] = apis['InputEnd']
+  state.context['InputIndex'] = apis['InputIndex']
+  state.context['test'] = test
   state.context['failed'] = 0
-  state.context['log_messages'] = []
-  state.context['input'] = make_symbolic_input(
-      state, apis['InputBegin'], apis['InputEnd'])
+  state.context['log_messages'] = messages
+  
+  make_symbolic_input(state, apis['InputBegin'], apis['InputEnd'])
 
   m.add_hook(apis['IsSymbolicUInt'], hook(hook_IsSymbolicUInt))
   m.add_hook(apis['Assume'], hook(hook_Assume))
   m.add_hook(apis['Pass'], hook(hook_Pass))
   m.add_hook(apis['Fail'], hook(hook_Fail))
   m.add_hook(apis['SoftFail'], hook(hook_SoftFail))
+  m.add_hook(apis['Log'], hook(hook_Log))
+  m.subscribe('will_terminate_state', done_test)
   m.run()
+
+
+def run_test(state, apis, test):
+  try:
+    do_run_test(state, apis, test)
+  except:
+    L.error("Uncaught exception: {}\n{}".format(
+        sys.exc_info()[0], traceback.format_exc()))
 
 
 def run_tests(args, state, apis):
@@ -196,7 +280,6 @@ def run_tests(args, state, apis):
   results = []
   tests = find_test_cases(state, apis['LastTestInfo'])
   for test in tests:
-    print "Found test", test.name
     res = pool.apply_async(run_test, (state, apis, test))
     results.append(res)
 
