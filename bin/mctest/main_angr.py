@@ -147,10 +147,9 @@ class Assume(angr.SimProcedure):
 def report_state(state):
   test = state.globals['test']
   if state.globals['failed']:
-    message = (3, "Failed: {}".format(test.name))
+    add_log_message(state, 3, "Failed: {}".format(test.name))
   else:
-    message = (1, "Passed: {}".format(test.name))
-  state.globals['log_messages'].append(message)
+    add_log_message(state, 1, "Passed: {}".format(test.name))
 
 
 class Pass(angr.SimProcedure):
@@ -172,6 +171,13 @@ class SoftFail(angr.SimProcedure):
   """Implements McTest_SoftFail, which notifies us of a passing test."""
   def run(self):
     self.state.globals['failed'] = 1
+
+
+def add_log_message(state, level, message):
+  """Add a log message to a state."""
+  messages = list(state.globals['log_messages'])
+  messages.append((level, message))
+  state.globals['log_messages'] = messages
 
 
 LEVEL_TO_LOGGER = {
@@ -202,7 +208,8 @@ class Log(angr.SimProcedure):
         break
       data.append(b)
 
-    self.state.globals['log_messages'].append((level, data))
+    # Deep copy the message.
+    add_log_message(self.state, level, data)
 
     if 3 == level:
       self.state.globals['failed'] = 1  # Soft failure on an error log message.
