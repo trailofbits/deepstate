@@ -205,15 +205,6 @@ const struct McTest_IndexEntry McTest_API[] = {
 
 /* Set up McTest. */
 void McTest_Setup(void) {
-  /* Manticore entrypoint. Manticore doesn't (yet?) support symbol lookups, so
-   * we instead interpose on this fake system call, and discover the API table
-   * via the first argument to the system call. */
-#if defined(_MSC_VER)
-# warning "TODO: Implement Windows interception support for Manticore."
-#else
-  syscall(0x41414141, &McTest_API);
-#endif
-
   /* TODO(pag): Sort the test cases by file name and line number. */
 }
 

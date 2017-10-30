@@ -48,15 +48,15 @@ def read_c_string(state, ea):
 
 
 def read_uintptr_t(state, ea):
-  """Read a uint64_t value from memory."""
+  """Read a uintptr_t value from memory."""
   next_ea = ea + (state.arch.bits // 8)
   val = state.solver.eval(state.mem[ea].uintptr_t.resolved, cast_to=int)
   return val, next_ea
 
 
 def read_uint32_t(state, ea):
-  """Read a uint64_t value from memory."""
-  next_ea = ea + (state.arch.bits // 8)
+  """Read a uint32_t value from memory."""
+  next_ea = ea + 4
   val = state.solver.eval(state.mem[ea].uint32_t.resolved, cast_to=int)
   return val, next_ea
 
@@ -85,6 +85,18 @@ def read_test_info(state, ea):
   return info, prev_test_ea
 
 
+def find_test_cases(state, info_ea):
+  """Find the test case descriptors."""
+  tests = []
+  info_ea, _ = read_uintptr_t(state, info_ea)
+  while info_ea:
+    test, info_ea = read_test_info(state, info_ea)
+    if test:
+      tests.append(test)
+  tests.sort(key=lambda t: (t.file_name, t.line_number))
+  return tests
+
+
 def read_api_table(state, ea):
   """Reads in the API table."""
   apis = {}
@@ -96,17 +108,6 @@ def read_api_table(state, ea):
     api_name = read_c_string(state, api_name_ea)
     apis[api_name] = api_ea
   return apis
-
-
-def find_test_cases(state, info_ea):
-  """Find the test case descriptors."""
-  tests = []
-  while info_ea:
-    test, info_ea = read_test_info(state, info_ea)
-    if test:
-      tests.append(test)
-  tests.sort(key=lambda t: (t.file_name, t.line_number))
-  return tests
 
 
 def make_symbolic_input(state, input_begin_ea, input_end_ea):
@@ -133,7 +134,7 @@ class IsSymbolicUInt(angr.SimProcedure):
 
 
 class Assume(angr.SimProcedure):
-  """Implements _McTest_CanAssume, which tries to inject a constraint."""
+  """Implements _McTest_Assume, which tries to inject a constraint."""
   def run(self, arg):
     constraint = arg != 0
     self.state.solver.add(constraint)
@@ -165,8 +166,8 @@ class SoftFail(angr.SimProcedure):
 
 
 class Log(angr.SimProcedure):
-  """Implements McTest_Log, which lets Angr intercept and handle the printing
-  of log messages from the simulated tests."""
+  """Implements McTest_Log, which lets Angr intercept and handle the
+  printing of log messages from the simulated tests."""
 
   LEVEL_TO_LOGGER = {
     0: L.debug,
@@ -297,10 +298,6 @@ def main():
   ea_of_api_table = project.kb.labels.lookup('McTest_API')
   apis = read_api_table(run_state, ea_of_api_table)
 
-  # Introduce symbolic input that the tested code will use.
-  symbolic_input = make_symbolic_input(
-      run_state, apis['InputBegin'], apis['InputEnd'])
-
   # Hook various functions.
   hook_function(project, apis['IsSymbolicUInt'], IsSymbolicUInt)
   hook_function(project, apis['Assume'], Assume)
@@ -318,6 +315,8 @@ def main():
   # as failing.
   run_state.globals['failed'] = 0
   run_state.globals['log_messages'] = []
+  run_state.globals['input'] = make_symbolic_input(
+      run_state, apis['InputBegin'], apis['InputEnd'])
 
   pool = multiprocessing.Pool(processes=max(1, args.num_workers))
   results = []
