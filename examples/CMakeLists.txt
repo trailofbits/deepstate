@@ -21,3 +21,5 @@ target_link_libraries(ArithmeticProperties mctest)
 add_executable(Lists Lists.cpp)
 target_link_libraries(Lists mctest)
 
+add_executable(StreamingAndFormatting StreamingAndFormatting.cpp)
+target_link_libraries(StreamingAndFormatting mctest)

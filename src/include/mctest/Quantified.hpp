@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef INCLUDE_MCTEST_QUANTIFIED_HPP_
-#define INCLUDE_MCTEST_QUANTIFIED_HPP_
+#ifndef SRC_INCLUDE_MCTEST_QUANTIFIED_HPP_
+#define SRC_INCLUDE_MCTEST_QUANTIFIED_HPP_
 
 #include <mctest/McTest.hpp>
 
@@ -35,4 +35,4 @@ inline static void ForAll(Closure func) {
 
 }  // namespace mctest
 
-#endif  // INCLUDE_MCTEST_QUANTIFIED_HPP_
+#endif  // SRC_INCLUDE_MCTEST_QUANTIFIED_HPP_

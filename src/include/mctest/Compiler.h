@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef INCLUDE_MCTEST_COMPILER_H_
-#define INCLUDE_MCTEST_COMPILER_H_
+#ifndef SRC_INCLUDE_MCTEST_COMPILER_H_
+#define SRC_INCLUDE_MCTEST_COMPILER_H_
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -93,4 +93,4 @@
     static void f(void)
 #endif
 
-#endif  /* INCLUDE_MCTEST_COMPILER_H_ */
+#endif  /* SRC_INCLUDE_MCTEST_COMPILER_H_ */

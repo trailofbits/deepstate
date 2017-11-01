@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef INCLUDE_MCTEST_MCTEST_H_
-#define INCLUDE_MCTEST_MCTEST_H_
+#ifndef SRC_INCLUDE_MCTEST_MCTEST_H_
+#define SRC_INCLUDE_MCTEST_MCTEST_H_
 
 #include <assert.h>
 #include <setjmp.h>
@@ -25,7 +25,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <mctest/Log.h>
 #include <mctest/Compiler.h>
+#include <mctest/Stream.h>
 
 #ifdef assert
 # undef assert
@@ -53,6 +55,12 @@ extern int McTest_IsTrue(int expr);
 
 /* Symbolize the data in the range `[begin, end)`. */
 extern void McTest_SymbolizeData(void *begin, void *end);
+
+/* Concretize some data i nthe range `[begin, end)`. */
+extern void McTest_ConcretizeData(void *begin, void *end);
+
+/* Concretize a C string */
+extern void McTest_ConcretizeCStr(const char *begin);
 
 MCTEST_INLINE static void *McTest_Malloc(size_t num_bytes) {
   void *data = malloc(num_bytes);
@@ -96,6 +104,10 @@ extern void _McTest_Assume(int expr);
 
 #define McTest_Assume(x) _McTest_Assume(!!(x))
 
+/* Abandon this test. We've hit some kind of internal problem. */
+MCTEST_NORETURN
+extern void McTest_Abandon(const char *reason);
+
 MCTEST_NORETURN
 extern void McTest_Fail(void);
 
@@ -120,20 +132,6 @@ MCTEST_INLINE static void McTest_Check(int expr) {
     McTest_SoftFail();
   }
 }
-
-enum McTest_LogLevel {
-  McTest_LogDebug = 0,
-  McTest_LogInfo = 1,
-  McTest_LogWarning = 2,
-  McTest_LogWarn = McTest_LogWarning,
-  McTest_LogError = 3,
-  McTest_LogFatal = 4,
-  McTest_LogCritical = McTest_LogFatal
-};
-
-/* Outputs information to a log, using a specific log level. */
-extern void McTest_Log(enum McTest_LogLevel level, const char *begin,
-                       const char *end);
 
 /* Return a symbolic value in a the range `[low_inc, high_inc]`. */
 #define MCTEST_MAKE_SYMBOLIC_RANGE(Tname, tname) \
@@ -248,11 +246,20 @@ extern struct McTest_TestInfo *McTest_LastTestInfo;
 /* Set up McTest. */
 extern void McTest_Setup(void);
 
+/* Tear down McTest. */
+extern void McTest_Teardown(void);
+
+/* Notify that we're about to begin a test. */
+extern void McTest_Begin(struct McTest_TestInfo *info);
+
 /* Return the first test case to run. */
 extern struct McTest_TestInfo *McTest_FirstTest(void);
 
 /* Returns 1 if a failure was caught, otherwise 0. */
 extern int McTest_CatchFail(void);
+
+/* Returns 1 if this test case was abandoned. */
+extern int McTest_CatchAbandoned(void);
 
 /* Jump buffer for returning to `McTest_Run`. */
 extern jmp_buf McTest_ReturnToRun;
@@ -261,18 +268,11 @@ extern jmp_buf McTest_ReturnToRun;
 static int McTest_Run(void) {
   int num_failed_tests = 0;
   struct McTest_TestInfo *test = NULL;
-  char buff[1024];
-  int num_buff_bytes_used = 0;
 
   McTest_Setup();
 
   for (test = McTest_FirstTest(); test != NULL; test = test->prev) {
-
-    /* Print the test that we're going to run. */
-    num_buff_bytes_used = sprintf(buff, "Running: %s from %s(%u)",
-                                  test->test_name, test->file_name,
-                                  test->line_number);
-    McTest_Log(McTest_LogInfo, buff, &(buff[num_buff_bytes_used]));
+    McTest_Begin(test);
 
     /* Run the test. */
     if (!setjmp(McTest_ReturnToRun)) {
@@ -291,23 +291,28 @@ static int McTest_Run(void) {
       }
 #endif  /* __cplusplus */
 
+
     /* We caught a failure when running the test. */
     } else if (McTest_CatchFail()) {
       ++num_failed_tests;
+      McTest_LogFormat(McTest_LogError, "Failed: %s", test->test_name);
 
-      num_buff_bytes_used = sprintf(buff, "Failed: %s", test->test_name);
-      McTest_Log(McTest_LogInfo, buff, &(buff[num_buff_bytes_used]));
+    /* The test was abandoned. We may have gotten soft failures before
+     * abandoning, so we prefer to catch those first. */
+    } else if (McTest_CatchAbandoned()) {
+      McTest_LogFormat(McTest_LogFatal, "Abandoned: %s", test->test_name);
 
     /* The test passed. */
     } else {
-      num_buff_bytes_used = sprintf(buff, "Passed: %s", test->test_name);
-      McTest_Log(McTest_LogInfo, buff, &(buff[num_buff_bytes_used]));
+      McTest_LogFormat(McTest_LogInfo, "Passed: %s", test->test_name);
     }
   }
+
+  McTest_Teardown();
 
   return num_failed_tests;
 }
 
 MCTEST_END_EXTERN_C
 
-#endif  /* INCLUDE_MCTEST_MCTEST_H_ */
+#endif  /* SRC_INCLUDE_MCTEST_MCTEST_H_ */

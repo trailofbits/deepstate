@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef INCLUDE_MCTEST_MCTEST_HPP_
-#define INCLUDE_MCTEST_MCTEST_HPP_
+#ifndef SRC_INCLUDE_MCTEST_MCTEST_HPP_
+#define SRC_INCLUDE_MCTEST_MCTEST_HPP_
 
 #include <mctest/McTest.h>
 
@@ -191,4 +191,4 @@ MAKE_SYMBOL_SPECIALIZATION(Char, int8_t)
 
 }  // namespace mctest
 
-#endif  // INCLUDE_MCTEST_MCTEST_HPP_
+#endif  // SRC_INCLUDE_MCTEST_MCTEST_HPP_

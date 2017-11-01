@@ -40,6 +40,8 @@ endif ()
 
 add_library(${PROJECT_NAME} STATIC
   src/lib/McTest.c
+  src/lib/Log.c
+  src/lib/Stream.c
 )
 
 target_include_directories(${PROJECT_NAME}

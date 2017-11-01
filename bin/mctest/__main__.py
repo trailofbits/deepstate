@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import argparse
 import collections
 import logging
@@ -21,86 +20,107 @@ import manticore
 import multiprocessing
 import sys
 import traceback
+from .common import McTest
 
 from manticore.core.state import TerminateState
 from manticore.utils.helpers import issymbolic
 
 
-L = logging.getLogger("mctest")
+L = logging.getLogger("mctest.mcore")
 L.setLevel(logging.INFO)
 
+OUR_TERMINATION_REASON = "I McTest'd it"
 
-def read_c_string(state, ea):
-  """Read a concrete NUL-terminated string from `ea`."""
-  return state.cpu.read_string(ea)
+class MCoreTest(McTest):
+  def __init__(self, state):
+    super(MCoreTest, self).__init__()
+    self.state = state
 
+  def __del__(self):
+    self.state = None
 
-def read_uintptr_t(state, ea):
-  """Read a uintptr_t value from memory."""
-  addr_size_bits = state.cpu.address_bit_size
-  next_ea = ea + (addr_size_bits // 8)
-  val = state.cpu.read_int(ea, size=addr_size_bits)
-  if issymbolic(val):
-    val = state.solve_one(val)
-  return val, next_ea
+  def get_context(self):
+    return self.state.context
 
+  def is_symbolic(self, val):
+    return manticore.utils.helpers.issymbolic(val)
 
-def read_uint32_t(state, ea):
-  """Read a uint32_t value from memory."""
-  next_ea = ea + 4
-  val = state.cpu.read_int(ea, size=32)
-  if issymbolic(val):
-    val = state.solve_one(val)
-  return val, next_ea
+  def read_uintptr_t(self, ea, concretize=True, constrain=False):
+    addr_size_bits = self.state.cpu.address_bit_size
+    next_ea = ea + (addr_size_bits // 8)
+    val = self.state.cpu.read_int(ea, size=addr_size_bits)
+    if concretize:
+      val = self.concretize(val, constrain=constrain)
+    return val, next_ea
 
+  def read_uint64_t(self, ea, concretize=True, constrain=False):
+    val = self.state.cpu.read_int(ea, size=64)
+    if concretize:
+      val = self.concretize(val, constrain=constrain)
+    return val, ea + 8
 
-TestInfo = collections.namedtuple(
-    'TestInfo', 'ea name file_name line_number')
+  def read_uint32_t(self, ea, concretize=True, constrain=False):
+    val = self.state.cpu.read_int(ea, size=32)
+    if concretize:
+      val = self.concretize(val, constrain=constrain)
+    return val, ea + 4
 
+  def read_uint8_t(self, ea, concretize=True, constrain=False):
+    val = self.state.cpu.read_int(ea, size=8)
+    if concretize:
+      val = self.concretize(val, constrain=constrain)
+    if isinstance(val, str):
+      assert len(val) == 1
+      val = ord(val)
+    return val, ea + 1
 
-def read_test_info(state, ea):
-  """Read in a `McTest_TestInfo` info structure from memory."""
-  prev_test_ea, ea = read_uintptr_t(state, ea)
-  test_func_ea, ea = read_uintptr_t(state, ea)
-  test_name_ea, ea = read_uintptr_t(state, ea)
-  file_name_ea, ea = read_uintptr_t(state, ea)
-  file_line_num, _ = read_uint32_t(state, ea)
+  def concretize(self, val, constrain=False):
+    if isinstance(val, (int, long)):
+      return val
+    elif isinstance(val, str):
+      assert len(val) == 1
+      return ord(val[0])
 
-  if not test_func_ea or \
-     not test_name_ea or \
-     not file_name_ea or \
-     not file_line_num:  # `__LINE__` in C always starts at `1` ;-)
-    return None, prev_test_ea
+    assert self.is_symbolic(val)
+    concrete_val = self.state.solve_one(val)
+    if isinstance(concrete_val, str):
+      assert len(concrete_val) == 1
+      concrete_val = ord(concrete_val[0])
+    if constrain:
+      self.add_constraint(val == concrete_val)
+    return concrete_val
 
-  test_name = read_c_string(state, test_name_ea)
-  file_name = read_c_string(state, file_name_ea)
-  info = TestInfo(test_func_ea, test_name, file_name, file_line_num)
-  return info, prev_test_ea
+  def concretize_min(self, val, constrain=False):
+    if isinstance(val, (int, long)):
+      return val
+    concrete_val = self.state.solve_n(val)
+    if constrain:
+      self.add_constraint(val == concrete_val)
+    return concrete_val
 
+  def concretize_many(self, val, max_num):
+    assert 0 < max_num
+    if isinstance(val, (int, long)):
+      return [val]
+    return self.state.solver.eval_upto(val, max_num)
 
-def find_test_cases(state, info_ea):
-  """Find the test case descriptors."""
-  tests = []
-  info_ea, _ = read_uintptr_t(state, info_ea)
-  while info_ea:
-    test, info_ea = read_test_info(state, info_ea)
-    if test:
-      tests.append(test)
-  tests.sort(key=lambda t: (t.file_name, t.line_number))
-  return tests
+  def add_constraint(self, expr):
+    if self.is_symbolic(expr):
+      self.state.constrain(expr)
+      # TODO(pag): How to check satisfiability?
+    return True
 
+  def pass_test(self):
+    super(MCoreTest, self).pass_test()
+    raise TerminateState(OUR_TERMINATION_REASON, testcase=False)
 
-def read_api_table(state, ea):
-  """Reads in the API table."""
-  apis = {}
-  while True:
-    api_name_ea, ea = read_uintptr_t(state, ea)
-    api_ea, ea = read_uintptr_t(state, ea)
-    if not api_name_ea or not api_ea:
-      break
-    api_name = read_c_string(state, api_name_ea)
-    apis[api_name] = api_ea
-  return apis
+  def fail_test(self):
+    super(MCoreTest, self).fail_test()
+    raise TerminateState(OUR_TERMINATION_REASON, testcase=False)
+
+  def abandon_test(self):
+    super(MCoreTest, self).abandon_test()
+    raise TerminateState(OUR_TERMINATION_REASON, testcase=False)
 
 
 def make_symbolic_input(state, input_begin_ea, input_end_ea):
@@ -118,78 +138,63 @@ def make_symbolic_input(state, input_begin_ea, input_end_ea):
 def hook_IsSymbolicUInt(state, arg):
   """Implements McTest_IsSymblicUInt, which returns 1 if its input argument
   has more then one solutions, and zero otherwise."""
-  solutions = state.solve_n(arg, 2)
-  if not solutions:
-    return 0
-  elif 1 == len(solutions):
-    if issymbolic(arg):
-      state.constrain(arg == solutions[0])
-    return 0
-  else:
-    return 1
+  return MCoreTest(state).api_is_symbolic_uint(arg)
 
 
 def hook_Assume(state, arg):
   """Implements _McTest_Assume, which tries to inject a constraint."""
-  constraint = arg != 0
-  if issymbolic(constraint):
-    state.constrain(constraint)
+  MCoreTest(state).api_assume(arg)
 
 
-OUR_TERMINATION_REASON = "I McTest'd it"
+def hook_StreamInt(state, level, format_ea, unpack_ea, uint64_ea):
+  """Implements _McTest_StreamInt, which gives us an integer to stream, and
+  the format to use for streaming."""
+  MCoreTest(state).api_stream_int(level, format_ea, unpack_ea, uint64_ea)
 
 
-def report_state(state):
-  test = state.context['test']
-  if state.context['failed']:
-    message = (3, "Failed: {}".format(test.name))
-  else:
-    message = (1, "Passed: {}".format(test.name))
-  state.context['log_messages'].append(message)
-  raise TerminateState(OUR_TERMINATION_REASON, testcase=False)
+def hook_StreamFloat(state, level, format_ea, unpack_ea, double_ea):
+  """Implements _McTest_StreamFloat, which gives us an double to stream, and
+  the format to use for streaming."""
+  MCoreTest(state).api_stream_float(level, format_ea, unpack_ea, double_ea)
+
+
+def hook_StreamString(state, level, format_ea, str_ea):
+  """Implements _McTest_StreamString, which gives us an double to stream, and
+  the format to use for streaming."""
+  MCoreTest(state).api_stream_string(level, format_ea, str_ea)
+
+
+def hook_LogStream(state, level):
+  """Implements McTest_LogStream, which converts the contents of a stream for
+  level `level` into a log for level `level`."""
+  MCoreTest(state).api_log_stream(level)
 
 
 def hook_Pass(state):
   """Implements McTest_Pass, which notifies us of a passing test."""
-  report_state(state)
+  MCoreTest(state).api_pass()
 
 
 def hook_Fail(state):
   """Implements McTest_Fail, which notifies us of a passing test."""
-  state.context['failed'] = 1
-  report_state(state)
+  MCoreTest(state).api_fail()
+
+
+def hook_Abandon(state, reason):
+  """Implements McTest_Abandon, which notifies us that a problem happened
+  in McTest."""
+  MCoreTest(state).api_abandon(reason)
 
 
 def hook_SoftFail(state):
   """Implements McTest_Fail, which notifies us of a passing test."""
-  state.context['failed'] = 1
+  MCoreTest(state).api_soft_fail()
 
 
-LEVEL_TO_LOGGER = {
-  0: L.debug,
-  1: L.info,
-  2: L.warning,
-  3: L.error,
-  4: L.critical
-}
-
-
-def hook_Log(state, level, begin_ea):
+def hook_Log(state, level, ea):
   """Implements McTest_Log, which lets Manticore intercept and handle the
   printing of log messages from the simulated tests."""
-  level = state.solve_one(level)
-  assert level in LEVEL_TO_LOGGER
-
-  begin_ea = state.solve_one(begin_ea)
-
-  message_bytes = []
-  for i in xrange(4096):
-    b = state.cpu.read_int(begin_ea + i, 8)
-    if not issymbolic(b) and b == 0:
-      break
-    message_bytes.append(b)
-  
-  state.context['log_messages'].append((level, message_bytes))
+  MCoreTest(state).api_log(level, ea)
 
 
 def hook(func):
@@ -202,36 +207,8 @@ def done_test(_, state, state_id, reason):
     L.error("State {} terminated for unknown reason: {}".format(
         state_id, reason))
     return
-
-  test = state.context['test']
-  input_length, _ = read_uint32_t(state, state.context['InputIndex'])
-  
-  # Dump out any pending log messages reported by `McTest_Log`.
-  for level, message_bytes in state.context['log_messages']:
-    message = []
-    for b in message_bytes:
-      b_ord = state.solve_one(b)
-      if b_ord == 0:
-        break
-      else:
-        message.append(chr(b_ord))
-
-    LEVEL_TO_LOGGER[level]("".join(message))
-
-  max_length = state.context['InputEnd'] - state.context['InputBegin']
-  if input_length > max_length:
-    L.critical("Test used too many input bytes ({} vs. {})".format(
-        input_length, max_length))
-    return
-
-  # Solve for the input bytes.
-  output = []
-  for i in xrange(input_length):
-    b = state.cpu.read_int(state.context['InputBegin'] + i, 8)
-    b = state.solve_one(b)
-    output.append("{:2x}".format(b))
-
-  L.info("Input: {}".format(" ".join(output)))
+  mc = MCoreTest(state)
+  mc.report()
 
 
 def do_run_test(state, apis, test):
@@ -241,15 +218,9 @@ def do_run_test(state, apis, test):
   m.verbosity(1)
 
   state = m.initial_state
-  messages = [(1, "Running {} from {}({})".format(
-      test.name, test.file_name, test.line_number))]
-
-  state.context['InputBegin'] = apis['InputBegin']
-  state.context['InputEnd'] = apis['InputEnd']
-  state.context['InputIndex'] = apis['InputIndex']
-  state.context['test'] = test
-  state.context['failed'] = 0
-  state.context['log_messages'] = messages
+  mc = MCoreTest(state)
+  mc.begin_test(test)
+  del mc
   
   make_symbolic_input(state, apis['InputBegin'], apis['InputEnd'])
 
@@ -258,7 +229,13 @@ def do_run_test(state, apis, test):
   m.add_hook(apis['Pass'], hook(hook_Pass))
   m.add_hook(apis['Fail'], hook(hook_Fail))
   m.add_hook(apis['SoftFail'], hook(hook_SoftFail))
+  m.add_hook(apis['Abandon'], hook(hook_Abandon))
   m.add_hook(apis['Log'], hook(hook_Log))
+  m.add_hook(apis['StreamInt'], hook(hook_StreamInt))
+  m.add_hook(apis['StreamFloat'], hook(hook_StreamFloat))
+  m.add_hook(apis['StreamString'], hook(hook_StreamString))
+  m.add_hook(apis['LogStream'], hook(hook_LogStream))
+
   m.subscribe('will_terminate_state', done_test)
   m.run()
 
@@ -275,7 +252,8 @@ def run_tests(args, state, apis):
   """Run all of the test cases."""
   pool = multiprocessing.Pool(processes=max(1, args.num_workers))
   results = []
-  tests = find_test_cases(state, apis['LastTestInfo'])
+  mc = MCoreTest(state)
+  tests = mc.find_test_cases()
   
   L.info("Running {} tests across {} workers".format(
       len(tests), args.num_workers))
@@ -313,9 +291,11 @@ def main():
   setup_ea = m._get_symbol_address('McTest_Setup')
   setup_state = m._initial_state
 
-  ea_of_api_table = m._get_symbol_address('McTest_API')
-  apis = read_api_table(setup_state, ea_of_api_table)
+  mc = MCoreTest(setup_state)
 
+  ea_of_api_table = m._get_symbol_address('McTest_API')
+  apis = mc.read_api_table(ea_of_api_table)
+  del mc
   m.add_hook(setup_ea, lambda state: run_tests(args, state, apis))
   m.run()
 

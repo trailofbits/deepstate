@@ -39,7 +39,8 @@ TEST(Arithmetic, AdditionIsAssociative) {
 
 TEST(Arithmetic, InvertibleMultiplication_CanFail) {
   ForAll<int, int>([] (int x, int y) {
-    ASSUME_NE(y, 0);
+    ASSUME_NE(y, 0)
+        << "Assumed non-zero value for y: " << y;
     ASSERT_EQ(x, (x / y) * y)
         << x << " != (" << x << " / " << y << ") * " << y;
   });

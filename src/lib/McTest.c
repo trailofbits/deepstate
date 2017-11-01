@@ -14,16 +14,12 @@
  * limitations under the License.
  */
 
+#include <mctest/Compiler.h>
 #include <mctest/McTest.h>
 
 #include <assert.h>
 #include <setjmp.h>
 #include <stdio.h>
-
-#if defined(unix) || defined(__unix) || defined(__unix__)
-# define _GNU_SOURCE
-# include <unistd.h>  /* For `syscall` */
-#endif
 
 MCTEST_BEGIN_EXTERN_C
 
@@ -45,7 +41,16 @@ static uint32_t McTest_InputIndex = 0;
 /* Jump buffer for returning to `McTest_Run`. */
 jmp_buf McTest_ReturnToRun = {};
 
+static const char *McTest_TestAbandoned = NULL;
 static int McTest_TestFailed = 0;
+
+/* Abandon this test. We've hit some kind of internal problem. */
+MCTEST_NORETURN
+void McTest_Abandon(const char *reason) {
+  McTest_Log(McTest_LogFatal, reason);
+  McTest_TestAbandoned = reason;
+  longjmp(McTest_ReturnToRun, 1);
+}
 
 /* Mark this test as failing. */
 MCTEST_NORETURN
@@ -78,6 +83,16 @@ void McTest_SymbolizeData(void *begin, void *end) {
       bytes[i] = McTest_Input[McTest_InputIndex++];
     }
   }
+}
+
+/* Concretize some data i nthe range `[begin, end)`. */
+void McTest_ConcretizeData(void *begin, void *end) {
+  (void) begin;
+}
+
+/* Concretize a C string */
+void McTest_ConcretizeCStr(const char *begin) {
+  (void) begin;
 }
 
 MCTEST_NOINLINE int McTest_One(void) {
@@ -148,62 +163,15 @@ int McTest_IsSymbolicUInt(uint32_t x) {
   return 0;
 }
 
-/* Returns a printable string version of the log level. */
-static const char *McTest_LogLevelStr(enum McTest_LogLevel level) {
-  switch (level) {
-    case McTest_LogDebug:
-      return "DEBUG";
-    case McTest_LogInfo:
-      return "INFO";
-    case McTest_LogWarning:
-      return "WARNING";
-    case McTest_LogError:
-      return "ERROR";
-    case McTest_LogFatal:
-      return "FATAL";
-    default:
-      return "UNKNOWN";
-  }
-}
+/* Defined in Stream.c */
+extern void _McTest_StreamInt(enum McTest_LogLevel level, const char *format,
+                              const char *unpack, uint64_t *val);
 
-enum {
-  McTest_LogBufSize = 4096
-};
+extern void _McTest_StreamFloat(enum McTest_LogLevel level, const char *format,
+                                const char *unpack, double *val);
 
-char McTest_LogBuf[McTest_LogBufSize + 1] = {};
-
-
-void _McTest_Log(enum McTest_LogLevel level, const char *message) {
-  fprintf(stderr, "%s: %s\n", McTest_LogLevelStr(level), message);
-  if (McTest_LogError == level) {
-    McTest_SoftFail();
-
-  } else if (McTest_LogFatal == level) {
-    McTest_Fail();
-  }
-}
-
-/* Outputs information to a log, using a specific log level. */
-void McTest_Log(enum McTest_LogLevel level, const char *begin,
-                 const char *end) {
-  if (end <= begin) {
-    return;
-  }
-
-  size_t size = (size_t) (end - begin);
-  if (size > McTest_LogBufSize) {
-    size = McTest_LogBufSize;
-  }
-
-  /* When we interpose on _McTest_Log, we are looking for the first non-symbolic
-   * zero byte as our end of string character, so we want to guarantee that we
-   * have a bunch of those */
-  memset(McTest_LogBuf, 0, McTest_LogBufSize);
-  memcpy(McTest_LogBuf, begin, size);
-  McTest_LogBuf[McTest_LogBufSize] = '\0';
-
-  _McTest_Log(level, McTest_LogBuf);
-}
+extern void _McTest_StreamString(enum McTest_LogLevel level, const char *format,
+                                 const char *str);
 
 /* A McTest-specific symbol that is needed for hooking. */
 struct McTest_IndexEntry {
@@ -214,22 +182,55 @@ struct McTest_IndexEntry {
 /* An index of symbols that the symbolic executors will hook or
  * need access to. */
 const struct McTest_IndexEntry McTest_API[] = {
+
+  /* Control-flow during the test. */
   {"Pass",            (void *) McTest_Pass},
   {"Fail",            (void *) McTest_Fail},
   {"SoftFail",        (void *) McTest_SoftFail},
-  {"Log",             (void *) _McTest_Log},
-  {"Assume",          (void *) _McTest_Assume},
-  {"IsSymbolicUInt",  (void *) McTest_IsSymbolicUInt},
+  {"Abandon",         (void *) McTest_Abandon},
+
+  /* Locating the tests. */
+  {"LastTestInfo",    (void *) &McTest_LastTestInfo},
+
+  /* Source of symbolic bytes. */
   {"InputBegin",      (void *) &(McTest_Input[0])},
   {"InputEnd",        (void *) &(McTest_Input[McTest_InputLength])},
   {"InputIndex",      (void *) &McTest_InputIndex},
-  {"LastTestInfo",    (void *) &McTest_LastTestInfo},
+
+  /* Solver APIs. */
+  {"Assume",          (void *) _McTest_Assume},
+  {"IsSymbolicUInt",  (void *) McTest_IsSymbolicUInt},
+  {"ConcretizeData",  (void *) McTest_ConcretizeData},
+  {"ConcretizeCStr",  (void *) McTest_ConcretizeCStr},
+
+  /* Logging API. */
+  {"Log",             (void *) McTest_Log},
+
+  /* Streaming API for deferred logging. */
+  {"LogStream",       (void *) McTest_LogStream},
+  {"StreamInt",       (void *) _McTest_StreamInt},
+  {"StreamFloat",     (void *) _McTest_StreamFloat},
+  {"StreamString",    (void *) _McTest_StreamString},
+
   {NULL, NULL},
 };
 
 /* Set up McTest. */
 void McTest_Setup(void) {
   /* TODO(pag): Sort the test cases by file name and line number. */
+}
+
+/* Tear down McTest. */
+void McTest_Teardown(void) {
+
+}
+
+/* Notify that we're about to begin a test. */
+void McTest_Begin(struct McTest_TestInfo *info) {
+  McTest_TestFailed = 0;
+  McTest_TestAbandoned = NULL;
+  McTest_LogFormat(McTest_LogInfo, "Running: %s from %s(%u)",
+                   info->test_name, info->file_name, info->line_number);
 }
 
 /* Return the first test case to run. */
@@ -240,6 +241,11 @@ struct McTest_TestInfo *McTest_FirstTest(void) {
 /* Returns 1 if a failure was caught, otherwise 0. */
 int McTest_CatchFail(void) {
   return McTest_TestFailed;
+}
+
+/* Returns 1 if this test case was abandoned. */
+int McTest_CatchAbandoned(void) {
+  return McTest_TestAbandoned != NULL;
 }
 
 MCTEST_END_EXTERN_C
