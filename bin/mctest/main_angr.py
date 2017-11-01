@@ -268,7 +268,8 @@ def main():
       use_sim_procedures=True,
       translation_cache=True,
       support_selfmodifying_code=False,
-      auto_load_libs=True)
+      auto_load_libs=True,
+      exclude_sim_procedures_list=['printf', 'fprintf'])
 
   entry_state = project.factory.entry_state(
       add_options={angr.options.ZERO_FILL_UNCONSTRAINED_MEMORY,

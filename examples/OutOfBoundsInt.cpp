@@ -16,16 +16,24 @@
 
 #include <mctest/McUnit.hpp>
 
+MCTEST_NOINLINE int ident1(int x) {
+  return x;
+}
+
+MCTEST_NOINLINE int ident2(int x) {
+  return x;
+}
+
 TEST(BoundsCheck, YIsAlwaysPositive) {
   int x = McTest_IntInRange(-10, 10);
-  int y = x * x;
+  int y = ident1(x) * ident2(x);
   ASSERT_GE(y, 0)
       << "Found y=" << y << " was not always positive.";
 }
 
 TEST(BoundsCheck, YIsAlwaysPositive_CanFail) {
   int x = McTest_Int();
-  int y = x * x;  // Can overflow!
+  int y = ident1(x) * ident2(x);  // Can overflow!
   ASSERT_GE(y, 0)
       << "Found y=" << y << " was not always positive.";
 }
