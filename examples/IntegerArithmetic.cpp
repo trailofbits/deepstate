@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-#include <mctest/McUnit.hpp>
-#include <mctest/Quantified.hpp>
+#include <deepstate/DeepState.hpp>
 
-using namespace mctest;
+using namespace deepstate;
 
-MCTEST_NOINLINE int add(int x, int y) {
+DEEPSTATE_NOINLINE int add(int x, int y) {
   return x + y;
 }
 
@@ -47,5 +46,5 @@ TEST(Arithmetic, InvertibleMultiplication_CanFail) {
 }
 
 int main(void) {
-  return McTest_Run();
+  return DeepState_Run();
 }

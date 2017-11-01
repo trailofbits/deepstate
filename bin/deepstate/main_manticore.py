@@ -20,18 +20,18 @@ import manticore
 import multiprocessing
 import sys
 import traceback
-from .common import McTest
+from .common import DeepState
 
 from manticore.core.state import TerminateState
 from manticore.utils.helpers import issymbolic
 
 
-L = logging.getLogger("mctest.mcore")
+L = logging.getLogger("deepstate.mcore")
 L.setLevel(logging.INFO)
 
-OUR_TERMINATION_REASON = "I McTest'd it"
+OUR_TERMINATION_REASON = "I DeepState'd it"
 
-class MCoreTest(McTest):
+class MCoreTest(DeepState):
   def __init__(self, state):
     super(MCoreTest, self).__init__()
     self.state = state
@@ -128,7 +128,7 @@ def make_symbolic_input(state, input_begin_ea, input_end_ea):
   input_size = input_end_ea - input_begin_ea
   data = []
   for i in xrange(input_end_ea - input_begin_ea):
-    input_byte = state.new_symbolic_value(8, "MCTEST_INPUT_{}".format(i))
+    input_byte = state.new_symbolic_value(8, "DEEPSTATE_INPUT_{}".format(i))
     data.append(input_byte)
     state.cpu.write_int(input_begin_ea + i, input_byte, 8)
 
@@ -136,63 +136,63 @@ def make_symbolic_input(state, input_begin_ea, input_end_ea):
 
 
 def hook_IsSymbolicUInt(state, arg):
-  """Implements McTest_IsSymblicUInt, which returns 1 if its input argument
+  """Implements DeepState_IsSymblicUInt, which returns 1 if its input argument
   has more then one solutions, and zero otherwise."""
   return MCoreTest(state).api_is_symbolic_uint(arg)
 
 
 def hook_Assume(state, arg):
-  """Implements _McTest_Assume, which tries to inject a constraint."""
+  """Implements _DeepState_Assume, which tries to inject a constraint."""
   MCoreTest(state).api_assume(arg)
 
 
 def hook_StreamInt(state, level, format_ea, unpack_ea, uint64_ea):
-  """Implements _McTest_StreamInt, which gives us an integer to stream, and
+  """Implements _DeepState_StreamInt, which gives us an integer to stream, and
   the format to use for streaming."""
   MCoreTest(state).api_stream_int(level, format_ea, unpack_ea, uint64_ea)
 
 
 def hook_StreamFloat(state, level, format_ea, unpack_ea, double_ea):
-  """Implements _McTest_StreamFloat, which gives us an double to stream, and
+  """Implements _DeepState_StreamFloat, which gives us an double to stream, and
   the format to use for streaming."""
   MCoreTest(state).api_stream_float(level, format_ea, unpack_ea, double_ea)
 
 
 def hook_StreamString(state, level, format_ea, str_ea):
-  """Implements _McTest_StreamString, which gives us an double to stream, and
+  """Implements _DeepState_StreamString, which gives us an double to stream, and
   the format to use for streaming."""
   MCoreTest(state).api_stream_string(level, format_ea, str_ea)
 
 
 def hook_LogStream(state, level):
-  """Implements McTest_LogStream, which converts the contents of a stream for
+  """Implements DeepState_LogStream, which converts the contents of a stream for
   level `level` into a log for level `level`."""
   MCoreTest(state).api_log_stream(level)
 
 
 def hook_Pass(state):
-  """Implements McTest_Pass, which notifies us of a passing test."""
+  """Implements DeepState_Pass, which notifies us of a passing test."""
   MCoreTest(state).api_pass()
 
 
 def hook_Fail(state):
-  """Implements McTest_Fail, which notifies us of a passing test."""
+  """Implements DeepState_Fail, which notifies us of a passing test."""
   MCoreTest(state).api_fail()
 
 
 def hook_Abandon(state, reason):
-  """Implements McTest_Abandon, which notifies us that a problem happened
-  in McTest."""
+  """Implements DeepState_Abandon, which notifies us that a problem happened
+  in DeepState."""
   MCoreTest(state).api_abandon(reason)
 
 
 def hook_SoftFail(state):
-  """Implements McTest_Fail, which notifies us of a passing test."""
+  """Implements DeepState_Fail, which notifies us of a passing test."""
   MCoreTest(state).api_soft_fail()
 
 
 def hook_Log(state, level, ea):
-  """Implements McTest_Log, which lets Manticore intercept and handle the
+  """Implements DeepState_Log, which lets Manticore intercept and handle the
   printing of log messages from the simulated tests."""
   MCoreTest(state).api_log(level, ea)
 
@@ -288,12 +288,12 @@ def main():
   m._binary_type = 'not elf'
   m._binary_obj = m._initial_state.platform.elf
 
-  setup_ea = m._get_symbol_address('McTest_Setup')
+  setup_ea = m._get_symbol_address('DeepState_Setup')
   setup_state = m._initial_state
 
   mc = MCoreTest(setup_state)
 
-  ea_of_api_table = m._get_symbol_address('McTest_API')
+  ea_of_api_table = m._get_symbol_address('DeepState_API')
   apis = mc.read_api_table(ea_of_api_table)
   del mc
   m.add_hook(setup_ea, lambda state: run_tests(args, state, apis))

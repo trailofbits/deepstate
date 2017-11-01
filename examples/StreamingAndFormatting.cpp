@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <mctest/McUnit.hpp>
+#include <deepstate/DeepState.hpp>
 
 TEST(Streaming, BasicLevels) {
   LOG(DEBUG) << "This is a debug message";
@@ -40,5 +40,5 @@ TEST(Formatting, OverridePrintf) {
 }
 
 int main(void) {
-  return McTest_Run();
+  return DeepState_Run();
 }

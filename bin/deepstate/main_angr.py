@@ -20,13 +20,13 @@ import logging
 import multiprocessing
 import sys
 import traceback
-from .common import McTest
+from .common import DeepState
 
-L = logging.getLogger("mctest.angr")
+L = logging.getLogger("deepstate.angr")
 L.setLevel(logging.INFO)
 
 
-class AngrTest(McTest):
+class AngrTest(DeepState):
   def __init__(self, state=None, procedure=None):
     super(AngrTest, self).__init__()
     if procedure:
@@ -131,57 +131,57 @@ def hook_function(project, ea, cls):
 def make_symbolic_input(state, input_begin_ea, input_end_ea):
   """Fill in the input data array with symbolic data."""
   input_size = input_end_ea - input_begin_ea
-  data = state.se.Unconstrained('MCTEST_INPUT', input_size * 8)
+  data = state.se.Unconstrained('DEEPSTATE_INPUT', input_size * 8)
   state.memory.store(input_begin_ea, data)
   return data
 
 
 class IsSymbolicUInt(angr.SimProcedure):
-  """Implements McTest_IsSymblicUInt, which returns 1 if its input argument
+  """Implements DeepState_IsSymblicUInt, which returns 1 if its input argument
   has more then one solutions, and zero otherwise."""
   def run(self, arg):
     return AngrTest(procedure=self).api_is_symbolic_uint(arg)
 
 
 class Assume(angr.SimProcedure):
-  """Implements _McTest_Assume, which tries to inject a constraint."""
+  """Implements _DeepState_Assume, which tries to inject a constraint."""
   def run(self, arg):
     AngrTest(procedure=self).api_assume(arg)
 
 
 class Pass(angr.SimProcedure):
-  """Implements McTest_Pass, which notifies us of a passing test."""
+  """Implements DeepState_Pass, which notifies us of a passing test."""
   def run(self):
     AngrTest(procedure=self).api_pass()
 
 
 class Fail(angr.SimProcedure):
-  """Implements McTest_Fail, which notifies us of a failing test."""
+  """Implements DeepState_Fail, which notifies us of a failing test."""
   def run(self):
     AngrTest(procedure=self).api_fail()
 
 
 class Abandon(angr.SimProcedure):
-  """Implements McTest_Fail, which notifies us of a failing test."""
+  """Implements DeepState_Fail, which notifies us of a failing test."""
   def run(self, reason):
     AngrTest(procedure=self).api_abandon(reason)
 
 
 class SoftFail(angr.SimProcedure):
-  """Implements McTest_SoftFail, which notifies us of a failing test."""
+  """Implements DeepState_SoftFail, which notifies us of a failing test."""
   def run(self):
     AngrTest(procedure=self).api_soft_fail()
 
 
 class StreamInt(angr.SimProcedure):
-  """Implements _McTest_StreamInt, which gives us an integer to stream, and
+  """Implements _DeepState_StreamInt, which gives us an integer to stream, and
   the format to use for streaming."""
   def run(self, level, format_ea, unpack_ea, uint64_ea):
     AngrTest(procedure=self).api_stream_int(level, format_ea, unpack_ea,
                                             uint64_ea)
 
 class StreamFloat(angr.SimProcedure):
-  """Implements _McTest_StreamFloat, which gives us an double to stream, and
+  """Implements _DeepState_StreamFloat, which gives us an double to stream, and
   the format to use for streaming."""
   def run(self, level, format_ea, unpack_ea, double_ea):
     AngrTest(procedure=self).api_stream_float(level, format_ea, unpack_ea,
@@ -189,21 +189,21 @@ class StreamFloat(angr.SimProcedure):
 
 
 class StreamString(angr.SimProcedure):
-  """Implements _McTest_StreamString, which gives us an double to stream, and
+  """Implements _DeepState_StreamString, which gives us an double to stream, and
   the format to use for streaming."""
   def run(self, level, format_ea, str_ea):
     AngrTest(procedure=self).api_stream_string(level, format_ea, str_ea)
 
 
 class LogStream(angr.SimProcedure):
-  """Implements McTest_LogStream, which converts the contents of a stream for
+  """Implements DeepState_LogStream, which converts the contents of a stream for
   level `level` into a log for level `level`."""
   def run(self, level):
     AngrTest(procedure=self).api_log_stream(level)
 
 
 class Log(angr.SimProcedure):
-  """Implements McTest_Log, which lets Angr intercept and handle the
+  """Implements DeepState_Log, which lets Angr intercept and handle the
   printing of log messages from the simulated tests."""
   def run(self, level, ea):
     AngrTest(procedure=self).api_log(level, ea)
@@ -250,7 +250,7 @@ def run_test(project, test, apis, run_state):
 
 
 def main():
-  """Run McTest."""
+  """Run DeepState."""
   parser = argparse.ArgumentParser(
       description="Symbolically execute unit tests with Angr")
 
@@ -277,11 +277,11 @@ def main():
 
   addr_size_bits = entry_state.arch.bits
 
-  # Concretely execute up until `McTest_InjectAngr`.
+  # Concretely execute up until `DeepState_InjectAngr`.
   concrete_manager = angr.SimulationManager(
         project=project,
         active_states=[entry_state])
-  setup_ea = project.kb.labels.lookup('McTest_Setup')
+  setup_ea = project.kb.labels.lookup('DeepState_Setup')
   concrete_manager.explore(find=setup_ea)
   run_state = concrete_manager.found[0]
 
@@ -289,7 +289,7 @@ def main():
   # symbols. Technically we can look these up with the `labels.lookup` API,
   # but we have the API table for Manticore-compatibility, so we may as well
   # use it. 
-  ea_of_api_table = project.kb.labels.lookup('McTest_API')
+  ea_of_api_table = project.kb.labels.lookup('DeepState_API')
 
   mc = AngrTest(state=run_state)
   apis = mc.read_api_table(ea_of_api_table)

@@ -14,38 +14,38 @@
  * limitations under the License.
  */
 
-#ifndef SRC_INCLUDE_MCTEST_LOG_H_
-#define SRC_INCLUDE_MCTEST_LOG_H_
+#ifndef SRC_INCLUDE_DEEPSTATE_LOG_H_
+#define SRC_INCLUDE_DEEPSTATE_LOG_H_
 
 #include <stdarg.h>
 
-#include <mctest/Compiler.h>
+#include <deepstate/Compiler.h>
 
-MCTEST_BEGIN_EXTERN_C
+DEEPSTATE_BEGIN_EXTERN_C
 
-struct McTest_Stream;
+struct DeepState_Stream;
 
-enum McTest_LogLevel {
-  McTest_LogDebug = 0,
-  McTest_LogInfo = 1,
-  McTest_LogWarning = 2,
-  McTest_LogWarn = McTest_LogWarning,
-  McTest_LogError = 3,
-  McTest_LogFatal = 4,
-  McTest_LogCritical = McTest_LogFatal
+enum DeepState_LogLevel {
+  DeepState_LogDebug = 0,
+  DeepState_LogInfo = 1,
+  DeepState_LogWarning = 2,
+  DeepState_LogWarn = DeepState_LogWarning,
+  DeepState_LogError = 3,
+  DeepState_LogFatal = 4,
+  DeepState_LogCritical = DeepState_LogFatal
 };
 
 /* Log a C string. */
-extern void McTest_Log(enum McTest_LogLevel level, const char *str);
+extern void DeepState_Log(enum DeepState_LogLevel level, const char *str);
 
 /* Log some formatted output. */
-extern void McTest_LogFormat(enum McTest_LogLevel level,
+extern void DeepState_LogFormat(enum DeepState_LogLevel level,
                              const char *format, ...);
 
 /* Log some formatted output. */
-extern void McTest_LogVFormat(enum McTest_LogLevel level,
+extern void DeepState_LogVFormat(enum DeepState_LogLevel level,
                               const char *format, va_list args);
 
-MCTEST_END_EXTERN_C
+DEEPSTATE_END_EXTERN_C
 
-#endif  /* SRC_INCLUDE_MCTEST_LOG_H_ */
+#endif  /* SRC_INCLUDE_DEEPSTATE_LOG_H_ */

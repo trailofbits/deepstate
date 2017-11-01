@@ -22,17 +22,16 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include <mctest/Compiler.h>
-#include <mctest/McTest.h>
+#include "deepstate/DeepState.h"
 
-MCTEST_BEGIN_EXTERN_C
+DEEPSTATE_BEGIN_EXTERN_C
 
 enum {
-  McTest_StreamSize = 4096
+  DeepState_StreamSize = 4096
 };
 
 /* Formatting options availale to the streaming API. */
-struct McTest_StreamFormatOptions {
+struct DeepState_StreamFormatOptions {
   /* int radix; */
   int hex;
   int oct;
@@ -47,10 +46,10 @@ struct McTest_StreamFormatOptions {
  * mirrors C++ I/O streams, not because I/O streams are good, but instead
  * because the ability to stream in data to things like the C++-backed
  * `ASSERT` and `CHECK` macros is really nice. */ 
-struct McTest_Stream {
+struct DeepState_Stream {
   int size;
-  struct McTest_StreamFormatOptions options;
-  char message[McTest_StreamSize + 2];
+  struct DeepState_StreamFormatOptions options;
+  char message[DeepState_StreamSize + 2];
   char staging[32];
   char format[32];
   char unpack[32];
@@ -61,28 +60,35 @@ struct McTest_Stream {
 };
 
 /* Hard-coded streams for each log level. */
-static struct McTest_Stream McTest_Streams[McTest_LogFatal + 1] = {};
+static struct DeepState_Stream DeepState_Streams[DeepState_LogFatal + 1] = {};
 
-static char McTest_EndianSpecifier = '=';
+/* Endian specifier for Python's `struct.pack` and `struct.unpack`.
+ *    =  Native endian
+ *    <  Little endian
+ *    >  Big endian
+ */
+static char DeepState_EndianSpecifier = '=';
 
 /* Figure out what the Python `struct` endianness specifier should be. */
-MCTEST_INITIALIZER(DetectEndianness) {
+DEEPSTATE_INITIALIZER(DetectEndianness) {
   static const int one = 1;
   if ((const char *) &one) {
-    McTest_EndianSpecifier = '<';  /* Little endian. */
+    DeepState_EndianSpecifier = '<';  /* Little endian. */
   } else {
-    McTest_EndianSpecifier = '>';  /* Big endian. */
+    DeepState_EndianSpecifier = '>';  /* Big endian. */
   }
 }
 
-static void McTest_StreamUnpack(struct McTest_Stream *stream, char type) {
-  stream->unpack[0] = McTest_EndianSpecifier;
+/* Fills the `stream->unpack` character buffer with a Python `struct.unpack`-
+ * compatible format specifier. */
+static void DeepState_StreamUnpack(struct DeepState_Stream *stream, char type) {
+  stream->unpack[0] = DeepState_EndianSpecifier;
   stream->unpack[1] = type;
   stream->unpack[2] = '\0';
 }
 
 /* Fill in the format for when we want to stream an integer. */
-static void McTest_StreamIntFormat(struct McTest_Stream *stream,
+static void DeepState_StreamIntFormat(struct DeepState_Stream *stream,
                                    size_t val_size, int is_unsigned) {
   char *format = stream->format;
   int i = 0;
@@ -135,11 +141,13 @@ static void McTest_StreamIntFormat(struct McTest_Stream *stream,
   format[i++] = '\0';
 }
 
-static void CheckCapacity(struct McTest_Stream *stream, int num_chars_to_add) {
+/* Make sure that we don't exceed our formatting capacity when running. */
+static void CheckCapacity(struct DeepState_Stream *stream,
+                          int num_chars_to_add) {
   if (0 > num_chars_to_add) {
-    McTest_Abandon("Can't add a negative number of characters to a stream.");
-  } else if ((stream->size + num_chars_to_add) >= McTest_StreamSize) {
-    McTest_Abandon("Exceeded capacity of stream buffer.");
+    DeepState_Abandon("Can't add a negative number of characters to a stream.");
+  } else if ((stream->size + num_chars_to_add) >= DeepState_StreamSize) {
+    DeepState_Abandon("Exceeded capacity of stream buffer.");
   }
 }
 
@@ -147,12 +155,12 @@ static void CheckCapacity(struct McTest_Stream *stream, int num_chars_to_add) {
  * be hooked by the symbolic executor, so that it can easily pull out the
  * relevant data from `*val`, which may be symbolic, and defer the actual
  * formatting until later. */
-MCTEST_NOINLINE
-void _McTest_StreamInt(enum McTest_LogLevel level, const char *format,
+DEEPSTATE_NOINLINE
+void _DeepState_StreamInt(enum DeepState_LogLevel level, const char *format,
                        const char *unpack, uint64_t *val) {
-  struct McTest_Stream *stream = &(McTest_Streams[level]);
+  struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   int size = 0;
-  int remaining_size = McTest_StreamSize - stream->size;
+  int remaining_size = DeepState_StreamSize - stream->size;
   if (unpack[1] == 'Q' || unpack[1] == 'q') {
     size = snprintf(&(stream->message[stream->size]),
                     remaining_size, format, *val);
@@ -164,22 +172,24 @@ void _McTest_StreamInt(enum McTest_LogLevel level, const char *format,
   stream->size += size;
 }
 
-MCTEST_NOINLINE
-void _McTest_StreamFloat(enum McTest_LogLevel level, const char *format,
+/* Format a streamed-in float. This gets hooked. */
+DEEPSTATE_NOINLINE
+void _DeepState_StreamFloat(enum DeepState_LogLevel level, const char *format,
                          const char *unpack, double *val) {
-  struct McTest_Stream *stream = &(McTest_Streams[level]);
-  int remaining_size = McTest_StreamSize - stream->size;
+  struct DeepState_Stream *stream = &(DeepState_Streams[level]);
+  int remaining_size = DeepState_StreamSize - stream->size;
   int size = snprintf(&(stream->message[stream->size]),
                       remaining_size, format, *val);
   CheckCapacity(stream, size);
   stream->size += size;
 }
 
-MCTEST_NOINLINE
-void _McTest_StreamString(enum McTest_LogLevel level, const char *format,
+/* Format a streamed-in NUL-terminated string. This gets hooked. */
+DEEPSTATE_NOINLINE
+void _DeepState_StreamString(enum DeepState_LogLevel level, const char *format,
                           const char *str) {
-  struct McTest_Stream *stream = &(McTest_Streams[level]);
-  int remaining_size = McTest_StreamSize - stream->size;
+  struct DeepState_Stream *stream = &(DeepState_Streams[level]);
+  int remaining_size = DeepState_StreamSize - stream->size;
   int size = snprintf(&(stream->message[stream->size]),
                       remaining_size, format, str);
   CheckCapacity(stream, size);
@@ -187,13 +197,13 @@ void _McTest_StreamString(enum McTest_LogLevel level, const char *format,
 }
 
 #define MAKE_INT_STREAMER(Type, type, is_unsigned, pack_kind) \
-    void McTest_Stream ## Type(enum McTest_LogLevel level, type val) { \
-      struct McTest_Stream *stream = &(McTest_Streams[level]); \
-      McTest_StreamIntFormat(stream, sizeof(val), is_unsigned); \
-      McTest_StreamUnpack(stream, pack_kind); \
+    void DeepState_Stream ## Type(enum DeepState_LogLevel level, type val) { \
+      struct DeepState_Stream *stream = &(DeepState_Streams[level]); \
+      DeepState_StreamIntFormat(stream, sizeof(val), is_unsigned); \
+      DeepState_StreamUnpack(stream, pack_kind); \
       stream->value.as_uint64 = (uint64_t) val; \
-      _McTest_StreamInt(level, stream->format, stream->unpack, \
-                        &(stream->value.as_uint64)); \
+      _DeepState_StreamInt(level, stream->format, stream->unpack, \
+                           &(stream->value.as_uint64)); \
     }
 
 MAKE_INT_STREAMER(Pointer, void *, 1, (sizeof(void *) == 8 ? 'Q' : 'I'))
@@ -213,16 +223,16 @@ MAKE_INT_STREAMER(Int8, int8_t, 0, 'c')
 #undef MAKE_INT_STREAMER
 
 /* Stream a C string into the stream's message. */
-void McTest_StreamCStr(enum McTest_LogLevel level, const char *begin) {
-  _McTest_StreamString(level, "%s", begin);
+void DeepState_StreamCStr(enum DeepState_LogLevel level, const char *begin) {
+  _DeepState_StreamString(level, "%s", begin);
 }
 
 /* Stream a some data in the inclusive range `[begin, end]` into the
  * stream's message. */
-/*void McTest_StreamData(enum McTest_LogLevel level, const void *begin,
+/*void DeepState_StreamData(enum DeepState_LogLevel level, const void *begin,
                        const void *end) {
-  struct McTest_Stream *stream = &(McTest_Streams[level]);
-  int remaining_size = McTest_StreamSize - stream->size;
+  struct DeepState_Stream *stream = &(DeepState_Streams[level]);
+  int remaining_size = DeepState_StreamSize - stream->size;
   int input_size = (int) ((uintptr_t) end - (uintptr_t) begin) + 1;
   CheckCapacity(stream, input_size);
   memcpy(&(stream->message[stream->size]), begin, (size_t) input_size);
@@ -233,38 +243,45 @@ void McTest_StreamCStr(enum McTest_LogLevel level, const char *begin) {
  * be hooked by the symbolic executor, so that it can easily pull out the
  * relevant data from `*val`, which may be symbolic, and defer the actual
  * formatting until later. */
-void McTest_StreamDouble(enum McTest_LogLevel level, double val) {
-  struct McTest_Stream *stream = &(McTest_Streams[level]);
+void DeepState_StreamDouble(enum DeepState_LogLevel level, double val) {
+  struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   const char *format = "%f";  /* TODO(pag): Support more? */
   stream->value.as_fp64 = val;
-  McTest_StreamUnpack(stream, 'd');
-  _McTest_StreamFloat(level, format, stream->unpack, &(stream->value.as_fp64));
+  DeepState_StreamUnpack(stream, 'd');
+  _DeepState_StreamFloat(level, format, stream->unpack, &(stream->value.as_fp64));
 }
 
 /* Flush the contents of the stream to a log. */
-void McTest_LogStream(enum McTest_LogLevel level) {
-  struct McTest_Stream *stream = &(McTest_Streams[level]);
+void DeepState_LogStream(enum DeepState_LogLevel level) {
+  struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   if (stream->size) {
     stream->message[stream->size] = '\n';
     stream->message[stream->size + 1] = '\0';
-    stream->message[McTest_StreamSize] = '\0';
-    McTest_Log(level, stream->message);
-    memset(stream->message, 0, McTest_StreamSize);
+    stream->message[DeepState_StreamSize] = '\0';
+    DeepState_Log(level, stream->message);
+    memset(stream->message, 0, DeepState_StreamSize);
     stream->size = 0;
   }
 }
 
 /* Reset the formatting in a stream. */
-void McTest_StreamResetFormatting(enum McTest_LogLevel level) {
-  struct McTest_Stream *stream = &(McTest_Streams[level]);
+void DeepState_StreamResetFormatting(enum DeepState_LogLevel level) {
+  struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   memset(&(stream->options), 0, sizeof(stream->options));
+}
+
+static int McTest_NumLsInt64BitFormat = 2;
+
+/* `PRId64` will be "ld" or "lld" */
+DEEPSTATE_INITIALIZER(McTest_NumLsFor64BitFormat) {
+  McTest_NumLsInt64BitFormat = (PRId64)[1] == 'd' ? 1 : 2;
 }
 
 /* Approximately do string format parsing and convert it into calls into our
  * streaming API. */
-static int McTest_StreamFormatValue(enum McTest_LogLevel level,
-                                    const char *format, va_list args) {
-  struct McTest_Stream *stream = &(McTest_Streams[level]);
+static int DeepState_StreamFormatValue(enum DeepState_LogLevel level,
+                                       const char *format, va_list args) {
+  struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   char format_buf[32] = {'\0'};
   int i = 0;
   int k = 0;
@@ -274,6 +291,7 @@ static int McTest_StreamFormatValue(enum McTest_LogLevel level,
   int is_unsigned = 0;
   int is_float = 0;
   int long_double = 0;
+  int num_ls = 0;
   char extract = '\0';
 
 #define READ_FORMAT_CHAR \
@@ -284,7 +302,7 @@ static int McTest_StreamFormatValue(enum McTest_LogLevel level,
   READ_FORMAT_CHAR;  /* Read the '%' */
 
   if ('%' != ch) {
-    McTest_Abandon("Invalid format.");
+    DeepState_Abandon("Invalid format.");
     return 0;
   }
 
@@ -293,7 +311,7 @@ get_flag_char:
   READ_FORMAT_CHAR;
   switch (ch) {
     case '\0':
-      McTest_Abandon("Incomplete format (flags).");
+      DeepState_Abandon("Incomplete format (flags).");
       return 0;
     case '-':
     case '+':
@@ -309,10 +327,10 @@ get_flag_char:
 get_width_char:
   switch (ch) {
     case '\0':
-      McTest_Abandon("Incomplete format (width).");
+      DeepState_Abandon("Incomplete format (width).");
       return 0;
     case '*':
-      McTest_Abandon("Variable width printing not supported.");
+      DeepState_Abandon("Variable width printing not supported.");
       return 0;
     case '0':
     case '1':
@@ -336,10 +354,10 @@ get_width_char:
     READ_FORMAT_CHAR;
     switch (ch) {
       case '\0':
-        McTest_Abandon("Incomplete format (precision).");
+        DeepState_Abandon("Incomplete format (precision).");
         return 0;
       case '*':
-        McTest_Abandon("Variable precision printing not supported.");
+        DeepState_Abandon("Variable precision printing not supported.");
         break;
       case '0':
       case '1':
@@ -361,7 +379,7 @@ get_width_char:
 get_length_char:
   switch (ch) {
     case '\0':
-      McTest_Abandon("Incomplete format (length).");
+      DeepState_Abandon("Incomplete format (length).");
       return 0;
     case 'L':
       long_double = 1;
@@ -373,7 +391,7 @@ get_length_char:
       READ_FORMAT_CHAR;
       goto get_length_char;
     case 'l':
-      length *= 2;
+      num_ls += 1;
       READ_FORMAT_CHAR;
       goto get_length_char;
     case 'j':
@@ -394,7 +412,7 @@ get_length_char:
 
   if (!length) {
     length = 1;
-  } else if (8 < length) {
+  } else if (num_ls >= McTest_NumLsInt64BitFormat) {
     length = 8;
   }
 
@@ -403,7 +421,7 @@ get_length_char:
   /* Specifier */
   switch(ch) {
     case '\0':
-      McTest_Abandon("Incomplete format (specifier).");
+      DeepState_Abandon("Incomplete format (specifier).");
       return 0;
 
     case 'n':
@@ -431,7 +449,7 @@ get_length_char:
         stream->value.as_uint64 = (uint64_t) va_arg(args, int64_t);
         extract = 'q';
       } else {
-        McTest_Abandon("Unsupported integer length.");
+        DeepState_Abandon("Unsupported integer length.");
       }
       goto common_stream_int;
 
@@ -459,12 +477,12 @@ get_length_char:
         stream->value.as_uint64 = (uint64_t) va_arg(args, uint64_t);
         extract = 'Q';
       } else {
-        McTest_Abandon("Unsupported integer length.");
+        DeepState_Abandon("Unsupported integer length.");
       }
 
     common_stream_int:
-      McTest_StreamUnpack(stream, extract);
-      _McTest_StreamInt(level, format_buf, stream->unpack,
+      DeepState_StreamUnpack(stream, extract);
+      _DeepState_StreamInt(level, format_buf, stream->unpack,
                         &(stream->value.as_uint64));
       break;
 
@@ -482,37 +500,42 @@ get_length_char:
       } else {
         stream->value.as_fp64 = va_arg(args, double);
       }
-      McTest_StreamUnpack(stream, 'd');
+      DeepState_StreamUnpack(stream, 'd');
       break;
 
     case 's':
-      _McTest_StreamString(level, format_buf, va_arg(args, const char *));
+      _DeepState_StreamString(level, format_buf, va_arg(args, const char *));
       break;
 
     default:
-      McTest_Abandon("Unsupported format specifier.");
+      DeepState_Abandon("Unsupported format specifier.");
       return 0;
   }
 
   return i;
 }
 
-static char McTest_Format[McTest_StreamSize + 1];
+/* Holding buffer for a format string. If we have something like `foo%dbar`
+ * then we want to be able to pull out the `%d`, and so having the format
+ * string in a mutable buffer lets us conveniently NUL-out the `b` of `bar`
+ * following the `%d`. */
+static char DeepState_Format[DeepState_StreamSize + 1];
 
-/* Stream some formatted input */
-void McTest_StreamVFormat(enum McTest_LogLevel level, const char *format_,
-                          va_list args) {
+/* Stream some formatted input. This converts a `printf`-style format string
+ * into a */
+void DeepState_StreamVFormat(enum DeepState_LogLevel level, const char *format_,
+                             va_list args) {
   char *begin = NULL;
   char *end = NULL;
-  char *format = McTest_Format;
+  char *format = DeepState_Format;
   int i = 0;
   char ch = '\0';
   char next_ch = '\0';
 
-  strncpy(format, format_, McTest_StreamSize);
-  format[McTest_StreamSize] = '\0';
+  strncpy(format, format_, DeepState_StreamSize);
+  format[DeepState_StreamSize] = '\0';
 
-  McTest_ConcretizeCStr(format);
+  DeepState_ConcretizeCStr(format);
 
   for (i = 0; '\0' != (ch = format[i]); ) {
     if (!begin) {
@@ -524,7 +547,7 @@ void McTest_StreamVFormat(enum McTest_LogLevel level, const char *format_,
         end = &(format[i]);
         next_ch = end[1];
         end[1] = '\0';
-        McTest_StreamCStr(level, begin);
+        DeepState_StreamCStr(level, begin);
         end[1] = next_ch;
         begin = NULL;
         end = NULL;
@@ -534,12 +557,12 @@ void McTest_StreamVFormat(enum McTest_LogLevel level, const char *format_,
         if (end) {
           next_ch = end[1];
           end[1] = '\0';
-          McTest_StreamCStr(level, begin);
+          DeepState_StreamCStr(level, begin);
           end[1] = next_ch;
         }
         begin = NULL;
         end = NULL;
-        i += McTest_StreamFormatValue(level, &(format[i]), args);
+        i += DeepState_StreamFormatValue(level, &(format[i]), args);
       }
     } else {
       end = &(format[i]);
@@ -548,16 +571,16 @@ void McTest_StreamVFormat(enum McTest_LogLevel level, const char *format_,
   }
 
   if (begin && begin[0]) {
-    McTest_StreamCStr(level, begin);
+    DeepState_StreamCStr(level, begin);
   }
 }
 
 /* Stream some formatted input */
-void McTest_StreamFormat(enum McTest_LogLevel level, const char *format, ...) {
+void DeepState_StreamFormat(enum DeepState_LogLevel level, const char *format, ...) {
   va_list args;
   va_start(args, format);
-  McTest_StreamVFormat(level, format, args);
+  DeepState_StreamVFormat(level, format, args);
   va_end(args);
 }
 
-MCTEST_END_EXTERN_C
+DEEPSTATE_END_EXTERN_C

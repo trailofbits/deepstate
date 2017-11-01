@@ -14,30 +14,32 @@
  * limitations under the License.
  */
 
-#include <mctest/McUnit.hpp>
+#include <deepstate/DeepState.hpp>
 
-MCTEST_NOINLINE int ident1(int x) {
+using namespace deepstate;
+
+DEEPSTATE_NOINLINE int ident1(int x) {
   return x;
 }
 
-MCTEST_NOINLINE int ident2(int x) {
+DEEPSTATE_NOINLINE int ident2(int x) {
   return x;
 }
 
-TEST(BoundsCheck, YIsAlwaysPositive) {
-  int x = McTest_IntInRange(-10, 10);
-  int y = ident1(x) * ident2(x);
+TEST(SignedInteger, AdditionOverflow) {
+  Symbolic<int> x;
+  int y = ident1(x) + ident2(x);  // Can overflow!
   ASSERT_GE(y, 0)
       << "Found y=" << y << " was not always positive.";
 }
 
-TEST(BoundsCheck, YIsAlwaysPositive_CanFail) {
-  int x = McTest_Int();
+TEST(SignedInteger, MultiplicationOverflow) {
+  Symbolic<int> x;
   int y = ident1(x) * ident2(x);  // Can overflow!
   ASSERT_GE(y, 0)
-      << "Found y=" << y << " was not always positive.";
+      << x << " squared overflowed.";
 }
 
 int main(int argc, char *argv[]) {
-  return McTest_Run();
+  return DeepState_Run();
 }

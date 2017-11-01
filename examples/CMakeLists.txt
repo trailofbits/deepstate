@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_executable(OutOfBoundsInt OutOfBoundsInt.cpp)
-target_link_libraries(OutOfBoundsInt mctest)
+add_executable(IntegerOverflow IntegerOverflow.cpp)
+target_link_libraries(IntegerOverflow deepstate)
 
-add_executable(ArithmeticProperties ArithmeticProperties.cpp)
-target_link_libraries(ArithmeticProperties mctest)
+add_executable(IntegerArtihmetic IntegerArithmetic.cpp)
+target_link_libraries(IntegerArtihmetic deepstate)
 
 add_executable(Lists Lists.cpp)
-target_link_libraries(Lists mctest)
+target_link_libraries(Lists deepstate)
 
 add_executable(StreamingAndFormatting StreamingAndFormatting.cpp)
-target_link_libraries(StreamingAndFormatting mctest)
+target_link_libraries(StreamingAndFormatting deepstate)

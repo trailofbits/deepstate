@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-#include <mctest/McUnit.hpp>
-#include <mctest/Quantified.hpp>
+#include <deepstate/DeepState.hpp>
 
 #include <algorithm>
 #include <vector>
 
-using namespace mctest;
+using namespace deepstate;
 
 TEST(Vector, DoubleReversal) {
   ForAll<std::vector<int>>([] (const std::vector<int> &vec1) {
@@ -33,5 +32,5 @@ TEST(Vector, DoubleReversal) {
 }
 
 int main(void) {
-  McTest_Run();
+  DeepState_Run();
 }

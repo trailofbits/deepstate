@@ -28,7 +28,7 @@ LOG_LEVEL_ERROR = 3
 LOG_LEVEL_FATAL = 4
 
 
-LOGGER = logging.getLogger("mctest")
+LOGGER = logging.getLogger("deepstate")
 LOGGER.setLevel(logging.DEBUG)
 
 
@@ -46,8 +46,8 @@ class Stream(object):
     self.entries = entries
 
 
-class McTest(object):
-  """Wrapper around a symbolic executor for making it easy to do common McTest-
+class DeepState(object):
+  """Wrapper around a symbolic executor for making it easy to do common DeepState-
   specific things."""
   def __init__(self):
     pass
@@ -120,7 +120,7 @@ class McTest(object):
       return chars, next_ea
 
   def read_test_info(self, ea):
-    """Read in a `McTest_TestInfo` info structure from memory."""
+    """Read in a `DeepState_TestInfo` info structure from memory."""
     prev_test_ea, ea = self.read_uintptr_t(ea)
     test_func_ea, ea = self.read_uintptr_t(ea)
     test_name_ea, ea = self.read_uintptr_t(ea)
@@ -249,7 +249,7 @@ class McTest(object):
     self.context['abandoned'] = True
 
   def api_is_symbolic_uint(self, arg):
-    """Implements the `McTest_IsSymbolicUInt` API, which returns whether or
+    """Implements the `DeepState_IsSymbolicUInt` API, which returns whether or
     not a given value is symbolic."""
     solutions = self.concretize_many(arg, 2)
     if not solutions:
@@ -262,7 +262,7 @@ class McTest(object):
       return 1
 
   def api_assume(self, arg):
-    """Implements the `McTest_Assume` API function, which injects a constraint
+    """Implements the `DeepState_Assume` API function, which injects a constraint
     into the solver."""
     constraint = arg != 0
     if not self.add_constraint(constraint):
@@ -271,7 +271,7 @@ class McTest(object):
       self.abandon_test()
 
   def api_pass(self):
-    """Implements the `McTest_Pass` API function, which marks this test as
+    """Implements the `DeepState_Pass` API function, which marks this test as
     having passed, and stops further execution."""
     if self.context['failed']:
       self.api_fail()
@@ -281,7 +281,7 @@ class McTest(object):
       self.pass_test()
 
   def api_fail(self):
-    """Implements the `McTest_Fail` API function, which marks this test as
+    """Implements the `DeepState_Fail` API function, which marks this test as
     having failed, and stops further execution."""
     self.context['failed'] = True
     info = self.context['info']
@@ -289,12 +289,12 @@ class McTest(object):
     self.fail_test()
 
   def api_soft_fail(self):
-    """Implements the `McTest_SoftFail` API function, which marks this test
+    """Implements the `DeepState_SoftFail` API function, which marks this test
     as having failed, but lets execution continue."""
     self.context['failed'] = True
 
   def api_abandon(self, arg):
-    """Implements the `McTest_Abandon` API function, which marks this test
+    """Implements the `DeepState_Abandon` API function, which marks this test
     as having aborted due to some unrecoverable error."""
     info = self.context['info']
     ea = self.concretize(arg, constrain=True)
@@ -303,7 +303,7 @@ class McTest(object):
     self.abandon_test()
 
   def api_log(self, level, ea):
-    """Implements the `McTest_Log` API function, which prints a C string
+    """Implements the `DeepState_Log` API function, which prints a C string
     to a specific log level."""
     self.api_log_stream(level)
 
@@ -339,19 +339,19 @@ class McTest(object):
     self.context[stream_id] = stream
 
   def api_stream_int(self, level, format_ea, unpack_ea, uint64_ea):
-    """Implements the `_McTest_StreamInt`, which streams an integer into a
+    """Implements the `_DeepState_StreamInt`, which streams an integer into a
     holding buffer for the log."""
     return self._api_stream_int_float(level, format_ea, unpack_ea,
                                       uint64_ea, int)
 
   def api_stream_float(self, level, format_ea, unpack_ea, double_ea):
-    """Implements the `_McTest_StreamFloat`, which streams an integer into a
+    """Implements the `_DeepState_StreamFloat`, which streams an integer into a
     holding buffer for the log."""
     return self._api_stream_int_float(level, format_ea, unpack_ea,
                                       double_ea, float)
 
   def api_stream_string(self, level, format_ea, str_ea):
-    """Implements the `_McTest_StreamString`, which streams a C-string into a
+    """Implements the `_DeepState_StreamString`, which streams a C-string into a
     holding buffer for the log."""
     level = self.concretize(level, constrain=True)
     assert level in LOG_LEVEL_TO_LOGGER

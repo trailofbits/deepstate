@@ -17,15 +17,15 @@ import distutils.core
 import os
 import setuptools
 
-MCTEST_DIR = os.path.dirname(os.path.realpath(__file__))
+DEEPSTATE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 setuptools.setup(
-    name="mctest",
+    name="deepstate",
     version="0.1",
     package_dir={"": "${CMAKE_SOURCE_DIR}/bin"},
-    packages=['mctest'],
-    description="McTest augments C/C++ Test-Driven Development with Symbolic Execution",
-    url="https://github.com/trailofbits/mctest",
+    packages=['deepstate'],
+    description="DeepState augments C/C++ Test-Driven Development with Symbolic Execution",
+    url="https://github.com/trailofbits/deepstate",
     author="Peter Goodman",
     author_email="peter@trailofbits.com",
     license="Apache-2.0",
@@ -33,7 +33,7 @@ setuptools.setup(
     install_requires=['angr', 'manticore'],
     entry_points={
         'console_scripts': [
-            'mctest = mctest.__main__:main',
-            'mctest-angr = mctest.main_angr:main'
+            'deepstate = deepstate.main_manticore:main',
+            'deepstate-angr = deepstate.main_angr:main'
         ]
     })

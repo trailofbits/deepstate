@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-project(mctest)
+project(deepstate)
 cmake_minimum_required(VERSION 2.8)
 
 enable_language(C)
@@ -39,7 +39,7 @@ if (NOT WIN32)
 endif ()
 
 add_library(${PROJECT_NAME} STATIC
-  src/lib/McTest.c
+  src/lib/DeepState.c
   src/lib/Log.c
   src/lib/Stream.c
 )
@@ -50,7 +50,7 @@ target_include_directories(${PROJECT_NAME}
 
 # Install the 
 install(
-  DIRECTORY "${CMAKE_SOURCE_DIR}/src/include/mctest"
+  DIRECTORY "${CMAKE_SOURCE_DIR}/src/include/deepstate"
   DESTINATION include
 )
 
@@ -75,7 +75,7 @@ add_custom_command(
 # Install the Manticore harness.
 add_custom_target(target ALL DEPENDS ${OUTPUT})
 
-# Install McTest via PIP.
+# Install DeepState via PIP.
 install(CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} install)")
 
 add_subdirectory(examples)
