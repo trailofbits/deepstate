@@ -255,8 +255,7 @@ void DeepState_StreamDouble(enum DeepState_LogLevel level, double val) {
 void DeepState_LogStream(enum DeepState_LogLevel level) {
   struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   if (stream->size) {
-    stream->message[stream->size] = '\n';
-    stream->message[stream->size + 1] = '\0';
+    stream->message[stream->size] = '\0';
     stream->message[DeepState_StreamSize] = '\0';
     DeepState_Log(level, stream->message);
     memset(stream->message, 0, DeepState_StreamSize);
@@ -501,6 +500,8 @@ get_length_char:
         stream->value.as_fp64 = va_arg(args, double);
       }
       DeepState_StreamUnpack(stream, 'd');
+      _DeepState_StreamFloat(level, format_buf, stream->unpack,
+                             &(stream->value.as_fp64));
       break;
 
     case 's':
@@ -527,14 +528,19 @@ void DeepState_StreamVFormat(enum DeepState_LogLevel level, const char *format_,
                              va_list args) {
   char *begin = NULL;
   char *end = NULL;
-  char *format = DeepState_Format;
+  char *format = &(DeepState_Format[0]);
   int i = 0;
   char ch = '\0';
   char next_ch = '\0';
+  size_t len = strlen(format_);
 
-  strncpy(format, format_, DeepState_StreamSize);
-  format[DeepState_StreamSize] = '\0';
+  if (len >= DeepState_StreamSize) {
+    DeepState_Abandon("Format string is too long.");
+  }
 
+  /* Concretize the string format. */
+  memcpy(format, format_, len);
+  format[len] = '\0';
   DeepState_ConcretizeCStr(format);
 
   for (i = 0; '\0' != (ch = format[i]); ) {

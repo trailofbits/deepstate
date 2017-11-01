@@ -186,14 +186,17 @@ int DeepState_IsSymbolicUInt(uint32_t x) {
 }
 
 /* Defined in Stream.c */
-extern void _DeepState_StreamInt(enum DeepState_LogLevel level, const char *format,
-                              const char *unpack, uint64_t *val);
+extern void _DeepState_StreamInt(enum DeepState_LogLevel level,
+                                 const char *format,
+                                 const char *unpack, uint64_t *val);
 
-extern void _DeepState_StreamFloat(enum DeepState_LogLevel level, const char *format,
-                                const char *unpack, double *val);
+extern void _DeepState_StreamFloat(enum DeepState_LogLevel level,
+                                   const char *format,
+                                   const char *unpack, double *val);
 
-extern void _DeepState_StreamString(enum DeepState_LogLevel level, const char *format,
-                                 const char *str);
+extern void _DeepState_StreamString(enum DeepState_LogLevel level,
+                                    const char *format,
+                                    const char *str);
 
 /* A DeepState-specific symbol that is needed for hooking. */
 struct DeepState_IndexEntry {

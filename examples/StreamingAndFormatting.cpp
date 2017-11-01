@@ -16,22 +16,22 @@
 
 #include <deepstate/DeepState.hpp>
 
-TEST(Streaming, BasicLevels) {
-  LOG(DEBUG) << "This is a debug message";
-  LOG(INFO) << "This is an info message";
-  LOG(WARNING) << "This is a warning message";
-  LOG(ERROR) << "This is a error message";
-  LOG(INFO) << "This is a info message again";
-  ASSERT(true) << "This should not be printed.";
-}
-
-TEST(Streaming, BasicTypes) {
-  LOG(INFO) << 'a';
-  LOG(INFO) << 1;
-  LOG(INFO) << 1.0;
-  LOG(INFO) << "string";
-  LOG(INFO) << nullptr;
-}
+//TEST(Streaming, BasicLevels) {
+//  LOG(DEBUG) << "This is a debug message";
+//  LOG(INFO) << "This is an info message";
+//  LOG(WARNING) << "This is a warning message";
+//  LOG(ERROR) << "This is a error message";
+//  LOG(INFO) << "This is a info message again";
+//  ASSERT(true) << "This should not be printed.";
+//}
+//
+//TEST(Streaming, BasicTypes) {
+//  LOG(INFO) << 'a';
+//  LOG(INFO) << 1;
+//  LOG(INFO) << 1.0;
+//  LOG(INFO) << "string";
+//  LOG(INFO) << nullptr;
+//}
 
 TEST(Formatting, OverridePrintf) {
   printf("hello string=%s hex_lower=%x hex_upper=%X octal=%o char=%c dec=%d"

@@ -74,6 +74,9 @@ class DeepState(object):
   def read_uint8_t(self, ea, concretize=True, constrain=False):
     raise NotImplementedError("Must be implemented by engine.")
 
+  def write_uint8_t(self, ea, val):
+    raise NotImplementedError("Must be implemented by engine.")
+
   def concretize(self, val, constrain=False):
     raise NotImplementedError("Must be implemented by engine.")
 
@@ -86,36 +89,27 @@ class DeepState(object):
   def add_constraint(self, expr):
     raise NotImplementedError("Must be implemented by engine.")
 
-  def read_c_string(self, ea, concretize=True):
+  def read_c_string(self, ea, concretize=True, constrain=False):
     """Read a NUL-terminated string from `ea`."""
     assert isinstance(ea, (int, long))
     chars = []
     i = 0
     while True:
-      b, ea = self.read_uint8_t(ea, concretize=concretize)
+      b, ea = self.read_uint8_t(ea, concretize=concretize, constrain=constrain)
       if self.is_symbolic(b):
-        concrete_b = self.concretize_min(b)  # Find the NUL byte sooner.
-        if not concrete_b:
-          break
-
-        if concretize:
-          chars.append(chr(concrete_b))
-        else:
-          chars.append(b)
-
-        continue
-
-      # Concretize if it's not symbolic; we might have a concrete bitvector.
-      b = self.concretize(b)
-      if not b:
-        break
-
+        b_maybe_nul = self.concretize_min(b)
+        if not b_maybe_nul:
+          break  # Stop at the first possible NUL byte.
       else:
-        chars.append(chr(b))
+        # Concretize if it's not symbolic; we might have a concrete bitvector.
+        b = self.concretize(b)
+        if not b:
+          break
+      chars.append(b)
 
     next_ea = ea + len(chars) + 1
     if concretize:
-      return "".join(chars), next_ea
+      return "".join(chr(b) for b in chars), next_ea
     else:
       return chars, next_ea
 
@@ -262,13 +256,44 @@ class DeepState(object):
       return 1
 
   def api_assume(self, arg):
-    """Implements the `DeepState_Assume` API function, which injects a constraint
-    into the solver."""
+    """Implements the `DeepState_Assume` API function, which injects a
+    constraint into the solver."""
     constraint = arg != 0
     if not self.add_constraint(constraint):
       self.log_message(LOG_LEVEL_FATAL,
                        "Failed to add assumption {}".format(constraint))
       self.abandon_test()
+
+  def api_concretize_data(self, begin_ea, end_ea):
+    """Implements the `Deeptate_ConcretizeData` API function, which lets the
+    programmer concretize some data in the exclusive range
+    `[begin_ea, end_ea)`."""
+    begin_ea = self.concretize(begin_ea, constrain=True)
+    end_ea = self.concretize(end_ea, constrain=True)
+    if end_ea < begin_ea:
+      self.log_message(
+          LOG_LEVEL_FATAL,
+          "Invalid range [{:x}, {:x}) to McTest_Concretize".format(
+              begin_ea, end_ea))
+      self.abandon_test()
+
+    for i in xrange(end_ea - begin_ea):
+      val, _ = self.read_uint8_t(begin_ea + i, concretize=True, constrain=True)
+      _ = self.write_uint8_t(begin_ea + i, val)
+
+    return begin_ea
+
+  def api_concretize_cstr(self, begin_ea):
+    """Implements the `Deeptate_ConcretizeCStr` API function, which lets the
+    programmer concretize a NUL-terminated string starting at `begin_ea`."""
+    begin_ea = self.concretize(begin_ea, constrain=True)
+    str_bytes, end_ea = self.read_c_string(begin_ea, concretize=False)
+    next_ea = begin_ea
+    for i, b in enumerate(str_bytes):
+      b = self.concretize_min(b, constrain=True)
+      next_ea = self.write_uint8_t(begin_ea + i, b)
+    self.write_uint8_t(next_ea, 0)
+    return begin_ea
 
   def api_pass(self):
     """Implements the `DeepState_Pass` API function, which marks this test as

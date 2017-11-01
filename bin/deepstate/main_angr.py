@@ -76,6 +76,10 @@ class AngrTest(DeepState):
       val = ord(val)
     return val, ea + 1
 
+  def write_uint8_t(self, ea, val):
+    self.state.mem[ea].uint8_t = val
+    return ea + 1
+
   def concretize(self, val, constrain=False):
     if isinstance(val, (int, long)):
       return val
@@ -173,6 +177,21 @@ class SoftFail(angr.SimProcedure):
     AngrTest(procedure=self).api_soft_fail()
 
 
+class ConcretizeData(angr.SimProcedure):
+  """Implements the `Deeptate_ConcretizeData` API function, which lets the
+  programmer concretize some data in the exclusive range
+  `[begin_ea, end_ea)`."""
+  def run(self, begin_ea, end_ea):
+    return AngrTest(procedure=self).api_concretize_data(begin_ea, end_ea)
+
+
+class ConcretizeCStr(angr.SimProcedure):
+  """Implements the `Deeptate_ConcretizeCStr` API function, which lets the
+    programmer concretize a NUL-terminated string starting at `begin_ea`."""
+  def run(self, begin_ea):
+    return AngrTest(procedure=self).api_concretize_cstr(begin_ea)
+
+
 class StreamInt(angr.SimProcedure):
   """Implements _DeepState_StreamInt, which gives us an integer to stream, and
   the format to use for streaming."""
@@ -237,8 +256,9 @@ def do_run_test(project, test, apis, run_state):
   for state in test_manager.deadended:
     AngrTest(state=state).report()
 
-  for state in test_manager.errored:
-    print "ErrorL", state.error
+  for error in test_manager.errored:
+    print "Error", error.error
+    error.debug()
 
 def run_test(project, test, apis, run_state):
   """Symbolically executes a single test function."""
@@ -269,7 +289,10 @@ def main():
       translation_cache=True,
       support_selfmodifying_code=False,
       auto_load_libs=True,
-      exclude_sim_procedures_list=['printf', 'fprintf'])
+      exclude_sim_procedures_list=['printf', '__printf_chk',
+                                   'vprintf', '__vprintf_chk',
+                                   'fprintf', '__fprintf_chk',
+                                   'vfprintf', '__vfprintf_chk'])
 
   entry_state = project.factory.entry_state(
       add_options={angr.options.ZERO_FILL_UNCONSTRAINED_MEMORY,
@@ -296,6 +319,8 @@ def main():
 
   # Hook various functions.
   hook_function(project, apis['IsSymbolicUInt'], IsSymbolicUInt)
+  hook_function(project, apis['ConcretizeData'], ConcretizeData)
+  hook_function(project, apis['ConcretizeCStr'], ConcretizeCStr)
   hook_function(project, apis['Assume'], Assume)
   hook_function(project, apis['Pass'], Pass)
   hook_function(project, apis['Fail'], Fail)

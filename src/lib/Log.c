@@ -14,11 +14,30 @@
  * limitations under the License.
  */
 
+/* Helps to avoid conflicting declaration types of `__printf_chk`. */
+#define printf printf_foo
+#define vprintf vprintf_foo
+#define fprintf fprintf_foo
+#define vfprintf vfprintf_foo
+#define __printf_chk __printf_chk_foo
+#define __vprintf_chk __vprintf_chk_foo
+#define __fprintf_chk __fprintf_chk_foo
+#define __vfprintf_chk __vfprintf_chk_foo
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "deepstate/DeepState.h"
+
+#undef printf
+#undef vprintf
+#undef fprintf
+#undef vfprintf
+#undef __printf_chk
+#undef __vprintf_chk
+#undef __fprintf_chk
+#undef __vfprintf_chk
 
 DEEPSTATE_BEGIN_EXTERN_C
 
@@ -47,9 +66,10 @@ enum {
 char DeepState_LogBuf[DeepState_LogBufSize + 1] = {};
 
 /* Log a C string. */
+DEEPSTATE_NOINLINE
 void DeepState_Log(enum DeepState_LogLevel level, const char *str) {
   memset(DeepState_LogBuf, 0, DeepState_LogBufSize);
-  snprintf(DeepState_LogBuf, DeepState_LogBufSize, "%s: %s",
+  snprintf(DeepState_LogBuf, DeepState_LogBufSize, "%s: %s\n",
            DeepState_LogLevelStr(level), str);
   fputs(DeepState_LogBuf, stderr);
 
@@ -61,48 +81,90 @@ void DeepState_Log(enum DeepState_LogLevel level, const char *str) {
 }
 
 /* Log some formatted output. */
-void DeepState_LogFormat(enum DeepState_LogLevel level, const char *format, ...) {
+DEEPSTATE_NOINLINE
+void DeepState_LogVFormat(enum DeepState_LogLevel level,
+                          const char *format, va_list args) {
   DeepState_LogStream(level);
-  va_list args;
-  va_start(args, format);
   DeepState_StreamVFormat(level, format, args);
-  va_end(args);
   DeepState_LogStream(level);
 }
 
 /* Log some formatted output. */
-void DeepState_LogVFormat(enum DeepState_LogLevel level,
-                       const char *format, va_list args) {
-  DeepState_LogStream(level);
-  DeepState_StreamVFormat(level, format, args);
-  DeepState_LogStream(level);
+DEEPSTATE_NOINLINE
+void DeepState_LogFormat(enum DeepState_LogLevel level,
+                         const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  DeepState_LogVFormat(level, format, args);
+  va_end(args);
 }
 
 /* Override libc! */
+DEEPSTATE_NOINLINE
 int printf(const char *format, ...) {
-  DeepState_LogStream(DeepState_LogInfo);
   va_list args;
   va_start(args, format);
-  DeepState_StreamVFormat(DeepState_LogInfo, format, args);
+  DeepState_LogVFormat(DeepState_LogInfo, format, args);
   va_end(args);
-  DeepState_LogStream(DeepState_LogInfo);
   return 0;
 }
 
-int fprintf(FILE *file, const char *format, ...) {
-  enum DeepState_LogLevel level = DeepState_LogInfo;
-  if (stderr == file) {
-    level = DeepState_LogDebug;
-  } else if (stdout != file) {
-    return 0;  /* TODO(pag): This is probably evil. */
-  }
-
-  DeepState_LogStream(level);
+DEEPSTATE_NOINLINE
+int __printf_chk(int flag, const char *format, ...) {
   va_list args;
   va_start(args, format);
-  DeepState_StreamVFormat(level, format, args);
+  DeepState_LogVFormat(DeepState_LogInfo, format, args);
   va_end(args);
-  DeepState_LogStream(level);
+  return 0;
+}
+
+DEEPSTATE_NOINLINE
+int vprintf(const char *format, va_list args) {
+  DeepState_LogVFormat(DeepState_LogInfo, format, args);
+  return 0;
+}
+
+DEEPSTATE_NOINLINE
+int __vprintf_chk(int flag, const char *format, va_list args) {
+  DeepState_LogVFormat(DeepState_LogInfo, format, args);
+  return 0;
+}
+
+DEEPSTATE_NOINLINE
+int vfprintf(FILE *file, const char *format, va_list args) {
+  if (stderr == file) {
+    DeepState_LogVFormat(DeepState_LogDebug, format, args);
+  } else if (stdout == file) {
+    DeepState_LogVFormat(DeepState_LogInfo, format, args);
+  } else {
+    DeepState_LogStream(DeepState_LogWarning);
+    DeepState_Log(DeepState_LogWarning,
+                  "Ignorning vfprintf with non-stdout/stderr stream.");
+  }
+  return 0;
+}
+
+DEEPSTATE_NOINLINE
+int fprintf(FILE *file, const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  vfprintf(file, format, args);
+  va_end(args);
+  return 0;
+}
+
+DEEPSTATE_NOINLINE
+int __fprintf_chk(int flag, FILE *file, const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  vfprintf(file, format, args);
+  va_end(args);
+  return 0;
+}
+
+DEEPSTATE_NOINLINE
+int __vfprintf_chk(int flag, FILE *file, const char *format, va_list args) {
+  vfprintf(file, format, args);
   return 0;
 }
 

@@ -74,6 +74,10 @@ class MCoreTest(DeepState):
       val = ord(val)
     return val, ea + 1
 
+  def write_uint8_t(self, ea, val):
+    self.state.cpu.write_int(ea, val, size=8)
+    return ea + 1
+
   def concretize(self, val, constrain=False):
     if isinstance(val, (int, long)):
       return val
@@ -191,6 +195,19 @@ def hook_SoftFail(state):
   MCoreTest(state).api_soft_fail()
 
 
+def hook_ConcretizeData(state, begin_ea, end_ea):
+  """Implements the `Deeptate_ConcretizeData` API function, which lets the
+  programmer concretize some data in the exclusive range
+  `[begin_ea, end_ea)`."""
+  return MCoreTest(state).api_concretize_data(begin_ea, end_ea)
+
+
+def hook_ConcretizeCStr(state, begin_ea):
+  """Implements the `Deeptate_ConcretizeCStr` API function, which lets the
+    programmer concretize a NUL-terminated string starting at `begin_ea`."""
+  return MCoreTest(state).api_concretize_cstr(begin_ea)
+
+
 def hook_Log(state, level, ea):
   """Implements DeepState_Log, which lets Manticore intercept and handle the
   printing of log messages from the simulated tests."""
@@ -225,6 +242,8 @@ def do_run_test(state, apis, test):
   make_symbolic_input(state, apis['InputBegin'], apis['InputEnd'])
 
   m.add_hook(apis['IsSymbolicUInt'], hook(hook_IsSymbolicUInt))
+  m.add_hook(apis['ConcretizeData'], hook(hook_ConcretizeData))
+  m.add_hook(apis['ConcretizeCStr'], hook(hook_ConcretizeCStr))
   m.add_hook(apis['Assume'], hook(hook_Assume))
   m.add_hook(apis['Pass'], hook(hook_Pass))
   m.add_hook(apis['Fail'], hook(hook_Fail))
