@@ -76,6 +76,14 @@ add_custom_command(
 add_custom_target(target ALL DEPENDS ${OUTPUT})
 
 # Install DeepState via PIP.
-install(CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} install)")
+
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    #if an install prefix is not set, assume a global install
+    install(CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} install)")
+else()
+    # and install prefix is set; assume a user install
+    # the "prefix=" is intentional
+    install(CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} install --user --prefix=)")
+endif()
 
 add_subdirectory(examples)

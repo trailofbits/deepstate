@@ -69,7 +69,7 @@ class Stream {
   DEEPSTATE_DEFINE_STREAMER(CStr, const char *, val)
   DEEPSTATE_DEFINE_STREAMER(CStr, char *, const_cast<const char *>(val))
 
-  DEEPSTATE_DEFINE_STREAMER(Pointer, nullptr_t, nullptr)
+  DEEPSTATE_DEFINE_STREAMER(Pointer, std::nullptr_t, nullptr)
 
   template <typename T>
   DEEPSTATE_DEFINE_STREAMER(Pointer, T *, val);
