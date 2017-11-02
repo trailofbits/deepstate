@@ -332,8 +332,14 @@ class DeepState(object):
     apis = self.context['apis']
     input_length, _ = self.read_uint32_t(apis['InputIndex'])
     
-    # Concretize the used symbols.
     symbols = self.context['symbols']
+
+    # Check to see if the test case actually read too many symbols.
+    if input_length > len(symbols):
+      LOGGER.critical("Test overflowed DeepState_Input symbol array")
+      input_length = len(symbols)
+
+    # Concretize the used symbols.
     input_bytes = bytearray()
     for i in xrange(input_length):
       b = self.concretize(symbols[i], constrain=True)

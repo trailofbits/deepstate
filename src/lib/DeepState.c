@@ -27,12 +27,12 @@ DEEPSTATE_BEGIN_EXTERN_C
 struct DeepState_TestInfo *DeepState_LastTestInfo = NULL;
 
 enum {
-  DeepState_InputLength = 8192
+  DeepState_InputSize = 8192
 };
 
 /* Byte buffer that will contain symbolic data that is used to supply requests
  * for symbolic values (e.g. `int`s). */
-static volatile uint8_t DeepState_Input[DeepState_InputLength];
+static volatile uint8_t DeepState_Input[DeepState_InputSize];
 
 /* Index into the `DeepState_Input` array that tracks how many input bytes have
  * been consumed. */
@@ -81,6 +81,9 @@ void DeepState_SymbolizeData(void *begin, void *end) {
   } else {
     uint8_t *bytes = (uint8_t *) begin;
     for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
+      if (DeepState_InputIndex >= DeepState_InputSize) {
+        DeepState_Abandon("Read too many symbols");
+      }
       bytes[i] = DeepState_Input[DeepState_InputIndex++];
     }
   }
@@ -138,11 +141,17 @@ int DeepState_IsTrue(int expr) {
 
 /* Return a symbolic value of a given type. */
 int DeepState_Bool(void) {
+  if (DeepState_InputIndex >= DeepState_InputSize) {
+    DeepState_Abandon("Read too many symbols");
+  }
   return DeepState_Input[DeepState_InputIndex++] & 1;
 }
 
 #define MAKE_SYMBOL_FUNC(Type, type) \
     type DeepState_ ## Type(void) { \
+      if ((DeepState_InputIndex + sizeof(type)) > DeepState_InputSize) { \
+        DeepState_Abandon("Read too many symbols"); \
+      } \
       type val = 0; \
       _Pragma("unroll") \
       for (size_t i = 0; i < sizeof(type); ++i) { \
@@ -219,7 +228,7 @@ const struct DeepState_IndexEntry DeepState_API[] = {
 
   /* Source of symbolic bytes. */
   {"InputBegin",      (void *) &(DeepState_Input[0])},
-  {"InputEnd",        (void *) &(DeepState_Input[DeepState_InputLength])},
+  {"InputEnd",        (void *) &(DeepState_Input[DeepState_InputSize])},
   {"InputIndex",      (void *) &DeepState_InputIndex},
 
   /* Solver APIs. */
