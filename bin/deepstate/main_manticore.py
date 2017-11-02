@@ -31,9 +31,9 @@ L.setLevel(logging.INFO)
 
 OUR_TERMINATION_REASON = "I DeepState'd it"
 
-class MCoreTest(DeepState):
+class DeepManticore(DeepState):
   def __init__(self, state):
-    super(MCoreTest, self).__init__()
+    super(DeepManticore, self).__init__()
     self.state = state
 
   def __del__(self):
@@ -44,6 +44,9 @@ class MCoreTest(DeepState):
 
   def is_symbolic(self, val):
     return manticore.utils.helpers.issymbolic(val)
+
+  def create_symbol(self, name, size_in_bits):
+    return self.state.new_symbolic_value(size_in_bits, name)
 
   def read_uintptr_t(self, ea, concretize=True, constrain=False):
     addr_size_bits = self.state.cpu.address_bit_size
@@ -115,103 +118,91 @@ class MCoreTest(DeepState):
     return True
 
   def pass_test(self):
-    super(MCoreTest, self).pass_test()
+    super(DeepManticore, self).pass_test()
     raise TerminateState(OUR_TERMINATION_REASON, testcase=False)
 
   def fail_test(self):
-    super(MCoreTest, self).fail_test()
+    super(DeepManticore, self).fail_test()
     raise TerminateState(OUR_TERMINATION_REASON, testcase=False)
 
   def abandon_test(self):
-    super(MCoreTest, self).abandon_test()
+    super(DeepManticore, self).abandon_test()
     raise TerminateState(OUR_TERMINATION_REASON, testcase=False)
-
-
-def make_symbolic_input(state, input_begin_ea, input_end_ea):
-  """Fill in the input data array with symbolic data."""
-  input_size = input_end_ea - input_begin_ea
-  data = []
-  for i in xrange(input_end_ea - input_begin_ea):
-    input_byte = state.new_symbolic_value(8, "DEEPSTATE_INPUT_{}".format(i))
-    data.append(input_byte)
-    state.cpu.write_int(input_begin_ea + i, input_byte, 8)
-
-  return data
 
 
 def hook_IsSymbolicUInt(state, arg):
   """Implements DeepState_IsSymblicUInt, which returns 1 if its input argument
   has more then one solutions, and zero otherwise."""
-  return MCoreTest(state).api_is_symbolic_uint(arg)
+  return DeepManticore(state).api_is_symbolic_uint(arg)
 
 
 def hook_Assume(state, arg):
   """Implements _DeepState_Assume, which tries to inject a constraint."""
-  MCoreTest(state).api_assume(arg)
+  DeepManticore(state).api_assume(arg)
 
 
 def hook_StreamInt(state, level, format_ea, unpack_ea, uint64_ea):
   """Implements _DeepState_StreamInt, which gives us an integer to stream, and
   the format to use for streaming."""
-  MCoreTest(state).api_stream_int(level, format_ea, unpack_ea, uint64_ea)
+  DeepManticore(state).api_stream_int(level, format_ea, unpack_ea, uint64_ea)
 
 
 def hook_StreamFloat(state, level, format_ea, unpack_ea, double_ea):
   """Implements _DeepState_StreamFloat, which gives us an double to stream, and
   the format to use for streaming."""
-  MCoreTest(state).api_stream_float(level, format_ea, unpack_ea, double_ea)
+  DeepManticore(state).api_stream_float(level, format_ea, unpack_ea, double_ea)
 
 
 def hook_StreamString(state, level, format_ea, str_ea):
   """Implements _DeepState_StreamString, which gives us an double to stream, and
   the format to use for streaming."""
-  MCoreTest(state).api_stream_string(level, format_ea, str_ea)
+  DeepManticore(state).api_stream_string(level, format_ea, str_ea)
 
 
 def hook_LogStream(state, level):
   """Implements DeepState_LogStream, which converts the contents of a stream for
   level `level` into a log for level `level`."""
-  MCoreTest(state).api_log_stream(level)
+  DeepManticore(state).api_log_stream(level)
 
 
 def hook_Pass(state):
   """Implements DeepState_Pass, which notifies us of a passing test."""
-  MCoreTest(state).api_pass()
+  DeepManticore(state).api_pass()
 
 
 def hook_Fail(state):
   """Implements DeepState_Fail, which notifies us of a passing test."""
-  MCoreTest(state).api_fail()
+  DeepManticore(state).api_fail()
 
 
 def hook_Abandon(state, reason):
   """Implements DeepState_Abandon, which notifies us that a problem happened
   in DeepState."""
-  MCoreTest(state).api_abandon(reason)
+  DeepManticore(state).api_abandon(reason)
 
 
 def hook_SoftFail(state):
   """Implements DeepState_Fail, which notifies us of a passing test."""
-  MCoreTest(state).api_soft_fail()
+  DeepManticore(state).api_soft_fail()
 
 
 def hook_ConcretizeData(state, begin_ea, end_ea):
   """Implements the `Deeptate_ConcretizeData` API function, which lets the
   programmer concretize some data in the exclusive range
   `[begin_ea, end_ea)`."""
-  return MCoreTest(state).api_concretize_data(begin_ea, end_ea)
+  return DeepManticore(state).api_concretize_data(begin_ea, end_ea)
 
 
 def hook_ConcretizeCStr(state, begin_ea):
   """Implements the `Deeptate_ConcretizeCStr` API function, which lets the
     programmer concretize a NUL-terminated string starting at `begin_ea`."""
-  return MCoreTest(state).api_concretize_cstr(begin_ea)
+  return DeepManticore(state).api_concretize_cstr(begin_ea)
 
 
 def hook_Log(state, level, ea):
   """Implements DeepState_Log, which lets Manticore intercept and handle the
   printing of log messages from the simulated tests."""
-  MCoreTest(state).api_log(level, ea)
+  DeepManticore(state).api_log(level, ea)
 
 
 def hook(func):
@@ -224,7 +215,7 @@ def done_test(_, state, state_id, reason):
     L.error("State {} terminated for unknown reason: {}".format(
         state_id, reason))
     return
-  mc = MCoreTest(state)
+  mc = DeepManticore(state)
   mc.report()
 
 
@@ -235,12 +226,10 @@ def do_run_test(state, apis, test):
   m.verbosity(1)
 
   state = m.initial_state
-  mc = MCoreTest(state)
+  mc = DeepManticore(state)
   mc.begin_test(test)
   del mc
   
-  make_symbolic_input(state, apis['InputBegin'], apis['InputEnd'])
-
   m.add_hook(apis['IsSymbolicUInt'], hook(hook_IsSymbolicUInt))
   m.add_hook(apis['ConcretizeData'], hook(hook_ConcretizeData))
   m.add_hook(apis['ConcretizeCStr'], hook(hook_ConcretizeCStr))
@@ -271,7 +260,7 @@ def run_tests(args, state, apis):
   """Run all of the test cases."""
   pool = multiprocessing.Pool(processes=max(1, args.num_workers))
   results = []
-  mc = MCoreTest(state)
+  mc = DeepManticore(state)
   tests = mc.find_test_cases()
   
   L.info("Running {} tests across {} workers".format(
@@ -310,7 +299,7 @@ def main():
   setup_ea = m._get_symbol_address('DeepState_Setup')
   setup_state = m._initial_state
 
-  mc = MCoreTest(setup_state)
+  mc = DeepManticore(setup_state)
 
   ea_of_api_table = m._get_symbol_address('DeepState_API')
   apis = mc.read_api_table(ea_of_api_table)

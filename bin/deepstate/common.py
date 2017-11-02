@@ -55,9 +55,8 @@ class DeepState(object):
   def get_context(self):
     raise NotImplementedError("Must be implemented by engine.")
 
-  @property
-  def context(self):
-    return self.get_context()
+  def create_symbol(self, name, size_in_bits):
+    raise NotImplementedError("Must be implemented by engine.")
 
   def is_symbolic(self, val):
     raise NotImplementedError("Must be implemented by engine.")
@@ -88,6 +87,12 @@ class DeepState(object):
 
   def add_constraint(self, expr):
     raise NotImplementedError("Must be implemented by engine.")
+
+  @property
+  def context(self):
+    """Gives convenient property-based access to a dictionary holding state-
+    local varaibles."""
+    return self.get_context()
 
   def read_c_string(self, ea, concretize=True, constrain=False):
     """Read a NUL-terminated string from `ea`."""
@@ -157,19 +162,32 @@ class DeepState(object):
     return apis
 
   def begin_test(self, info):
+    """Begin processing the test associated with `info`."""
     self.context['failed'] = False
     self.context['abandoned'] = False
     self.context['log'] = []
     for level in LOG_LEVEL_TO_LOGGER:
       self.context['stream_{}'.format(level)] = []
+    
     self.context['info'] = info
     self.log_message(LOG_LEVEL_INFO, "Running {} from {}({})".format(
         info.name, info.file_name, info.line_number))
 
+    apis = self.context['apis']
+    symbols = []
+    for i, ea in enumerate(xrange(apis['InputBegin'], apis['InputEnd'])):
+      symbol = self.create_symbol('DEEP_INPUT_{}'.format(i), 8)
+      self.write_uint8_t(ea, symbol)
+      symbols.append(symbol)
+
+    self.context['symbols'] = symbols
+
   def log_message(self, level, message):
-    """Log a message."""
+    """Add `message` to the `level`-specific log as a `Stream` object for
+    deferred logging (at the end of the state)."""
     assert level in LOG_LEVEL_TO_LOGGER
-    log = list(self.context['log'])
+    log = list(self.context['log'])  # Make a shallow copy (needed for Angr).
+
     if isinstance(message, (str, list, tuple)):
       log.append((level, Stream([(str, "%s", None, message)])))
     else:
@@ -179,6 +197,7 @@ class DeepState(object):
     self.context['log'] = log
 
   def _concretize_bytes(self, byte_str):
+    """Concretize the bytes of `byte_str`."""
     new_bytes = []
     for b in byte_str:
       if isinstance(b, str):
@@ -191,6 +210,8 @@ class DeepState(object):
     return new_bytes
 
   def _stream_to_message(self, stream):
+    """Convert a `Stream` object into a single string message representing
+    the concatenation of all formatted stream entries."""
     assert isinstance(stream, Stream)
     message = []
     for val_type, format_str, unpack_str, val_bytes in stream.entries:
@@ -218,13 +239,14 @@ class DeepState(object):
     return "".join(message)
 
   def report(self):
+    """Report on the pass/fail status of a test case, and dump its log."""
     info = self.context['info']
     apis = self.context['apis']
     input_length, _ = self.read_uint32_t(apis['InputIndex'])
+    symbols = self.context['symbols']
     input_bytes = []
     for i in xrange(input_length):
-      ea = apis['InputBegin'] + i
-      b, _ = self.read_uint8_t(ea + i, concretize=True, constrain=True)
+      b = self.concretize(symbols[i], constrain=True)
       input_bytes.append("{:02x}".format(b))
 
     for level, stream in self.context['log']:
@@ -234,12 +256,18 @@ class DeepState(object):
     LOGGER.info("Input: {}".format(" ".join(input_bytes)))
 
   def pass_test(self):
+    """Notify the symbolic executor that this test has passed and stop
+    executing the current state."""
     pass
 
   def fail_test(self):
+    """Notify the symbolic executor that this test has failed and stop
+    executing the current state."""
     self.context['failed'] = True
 
   def abandon_test(self):
+    """Notify the symbolic executor that this test has been abandoned due to
+    some critical error and stop executing the current state."""
     self.context['abandoned'] = True
 
   def api_is_symbolic_uint(self, arg):
@@ -344,6 +372,8 @@ class DeepState(object):
 
   def _api_stream_int_float(self, level, format_ea, unpack_ea, uint64_ea,
                             val_type):
+    """Read the format information and int or float value data from memory
+    and record it into a stream."""
     level = self.concretize(level, constrain=True)
     assert level in LOG_LEVEL_TO_LOGGER
 
@@ -392,6 +422,8 @@ class DeepState(object):
     self.context[stream_id] = stream
 
   def api_log_stream(self, level):
+    """Implements DeepState_LogStream, which converts the contents of a stream
+    for level `level` into a log for level `level`."""
     level = self.concretize(level, constrain=True)
     assert level in LOG_LEVEL_TO_LOGGER
     stream_id = 'stream_{}'.format(level)

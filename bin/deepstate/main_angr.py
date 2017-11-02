@@ -26,9 +26,9 @@ L = logging.getLogger("deepstate.angr")
 L.setLevel(logging.INFO)
 
 
-class AngrTest(DeepState):
+class DeepAngr(DeepState):
   def __init__(self, state=None, procedure=None):
-    super(AngrTest, self).__init__()
+    super(DeepAngr, self).__init__()
     if procedure:
       self.procedure = procedure
       self.state = procedure.state
@@ -48,27 +48,34 @@ class AngrTest(DeepState):
       return False
     return self.state.se.symbolic(val)
 
+  def create_symbol(self, name, size_in_bits):
+    return self.state.se.Unconstrained('name', size_in_bits)
+
   def read_uintptr_t(self, ea, concretize=True, constrain=False):
-    next_ea = ea + (self.state.arch.bits // 8)
-    val = self.state.mem[ea].uintptr_t.resolved
+    addr_size_bytes = self.state.arch.bits // 8
+    endness = self.state.arch.memory_endness
+    next_ea = ea + addr_size_bytes
+    val = self.state.memory.load(ea, size=addr_size_bytes, endness=endness)
     if concretize:
       val = self.concretize(val, constrain=constrain)
     return val, next_ea
 
   def read_uint64_t(self, ea, concretize=True, constrain=False):
-    val = self.state.mem[ea].uint64_t.resolved
+    endness = self.state.arch.memory_endness
+    val = self.state.memory.load(ea, size=8, endness=endness)
     if concretize:
       val = self.concretize(val, constrain=constrain)
     return val, ea + 8
 
   def read_uint32_t(self, ea, concretize=True, constrain=False):
-    val = self.state.mem[ea].uint32_t.resolved
+    endness = self.state.arch.memory_endness
+    val = self.state.memory.load(ea, size=4, endness=endness)
     if concretize:
       val = self.concretize(val, constrain=constrain)
     return val, ea + 4
 
   def read_uint8_t(self, ea, concretize=True, constrain=False):
-    val = self.state.mem[ea].uint8_t.resolved
+    val = self.state.memory.load(ea, size=1)
     if concretize:
       val = self.concretize(val, constrain=constrain)
     if isinstance(val, str):
@@ -77,7 +84,7 @@ class AngrTest(DeepState):
     return val, ea + 1
 
   def write_uint8_t(self, ea, val):
-    self.state.mem[ea].uint8_t = val
+    self.state.memory.store(ea, val, size=1)
     return ea + 1
 
   def concretize(self, val, constrain=False):
@@ -115,15 +122,15 @@ class AngrTest(DeepState):
       return True
 
   def pass_test(self):
-    super(AngrTest, self).pass_test()
+    super(DeepAngr, self).pass_test()
     self.procedure.exit(0)
 
   def fail_test(self):
-    super(AngrTest, self).fail_test()
+    super(DeepAngr, self).fail_test()
     self.procedure.exit(1)
 
   def abandon_test(self):
-    super(AngrTest, self).abandon_test()
+    super(DeepAngr, self).abandon_test()
     self.procedure.exit(1)
 
 
@@ -132,49 +139,41 @@ def hook_function(project, ea, cls):
   project.hook(ea, cls(project=project))
 
 
-def make_symbolic_input(state, input_begin_ea, input_end_ea):
-  """Fill in the input data array with symbolic data."""
-  input_size = input_end_ea - input_begin_ea
-  data = state.se.Unconstrained('DEEPSTATE_INPUT', input_size * 8)
-  state.memory.store(input_begin_ea, data)
-  return data
-
-
 class IsSymbolicUInt(angr.SimProcedure):
   """Implements DeepState_IsSymblicUInt, which returns 1 if its input argument
   has more then one solutions, and zero otherwise."""
   def run(self, arg):
-    return AngrTest(procedure=self).api_is_symbolic_uint(arg)
+    return DeepAngr(procedure=self).api_is_symbolic_uint(arg)
 
 
 class Assume(angr.SimProcedure):
   """Implements _DeepState_Assume, which tries to inject a constraint."""
   def run(self, arg):
-    AngrTest(procedure=self).api_assume(arg)
+    DeepAngr(procedure=self).api_assume(arg)
 
 
 class Pass(angr.SimProcedure):
   """Implements DeepState_Pass, which notifies us of a passing test."""
   def run(self):
-    AngrTest(procedure=self).api_pass()
+    DeepAngr(procedure=self).api_pass()
 
 
 class Fail(angr.SimProcedure):
   """Implements DeepState_Fail, which notifies us of a failing test."""
   def run(self):
-    AngrTest(procedure=self).api_fail()
+    DeepAngr(procedure=self).api_fail()
 
 
 class Abandon(angr.SimProcedure):
   """Implements DeepState_Fail, which notifies us of a failing test."""
   def run(self, reason):
-    AngrTest(procedure=self).api_abandon(reason)
+    DeepAngr(procedure=self).api_abandon(reason)
 
 
 class SoftFail(angr.SimProcedure):
   """Implements DeepState_SoftFail, which notifies us of a failing test."""
   def run(self):
-    AngrTest(procedure=self).api_soft_fail()
+    DeepAngr(procedure=self).api_soft_fail()
 
 
 class ConcretizeData(angr.SimProcedure):
@@ -182,28 +181,28 @@ class ConcretizeData(angr.SimProcedure):
   programmer concretize some data in the exclusive range
   `[begin_ea, end_ea)`."""
   def run(self, begin_ea, end_ea):
-    return AngrTest(procedure=self).api_concretize_data(begin_ea, end_ea)
+    return DeepAngr(procedure=self).api_concretize_data(begin_ea, end_ea)
 
 
 class ConcretizeCStr(angr.SimProcedure):
   """Implements the `Deeptate_ConcretizeCStr` API function, which lets the
     programmer concretize a NUL-terminated string starting at `begin_ea`."""
   def run(self, begin_ea):
-    return AngrTest(procedure=self).api_concretize_cstr(begin_ea)
+    return DeepAngr(procedure=self).api_concretize_cstr(begin_ea)
 
 
 class StreamInt(angr.SimProcedure):
   """Implements _DeepState_StreamInt, which gives us an integer to stream, and
   the format to use for streaming."""
   def run(self, level, format_ea, unpack_ea, uint64_ea):
-    AngrTest(procedure=self).api_stream_int(level, format_ea, unpack_ea,
+    DeepAngr(procedure=self).api_stream_int(level, format_ea, unpack_ea,
                                             uint64_ea)
 
 class StreamFloat(angr.SimProcedure):
   """Implements _DeepState_StreamFloat, which gives us an double to stream, and
   the format to use for streaming."""
   def run(self, level, format_ea, unpack_ea, double_ea):
-    AngrTest(procedure=self).api_stream_float(level, format_ea, unpack_ea,
+    DeepAngr(procedure=self).api_stream_float(level, format_ea, unpack_ea,
                                               double_ea)
 
 
@@ -211,21 +210,21 @@ class StreamString(angr.SimProcedure):
   """Implements _DeepState_StreamString, which gives us an double to stream, and
   the format to use for streaming."""
   def run(self, level, format_ea, str_ea):
-    AngrTest(procedure=self).api_stream_string(level, format_ea, str_ea)
+    DeepAngr(procedure=self).api_stream_string(level, format_ea, str_ea)
 
 
 class LogStream(angr.SimProcedure):
   """Implements DeepState_LogStream, which converts the contents of a stream for
   level `level` into a log for level `level`."""
   def run(self, level):
-    AngrTest(procedure=self).api_log_stream(level)
+    DeepAngr(procedure=self).api_log_stream(level)
 
 
 class Log(angr.SimProcedure):
   """Implements DeepState_Log, which lets Angr intercept and handle the
   printing of log messages from the simulated tests."""
   def run(self, level, ea):
-    AngrTest(procedure=self).api_log(level, ea)
+    DeepAngr(procedure=self).api_log(level, ea)
 
 
 def do_run_test(project, test, apis, run_state):
@@ -235,12 +234,10 @@ def do_run_test(project, test, apis, run_state):
       test.ea,
       base_state=run_state)
 
-  mc = AngrTest(state=test_state)
+  mc = DeepAngr(state=test_state)
   mc.begin_test(test)
   del mc
   
-  make_symbolic_input(test_state, apis['InputBegin'], apis['InputEnd'])
-
   errored = []
   test_manager = angr.SimulationManager(
       project=project,
@@ -254,7 +251,7 @@ def do_run_test(project, test, apis, run_state):
         sys.exc_info()[0], traceback.format_exc()))
 
   for state in test_manager.deadended:
-    AngrTest(state=state).report()
+    DeepAngr(state=state).report()
 
   for error in test_manager.errored:
     print "Error", error.error
@@ -314,7 +311,7 @@ def main():
   # use it. 
   ea_of_api_table = project.kb.labels.lookup('DeepState_API')
 
-  mc = AngrTest(state=run_state)
+  mc = DeepAngr(state=run_state)
   apis = mc.read_api_table(ea_of_api_table)
 
   # Hook various functions.
