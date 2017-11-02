@@ -23,3 +23,7 @@ target_link_libraries(Lists deepstate)
 
 add_executable(StreamingAndFormatting StreamingAndFormatting.cpp)
 target_link_libraries(StreamingAndFormatting deepstate)
+
+add_executable(Squares Squares.c)
+target_link_libraries(Squares deepstate)
+set_target_properties(Squares PROPERTIES COMPILE_DEFINITIONS "DEEPSTATE_TEST")
