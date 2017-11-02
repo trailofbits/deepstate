@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import argparse
 import collections
 import logging
 import manticore
@@ -277,26 +276,30 @@ def run_tests(args, state, apis):
 
 
 def main():
-  parser = argparse.ArgumentParser(
-      description="Symbolically execute unit tests with Manticore")
+  args = DeepManticore.parse_args()
 
-  parser.add_argument(
-      "--num_workers", default=1, type=int,
-      help="Number of workers to spawn for testing and test generation.")
+  try:
+    m = manticore.Manticore(args.binary)
+  except Exception as e:
+    L.critical("Cannot create Manticore instance on binary {}: {}".format(
+        args.binary, e))
+    return 1
 
-  parser.add_argument(
-      "binary", type=str, help="Path to the test binary to run.")
-
-  args = parser.parse_args()
-
-  m = manticore.Manticore(args.binary)
   m.verbosity(1)
 
   # Hack to get around current broken _get_symbol_address 
   m._binary_type = 'not elf'
   m._binary_obj = m._initial_state.platform.elf
 
-  setup_ea = m._get_symbol_address('DeepState_Setup')
+  try:
+    setup_ea = m._get_symbol_address('DeepState_Setup')
+    if not setup_ea:
+      raise Exception()
+  except:
+    L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
+        args.binary))
+    return 1
+
   setup_state = m._initial_state
 
   mc = DeepManticore(setup_state)

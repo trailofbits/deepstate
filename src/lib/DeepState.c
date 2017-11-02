@@ -75,7 +75,7 @@ void DeepState_SymbolizeData(void *begin, void *end) {
   uintptr_t end_addr = (uintptr_t) end;
 
   if (begin_addr > end_addr) {
-    abort();
+    DeepState_Abandon("Invalid data bounds for DeepState_SymbolizeData");
   } else if (begin_addr == end_addr) {
     return;
   } else {

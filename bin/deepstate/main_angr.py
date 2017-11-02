@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import angr
-import argparse
 import collections
 import logging
 import multiprocessing
@@ -247,8 +246,7 @@ def do_run_test(project, test, apis, run_state):
   try:
     test_manager.run()
   except Exception as e:
-    L.error("Uncaught exception: {}\n{}".format(
-        sys.exc_info()[0], traceback.format_exc()))
+    L.error("Uncaught exception: {}\n{}".format(e, traceback.format_exc()))
 
   for state in test_manager.deadended:
     DeepAngr(state=state).report()
@@ -262,34 +260,37 @@ def run_test(project, test, apis, run_state):
   try:
     do_run_test(project, test, apis, run_state)
   except Exception as e:
-    L.error("Uncaught exception: {}\n{}".format(
-        sys.exc_info()[0], traceback.format_exc()))
+    L.error("Uncaught exception: {}\n{}".format(e, traceback.format_exc()))
 
 
 def main():
   """Run DeepState."""
-  parser = argparse.ArgumentParser(
-      description="Symbolically execute unit tests with Angr")
+  args = DeepAngr.parse_args()
 
-  parser.add_argument(
-      "--num_workers", default=1, type=int,
-      help="Number of workers to spawn for testing and test generation.")
+  try:
+    project = angr.Project(
+        args.binary,
+        use_sim_procedures=True,
+        translation_cache=True,
+        support_selfmodifying_code=False,
+        auto_load_libs=True,
+        exclude_sim_procedures_list=['printf', '__printf_chk',
+                                     'vprintf', '__vprintf_chk',
+                                     'fprintf', '__fprintf_chk',
+                                     'vfprintf', '__vfprintf_chk'])
+  except Exception as e:
+    L.critical("Cannot create Angr instance on binary {}: {}".format(
+        args.binary, e))
+    return 1
 
-  parser.add_argument(
-      "binary", type=str, help="Path to the test binary to run.")
-
-  args = parser.parse_args()
-
-  project = angr.Project(
-      args.binary,
-      use_sim_procedures=True,
-      translation_cache=True,
-      support_selfmodifying_code=False,
-      auto_load_libs=True,
-      exclude_sim_procedures_list=['printf', '__printf_chk',
-                                   'vprintf', '__vprintf_chk',
-                                   'fprintf', '__fprintf_chk',
-                                   'vfprintf', '__vfprintf_chk'])
+  try:
+    setup_ea = project.kb.labels.lookup('DeepState_Setup')
+    if not setup_ea:
+      raise Exception()
+  except:
+    L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
+        args.binary))
+    return 1
 
   entry_state = project.factory.entry_state(
       add_options={angr.options.ZERO_FILL_UNCONSTRAINED_MEMORY,
@@ -301,7 +302,6 @@ def main():
   concrete_manager = angr.SimulationManager(
         project=project,
         active_states=[entry_state])
-  setup_ea = project.kb.labels.lookup('DeepState_Setup')
   concrete_manager.explore(find=setup_ea)
   run_state = concrete_manager.found[0]
 
