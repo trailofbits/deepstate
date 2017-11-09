@@ -66,6 +66,9 @@ extern void *DeepState_ConcretizeData(void *begin, void *end);
 /* Return a symbolic C string of length `len`. */
 extern char *DeepState_CStr(size_t len);
 
+/* Symbolize a C string */
+void DeepState_SymbolizeCStr(char *begin);
+
 /* Concretize a C string. Returns a pointer to the beginning of the
  * concretized C string. */
 extern const char *DeepState_ConcretizeCStr(const char *begin);

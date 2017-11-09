@@ -339,10 +339,12 @@ class DeepState(object):
       LOGGER.critical("Test overflowed DeepState_Input symbol array")
       input_length = len(symbols)
 
-    # Concretize the used symbols.
+    # Concretize the used symbols. We use `concretize_min` so that we're more
+    # likely to get the same concrete byte values across different tools (e.g.
+    # Manticore, Angr).
     input_bytes = bytearray()
     for i in xrange(input_length):
-      b = self.concretize(symbols[i], constrain=True)
+      b = self.concretize_min(symbols[i], constrain=True)
       input_bytes.append(b)
 
     # Print out each log entry.

@@ -107,6 +107,13 @@ char *DeepState_CStr(size_t len) {
   return str;
 }
 
+/* Symbolize a C string */
+void DeepState_SymbolizeCStr(char *begin) {
+  if (begin && begin[0]) {
+    DeepState_SymbolizeData(begin, begin + strlen(begin));
+  }
+}
+
 /* Concretize a C string */
 const char *DeepState_ConcretizeCStr(const char *begin) {
   return begin;
