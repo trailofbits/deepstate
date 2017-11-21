@@ -13,8 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
 import logging
+logging.basicConfig()
+
+import collections
 import manticore
 import multiprocessing
 import sys
@@ -99,7 +101,7 @@ class DeepManticore(DeepState):
   def concretize_min(self, val, constrain=False):
     if isinstance(val, (int, long)):
       return val
-    concrete_val = self.state.solve_n(val)
+    concrete_val = min(self.state.concretize(val, policy='MINMAX'))
     if constrain:
       self.add_constraint(val == concrete_val)
     return concrete_val

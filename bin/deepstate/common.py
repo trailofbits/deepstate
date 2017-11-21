@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+logging.basicConfig()
+
 import argparse
 import collections
-import logging
 import md5
 import os
 import struct
