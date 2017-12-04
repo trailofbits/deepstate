@@ -102,7 +102,7 @@ class DeepAngr(DeepState):
   def concretize_min(self, val, constrain=False):
     if isinstance(val, (int, long)):
       return val
-    concrete_val = self.state.solver.min(val, cast_to=int)
+    concrete_val = self.state.solver.min(val)
     if constrain:
       self.add_constraint(val == concrete_val)
     return concrete_val
