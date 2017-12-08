@@ -20,6 +20,7 @@
 #include <deepstate/DeepState.h>
 #include <deepstate/Stream.hpp>
 
+#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -200,7 +201,15 @@ inline static void ForAll(Closure func) {
   func(Symbolic<Args>()...);
 }
 
+template <typename... FuncTys>
+inline static void OneOf(FuncTys&&... funcs) {
+  std::function<void(void)> func_arr[sizeof...(FuncTys)] = {funcs...};
+  func_arr[DeepState_SizeInRange(0, sizeof...(funcs))]();
+}
+
 }  // namespace deepstate
+
+#define ONE_OF ::deepstate::OneOf
 
 #define TEST(category, name) \
     DeepState_EntryPoint(category ## _ ## name)
