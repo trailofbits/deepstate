@@ -25,6 +25,9 @@
 
 DEEPSTATE_BEGIN_EXTERN_C
 
+/* Clear the contents of the stream and don't log it. */
+extern void DeepState_ClearStream(enum DeepState_LogLevel level);
+
 /* Flush the contents of the stream to a log. */
 extern void DeepState_LogStream(enum DeepState_LogLevel level);
 

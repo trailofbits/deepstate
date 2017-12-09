@@ -147,8 +147,8 @@ class IsSymbolicUInt(angr.SimProcedure):
 
 class Assume(angr.SimProcedure):
   """Implements _DeepState_Assume, which tries to inject a constraint."""
-  def run(self, arg):
-    DeepAngr(procedure=self).api_assume(arg)
+  def run(self, arg, expr_ea, file_ea, line):
+    DeepAngr(procedure=self).api_assume(arg, expr_ea, file_ea, line)
 
 
 class Pass(angr.SimProcedure):
@@ -190,6 +190,20 @@ class ConcretizeCStr(angr.SimProcedure):
     return DeepAngr(procedure=self).api_concretize_cstr(begin_ea)
 
 
+class MinUInt(angr.SimProcedure):
+  """Implements the `Deeptate_MinUInt` API function, which lets the
+    programmer ask for the minimum satisfiable value of an unsigned integer."""
+  def run(self, val):
+    return DeepAngr(procedure=self).api_min_uint(val)
+
+
+class MinInt(angr.SimProcedure):
+  """Implements the `Deeptate_MinUInt` API function, which lets the
+    programmer ask for the minimum satisfiable value of a signed integer."""
+  def run(self, val):
+    return DeepAngr(procedure=self).api_min_int(val)
+
+
 class StreamInt(angr.SimProcedure):
   """Implements _DeepState_StreamInt, which gives us an integer to stream, and
   the format to use for streaming."""
@@ -210,6 +224,13 @@ class StreamString(angr.SimProcedure):
   the format to use for streaming."""
   def run(self, level, format_ea, str_ea):
     DeepAngr(procedure=self).api_stream_string(level, format_ea, str_ea)
+
+
+class ClearStream(angr.SimProcedure):
+  """Implements DeepState_ClearStream, which clears the contents of a stream for
+  level `level`."""
+  def run(self, level):
+    DeepAngr(procedure=self).api_clear_stream(level)
 
 
 class LogStream(angr.SimProcedure):
@@ -318,6 +339,8 @@ def main():
   hook_function(project, apis['IsSymbolicUInt'], IsSymbolicUInt)
   hook_function(project, apis['ConcretizeData'], ConcretizeData)
   hook_function(project, apis['ConcretizeCStr'], ConcretizeCStr)
+  hook_function(project, apis['MinUInt'], MinUInt)
+  hook_function(project, apis['MinInt'], MinInt)
   hook_function(project, apis['Assume'], Assume)
   hook_function(project, apis['Pass'], Pass)
   hook_function(project, apis['Fail'], Fail)
@@ -327,6 +350,7 @@ def main():
   hook_function(project, apis['StreamInt'], StreamInt)
   hook_function(project, apis['StreamFloat'], StreamFloat)
   hook_function(project, apis['StreamString'], StreamString)
+  hook_function(project, apis['ClearStream'], ClearStream)
   hook_function(project, apis['LogStream'], LogStream)
 
   # Find the test cases that we want to run.

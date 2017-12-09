@@ -377,6 +377,16 @@ class DeepState(object):
     """Notify the symbolic executor that this test has been abandoned due to
     some critical error and stop executing the current state."""
     self.context['abandoned'] = True
+  
+  def api_min_uint(self, arg):
+    """Implements the `DeepState_MinUInt` API function, which returns the
+    minimum satisfiable value for `arg`."""
+    return self.concretize_min(arg, constrain=False)
+
+  def api_min_int(self, arg):
+    """Implements the `DeepState_MinInt` API function, which returns the
+    minimum satisfiable value for `arg`."""
+    return self.concretize_min(arg + 2**31, constrain=False)
 
   def api_is_symbolic_uint(self, arg):
     """Implements the `DeepState_IsSymbolicUInt` API, which returns whether or
@@ -391,13 +401,17 @@ class DeepState(object):
     else:
       return 1
 
-  def api_assume(self, arg):
+  def api_assume(self, arg, expr_ea, file_ea, line):
     """Implements the `DeepState_Assume` API function, which injects a
     constraint into the solver."""
     constraint = arg != 0
     if not self.add_constraint(constraint):
-      self.log_message(LOG_LEVEL_FATAL,
-                       "Failed to add assumption {}".format(constraint))
+      expr, _ = self.read_c_string(expr_ea, concretize=False)
+      file, _ = self.read_c_string(file_ea, concretize=False)
+      line = self.concretize(line, constrain=True)
+      self.log_message(
+        LOG_LEVEL_FATAL, "Failed to add assumption {} in {}:{}".format(
+            expr, file, line))
       self.abandon_test()
 
   def api_concretize_data(self, begin_ea, end_ea):
@@ -528,6 +542,14 @@ class DeepState(object):
     stream = list(self.context[stream_id])
     stream.append((str, format_str, None, print_str))
     self.context[stream_id] = stream
+
+  def api_clear_stream(self, level):
+    """Implements DeepState_ClearStream, which clears the contents of a stream
+    for level `level`."""
+    level = self.concretize(level, constrain=True)
+    assert level in LOG_LEVEL_TO_LOGGER
+    stream_id = 'stream_{}'.format(level)
+    self.context[stream_id] = []
 
   def api_log_stream(self, level):
     """Implements DeepState_LogStream, which converts the contents of a stream

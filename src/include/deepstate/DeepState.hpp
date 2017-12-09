@@ -192,6 +192,39 @@ class Symbolic<std::vector<T>> :
       DEEPSTATE_INLINE operator tname (void) const { \
         return value; \
       } \
+      DEEPSTATE_INLINE tname operator+(const tname that) const { \
+        return value + that; \
+      } \
+      DEEPSTATE_INLINE tname operator-(const tname that) const { \
+        return value - that; \
+      } \
+      DEEPSTATE_INLINE tname operator*(const tname that) const { \
+        return value * that; \
+      } \
+      DEEPSTATE_INLINE tname operator/(const tname that) const { \
+        return value / that; \
+      } \
+      DEEPSTATE_INLINE tname operator|(const tname that) const { \
+        return value | that; \
+      } \
+      DEEPSTATE_INLINE tname operator&(const tname that) const { \
+        return value & that; \
+      } \
+      DEEPSTATE_INLINE tname operator^(const tname that) const { \
+        return value ^ that; \
+      } \
+      DEEPSTATE_INLINE tname operator~(void) const { \
+        return ~value; \
+      } \
+      DEEPSTATE_INLINE tname operator-(void) const { \
+        return -value; \
+      } \
+      DEEPSTATE_INLINE tname operator>>(const tname that) const { \
+        return value >> that; \
+      } \
+      DEEPSTATE_INLINE tname operator<<(const tname that) const { \
+        return value << that; \
+      } \
       tname value; \
     };
 
@@ -204,7 +237,54 @@ MAKE_SYMBOL_SPECIALIZATION(Short, int16_t)
 MAKE_SYMBOL_SPECIALIZATION(UChar, uint8_t)
 MAKE_SYMBOL_SPECIALIZATION(Char, int8_t)
 
+
+using symbolic_char = Symbolic<char>;
+using symbolic_short = Symbolic<short>;
+using symbolic_int = Symbolic<int>;
+using symbolic_unsigned = Symbolic<unsigned>;
+using symbolic_long = Symbolic<long>;
+
+using symbolic_int8_t = Symbolic<int8_t>;
+using symbolic_uint8_t = Symbolic<uint8_t>;
+using symbolic_int16_t = Symbolic<int16_t>;
+using symbolic_uint16_t = Symbolic<uint16_t>;
+using symbolic_int32_t = Symbolic<int32_t>;
+using symbolic_uint32_t = Symbolic<uint32_t>;
+using symbolic_int64_t = Symbolic<int64_t>;
+using symbolic_uint64_t = Symbolic<uint64_t>;
+
 #undef MAKE_SYMBOL_SPECIALIZATION
+
+#define MAKE_MINIMIZER(Type, type) \
+    DEEPSTATE_INLINE static type Minimize(type val) { \
+      return DeepState_Min ## Type(val); \
+    }
+
+MAKE_MINIMIZER(UInt, uint32_t)
+MAKE_MINIMIZER(Int, int32_t)
+MAKE_MINIMIZER(UShort, uint16_t)
+MAKE_MINIMIZER(Short, int16_t)
+MAKE_MINIMIZER(UChar, uint8_t)
+MAKE_MINIMIZER(Char, int8_t)
+
+#undef MAKE_MINIMIZER
+
+template <typename T>
+static T Pump(T val, unsigned max=10) {
+  if (!IsSymbolic(val)) {
+    return val;
+  }
+  for (auto i = 0U; i < max; ++i) {
+    T min_val = Minimize(val);
+    if (val == min_val) {
+      asm volatile ("" : : "m"(min_val) : "memory");
+      return min_val;  // Force the concrete `min_val` to be returned,
+                       // as opposed to compiler possibly choosing to
+                       // return `val`.
+    }
+  }
+  return Minimize(val);
+}
 
 template <typename... Args>
 inline static void ForAll(void (*func)(Args...)) {

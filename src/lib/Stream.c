@@ -251,6 +251,15 @@ void DeepState_StreamDouble(enum DeepState_LogLevel level, double val) {
   _DeepState_StreamFloat(level, format, stream->unpack, &(stream->value.as_fp64));
 }
 
+/* Clear the contents of the stream and don't log it. */
+void DeepState_ClearStream(enum DeepState_LogLevel level) {
+  struct DeepState_Stream *stream = &(DeepState_Streams[level]);
+  if (stream->size) {
+    memset(stream->message, 0, DeepState_StreamSize);
+    stream->size = 0;
+  }
+}
+
 /* Flush the contents of the stream to a log. */
 void DeepState_LogStream(enum DeepState_LogLevel level) {
   struct DeepState_Stream *stream = &(DeepState_Streams[level]);
@@ -258,8 +267,7 @@ void DeepState_LogStream(enum DeepState_LogLevel level) {
     stream->message[stream->size] = '\0';
     stream->message[DeepState_StreamSize] = '\0';
     DeepState_Log(level, stream->message);
-    memset(stream->message, 0, DeepState_StreamSize);
-    stream->size = 0;
+    DeepState_ClearStream(level);
   }
 }
 

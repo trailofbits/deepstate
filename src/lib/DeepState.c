@@ -15,6 +15,7 @@
  */
 
 #include "deepstate/DeepState.h"
+#include "deepstate/Log.h"
 
 #include <assert.h>
 #include <limits.h>
@@ -195,9 +196,22 @@ int8_t DeepState_Char(void) {
 
 #undef MAKE_SYMBOL_FUNC
 
-void _DeepState_Assume(int expr) {
+
+/* Returns the minimum satisfiable value for a given symbolic value, given
+ * the constraints present on that value. */
+uint32_t DeepState_MinUInt(uint32_t v) {
+  return v;
+}
+
+int32_t DeepState_MinInt(int32_t v) {
+  return v;
+}
+
+void _DeepState_Assume(int expr, const char *expr_str, const char *file,
+                       unsigned line) {
   if (!expr) {
-    DeepState_Abandon("");
+    DeepState_LogFormat(DeepState_LogFatal, "Assumption %s at %s:%u failed",
+                        expr_str, file, line);
   }
 }
 
@@ -248,11 +262,14 @@ const struct DeepState_IndexEntry DeepState_API[] = {
   {"IsSymbolicUInt",  (void *) DeepState_IsSymbolicUInt},
   {"ConcretizeData",  (void *) DeepState_ConcretizeData},
   {"ConcretizeCStr",  (void *) DeepState_ConcretizeCStr},
+  {"MinUInt",         (void *) DeepState_MinUInt},
+  {"MinInt",          (void *) DeepState_MinInt},
 
   /* Logging API. */
   {"Log",             (void *) DeepState_Log},
 
   /* Streaming API for deferred logging. */
+  {"ClearStream",     (void *) DeepState_ClearStream},
   {"LogStream",       (void *) DeepState_LogStream},
   {"StreamInt",       (void *) _DeepState_StreamInt},
   {"StreamFloat",     (void *) _DeepState_StreamFloat},

@@ -28,9 +28,10 @@ namespace deepstate {
 class Stream {
  public:
   DEEPSTATE_INLINE Stream(DeepState_LogLevel level_, bool do_log_,
-                       const char *file, unsigned line)
+                          const char *file, unsigned line)
       : level(level_),
-        do_log(DeepState_IsTrue(do_log_)) {
+        do_log(!!DeepState_IsTrue(do_log_)),
+        has_something_to_log(false) {
     DeepState_LogStream(level);
     if (do_log) {
       DeepState_StreamFormat(level, "%s(%u): ", file, line);
@@ -39,7 +40,11 @@ class Stream {
 
   DEEPSTATE_INLINE ~Stream(void) {
     if (do_log) {
-      DeepState_LogStream(level);
+      if (has_something_to_log) {
+        DeepState_LogStream(level);
+      } else {
+        DeepState_ClearStream(level);
+      }
     }
   }
 
@@ -47,6 +52,7 @@ class Stream {
   DEEPSTATE_INLINE const Stream &operator<<(type val) const { \
     if (do_log) { \
       DeepState_Stream ## Type(level, expr); \
+      has_something_to_log = true; \
     } \
     return *this; \
   }
@@ -82,6 +88,7 @@ class Stream {
   DEEPSTATE_INLINE const Stream &operator<<(const std::string &str) const {
     if (do_log && !str.empty()) {
       DeepState_StreamCStr(level, str.c_str());
+      has_something_to_log = true;
     }
     return *this;
   }
@@ -94,7 +101,8 @@ class Stream {
   Stream &operator=(const Stream &) = delete;
 
   const DeepState_LogLevel level;
-  const int do_log;
+  const bool do_log;
+  mutable bool has_something_to_log;
 };
 
 }  // namespace deepstate

@@ -137,9 +137,9 @@ def hook_IsSymbolicUInt(state, arg):
   return DeepManticore(state).api_is_symbolic_uint(arg)
 
 
-def hook_Assume(state, arg):
+def hook_Assume(state, arg, expr_ea, file_ea, line):
   """Implements _DeepState_Assume, which tries to inject a constraint."""
-  DeepManticore(state).api_assume(arg)
+  DeepManticore(state).api_assume(arg, expr_ea, file_ea, line)
 
 
 def hook_StreamInt(state, level, format_ea, unpack_ea, uint64_ea):
@@ -158,6 +158,12 @@ def hook_StreamString(state, level, format_ea, str_ea):
   """Implements _DeepState_StreamString, which gives us an double to stream, and
   the format to use for streaming."""
   DeepManticore(state).api_stream_string(level, format_ea, str_ea)
+
+
+def hook_ClearStream(state, level):
+  """Implements DeepState_ClearStream, which clears the contents of a stream
+  for level `level`."""
+  DeepManticore(state).api_clear_stream(level)
 
 
 def hook_LogStream(state, level):
@@ -200,6 +206,18 @@ def hook_ConcretizeCStr(state, begin_ea):
   return DeepManticore(state).api_concretize_cstr(begin_ea)
 
 
+def hook_MinUInt(self, val):
+  """Implements the `Deeptate_MinUInt` API function, which lets the
+  programmer ask for the minimum satisfiable value of an unsigned integer."""
+  return DeepAngr(procedure=self).api_min_uint(val)
+
+
+def hook_MinInt(self, val):
+  """Implements the `Deeptate_MinUInt` API function, which lets the
+  programmer ask for the minimum satisfiable value of a signed integer."""
+  return DeepAngr(procedure=self).api_min_int(val)
+
+
 def hook_Log(state, level, ea):
   """Implements DeepState_Log, which lets Manticore intercept and handle the
   printing of log messages from the simulated tests."""
@@ -234,6 +252,8 @@ def do_run_test(state, apis, test):
   m.add_hook(apis['IsSymbolicUInt'], hook(hook_IsSymbolicUInt))
   m.add_hook(apis['ConcretizeData'], hook(hook_ConcretizeData))
   m.add_hook(apis['ConcretizeCStr'], hook(hook_ConcretizeCStr))
+  m.add_hook(apis['MinUInt'], hook(hook_MinUInt))
+  m.add_hook(apis['MinInt'], hook(hook_MinInt))
   m.add_hook(apis['Assume'], hook(hook_Assume))
   m.add_hook(apis['Pass'], hook(hook_Pass))
   m.add_hook(apis['Fail'], hook(hook_Fail))
@@ -243,6 +263,7 @@ def do_run_test(state, apis, test):
   m.add_hook(apis['StreamInt'], hook(hook_StreamInt))
   m.add_hook(apis['StreamFloat'], hook(hook_StreamFloat))
   m.add_hook(apis['StreamString'], hook(hook_StreamString))
+  m.add_hook(apis['ClearStream'], hook(hook_ClearStream))
   m.add_hook(apis['LogStream'], hook(hook_LogStream))
 
   m.subscribe('will_terminate_state', done_test)

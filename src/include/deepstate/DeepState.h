@@ -59,6 +59,27 @@ extern int16_t DeepState_Short(void);
 extern uint8_t DeepState_UChar(void);
 extern int8_t DeepState_Char(void);
 
+/* Returns the minimum satisfiable value for a given symbolic value, given
+ * the constraints present on that value. */
+extern uint32_t DeepState_MinUInt(uint32_t);
+extern int32_t DeepState_MinInt(int32_t);
+
+DEEPSTATE_INLINE static uint16_t DeepState_MinUShort(uint16_t v) {
+  return DeepState_MinUInt(v);
+}
+
+DEEPSTATE_INLINE static uint8_t DeepState_MinUChar(uint8_t v) {
+  return DeepState_MinUInt(v);
+}
+
+DEEPSTATE_INLINE static int16_t DeepState_MinShort(int16_t v) {
+  return DeepState_MinInt(v);
+}
+
+DEEPSTATE_INLINE static int8_t DeepState_MinChar(int8_t v) {
+  return DeepState_MinInt(v);
+}
+
 /* Returns `1` if `expr` is true, and `0` otherwise. This is kind of an indirect
  * way to take a symbolic value, introduce a fork, and on each size, replace its
 * value with a concrete value. */
@@ -105,9 +126,10 @@ DEEPSTATE_MAKE_SYMBOLIC_ARRAY(UChar, unsigned char)
 
 /* Creates an assumption about a symbolic value. Returns `1` if the assumption
  * can hold and was asserted. */
-extern void _DeepState_Assume(int expr);
+extern void _DeepState_Assume(int expr, const char *expr_str, const char *file,
+                              unsigned line);
 
-#define DeepState_Assume(x) _DeepState_Assume(!!(x))
+#define DeepState_Assume(x) _DeepState_Assume(!!(x), #x, __FILE__, __LINE__)
 
 /* Abandon this test. We've hit some kind of internal problem. */
 DEEPSTATE_NORETURN
