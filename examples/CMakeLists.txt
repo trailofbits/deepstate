@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+add_executable(Fixture Fixture.cpp)
+target_link_libraries(Fixture deepstate)
+
 add_executable(IntegerOverflow IntegerOverflow.cpp)
 target_link_libraries(IntegerOverflow deepstate)
 

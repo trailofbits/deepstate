@@ -115,6 +115,21 @@ DEEPSTATE_INLINE static bool IsSymbolic(double x) {
   return DeepState_IsSymbolicDouble(x);
 }
 
+// A test fixture.
+class Test {
+ public:
+  Test(void) = default;
+  ~Test(void) = default;
+  inline void SetUp(void) {}
+  inline void TearDown(void) {}
+
+ private:
+  Test(const Test &) = delete;
+  Test(Test &&) = delete;
+  Test &operator=(const Test &) = delete;
+  Test &operator=(Test &&) = delete;
+};
+
 template <typename T>
 class Symbolic {
  public:
@@ -213,6 +228,38 @@ inline static void OneOf(FuncTys&&... funcs) {
 
 #define TEST(category, name) \
     DeepState_EntryPoint(category ## _ ## name)
+
+#define _TEST_F(fixture_name, test_name, file, line) \
+    class fixture_name ## _ ## test_name : public fixture_name { \
+     public: \
+      void DoRunTest(void); \
+      static void RunTest(void) { \
+        do { \
+          fixture_name ## _ ## test_name self; \
+          self.SetUp(); \
+          self.DoRunTest(); \
+          self.TearDown(); \
+        } while (false); \
+        DeepState_Pass(); \
+      } \
+      static struct DeepState_TestInfo kTestInfo; \
+    }; \
+    struct DeepState_TestInfo fixture_name ## _ ## test_name::kTestInfo = { \
+      nullptr, \
+      fixture_name ## _ ## test_name::RunTest, \
+      DEEPSTATE_TO_STR(fixture_name ## _ ## test_name), \
+      file, \
+      line, \
+    }; \
+    DEEPSTATE_INITIALIZER(DeepState_Register_ ## test_name) { \
+      fixture_name ## _ ## test_name::kTestInfo.prev = DeepState_LastTestInfo; \
+      DeepState_LastTestInfo = &(fixture_name ## _ ## test_name::kTestInfo); \
+    } \
+    void fixture_name ## _ ## test_name :: DoRunTest(void)
+
+
+#define TEST_F(fixture_name, test_name) \
+    _TEST_F(fixture_name, test_name, __FILE__, __LINE__)
 
 #define LOG_DEBUG(cond) \
     ::deepstate::Stream(DeepState_LogDebug, (cond), __FILE__, __LINE__)
