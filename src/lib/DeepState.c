@@ -26,6 +26,9 @@ DEEPSTATE_BEGIN_EXTERN_C
 /* Pointer to the last registers DeepState_TestInfo data structure */
 struct DeepState_TestInfo *DeepState_LastTestInfo = NULL;
 
+/* Pointer to the test being run in this process by Dr. Fuzz. */
+static struct DeepState_TestInfo *DeepState_DrFuzzTest = NULL;
+
 enum {
   DeepState_InputSize = 8192
 };
@@ -193,7 +196,9 @@ int8_t DeepState_Char(void) {
 #undef MAKE_SYMBOL_FUNC
 
 void _DeepState_Assume(int expr) {
-  assert(expr);
+  if (!expr) {
+    DeepState_Abandon("");
+  }
 }
 
 int DeepState_IsSymbolicUInt(uint32_t x) {
@@ -271,7 +276,51 @@ void DeepState_Begin(struct DeepState_TestInfo *info) {
   DeepState_TestFailed = 0;
   DeepState_TestAbandoned = NULL;
   DeepState_LogFormat(DeepState_LogInfo, "Running: %s from %s(%u)",
-                   info->test_name, info->file_name, info->line_number);
+                      info->test_name, info->file_name, info->line_number);
+}
+
+/* Runs in a child process, under the control of Dr. Memory */
+void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
+  struct DeepState_TestInfo *test = DeepState_DrFuzzTest;
+  DeepState_TestFailed = 0;
+  DeepState_InputIndex = 0;
+  DeepState_TestAbandoned = NULL;
+  DeepState_LogFormat(DeepState_LogInfo, "Running: %s from %s(%u)",
+                      test->test_name, test->file_name, test->line_number);
+
+  if (!setjmp(DeepState_ReturnToRun)) {
+    /* Convert uncaught C++ exceptions into a test failure. */
+#if defined(__cplusplus) && defined(__cpp_exceptions)
+    try {
+#endif  /* __cplusplus */
+
+    test->test_func();
+    DeepState_Pass();
+
+#if defined(__cplusplus) && defined(__cpp_exceptions)
+    } catch(...) {
+      DeepState_Fail();
+    }
+#endif  /* __cplusplus */
+  /* We caught a failure when running the test. */
+  } else if (DeepState_CatchFail()) {
+    DeepState_LogFormat(DeepState_LogError, "Failed: %s", test->test_name);
+
+  /* The test was abandoned. We may have gotten soft failures before
+   * abandoning, so we prefer to catch those first. */
+  } else if (DeepState_CatchAbandoned()) {
+    DeepState_LogFormat(DeepState_LogFatal, "Abandoned: %s", test->test_name);
+
+  /* The test passed. */
+  } else {
+    DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
+  }
+}
+
+/* Notify that we're about to begin a test while running under Dr. Fuzz. */
+void DeepState_BeginDrFuzz(struct DeepState_TestInfo *test) {
+  DeepState_DrFuzzTest = test;
+  DrMemFuzzFunc(DeepState_Input, DeepState_InputSize);
 }
 
 /* Return the first test case to run. */

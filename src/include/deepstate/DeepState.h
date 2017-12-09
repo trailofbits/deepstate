@@ -24,6 +24,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #include <deepstate/Log.h>
 #include <deepstate/Compiler.h>
@@ -36,6 +39,11 @@
 #define assert DeepState_Assert
 #define assume DeepState_Assume
 #define check DeepState_Check
+
+#define MAYBE(...) \
+    if (DeepState_Bool()) { \
+      __VA_ARGS__ ; \
+    }
 
 DEEPSTATE_BEGIN_EXTERN_C
 
@@ -246,6 +254,9 @@ extern void DeepState_Setup(void);
 /* Tear down DeepState. */
 extern void DeepState_Teardown(void);
 
+/* Notify that we're about to begin a test while running under Dr. Fuzz. */
+extern void DeepState_BeginDrFuzz(struct DeepState_TestInfo *info);
+
 /* Notify that we're about to begin a test. */
 extern void DeepState_Begin(struct DeepState_TestInfo *info);
 
@@ -264,13 +275,21 @@ extern jmp_buf DeepState_ReturnToRun;
 /* Start DeepState and run the tests. Returns the number of failed tests. */
 static int DeepState_Run(void) {
   int num_failed_tests = 0;
+  int use_drfuzz = getenv("DYNAMORIO_EXE_PATH") != NULL;
   struct DeepState_TestInfo *test = NULL;
 
   DeepState_Setup();
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
-    DeepState_Begin(test);
-
+    if (use_drfuzz) {
+      if (!fork()) {
+        DeepState_BeginDrFuzz(test);
+      } else {
+        continue;
+      }
+    } else {
+      DeepState_Begin(test);
+    }
     /* Run the test. */
     if (!setjmp(DeepState_ReturnToRun)) {
       
@@ -303,6 +322,10 @@ static int DeepState_Run(void) {
     } else {
       DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
     }
+  }
+
+  if (use_drfuzz) {
+    waitpid(-1, NULL, 0);  /* Wait for all children. */
   }
 
   DeepState_Teardown();
