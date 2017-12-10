@@ -19,6 +19,9 @@ target_link_libraries(Fixture deepstate)
 add_executable(Primes Primes.cpp)
 target_link_libraries(Primes deepstate)
 
+add_executable(Euler Euler.cpp)
+target_link_libraries(Euler deepstate)
+
 add_executable(IntegerOverflow IntegerOverflow.cpp)
 target_link_libraries(IntegerOverflow deepstate)
 
