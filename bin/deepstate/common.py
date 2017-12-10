@@ -93,6 +93,9 @@ class DeepState(object):
   def concretize_min(self, val, constrain=False):
     raise NotImplementedError("Must be implemented by engine.")
 
+  def concretize_max(self, val, constrain=False):
+    raise NotImplementedError("Must be implemented by engine.")
+
   def concretize_many(self, val, max_num):
     raise NotImplementedError("Must be implemented by engine.")
 
@@ -383,10 +386,10 @@ class DeepState(object):
     minimum satisfiable value for `arg`."""
     return self.concretize_min(arg, constrain=False)
 
-  def api_min_int(self, arg):
-    """Implements the `DeepState_MinInt` API function, which returns the
+  def api_max_uint(self, arg):
+    """Implements the `DeepState_MaxUInt` API function, which returns the
     minimum satisfiable value for `arg`."""
-    return self.concretize_min(arg + 2**31, constrain=False)
+    return self.concretize_max(arg, constrain=False)
 
   def api_is_symbolic_uint(self, arg):
     """Implements the `DeepState_IsSymbolicUInt` API, which returns whether or

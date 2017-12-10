@@ -258,6 +258,9 @@ using symbolic_uint64_t = Symbolic<uint64_t>;
 #define MAKE_MINIMIZER(Type, type) \
     DEEPSTATE_INLINE static type Minimize(type val) { \
       return DeepState_Min ## Type(val); \
+    } \
+    DEEPSTATE_INLINE static type Maximize(type val) { \
+      return DeepState_Max ## Type(val); \
     }
 
 MAKE_MINIMIZER(UInt, uint32_t)

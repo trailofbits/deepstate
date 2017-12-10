@@ -106,6 +106,14 @@ class DeepManticore(DeepState):
       self.add_constraint(val == concrete_val)
     return concrete_val
 
+  def concretize_max(self, val, constrain=False):
+    if isinstance(val, (int, long)):
+      return val
+    concrete_val = max(self.state.concretize(val, policy='MINMAX'))
+    if constrain:
+      self.add_constraint(val == concrete_val)
+    return concrete_val
+
   def concretize_many(self, val, max_num):
     assert 0 < max_num
     if isinstance(val, (int, long)):
@@ -212,10 +220,10 @@ def hook_MinUInt(self, val):
   return DeepAngr(procedure=self).api_min_uint(val)
 
 
-def hook_MinInt(self, val):
-  """Implements the `Deeptate_MinUInt` API function, which lets the
+def hook_MaxUInt(self, val):
+  """Implements the `Deeptate_MaxUInt` API function, which lets the
   programmer ask for the minimum satisfiable value of a signed integer."""
-  return DeepAngr(procedure=self).api_min_int(val)
+  return DeepAngr(procedure=self).api_max_uint(val)
 
 
 def hook_Log(state, level, ea):
@@ -253,7 +261,7 @@ def do_run_test(state, apis, test):
   m.add_hook(apis['ConcretizeData'], hook(hook_ConcretizeData))
   m.add_hook(apis['ConcretizeCStr'], hook(hook_ConcretizeCStr))
   m.add_hook(apis['MinUInt'], hook(hook_MinUInt))
-  m.add_hook(apis['MinInt'], hook(hook_MinInt))
+  m.add_hook(apis['MaxUInt'], hook(hook_MaxUInt))
   m.add_hook(apis['Assume'], hook(hook_Assume))
   m.add_hook(apis['Pass'], hook(hook_Pass))
   m.add_hook(apis['Fail'], hook(hook_Fail))

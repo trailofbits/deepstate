@@ -107,6 +107,14 @@ class DeepAngr(DeepState):
       self.add_constraint(val == concrete_val)
     return concrete_val
 
+  def concretize_max(self, val, constrain=False):
+    if isinstance(val, (int, long)):
+      return val
+    concrete_val = self.state.solver.max(val)
+    if constrain:
+      self.add_constraint(val == concrete_val)
+    return concrete_val
+
   def concretize_many(self, val, max_num):
     assert 0 < max_num
     if isinstance(val, (int, long)):
@@ -197,11 +205,11 @@ class MinUInt(angr.SimProcedure):
     return DeepAngr(procedure=self).api_min_uint(val)
 
 
-class MinInt(angr.SimProcedure):
-  """Implements the `Deeptate_MinUInt` API function, which lets the
+class MaxUInt(angr.SimProcedure):
+  """Implements the `Deeptate_MaxUInt` API function, which lets the
     programmer ask for the minimum satisfiable value of a signed integer."""
   def run(self, val):
-    return DeepAngr(procedure=self).api_min_int(val)
+    return DeepAngr(procedure=self).api_max_uint(val)
 
 
 class StreamInt(angr.SimProcedure):
@@ -340,7 +348,7 @@ def main():
   hook_function(project, apis['ConcretizeData'], ConcretizeData)
   hook_function(project, apis['ConcretizeCStr'], ConcretizeCStr)
   hook_function(project, apis['MinUInt'], MinUInt)
-  hook_function(project, apis['MinInt'], MinInt)
+  hook_function(project, apis['MaxUInt'], MaxUInt)
   hook_function(project, apis['Assume'], Assume)
   hook_function(project, apis['Pass'], Pass)
   hook_function(project, apis['Fail'], Fail)

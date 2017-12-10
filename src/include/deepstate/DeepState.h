@@ -64,20 +64,39 @@ extern int8_t DeepState_Char(void);
 extern uint32_t DeepState_MinUInt(uint32_t);
 extern int32_t DeepState_MinInt(int32_t);
 
+extern uint32_t DeepState_MaxUInt(uint32_t);
+extern int32_t DeepState_MaxInt(int32_t);
+
 DEEPSTATE_INLINE static uint16_t DeepState_MinUShort(uint16_t v) {
   return DeepState_MinUInt(v);
 }
 
 DEEPSTATE_INLINE static uint8_t DeepState_MinUChar(uint8_t v) {
-  return DeepState_MinUInt(v);
+  return (uint8_t) DeepState_MinUInt(v);
 }
 
 DEEPSTATE_INLINE static int16_t DeepState_MinShort(int16_t v) {
-  return DeepState_MinInt(v);
+  return (int16_t) DeepState_MinInt(v);
 }
 
 DEEPSTATE_INLINE static int8_t DeepState_MinChar(int8_t v) {
-  return DeepState_MinInt(v);
+  return (int8_t) DeepState_MinInt(v);
+}
+
+DEEPSTATE_INLINE static uint16_t DeepState_MaxUShort(uint16_t v) {
+  return (uint16_t) DeepState_MaxUInt(v);
+}
+
+DEEPSTATE_INLINE static uint8_t DeepState_MaxUChar(uint8_t v) {
+  return (uint8_t) DeepState_MaxUInt(v);
+}
+
+DEEPSTATE_INLINE static int16_t DeepState_MaxShort(int16_t v) {
+  return (int16_t) DeepState_MaxInt(v);
+}
+
+DEEPSTATE_INLINE static int8_t DeepState_MaxChar(int8_t v) {
+  return (int8_t) DeepState_MaxInt(v);
 }
 
 /* Returns `1` if `expr` is true, and `0` otherwise. This is kind of an indirect

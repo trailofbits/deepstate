@@ -204,7 +204,19 @@ uint32_t DeepState_MinUInt(uint32_t v) {
 }
 
 int32_t DeepState_MinInt(int32_t v) {
+  return (int32_t) (DeepState_MinUInt(((uint32_t) v) + 0x80000000U) -
+                    0x80000000U);
+}
+
+/* Returns the maximum satisfiable value for a given symbolic value, given
+ * the constraints present on that value. */
+uint32_t DeepState_MaxUInt(uint32_t v) {
   return v;
+}
+
+int32_t DeepState_MaxInt(int32_t v) {
+  return (int32_t) (DeepState_MaxUInt(((uint32_t) v) + 0x80000000U) -
+                    0x80000000U);
 }
 
 void _DeepState_Assume(int expr, const char *expr_str, const char *file,
@@ -263,7 +275,7 @@ const struct DeepState_IndexEntry DeepState_API[] = {
   {"ConcretizeData",  (void *) DeepState_ConcretizeData},
   {"ConcretizeCStr",  (void *) DeepState_ConcretizeCStr},
   {"MinUInt",         (void *) DeepState_MinUInt},
-  {"MinInt",          (void *) DeepState_MinInt},
+  {"MaxUInt",         (void *) DeepState_MaxUInt},
 
   /* Logging API. */
   {"Log",             (void *) DeepState_Log},
