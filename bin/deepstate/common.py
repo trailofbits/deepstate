@@ -407,6 +407,13 @@ class DeepState(object):
   def api_assume(self, arg, expr_ea, file_ea, line):
     """Implements the `DeepState_Assume` API function, which injects a
     constraint into the solver."""
+    if not self.is_symbolic(arg):
+      concrete_arg = self.concretize(arg)
+      if concrete_arg == 0:
+        self.abandon_test()
+      else:
+        return
+    
     constraint = arg != 0
     if not self.add_constraint(constraint):
       expr, _ = self.read_c_string(expr_ea, concretize=False)

@@ -139,6 +139,12 @@ DEEPSTATE_NOINLINE int DeepState_Zero(void) {
   return 0;
 }
 
+/* Always returns `0`. */
+int DeepState_ZeroSink(int sink) {
+  (void) sink;
+  return 0;
+}
+
 /* Returns `1` if `expr` is true, and `0` otherwise. This is kind of an indirect
  * way to take a symbolic value, introduce a fork, and on each size, replace its
 * value with a concrete value. */
@@ -222,7 +228,7 @@ int32_t DeepState_MaxInt(int32_t v) {
 void _DeepState_Assume(int expr, const char *expr_str, const char *file,
                        unsigned line) {
   if (!expr) {
-    DeepState_LogFormat(DeepState_LogFatal, "Assumption %s at %s:%u failed",
+    DeepState_LogFormat(DeepState_LogFatal, "Assumption %s at %s(%u) failed",
                         expr_str, file, line);
   }
 }

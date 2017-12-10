@@ -104,6 +104,15 @@ DEEPSTATE_INLINE static int8_t DeepState_MaxChar(int8_t v) {
 * value with a concrete value. */
 extern int DeepState_IsTrue(int expr);
 
+/* Always returns `1`. */
+extern int DeepState_One(void);
+
+/* Always returns `0`. */
+extern int DeepState_Zero(void);
+
+/* Always returns `0`. */
+extern int DeepState_ZeroSink(int);
+
 /* Symbolize the data in the exclusive range `[begin, end)`. */
 extern void DeepState_SymbolizeData(void *begin, void *end);
 

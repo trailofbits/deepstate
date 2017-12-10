@@ -22,6 +22,7 @@
 
 #include <functional>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -150,6 +151,9 @@ class Symbolic {
 };
 
 template <typename T>
+class Symbolic<T &> {};
+
+template <typename T>
 class SymbolicLinearContainer {
  public:
   DEEPSTATE_INLINE explicit SymbolicLinearContainer(size_t len)
@@ -191,39 +195,6 @@ class Symbolic<std::vector<T>> :
           : value(DeepState_ ## Tname()) {} \
       DEEPSTATE_INLINE operator tname (void) const { \
         return value; \
-      } \
-      DEEPSTATE_INLINE tname operator+(const tname that) const { \
-        return value + that; \
-      } \
-      DEEPSTATE_INLINE tname operator-(const tname that) const { \
-        return value - that; \
-      } \
-      DEEPSTATE_INLINE tname operator*(const tname that) const { \
-        return value * that; \
-      } \
-      DEEPSTATE_INLINE tname operator/(const tname that) const { \
-        return value / that; \
-      } \
-      DEEPSTATE_INLINE tname operator|(const tname that) const { \
-        return value | that; \
-      } \
-      DEEPSTATE_INLINE tname operator&(const tname that) const { \
-        return value & that; \
-      } \
-      DEEPSTATE_INLINE tname operator^(const tname that) const { \
-        return value ^ that; \
-      } \
-      DEEPSTATE_INLINE tname operator~(void) const { \
-        return ~value; \
-      } \
-      DEEPSTATE_INLINE tname operator-(void) const { \
-        return -value; \
-      } \
-      DEEPSTATE_INLINE tname operator>>(const tname that) const { \
-        return value >> that; \
-      } \
-      DEEPSTATE_INLINE tname operator<<(const tname that) const { \
-        return value << that; \
       } \
       tname value; \
     };
@@ -277,13 +248,16 @@ static T Pump(T val, unsigned max=10) {
   if (!IsSymbolic(val)) {
     return val;
   }
-  for (auto i = 0U; i < max; ++i) {
+  if (!max) {
+    DeepState_Abandon("Must have a positie maximum number of values to pump.");
+  }
+  for (auto i = 0U; i < max - 1; ++i) {
     T min_val = Minimize(val);
     if (val == min_val) {
-      asm volatile ("" : : "m"(min_val) : "memory");
-      return min_val;  // Force the concrete `min_val` to be returned,
-                       // as opposed to compiler possibly choosing to
-                       // return `val`.
+      DEEPSTATE_USED(min_val);  // Force the concrete `min_val` to be returned,
+                                // as opposed to compiler possibly choosing to
+                                // return `val`.
+      return min_val;
     }
   }
   return Minimize(val);
@@ -302,8 +276,118 @@ inline static void ForAll(Closure func) {
 template <typename... FuncTys>
 inline static void OneOf(FuncTys&&... funcs) {
   std::function<void(void)> func_arr[sizeof...(FuncTys)] = {funcs...};
-  func_arr[DeepState_SizeInRange(0, sizeof...(funcs))]();
+  unsigned index = DeepState_UIntInRange(
+      0U, static_cast<unsigned>(sizeof...(funcs)));
+  func_arr[Pump(index, sizeof...(funcs))]();
 }
+
+
+template <typename T, int k=sizeof(T) * 8>
+struct ExpandedCompareIntegral {
+  template <typename C>
+  static DEEPSTATE_INLINE bool Compare(T a, T b, C cmp) {
+    if (cmp((a & 0xFF), (b & 0xFF))) {
+      return ExpandedCompareIntegral<T, k - 8>::Compare(a >> 8, b >> 8, cmp);
+    }
+    return DeepState_ZeroSink(k);  // Also false.
+  }
+};
+
+template <typename T>
+struct ExpandedCompareIntegral<T, 0> {
+  template <typename C>
+  static DEEPSTATE_INLINE bool Compare(T a, T b, C cmp) {
+    if (cmp((a & 0xFF), (b & 0xFF))) {
+      return DeepState_ZeroSink(0);
+    } else {
+      return DeepState_ZeroSink(100);
+    }
+  }
+};
+
+template <typename T>
+struct DeclType {
+  using Type = T;
+};
+
+template <typename T>
+struct DeclType<T &> : public DeclType<T> {};
+
+template <typename T>
+struct DeclType<Symbolic<T>> : public DeclType<T> {};
+
+template <typename T>
+struct DeclType<Symbolic<T> &> : public DeclType<T> {};
+
+template <typename T>
+struct IsIntegral : public std::is_integral<T> {};
+
+template <typename T>
+struct IsIntegral<T &> : public IsIntegral<T> {};
+
+template <typename T>
+struct IsIntegral<Symbolic<T>> : public IsIntegral<T> {};
+
+template <typename T>
+struct IsSigned : public std::is_signed<T> {};
+
+template <typename T>
+struct IsSigned<T &> : public IsSigned<T> {};
+
+template <typename T>
+struct IsSigned<Symbolic<T>> : public IsSigned<T> {};
+
+template <typename T>
+struct IsUnsigned : public std::is_unsigned<T> {};
+
+template <typename T>
+struct IsUnsigned<T &> : public IsUnsigned<T> {};
+
+template <typename T>
+struct IsUnsigned<Symbolic<T>> : public std::is_unsigned<T> {};
+
+template <typename A, typename B>
+struct BestType {
+  using UA = typename std::conditional<
+      IsUnsigned<B>::value,
+      typename std::make_unsigned<A>::type, A>::type;
+
+  using UB = typename std::conditional<
+      IsUnsigned<A>::value,
+      typename std::make_unsigned<B>::type, B>::type;
+
+  using Type = typename std::conditional<(sizeof(UA) > sizeof(UB)),
+                                         UA, UB>::type;
+};
+
+template <typename A, typename B>
+struct Comparer {
+  static constexpr bool kIsIntegral = IsIntegral<A>() && IsIntegral<B>();
+  struct tag_int {};
+  struct tag_not_int {};
+  using tag = typename std::conditional<kIsIntegral,tag_int,tag_not_int>::type;
+
+  template <typename C>
+  static DEEPSTATE_INLINE bool Do(const A &a, const B &b, C cmp, tag_not_int) {
+    return cmp(a, b);
+  }
+
+  template <typename C>
+  static DEEPSTATE_INLINE bool Do(A a, B b, C cmp, tag_int) {
+    using T = typename ::deepstate::BestType<A, B>::Type;
+    if (cmp(a, b)) {
+      return true;
+    }
+    DEEPSTATE_USED(a);  // These make the compiler forget everything it knew
+    DEEPSTATE_USED(b);  // about `a` and `b`.
+    return ::deepstate::ExpandedCompareIntegral<T>::Compare(a, b, cmp);
+  }
+
+  template <typename C>
+  static DEEPSTATE_INLINE bool Do(const A &a, const B &b, C cmp) {
+    return Do(a, b, cmp, tag());
+  }
+};
 
 }  // namespace deepstate
 
@@ -341,6 +425,14 @@ inline static void OneOf(FuncTys&&... funcs) {
     void fixture_name ## _ ## test_name :: DoRunTest(void)
 
 
+#define _EXPAND_COMPARE(a, b, op) \
+  ([] (decltype(a) __a0, decltype(b) __b0) -> bool { \
+    using __A = typename ::deepstate::DeclType<decltype(__a0)>::Type; \
+    using __B = typename ::deepstate::DeclType<decltype(__b0)>::Type; \
+    auto __cmp = [] (__A __a4, __B __b4) { return __a4 op __b4; }; \
+    return ::deepstate::Comparer<__A, __B>::Do(__a0, __b0, __cmp); \
+  })((a), (b))
+
 #define TEST_F(fixture_name, test_name) \
     _TEST_F(fixture_name, test_name, __FILE__, __LINE__)
 
@@ -369,19 +461,23 @@ inline static void OneOf(FuncTys&&... funcs) {
 
 #define LOG_IF(LEVEL, cond) LOG_ ## LEVEL(cond)
 
+#define DEEPSTATE_LOG_EQNE(a, b, op, level) \
+    ::deepstate::Stream( \
+        level, !(_EXPAND_COMPARE(a, b, op)), __FILE__, __LINE__)
+
 #define DEEPSTATE_LOG_BINOP(a, b, op, level) \
     ::deepstate::Stream( \
-        level, !((a) op (b)), __FILE__, __LINE__)
+        level, !(a op b), __FILE__, __LINE__)
 
-#define ASSERT_EQ(a, b) DEEPSTATE_LOG_BINOP(a, b, ==, DeepState_LogFatal)
-#define ASSERT_NE(a, b) DEEPSTATE_LOG_BINOP(a, b, !=, DeepState_LogFatal)
+#define ASSERT_EQ(a, b) DEEPSTATE_LOG_EQNE(a, b, ==, DeepState_LogFatal)
+#define ASSERT_NE(a, b) DEEPSTATE_LOG_EQNE(a, b, !=, DeepState_LogFatal)
 #define ASSERT_LT(a, b) DEEPSTATE_LOG_BINOP(a, b, <, DeepState_LogFatal)
 #define ASSERT_LE(a, b) DEEPSTATE_LOG_BINOP(a, b, <=, DeepState_LogFatal)
 #define ASSERT_GT(a, b) DEEPSTATE_LOG_BINOP(a, b, >, DeepState_LogFatal)
 #define ASSERT_GE(a, b) DEEPSTATE_LOG_BINOP(a, b, >=, DeepState_LogFatal)
 
-#define CHECK_EQ(a, b) DEEPSTATE_LOG_BINOP(a, b, ==, DeepState_LogError)
-#define CHECK_NE(a, b) DEEPSTATE_LOG_BINOP(a, b, !=, DeepState_LogError)
+#define CHECK_EQ(a, b) DEEPSTATE_LOG_EQNE(a, b, ==, DeepState_LogError)
+#define CHECK_NE(a, b) DEEPSTATE_LOG_EQNE(a, b, !=, DeepState_LogError)
 #define CHECK_LT(a, b) DEEPSTATE_LOG_BINOP(a, b, <, DeepState_LogError)
 #define CHECK_LE(a, b) DEEPSTATE_LOG_BINOP(a, b, <=, DeepState_LogError)
 #define CHECK_GT(a, b) DEEPSTATE_LOG_BINOP(a, b, >, DeepState_LogError)
@@ -406,7 +502,7 @@ inline static void OneOf(FuncTys&&... funcs) {
         DeepState_LogInfo, true, __FILE__, __LINE__)
 
 #define DEEPSTATE_ASSUME_BINOP(a, b, op) \
-    DeepState_Assume(((a) op (b))), ::deepstate::Stream( \
+    DeepState_Assume((a op b)), ::deepstate::Stream( \
         DeepState_LogInfo, true, __FILE__, __LINE__)
 
 #define ASSUME_EQ(a, b) DEEPSTATE_ASSUME_BINOP(a, b, ==)

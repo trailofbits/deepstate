@@ -277,11 +277,11 @@ void DeepState_StreamResetFormatting(enum DeepState_LogLevel level) {
   memset(&(stream->options), 0, sizeof(stream->options));
 }
 
-static int McTest_NumLsInt64BitFormat = 2;
+static int DeepState_NumLsInt64BitFormat = 2;
 
 /* `PRId64` will be "ld" or "lld" */
-DEEPSTATE_INITIALIZER(McTest_NumLsFor64BitFormat) {
-  McTest_NumLsInt64BitFormat = (PRId64)[1] == 'd' ? 1 : 2;
+DEEPSTATE_INITIALIZER(DeepState_NumLsFor64BitFormat) {
+  DeepState_NumLsInt64BitFormat = (PRId64)[1] == 'd' ? 1 : 2;
 }
 
 /* Approximately do string format parsing and convert it into calls into our
@@ -419,7 +419,7 @@ get_length_char:
 
   if (!length) {
     length = 1;
-  } else if (num_ls >= McTest_NumLsInt64BitFormat) {
+  } else if (num_ls >= DeepState_NumLsInt64BitFormat) {
     length = 8;
   }
 

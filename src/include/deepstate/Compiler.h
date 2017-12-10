@@ -93,4 +93,10 @@
     static void f(void)
 #endif
 
+#define DEEPSTATE_BARRIER() \
+    asm volatile ("":::"memory")
+
+#define DEEPSTATE_USED(x) \
+    asm volatile (""::"m"(x):"memory")
+
 #endif  /* SRC_INCLUDE_DEEPSTATE_COMPILER_H_ */
