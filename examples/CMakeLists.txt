@@ -13,6 +13,9 @@
 # limitations under the License.
 
 
+add_executable(OneOf OneOf.cpp)
+target_link_libraries(OneOf deepstate)
+
 add_executable(Fixture Fixture.cpp)
 target_link_libraries(Fixture deepstate)
 
