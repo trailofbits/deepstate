@@ -21,15 +21,16 @@ using namespace deepstate;
 
 
 TEST(OneOfExample, ProduceSixtyOrHigher) {
-  symbolic_unsigned x;
+  symbolic_int x;
+
   ASSUME_LT(x, 3);
   while(1) {
-    OneOf([] {x += 1; printf ("-1\n");},
-	  [] {x -= 1; printf ("+1\n");},
-	  [] {x *= 2; printf ("*2\n");},	  
-	  [] {x = 0; printf ("=0\n");});
+    OneOf([x] {x += 1; printf ("-1\n");},
+	  [x] {x -= 1; printf ("+1\n");},
+	  [x] {x *= 2; printf ("*2\n");},	  
+	  [x] {x = 0; printf ("=0\n");});
     ASSERT_LE(x,60) << x << " is six!";
-  };
+    };
 }
 
 int main(int argc, char *argv[]) {
