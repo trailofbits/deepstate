@@ -30,35 +30,33 @@ TEST(OneOfExample, ProduceSixtyOrHigher) {
   // Add this back in and uncomment out choices parts below, add
   // & choices, N to captures, and it becomes quite difficult.
   
-  int N = 0;
-  while (N < LENGTH) {
-    N++;
+  for (int N = 0;N < LENGTH; N++) {
     OneOf(
-	  [&x] {
-	    x += 1;
-	    printf("-1\n");
-	    //choices[N] = '+';
-	  },
-	  [&x] {
-	    x -= 1;
-	    printf("+1\n");
-	    //choices[N] = '-';
-	  },
-	  [&x] {
-	    x *= 2;
-	    printf("*2\n");
-	    //choices[N] = '2';
-	  },
-	  [&x] {
-	    x += 10;
-	    printf("+=10\n");
-	    //choices[N] = 'x';
-	  },	
-	  [&x] {
-	    x = 0;
-	    printf("=0\n");
-	    //choices[N] = '0';
-	  });
+      [&x] {
+        x += 1;
+        printf("+=1\n");
+        //choices[N] = '+';
+      },
+      [&x] {
+        x -= 1;
+        printf("-=1\n");
+        //choices[N] = '-';
+      },
+      [&x] {
+        x *= 2;
+        printf("*2\n");
+        //choices[N] = '2';
+      },
+      [&x] {
+        x += 10;
+        printf("+=10\n");
+        //choices[N] = 'x';
+      },
+      [&x] {
+        x = 0;
+        printf("=0\n");
+        //choices[N] = '0';
+      });
 
     //choices[N+1] = 0;
     ASSERT_LE(x, 60)
