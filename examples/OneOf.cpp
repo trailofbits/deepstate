@@ -18,26 +18,53 @@
 
 using namespace deepstate;
 
-
+#define LENGTH 3
 
 TEST(OneOfExample, ProduceSixtyOrHigher) {
-  symbolic_int x;
-
-  ASSUME_LT(x, 5);
-
-  int N = 3;
-
-  while (N > 0) {
-    N--;
+  symbolic_int start;
+  ASSUME_LT(start, 5);
+  int x = start;
+  
+  // char choices[LENGTH+1];
+  
+  // Add this back in and uncomment out choices parts below, add
+  // & choices, N to captures, and it becomes quite difficult.
+  
+  int N = 0;
+  while (N < LENGTH) {
+    N++;
     OneOf(
-	  [&x] {x += 1; printf("-1\n");},
-	  [&x] {x -= 1; printf("+1\n");},
-	  [&x] {x *= 2; printf("*2\n");},
-	  [&x] {x += 10; printf("+=10\n");},	
-	  [&x] {x = 0; printf("=0\n");});
-    
+	  [&x] {
+	    x += 1;
+	    printf("-1\n");
+	    //choices[N] = '+';
+	  },
+	  [&x] {
+	    x -= 1;
+	    printf("+1\n");
+	    //choices[N] = '-';
+	  },
+	  [&x] {
+	    x *= 2;
+	    printf("*2\n");
+	    //choices[N] = '2';
+	  },
+	  [&x] {
+	    x += 10;
+	    printf("+=10\n");
+	    //choices[N] = 'x';
+	  },	
+	  [&x] {
+	    x = 0;
+	    printf("=0\n");
+	    //choices[N] = '0';
+	  });
+
+    //choices[N+1] = 0;
     ASSERT_LE(x, 60)
-      << x << " is >= 60!";
+      << x << " is >= 60: " <<
+      //" did " << choices <<
+      " from " << start;
   }
 }
 
