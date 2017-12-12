@@ -270,10 +270,11 @@ class DeepState(object):
     new_bytes = []
     for b in byte_str:
       if isinstance(b, str):
-        assert len(b) == 1
-        new_bytes.append(ord(b))
+        new_bytes.extend(ord(bn) for bn in b)
       elif isinstance(b, (int, long)):
         new_bytes.append(b)
+      elif isinstance(b, (list, tuple)):
+        new_bytes.extend(self._concretize_bytes(b))
       else:
         new_bytes.append(self.concretize(b, constrain=True))
     return new_bytes
@@ -303,9 +304,11 @@ class DeepState(object):
         format_str = format_str.replace('z', '')
         format_str = format_str.replace('t', '')
 
-      message.extend(format_str % val)
+      message.append(format_str % val)
 
-    return "".join(message)
+    res = "".join(message)
+    res.rstrip("\r\n")
+    return res
 
   def _save_test(self, info, input_bytes):
     """Save the concretized bytes to a file."""
@@ -495,7 +498,7 @@ class DeepState(object):
     level = self.concretize(level, constrain=True)
     ea = self.concretize(ea, constrain=True)
     assert level in LOG_LEVEL_TO_LOGGER
-    self.log_message(level, self.read_c_string(ea, concretize=False))
+    self.log_message(level, self.read_c_string(ea, concretize=False)[0])
     
     if level == LOG_LEVEL_FATAL:
       self.api_fail()
@@ -513,8 +516,8 @@ class DeepState(object):
     unpack_ea = self.concretize(unpack_ea, constrain=True)
     uint64_ea = self.concretize(uint64_ea, constrain=True)
 
-    format_str, _ = self.read_c_string(format_ea)
-    unpack_str, _ = self.read_c_string(unpack_ea)
+    format_str = self.read_c_string(format_ea)[0]
+    unpack_str = self.read_c_string(unpack_ea)[0]
     uint64_bytes = []
     for i in xrange(8):
       b, _ = self.read_uint8_t(uint64_ea + i, concretize=False)
@@ -545,8 +548,8 @@ class DeepState(object):
 
     format_ea = self.concretize(format_ea, constrain=True)
     str_ea = self.concretize(str_ea, constrain=True)
-    format_str, _ = self.read_c_string(format_ea)
-    print_str, _ = self.read_c_string(str_ea, concretize=False)
+    format_str = self.read_c_string(format_ea)[0]
+    print_str = self.read_c_string(str_ea, concretize=False)[0]
     
     stream_id = 'stream_{}'.format(level)
     stream = list(self.context[stream_id])

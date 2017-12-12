@@ -101,6 +101,12 @@ void DeepState_LogFormat(enum DeepState_LogLevel level,
 
 /* Override libc! */
 DEEPSTATE_NOINLINE
+int puts(const char *str) {
+  DeepState_Log(DeepState_LogInfo, str);
+  return 0;
+}
+
+DEEPSTATE_NOINLINE
 int printf(const char *format, ...) {
   va_list args;
   va_start(args, format);
