@@ -191,10 +191,60 @@ class Symbolic<std::vector<T>> :
     template <> \
     class Symbolic<tname> { \
      public: \
+      using SelfType = Symbolic<tname>; \
+      \
       DEEPSTATE_INLINE Symbolic(void) \
           : value(DeepState_ ## Tname()) {} \
+      \
+      DEEPSTATE_INLINE Symbolic(tname that) \
+          : value(that) {} \
+      \
+      DEEPSTATE_INLINE Symbolic(const SelfType &that) \
+          : value(that.value) {} \
+      \
+      DEEPSTATE_INLINE Symbolic(SelfType &&that) \
+          : value(std::move(that.value)) {} \
+      \
       DEEPSTATE_INLINE operator tname (void) const { \
         return value; \
+      } \
+      SelfType &operator=(const SelfType &that) = default; \
+      SelfType &operator=(SelfType &&that) = default; \
+      SelfType &operator=(tname that) { \
+        value = that; \
+        return *this; \
+      } \
+      SelfType &operator+=(tname that) { \
+        value += that; \
+        return *this; \
+      } \
+      SelfType &operator-=(tname that) { \
+        value -= that; \
+        return *this; \
+      } \
+      SelfType &operator*=(tname that) { \
+        value *= that; \
+        return *this; \
+      } \
+      SelfType &operator/=(tname that) { \
+        value /= that; \
+        return *this; \
+      } \
+      SelfType &operator>>=(tname that) { \
+        value >>= that; \
+        return *this; \
+      } \
+      SelfType &operator<<=(tname that) { \
+        value <<= that; \
+        return *this; \
+      } \
+      tname &operator++(void) { \
+        return ++value; \
+      } \
+      tname operator++(int) { \
+        auto prev_value = value; \
+        value++; \
+        return prev_value; \
       } \
       tname value; \
     };
