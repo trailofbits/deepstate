@@ -63,7 +63,7 @@ TEST(OneOfExample, ProduceSixtyOrHigher) {
     //choices[N+1] = 0;
     ASSERT_LE(x, 60)
       << x << " is >= 60: " <<
-      //" did " << choices <<
+      " did " << choices <<
       " from " << start;
   }
 }
