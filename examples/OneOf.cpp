@@ -23,17 +23,22 @@ using namespace deepstate;
 TEST(OneOfExample, ProduceSixtyOrHigher) {
   symbolic_int x;
 
-  ASSUME_LT(x, 3);
-  while (1) {
+  ASSUME_LT(x, 5);
+
+  int N = 3;
+
+  while (N > 0) {
+    N--;
     OneOf(
-        [&x] {x += 1; printf("-1\n");},
-        [&x] {x -= 1; printf("+1\n");},
-        [&x] {x *= 2; printf("*2\n");},
-        [&x] {x = 0; printf("=0\n");});
+	  [&x] {x += 1; printf("-1\n");},
+	  [&x] {x -= 1; printf("+1\n");},
+	  [&x] {x *= 2; printf("*2\n");},
+	  [&x] {x += 10; printf("+=10\n");},	
+	  [&x] {x = 0; printf("=0\n");});
     
     ASSERT_LE(x, 60)
-        << x << " is sixty!";
-  };
+      << x << " is >= 60!";
+  }
 }
 
 int main(int argc, char *argv[]) {
