@@ -145,7 +145,8 @@ int vfprintf(FILE *file, const char *format, va_list args) {
   } else {
     DeepState_LogStream(DeepState_LogWarning);
     DeepState_Log(DeepState_LogWarning,
-                  "Ignorning vfprintf with non-stdout/stderr stream.");
+                  "vfprintf with non-stdout/stderr stream follows:");
+    DeepState_LogVFormat(DeepState_LogInfo, format, args);
   }
   return 0;
 }
