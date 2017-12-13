@@ -373,4 +373,16 @@ int DeepState_CatchAbandoned(void) {
   return DeepState_TestAbandoned != NULL;
 }
 
+/* Overwrite libc's abort. */
+void abort(void) {
+  DeepState_Fail();
+}
+
+void __assert_fail(const char * assertion, const char * file,
+                   unsigned int line, const char * function) {
+  DeepState_LogFormat(DeepState_LogFatal,
+                      "%s(%u): Assertion %s failed in function %s",
+                      file, line, assertion, function);
+}
+
 DEEPSTATE_END_EXTERN_C

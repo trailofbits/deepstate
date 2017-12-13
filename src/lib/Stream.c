@@ -89,7 +89,7 @@ static void DeepState_StreamUnpack(struct DeepState_Stream *stream, char type) {
 
 /* Fill in the format for when we want to stream an integer. */
 static void DeepState_StreamIntFormat(struct DeepState_Stream *stream,
-                                   size_t val_size, int is_unsigned) {
+                                      size_t val_size, int is_unsigned) {
   char *format = stream->format;
   int i = 0;
 
@@ -196,6 +196,17 @@ void _DeepState_StreamString(enum DeepState_LogLevel level, const char *format,
   stream->size += size;
 }
 
+void DeepState_StreamPointer(enum DeepState_LogLevel level, void * val) {
+  struct DeepState_Stream *stream = &(DeepState_Streams[level]);
+  stream->format[0] = '%';
+  stream->format[1] = 'p';
+  stream->format[2] = '\0';
+  DeepState_StreamUnpack(stream, (sizeof(void *) == 8 ? 'Q' : 'I'));
+  stream->value.as_uint64 = (uint64_t) val;
+  _DeepState_StreamInt(level, stream->format, stream->unpack,
+                       &(stream->value.as_uint64));
+}
+
 #define MAKE_INT_STREAMER(Type, type, is_unsigned, pack_kind) \
     void DeepState_Stream ## Type(enum DeepState_LogLevel level, type val) { \
       struct DeepState_Stream *stream = &(DeepState_Streams[level]); \
@@ -205,8 +216,6 @@ void _DeepState_StreamString(enum DeepState_LogLevel level, const char *format,
       _DeepState_StreamInt(level, stream->format, stream->unpack, \
                            &(stream->value.as_uint64)); \
     }
-
-MAKE_INT_STREAMER(Pointer, void *, 1, (sizeof(void *) == 8 ? 'Q' : 'I'))
 
 MAKE_INT_STREAMER(UInt64, uint64_t, 1, 'Q')
 MAKE_INT_STREAMER(Int64, int64_t, 0, 'q')
