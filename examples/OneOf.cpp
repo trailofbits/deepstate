@@ -25,44 +25,42 @@ TEST(OneOfExample, ProduceSixtyOrHigher) {
   ASSUME_LT(start, 5);
   int x = start;
   
-  // char choices[LENGTH+1];
+  char choices[LENGTH + 1] = {};
   
   // Add this back in and uncomment out choices parts below, add
   // & choices, N to captures, and it becomes quite difficult.
   
-  for (int N = 0;N < LENGTH; N++) {
+  for (int n = 0; n < LENGTH; n++) {
     OneOf(
-      [&x] {
+      [&] {
         x += 1;
         printf("+=1\n");
-        //choices[N] = '+';
+        choices[n] = '+';
       },
-      [&x] {
+      [&] {
         x -= 1;
         printf("-=1\n");
-        //choices[N] = '-';
+        choices[n] = '-';
       },
-      [&x] {
+      [&] {
         x *= 2;
         printf("*2\n");
-        //choices[N] = '2';
+        choices[n] = '2';
       },
-      [&x] {
+      [&] {
         x += 10;
         printf("+=10\n");
-        //choices[N] = 'x';
+        choices[n] = 'x';
       },
-      [&x] {
+      [&] {
         x = 0;
         printf("=0\n");
-        //choices[N] = '0';
+        choices[n] = '0';
       });
 
     //choices[N+1] = 0;
     ASSERT_LE(x, 60)
-      << x << " is >= 60: " <<
-      //" did " << choices <<
-      " from " << start;
+      << x << " is >= 60: " << " did " << choices << " from " << start;
   }
 }
 
