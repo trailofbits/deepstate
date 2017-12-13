@@ -383,6 +383,12 @@ void __assert_fail(const char * assertion, const char * file,
   DeepState_LogFormat(DeepState_LogFatal,
                       "%s(%u): Assertion %s failed in function %s",
                       file, line, assertion, function);
+  __builtin_unreachable();
+}
+
+void __stack_chk_fail(void) {
+  DeepState_Log(DeepState_LogFatal, "Stack smash detected.");
+  __builtin_unreachable();
 }
 
 DEEPSTATE_END_EXTERN_C
