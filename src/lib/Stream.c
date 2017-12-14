@@ -497,9 +497,10 @@ get_length_char:
       }
 
     common_stream_int:
+      format_buf[i] = '\0';
       DeepState_StreamUnpack(stream, extract);
       _DeepState_StreamInt(level, format_buf, stream->unpack,
-                        &(stream->value.as_uint64));
+                           &(stream->value.as_uint64));
       break;
 
     /* Floating point, scientific notation, etc. */
@@ -517,13 +518,17 @@ get_length_char:
         stream->value.as_fp64 = va_arg(args, double);
       }
       DeepState_StreamUnpack(stream, 'd');
+      format_buf[i] = '\0';
       _DeepState_StreamFloat(level, format_buf, stream->unpack,
                              &(stream->value.as_fp64));
       break;
 
-    case 's':
-      _DeepState_StreamString(level, format_buf, va_arg(args, const char *));
+    case 's': {
+      const char *str = va_arg(args, const char *);
+      format_buf[i] = '\0';
+      _DeepState_StreamString(level, format_buf, str);
       break;
+    }
 
     default:
       DeepState_Abandon("Unsupported format specifier.");
