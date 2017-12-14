@@ -299,7 +299,7 @@ def main():
   try:
     project = angr.Project(
         args.binary,
-        use_sim_procedures=False,
+        use_sim_procedures=True,
         translation_cache=True,
         support_selfmodifying_code=False,
         auto_load_libs=True,

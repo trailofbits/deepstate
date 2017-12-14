@@ -307,7 +307,7 @@ class DeepState(object):
       message.append(format_str % val)
 
     res = "".join(message)
-    res.rstrip("\r\n")
+    res.rstrip(" \t\r\n\0")
     return res
 
   def _save_test(self, info, input_bytes):
