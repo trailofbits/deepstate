@@ -196,13 +196,13 @@ void _DeepState_StreamString(enum DeepState_LogLevel level, const char *format,
   stream->size += size;
 }
 
-void DeepState_StreamPointer(enum DeepState_LogLevel level, void * val) {
+void DeepState_StreamPointer(enum DeepState_LogLevel level, void *val) {
   struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   stream->format[0] = '%';
   stream->format[1] = 'p';
   stream->format[2] = '\0';
   DeepState_StreamUnpack(stream, (sizeof(void *) == 8 ? 'Q' : 'I'));
-  stream->value.as_uint64 = (uint64_t) val;
+  stream->value.as_uint64 = (uintptr_t) val;
   _DeepState_StreamInt(level, stream->format, stream->unpack,
                        &(stream->value.as_uint64));
 }

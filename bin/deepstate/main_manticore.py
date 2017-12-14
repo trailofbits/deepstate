@@ -325,10 +325,10 @@ def main():
   try:
     setup_ea = m._get_symbol_address('DeepState_Setup')
     if not setup_ea:
-      raise Exception()
+      raise Exception("Could not find symbol")
   except:
-    L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
-        args.binary))
+    L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`: {}".format(
+        args.binary, traceback.format_exc()))
     return 1
 
   setup_state = m._initial_state

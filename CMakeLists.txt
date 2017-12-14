@@ -44,7 +44,19 @@ add_library(${PROJECT_NAME} STATIC
   src/lib/Stream.c
 )
 
+add_library(${PROJECT_NAME}32 STATIC
+  src/lib/DeepState.c
+  src/lib/Log.c
+  src/lib/Stream.c
+)
+
+target_compile_options(${PROJECT_NAME}32 PUBLIC -m32)
+
 target_include_directories(${PROJECT_NAME}
+  PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
+)
+
+target_include_directories(${PROJECT_NAME}32
   PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
 )
 
@@ -56,7 +68,7 @@ install(
 
 # Install the library
 install(
-  TARGETS ${PROJECT_NAME}
+  TARGETS ${PROJECT_NAME} ${PROJECT_NAME}32
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
 )

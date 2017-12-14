@@ -299,14 +299,16 @@ def main():
   try:
     project = angr.Project(
         args.binary,
-        use_sim_procedures=True,
+        use_sim_procedures=False,
         translation_cache=True,
         support_selfmodifying_code=False,
         auto_load_libs=True,
         exclude_sim_procedures_list=['printf', '__printf_chk',
                                      'vprintf', '__vprintf_chk',
                                      'fprintf', '__fprintf_chk',
-                                     'vfprintf', '__vfprintf_chk'])
+                                     'vfprintf', '__vfprintf_chk',
+                                     'puts', 'abort', '__assert_fail',
+                                     '__stack_chk_fail'])
   except Exception as e:
     L.critical("Cannot create Angr instance on binary {}: {}".format(
         args.binary, e))
@@ -327,12 +329,18 @@ def main():
 
   addr_size_bits = entry_state.arch.bits
 
-  # Concretely execute up until `DeepState_InjectAngr`.
+  # Concretely execute up until `DeepState_Setup`.
   concrete_manager = angr.SimulationManager(
         project=project,
         active_states=[entry_state])
   concrete_manager.explore(find=setup_ea)
-  run_state = concrete_manager.found[0]
+
+  try:
+    run_state = concrete_manager.found[0]
+  except:
+    L.critical("Execution never hit `DeepState_Setup` in binary `{}`".format(
+        args.binary))
+    return 1
 
   # Read the API table, which will tell us about the location of various
   # symbols. Technically we can look these up with the `labels.lookup` API,
