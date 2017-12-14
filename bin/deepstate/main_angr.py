@@ -319,9 +319,14 @@ def main():
     if not setup_ea:
       raise Exception()
   except:
-    L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
+    try:
+      setup_ea = project.kb.labels.lookup('_DeepState_Setup')
+      if not setup_ea:
+        raise Exception()
+    except:
+      L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
         args.binary))
-    return 1
+      return 1
 
   entry_state = project.factory.entry_state(
       add_options={angr.options.ZERO_FILL_UNCONSTRAINED_MEMORY,
@@ -345,8 +350,11 @@ def main():
   # Read the API table, which will tell us about the location of various
   # symbols. Technically we can look these up with the `labels.lookup` API,
   # but we have the API table for Manticore-compatibility, so we may as well
-  # use it. 
-  ea_of_api_table = project.kb.labels.lookup('DeepState_API')
+  # use it.
+  try:
+    ea_of_api_table = project.kb.labels.lookup('DeepState_API')
+  except:
+    ea_of_api_table = project.kb.labels.lookup('_DeepState_API')
 
   mc = DeepAngr(state=run_state)
   apis = mc.read_api_table(ea_of_api_table)

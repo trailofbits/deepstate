@@ -327,15 +327,23 @@ def main():
     if not setup_ea:
       raise Exception("Could not find symbol")
   except:
-    L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`: {}".format(
+    try:
+      setup_ea = m._get_symbol_address('_DeepState_Setup')
+      if not setup_ea:
+        raise Exception("Could not find symbol")
+    except:
+      L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`: {}".format(
         args.binary, traceback.format_exc()))
-    return 1
+      return 1
 
   setup_state = m._initial_state
 
   mc = DeepManticore(setup_state)
 
   ea_of_api_table = m._get_symbol_address('DeepState_API')
+  if not ea_of_api_table:
+    ea_of_api_table = m._get_symbol_address('_DeepState_API')
+    
   apis = mc.read_api_table(ea_of_api_table)
   del mc
   m.add_hook(setup_ea, lambda state: run_tests(args, state, apis))
