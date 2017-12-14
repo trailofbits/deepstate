@@ -246,6 +246,22 @@ def done_test(_, state, state_id, reason):
   mc.report()
 
 
+def find_symbol_ea(m, name):
+  try:
+    ea = m._get_symbol_address(name)
+    if ea:
+      return ea
+  except:
+    pass
+
+  try:
+    return m._get_symbol_address("_{}".format(name))
+  except:
+    pass
+
+  return 0
+
+
 def do_run_test(state, apis, test):
   """Run an individual test case."""
   state.cpu.PC = test.ea
@@ -322,27 +338,20 @@ def main():
   m._binary_type = 'not elf'
   m._binary_obj = m._initial_state.platform.elf
 
-  try:
-    setup_ea = m._get_symbol_address('DeepState_Setup')
-    if not setup_ea:
-      raise Exception("Could not find symbol")
-  except:
-    try:
-      setup_ea = m._get_symbol_address('_DeepState_Setup')
-      if not setup_ea:
-        raise Exception("Could not find symbol")
-    except:
-      L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`: {}".format(
-        args.binary, traceback.format_exc()))
-      return 1
+  setup_ea = find_symbol_ea(m, 'DeepState_Setup')
+  if not setup_ea:
+    L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
+        args.binary))
+    return 1
 
   setup_state = m._initial_state
 
   mc = DeepManticore(setup_state)
 
-  ea_of_api_table = m._get_symbol_address('DeepState_API')
+  ea_of_api_table = find_symbol_ea(m, 'DeepState_API')
   if not ea_of_api_table:
-    ea_of_api_table = m._get_symbol_address('_DeepState_API')
+    L.critical("Could not find API table in binary `{}`".format(args.binary))
+    return 1
     
   apis = mc.read_api_table(ea_of_api_table)
   del mc

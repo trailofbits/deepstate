@@ -292,6 +292,21 @@ def run_test(project, test, apis, run_state):
     L.error("Uncaught exception: {}\n{}".format(e, traceback.format_exc()))
 
 
+def find_symbol_ea(project, name):
+  try:
+    ea = project.kb.labels.lookup(name)
+    if ea:
+      return ea
+  except:
+    pass
+
+  try:
+    return project.kb.labels.lookup("_{}".format(name))
+  except:
+    pass
+
+  return 0
+
 def main():
   """Run DeepState."""
   args = DeepAngr.parse_args()
@@ -314,19 +329,11 @@ def main():
         args.binary, e))
     return 1
 
-  try:
-    setup_ea = project.kb.labels.lookup('DeepState_Setup')
-    if not setup_ea:
-      raise Exception()
-  except:
-    try:
-      setup_ea = project.kb.labels.lookup('_DeepState_Setup')
-      if not setup_ea:
-        raise Exception()
-    except:
-      L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
+  setup_ea = find_symbol_ea(project, 'DeepState_Setup')
+  if not setup_ea:
+    L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
         args.binary))
-      return 1
+    return 1
 
   entry_state = project.factory.entry_state(
       add_options={angr.options.ZERO_FILL_UNCONSTRAINED_MEMORY,
@@ -351,10 +358,10 @@ def main():
   # symbols. Technically we can look these up with the `labels.lookup` API,
   # but we have the API table for Manticore-compatibility, so we may as well
   # use it.
-  try:
-    ea_of_api_table = project.kb.labels.lookup('DeepState_API')
-  except:
-    ea_of_api_table = project.kb.labels.lookup('_DeepState_API')
+  ea_of_api_table = find_symbol_ea(project, 'DeepState_API')
+  if not ea_of_api_table:
+    L.critical("Could not find API table in binary `{}`".format(args.binary))
+    return 1
 
   mc = DeepAngr(state=run_state)
   apis = mc.read_api_table(ea_of_api_table)
