@@ -23,6 +23,7 @@
 #include <inttypes.h>
 
 #include "deepstate/DeepState.h"
+#include "deepstate/Log.h"
 
 DEEPSTATE_BEGIN_EXTERN_C
 
@@ -295,8 +296,10 @@ DEEPSTATE_INITIALIZER(DeepState_NumLsFor64BitFormat) {
 
 /* Approximately do string format parsing and convert it into calls into our
  * streaming API. */
+DEEPSTATE_NOINLINE
 static int DeepState_StreamFormatValue(enum DeepState_LogLevel level,
-                                       const char *format, va_list args) {
+                                       const char *format,
+                                       struct DeepState_VarArgs *va) {
   struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   char format_buf[32] = {'\0'};
   int i = 0;
@@ -313,6 +316,7 @@ static int DeepState_StreamFormatValue(enum DeepState_LogLevel level,
 #define READ_FORMAT_CHAR \
   ch = format[i]; \
   format_buf[i - k] = ch; \
+  format_buf[i - k + 1] = '\0'; \
   i++
 
   READ_FORMAT_CHAR;  /* Read the '%' */
@@ -445,7 +449,7 @@ get_length_char:
 
     /* Print a character. */
     case 'c':
-      stream->value.as_uint64 = (uint64_t) (char) va_arg(args, int);
+      stream->value.as_uint64 = (uint64_t) (char) va_arg(va->args, int);
       extract = 'c';
       goto common_stream_int;
 
@@ -453,16 +457,16 @@ get_length_char:
     case 'd':
     case 'i':
       if (1 == length) {
-        stream->value.as_uint64 = (uint64_t) (int8_t) va_arg(args, int);
+        stream->value.as_uint64 = (uint64_t) (int8_t) va_arg(va->args, int);
         extract = 'b';
       } else if (2 == length) {
-        stream->value.as_uint64 = (uint64_t) (int16_t) va_arg(args, int);
+        stream->value.as_uint64 = (uint64_t) (int16_t) va_arg(va->args, int);
         extract = 'h';
       } else if (4 == length) {
-        stream->value.as_uint64 = (uint64_t) (int32_t) va_arg(args, int);
+        stream->value.as_uint64 = (uint64_t) (int32_t) va_arg(va->args, int);
         extract = 'i';
       } else if (8 == length) {
-        stream->value.as_uint64 = (uint64_t) va_arg(args, int64_t);
+        stream->value.as_uint64 = (uint64_t) va_arg(va->args, int64_t);
         extract = 'q';
       } else {
         DeepState_Abandon("Unsupported integer length.");
@@ -472,7 +476,7 @@ get_length_char:
     /* Pointer. */
     case 'p':
       length = (int) sizeof(void *);
-      format_buf[i - 1] = 'x';
+      format_buf[i - k - 1] = 'x';
       /* Note: Falls through. */
 
     /* Unsigned, hex, octal */
@@ -481,27 +485,26 @@ get_length_char:
     case 'x':
     case 'X':
       if (1 == length) {
-        stream->value.as_uint64 = (uint64_t) (uint8_t) va_arg(args, int);
+        stream->value.as_uint64 = (uint64_t) (uint8_t) va_arg(va->args, int);
         extract = 'B';
       } else if (2 == length) {
-        stream->value.as_uint64 = (uint64_t) (uint16_t) va_arg(args, int);
+        stream->value.as_uint64 = (uint64_t) (uint16_t) va_arg(va->args, int);
         extract = 'H';
       } else if (4 == length) {
-        stream->value.as_uint64 = (uint64_t) (uint32_t) va_arg(args, int);
+        stream->value.as_uint64 = (uint64_t) (uint32_t) va_arg(va->args, int);
         extract = 'I';
       } else if (8 == length) {
-        stream->value.as_uint64 = (uint64_t) va_arg(args, uint64_t);
+        stream->value.as_uint64 = (uint64_t) va_arg(va->args, uint64_t);
         extract = 'Q';
       } else {
         DeepState_Abandon("Unsupported integer length.");
       }
 
     common_stream_int:
-      format_buf[i] = '\0';
       DeepState_StreamUnpack(stream, extract);
       _DeepState_StreamInt(level, format_buf, stream->unpack,
                            &(stream->value.as_uint64));
-      break;
+      goto done;
 
     /* Floating point, scientific notation, etc. */
     case 'f':
@@ -513,28 +516,29 @@ get_length_char:
     case 'a':
     case 'A':
       if (long_double) {
-        stream->value.as_fp64 = (double) va_arg(args, long double);
+        stream->value.as_fp64 = (double) va_arg(va->args, long double);
       } else {
-        stream->value.as_fp64 = va_arg(args, double);
+        stream->value.as_fp64 = va_arg(va->args, double);
       }
       DeepState_StreamUnpack(stream, 'd');
-      format_buf[i] = '\0';
       _DeepState_StreamFloat(level, format_buf, stream->unpack,
                              &(stream->value.as_fp64));
-      break;
+      goto done;
 
     case 's': {
-      const char *str = va_arg(args, const char *);
-      format_buf[i] = '\0';
+      const char *str = va_arg(va->args, const char *);
       _DeepState_StreamString(level, format_buf, str);
-      break;
+      goto done;
     }
 
     default:
       DeepState_Abandon("Unsupported format specifier.");
       return 0;
   }
-
+done:
+  if (!i) {
+    DeepState_Abandon("Made no progress.");
+  }
   return i;
 }
 
@@ -546,8 +550,11 @@ static char DeepState_Format[DeepState_StreamSize + 1];
 
 /* Stream some formatted input. This converts a `printf`-style format string
  * into a */
-void DeepState_StreamVFormat(enum DeepState_LogLevel level, const char *format_,
-                             va_list args) {
+void DeepState_StreamVFormat(enum DeepState_LogLevel level,
+                             const char *format_, va_list args) {
+  struct DeepState_VarArgs va;
+  va_copy(va.args, args);
+
   char *begin = NULL;
   char *end = NULL;
   char *format = &(DeepState_Format[0]);
@@ -590,7 +597,7 @@ void DeepState_StreamVFormat(enum DeepState_LogLevel level, const char *format_,
         }
         begin = NULL;
         end = NULL;
-        i += DeepState_StreamFormatValue(level, &(format[i]), args);
+        i += DeepState_StreamFormatValue(level, &(format[i]), &va);
       }
     } else {
       end = &(format[i]);
@@ -604,7 +611,8 @@ void DeepState_StreamVFormat(enum DeepState_LogLevel level, const char *format_,
 }
 
 /* Stream some formatted input */
-void DeepState_StreamFormat(enum DeepState_LogLevel level, const char *format, ...) {
+void DeepState_StreamFormat(enum DeepState_LogLevel level,
+                            const char *format, ...) {
   va_list args;
   va_start(args, format);
   DeepState_StreamVFormat(level, format, args);

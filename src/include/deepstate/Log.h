@@ -25,6 +25,10 @@ DEEPSTATE_BEGIN_EXTERN_C
 
 struct DeepState_Stream;
 
+struct DeepState_VarArgs {
+  va_list args;
+};
+
 enum DeepState_LogLevel {
   DeepState_LogDebug = 0,
   DeepState_LogInfo = 1,
@@ -40,11 +44,11 @@ extern void DeepState_Log(enum DeepState_LogLevel level, const char *str);
 
 /* Log some formatted output. */
 extern void DeepState_LogFormat(enum DeepState_LogLevel level,
-                             const char *format, ...);
+                                const char *format, ...);
 
 /* Log some formatted output. */
 extern void DeepState_LogVFormat(enum DeepState_LogLevel level,
-                              const char *format, va_list args);
+                                 const char *format, va_list args);
 
 DEEPSTATE_END_EXTERN_C
 

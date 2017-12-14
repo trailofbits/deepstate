@@ -29,6 +29,7 @@
 #include <string.h>
 
 #include "deepstate/DeepState.h"
+#include "deepstate/Log.h"
 
 #undef printf
 #undef vprintf
@@ -84,8 +85,10 @@ void DeepState_Log(enum DeepState_LogLevel level, const char *str) {
 DEEPSTATE_NOINLINE
 void DeepState_LogVFormat(enum DeepState_LogLevel level,
                           const char *format, va_list args) {
+  struct DeepState_VarArgs va;
+  va_copy(va.args, args);
   DeepState_LogStream(level);
-  DeepState_StreamVFormat(level, format, args);
+  DeepState_StreamVFormat(level, format, va.args);
   DeepState_LogStream(level);
 }
 
