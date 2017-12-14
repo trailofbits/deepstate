@@ -331,6 +331,30 @@ inline static void OneOf(FuncTys&&... funcs) {
   func_arr[Pump(index, sizeof...(funcs))]();
 }
 
+inline static char OneOf(const char *str) {
+  if (!str || !str[0]) {
+    DeepState_Abandon("NULL or empty string passed to OneOf.");
+  }
+  return str[DeepState_IntInRange(0, strlen(str) - 1)];
+}
+
+template <typename T>
+inline static const T &OneOf(const std::vector<T> &arr) {
+  if (arr.empty()) {
+    DeepState_Abandon("Empty vector passed to OneOf.");
+  }
+  return arr[DeepState_IntInRange(0, arr.size - 1)];
+}
+
+
+template <typename T, int len>
+inline static const T &OneOf(T (&arr)[len]) {
+  if (!len) {
+    DeepState_Abandon("Empty array passed to OneOf.");
+  }
+  return arr[DeepState_IntInRange(0, len - 1)];
+}
+
 
 template <typename T, int k=sizeof(T) * 8>
 struct ExpandedCompareIntegral {
