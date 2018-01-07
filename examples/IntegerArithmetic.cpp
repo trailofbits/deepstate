@@ -45,6 +45,7 @@ TEST(Arithmetic, InvertibleMultiplication_CanFail) {
   });
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+  DeepState_InitOptions(argc, argv);
   return DeepState_Run();
 }

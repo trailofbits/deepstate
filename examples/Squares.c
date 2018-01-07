@@ -23,7 +23,8 @@ int main(int argc, const char *argv[]) {
 
 #endif
 
-int main(int argc, const char *argv[]) {
+int main(int argc, char *argv[]) {
+  DeepState_InitOptions(argc, argv);
 
     if(argc != 2) {
         printf("Usage: %s <integer>\n", argv[0]);

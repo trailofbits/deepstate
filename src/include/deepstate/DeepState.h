@@ -30,6 +30,7 @@
 
 #include <deepstate/Log.h>
 #include <deepstate/Compiler.h>
+#include <deepstate/Option.h>
 #include <deepstate/Stream.h>
 
 #ifdef assert
@@ -46,6 +47,9 @@
     }
 
 DEEPSTATE_BEGIN_EXTERN_C
+
+DECLARE_string(output_test_dir);
+DECLARE_string(input_test_dir);
 
 /* Return a symbolic value of a given type. */
 extern int DeepState_Bool(void);
@@ -319,11 +323,20 @@ extern int DeepState_CatchFail(void);
 /* Returns 1 if this test case was abandoned. */
 extern int DeepState_CatchAbandoned(void);
 
+/* Save a passing test to the output test directory. */
+extern void DeepState_SavePassingTest(void);
+
+/* Save a failing test to the output test directory. */
+extern void DeepState_SaveFailingTest(void);
+
 /* Jump buffer for returning to `DeepState_Run`. */
 extern jmp_buf DeepState_ReturnToRun;
 
 /* Start DeepState and run the tests. Returns the number of failed tests. */
 static int DeepState_Run(void) {
+  if (!DeepState_OptionsAreInitialized) {
+    DeepState_Abandon("Please call DeepState_InitOptions(argc, argv) in main.");
+  }
   int num_failed_tests = 0;
   int use_drfuzz = getenv("DYNAMORIO_EXE_PATH") != NULL;
   struct DeepState_TestInfo *test = NULL;
@@ -362,6 +375,9 @@ static int DeepState_Run(void) {
     } else if (DeepState_CatchFail()) {
       ++num_failed_tests;
       DeepState_LogFormat(DeepState_LogError, "Failed: %s", test->test_name);
+      if (HAS_FLAG_output_test_dir) {
+        DeepState_SaveFailingTest();
+      }
 
     /* The test was abandoned. We may have gotten soft failures before
      * abandoning, so we prefer to catch those first. */
@@ -371,6 +387,9 @@ static int DeepState_Run(void) {
     /* The test passed. */
     } else {
       DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
+      if (HAS_FLAG_output_test_dir) {
+        DeepState_SavePassingTest();
+      }
     }
   }
 

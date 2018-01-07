@@ -15,7 +15,7 @@
  */
 
 #include <deepstate/DeepState.hpp>
-/*
+
 TEST(Streaming, BasicLevels) {
   LOG(DEBUG) << "This is a debug message";
   LOG(INFO) << "This is an info message";
@@ -32,7 +32,7 @@ TEST(Streaming, BasicTypes) {
   LOG(INFO) << "string";
   LOG(INFO) << nullptr;
 }
-*/
+
 TEST(Formatting, OverridePrintf) {
   printf("hello string=%s hex_lower=%x hex_upper=%X octal=%o char=%c dec=%d"
          "double=%f sci=%e SCI=%E pointer=%p",
@@ -40,6 +40,7 @@ TEST(Formatting, OverridePrintf) {
   printf("hello again!");
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+  DeepState_InitOptions(argc, argv);
   return DeepState_Run();
 }

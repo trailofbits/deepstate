@@ -15,6 +15,7 @@
  */
 
 #include "deepstate/DeepState.h"
+#include "deepstate/Option.h"
 #include "deepstate/Log.h"
 
 #include <assert.h>
@@ -23,6 +24,12 @@
 #include <stdio.h>
 
 DEEPSTATE_BEGIN_EXTERN_C
+
+DEFINE_uint(num_workers, 1,
+            "Number of workers to spawn for testing and test generation.");
+
+DEFINE_string(input_test_dir, "", "Directory where tests will be saved.");
+DEFINE_string(output_test_dir, "", "Directory where tests will be saved.");
 
 /* Pointer to the last registers DeepState_TestInfo data structure */
 struct DeepState_TestInfo *DeepState_LastTestInfo = NULL;
@@ -202,7 +209,6 @@ int8_t DeepState_Char(void) {
 
 #undef MAKE_SYMBOL_FUNC
 
-
 /* Returns the minimum satisfiable value for a given symbolic value, given
  * the constraints present on that value. */
 uint32_t DeepState_MinUInt(uint32_t v) {
@@ -314,6 +320,8 @@ void DeepState_Begin(struct DeepState_TestInfo *info) {
                       info->test_name, info->file_name, info->line_number);
 }
 
+/* Save a failing test. */
+
 /* Runs in a child process, under the control of Dr. Memory */
 void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
   struct DeepState_TestInfo *test = DeepState_DrFuzzTest;
@@ -340,6 +348,9 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
   /* We caught a failure when running the test. */
   } else if (DeepState_CatchFail()) {
     DeepState_LogFormat(DeepState_LogError, "Failed: %s", test->test_name);
+    if (HAS_FLAG_output_test_dir) {
+      DeepState_SaveFailingTest();
+    }
 
   /* The test was abandoned. We may have gotten soft failures before
    * abandoning, so we prefer to catch those first. */
@@ -349,6 +360,9 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
   /* The test passed. */
   } else {
     DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
+    if (HAS_FLAG_output_test_dir) {
+      DeepState_SavePassingTest();
+    }
   }
 }
 
@@ -356,6 +370,16 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
 void DeepState_BeginDrFuzz(struct DeepState_TestInfo *test) {
   DeepState_DrFuzzTest = test;
   DrMemFuzzFunc(DeepState_Input, DeepState_InputSize);
+}
+
+/* Save a passing test to the output test directory. */
+void DeepState_SavePassingTest(void) {
+
+}
+
+/* Save a failing test to the output test directory. */
+void DeepState_SaveFailingTest(void) {
+  printf("Saving to %s\n", FLAGS_output_test_dir);
 }
 
 /* Return the first test case to run. */

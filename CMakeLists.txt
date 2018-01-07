@@ -41,12 +41,14 @@ endif ()
 add_library(${PROJECT_NAME} STATIC
   src/lib/DeepState.c
   src/lib/Log.c
+  src/lib/Option.c
   src/lib/Stream.c
 )
 
 add_library(${PROJECT_NAME}32 STATIC
   src/lib/DeepState.c
   src/lib/Log.c
+  src/lib/Option.c
   src/lib/Stream.c
 )
 

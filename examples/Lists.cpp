@@ -31,6 +31,7 @@ TEST(Vector, DoubleReversal) {
   });
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+  DeepState_InitOptions(argc, argv);
   DeepState_Run();
 }

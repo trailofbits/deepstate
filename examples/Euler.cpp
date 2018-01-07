@@ -39,6 +39,7 @@ TEST(Euler, SumsOfLikePowers) {
       << "^5 + " << d << "^5 = " << e << "^5";
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+  DeepState_InitOptions(argc, argv);
   return DeepState_Run();
 }

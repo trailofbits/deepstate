@@ -20,6 +20,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/* Concatenation macros. */
+#define DEEPSTATE_CAT__(x, y) x ## y
+#define DEEPSTATE_CAT_(x, y) DEEPSTATE_CAT__(x, y)
+#define DEEPSTATE_CAT(x, y) DEEPSTATE_CAT_(x, y)
+
 /* Stringify a macro parameter. */
 #define DEEPSTATE_TO_STR(a) _DEEPSTATE_TO_STR(a)
 #define _DEEPSTATE_TO_STR(a) __DEEPSTATE_TO_STR(a)
