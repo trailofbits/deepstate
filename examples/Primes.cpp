@@ -35,7 +35,7 @@ TEST(PrimePolynomial, OnlyGeneratesPrimes) {
   ASSUME_GT(z, 1);
   ASSUME_LT(y, poly);
   ASSUME_LT(z, poly);
-  ASSERT_NE(poly, y * z)
+  ASSERT(poly != y * z)
       << x << "^2 + " << x << " + 41 is not prime";
   ASSERT(IsPrime(Pump(poly)))
       << x << "^2 + " << x << " + 41 is not prime";

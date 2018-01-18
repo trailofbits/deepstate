@@ -119,7 +119,7 @@ class DeepState(object):
 
     parser.add_argument(
         "--output_test_dir", type=str, required=False,
-        "Directory where tests will be saved.")
+        help="Directory where tests will be saved.")
 
     parser.add_argument(
         "binary", type=str, help="Path to the test binary to run.")
