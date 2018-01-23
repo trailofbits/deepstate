@@ -41,6 +41,19 @@ TEST(PrimePolynomial, OnlyGeneratesPrimes) {
       << x << "^2 + " << x << " + 41 is not prime";
 }
 
+TEST(PrimePolynomial, OnlyGeneratesPrimes_NoStreaming) {
+  symbolic_unsigned x, y, z;
+  DeepState_Assume(x > 0);
+  unsigned poly = (x * x) + x + 41;
+  DeepState_Assume(y > 1);
+  DeepState_Assume(z > 1);
+  DeepState_Assume(y < poly);
+  DeepState_Assume(z < poly);
+  DeepState_Assert(poly != (y * z));
+  DeepState_Assert(IsPrime(Pump(poly)));
+}
+
+
 int main(int argc, char *argv[]) {
   DeepState_InitOptions(argc, argv);
   return DeepState_Run();
