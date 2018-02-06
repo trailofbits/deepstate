@@ -30,7 +30,7 @@ set(CMAKE_C_FLAGS_RELEASE "-O3")
 set(CMAKE_CXX_FLAGS_DEBUG "-O3")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-find_program(PYTHON "python")
+find_program(PYTHON "python2.7")
 
 # Enable the GNU extensions
 set(CMAKE_CXX_EXTENSIONS ON)
@@ -64,7 +64,7 @@ target_include_directories(${PROJECT_NAME}32
   PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
 )
 
-# Install the 
+# Install the
 install(
   DIRECTORY "${CMAKE_SOURCE_DIR}/src/include/deepstate"
   DESTINATION include
