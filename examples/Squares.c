@@ -2,42 +2,41 @@
 #include <stdlib.h>
 
 int square(int x) {
-    return x*x;
+  return x*x;
 }
 
 #ifdef DEEPSTATE_TEST
 #include <deepstate/DeepState.h>
 DeepState_EntryPoint(test_main) {
-    const char *new_args[2];
-    new_args[0] = "deepstate";
-    new_args[1] = DeepState_CStr(8);
+  const char *new_args[2];
+  new_args[0] = "deepstate";
+  new_args[1] = DeepState_CStr(8);
 
-    DeepState_Assert(0 == old_main(2, new_args));
+  DeepState_Assert(0 == old_main(2, new_args));
 }
 
 int main(int argc, const char *argv[]) {
-    return 0 == DeepState_Run();
+  DeepState_InitOptions(argc, argv);
+  return 0 == DeepState_Run();
 }
-// yes this is awful but avoids another ifdef
+// TODO(artem): yes this is awful but avoids another `ifdef`.
 #define main old_main
 
 #endif
 
 int main(int argc, char *argv[]) {
-  DeepState_InitOptions(argc, argv);
+  if (argc != 2) {
+    printf("Usage: %s <integer>\n", argv[0]);
+    return -1;
+  }
+  int x = atoi(argv[1]);
+  int y = square(x);
 
-    if(argc != 2) {
-        printf("Usage: %s <integer>\n", argv[0]);
-        return -1;
-    }
-    int x = atoi(argv[1]);
-    int y = square(x);
-
-    if(y + 4 == 29) {
-        printf("You found the secret number\n");
-        return 0;
-    } else {
-        printf("Secret NOT found\n");
-        return -1;
-    }
+  if (y + 4 == 29) {
+    printf("You found the secret number\n");
+    return 0;
+  } else {
+    printf("Secret NOT found\n");
+    return -1;
+  }
 }

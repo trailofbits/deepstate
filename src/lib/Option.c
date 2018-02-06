@@ -30,7 +30,7 @@ enum {
 static struct DeepState_Option *DeepState_Options = NULL;
 int DeepState_OptionsAreInitialized = 0;
 
-static const char DeepState_FakeSpace = ' ' | 0x80;
+static const char DeepState_FakeSpace = ' ' | ((char) 0x80);
 
 /* Copy of the option string. */
 static int DeepState_OptionStringLength = 0;
