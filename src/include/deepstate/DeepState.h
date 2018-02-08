@@ -18,12 +18,16 @@
 #define SRC_INCLUDE_DEEPSTATE_DEEPSTATE_H_
 
 #include <assert.h>
+#include <dirent.h>
+#include <libgen.h>
 #include <setjmp.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -344,11 +348,161 @@ extern void DeepState_SaveFailingTest(void);
 /* Jump buffer for returning to `DeepState_Run`. */
 extern jmp_buf DeepState_ReturnToRun;
 
+static bool IsTestCaseFile(const char *name) {
+  const char *suffix = strchr(name, '.');
+  if (suffix == NULL) {
+    return false;
+  }
+
+  if (strcmp(suffix, ".pass") == 0 || strcmp(suffix, ".fail") == 0) {
+    return true;
+  }
+
+  return false;
+}
+
+static int DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test,
+                                        const char *dir, const char *name) {
+  int num_failed_tests = 0;
+
+  size_t path_len = 2 + sizeof(char) * (strlen(dir) + strlen(name));
+  char *path = (char *) malloc(path_len);
+  if (path == NULL) {
+      DeepState_Abandon("Error allocating memory");
+  }
+  snprintf(path, path_len, "%s/%s", dir, name);
+
+  struct stat stat_buf;
+
+  FILE *fp = fopen(path, "r");
+  if (fp == NULL) {
+      /* TODO(joe): Add error log with more info. */
+      DeepState_Abandon("Unable to open file");
+  }
+
+  int fd = fileno(fp);
+  if (fd < 0) {
+      DeepState_Abandon("Tried to get file descriptor for invalid stream");
+  }
+  fstat(fd, &stat_buf);
+
+  if (stat_buf.st_size > sizeof(DeepState_Input)) {
+      /* TODO(joe): Add error log with more info. */
+      DeepState_Abandon("File too large");
+  }
+
+  /* Reset the input buffer and reset the index. */
+  memset((void *) DeepState_Input, 0, sizeof(DeepState_Input));
+  DeepState_InputIndex = 0;
+
+  size_t count = fread((void *) DeepState_Input, 1, stat_buf.st_size, fp);
+  fclose(fp);
+
+  if (count != stat_buf.st_size) {
+      /* TODO(joe): Add error log with more info. */
+      DeepState_Abandon("Error reading file");
+  }
+
+  DeepState_LogFormat(DeepState_LogInfo,
+                      "Initialized test input buffer with data from `%s`",
+                      path);
+
+  DeepState_Begin(test);
+
+  /* Run the test. */
+  if (!setjmp(DeepState_ReturnToRun)) {
+    /* Convert uncaught C++ exceptions into a test failure. */
+#if defined(__cplusplus) && defined(__cpp_exceptions)
+    try {
+#endif  /* __cplusplus */
+
+      test->test_func();  /* Run the test function. */
+      DeepState_Pass();
+
+#if defined(__cplusplus) && defined(__cpp_exceptions)
+    } catch(...) {
+      DeepState_Fail();
+    }
+#endif  /* __cplusplus */
+
+    /* We caught a failure when running the test. */
+  } else if (DeepState_CatchFail()) {
+    num_failed_tests = 1;
+    DeepState_LogFormat(DeepState_LogError, "Failed: %s", test->test_name);
+
+    /* The test was abandoned. We may have gotten soft failures before
+     * abandoning, so we prefer to catch those first. */
+  } else if (DeepState_CatchAbandoned()) {
+    DeepState_LogFormat(DeepState_LogFatal, "Abandoned: %s", test->test_name);
+
+    /* The test passed. */
+  } else {
+    DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
+  }
+
+  free(path);
+
+  return num_failed_tests;
+}
+
+/* Run tests with saved input from `FLAGS_input_test_dir`.
+ *
+ * For each test unit and case, see if there are input files in the
+ * expected directories. If so, use them to initialize
+ * `DeepState_Input`, then run the test. If not, skip the test. */
+static int DeepState_RunSavedTestCases(void) {
+  int num_failed_tests = 0;
+  struct DeepState_TestInfo *test = NULL;
+
+  DeepState_Setup();
+
+  for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
+    const char *test_file_name = basename((char *) test->file_name);
+
+    size_t test_case_dir_len = 3 + strlen(FLAGS_input_test_dir)
+                             + strlen(test_file_name) + strlen(test->test_name);
+    char *test_case_dir = (char *) malloc(test_case_dir_len);
+    if (test_case_dir == NULL) {
+      DeepState_Abandon("Error allocating memory");
+    }
+    snprintf(test_case_dir, test_case_dir_len, "%s/%s/%s",
+             FLAGS_input_test_dir, test_file_name, test->test_name);
+
+    struct dirent *dp;
+    DIR *dir_fd;
+
+    dir_fd = opendir(test_case_dir);
+    if (dir_fd == NULL) {
+      /* TODO(joe): Add error log with more info. */
+      DeepState_Abandon("Unable to open directory");
+    }
+
+    /* Read generated test cases and run a test for each file found. */
+    while ((dp = readdir(dir_fd)) != NULL) {
+      if (IsTestCaseFile(dp->d_name)) {
+        num_failed_tests += DeepState_DoRunSavedTestCase(test, test_case_dir,
+                                                         dp->d_name);
+      }
+    }
+    closedir(dir_fd);
+    free(test_case_dir);
+  }
+
+  DeepState_Teardown();
+
+  return num_failed_tests;
+}
+
 /* Start DeepState and run the tests. Returns the number of failed tests. */
 static int DeepState_Run(void) {
   if (!DeepState_OptionsAreInitialized) {
     DeepState_Abandon("Please call DeepState_InitOptions(argc, argv) in main.");
   }
+
+  if (HAS_FLAG_input_test_dir) {
+    return DeepState_RunSavedTestCases();
+  }
+
   int num_failed_tests = 0;
   int use_drfuzz = getenv("DYNAMORIO_EXE_PATH") != NULL;
   struct DeepState_TestInfo *test = NULL;
@@ -367,7 +521,6 @@ static int DeepState_Run(void) {
     }
     /* Run the test. */
     if (!setjmp(DeepState_ReturnToRun)) {
-      
       /* Convert uncaught C++ exceptions into a test failure. */
 #if defined(__cplusplus) && defined(__cpp_exceptions)
       try {
