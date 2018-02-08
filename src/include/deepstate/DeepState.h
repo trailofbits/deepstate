@@ -51,6 +51,18 @@ DEEPSTATE_BEGIN_EXTERN_C
 DECLARE_string(input_test_dir);
 DECLARE_string(output_test_dir);
 
+enum {
+  DeepState_InputSize = 8192
+};
+
+/* Byte buffer that will contain symbolic data that is used to supply requests
+ * for symbolic values (e.g. `int`s). */
+extern volatile uint8_t DeepState_Input[DeepState_InputSize];
+
+/* Index into the `DeepState_Input` array that tracks how many input bytes have
+ * been consumed. */
+extern uint32_t DeepState_InputIndex;
+
 /* Return a symbolic value of a given type. */
 extern int DeepState_Bool(void);
 extern size_t DeepState_Size(void);

@@ -37,17 +37,9 @@ struct DeepState_TestInfo *DeepState_LastTestInfo = NULL;
 /* Pointer to the test being run in this process by Dr. Fuzz. */
 static struct DeepState_TestInfo *DeepState_DrFuzzTest = NULL;
 
-enum {
-  DeepState_InputSize = 8192
-};
-
-/* Byte buffer that will contain symbolic data that is used to supply requests
- * for symbolic values (e.g. `int`s). */
-static volatile uint8_t DeepState_Input[DeepState_InputSize];
-
-/* Index into the `DeepState_Input` array that tracks how many input bytes have
- * been consumed. */
-static uint32_t DeepState_InputIndex = 0;
+/* Initialize global input buffer and index. */
+volatile uint8_t DeepState_Input[DeepState_InputSize] = {};
+uint32_t DeepState_InputIndex = 0;
 
 /* Jump buffer for returning to `DeepState_Run`. */
 jmp_buf DeepState_ReturnToRun = {};
