@@ -28,7 +28,7 @@ DEEPSTATE_BEGIN_EXTERN_C
 DEFINE_uint(num_workers, 1,
             "Number of workers to spawn for testing and test generation.");
 
-DEFINE_string(input_test_dir, "", "Directory where tests will be saved.");
+DEFINE_string(input_test_dir, "", "Directory of saved tests to run.");
 DEFINE_string(output_test_dir, "", "Directory where tests will be saved.");
 
 /* Pointer to the last registers DeepState_TestInfo data structure */

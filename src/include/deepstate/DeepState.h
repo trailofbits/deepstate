@@ -48,8 +48,8 @@
 
 DEEPSTATE_BEGIN_EXTERN_C
 
-DECLARE_string(output_test_dir);
 DECLARE_string(input_test_dir);
+DECLARE_string(output_test_dir);
 
 /* Return a symbolic value of a given type. */
 extern int DeepState_Bool(void);
