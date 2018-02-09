@@ -477,8 +477,10 @@ static int DeepState_RunSavedTestCases(void) {
 
     dir_fd = opendir(test_case_dir);
     if (dir_fd == NULL) {
-      /* TODO(joe): Add error log with more info. */
-      DeepState_Abandon("Unable to open directory");
+      DeepState_LogFormat(DeepState_LogInfo,
+                          "Skipping test `%s`, no saved test cases",
+                          test->test_name);
+      continue;
     }
 
     /* Read generated test cases and run a test for each file found. */
