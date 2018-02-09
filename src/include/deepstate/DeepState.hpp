@@ -184,7 +184,7 @@ class Symbolic<std::wstring> : public SymbolicLinearContainer<std::wstring> {
 };
 
 template <typename T>
-class Symbolic<std::vector<T>> : 
+class Symbolic<std::vector<T>> :
     public SymbolicLinearContainer<std::vector<T>> {};
 
 #define MAKE_SYMBOL_SPECIALIZATION(Tname, tname) \
@@ -299,7 +299,7 @@ static T Pump(T val, unsigned max=10) {
     return val;
   }
   if (!max) {
-    DeepState_Abandon("Must have a positie maximum number of values to pump.");
+    DeepState_Abandon("Must have a positive maximum number of values to pump.");
   }
   for (auto i = 0U; i < max - 1; ++i) {
     T min_val = Minimize(val);
