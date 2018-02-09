@@ -361,17 +361,7 @@ static bool IsTestCaseFile(const char *name) {
   return false;
 }
 
-static int DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test,
-                                        const char *dir, const char *name) {
-  int num_failed_tests = 0;
-
-  size_t path_len = 2 + sizeof(char) * (strlen(dir) + strlen(name));
-  char *path = (char *) malloc(path_len);
-  if (path == NULL) {
-      DeepState_Abandon("Error allocating memory");
-  }
-  snprintf(path, path_len, "%s/%s", dir, name);
-
+static void InitializeInputFromFile(const char *path) {
   struct stat stat_buf;
 
   FILE *fp = fopen(path, "r");
@@ -406,6 +396,22 @@ static int DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test,
   DeepState_LogFormat(DeepState_LogInfo,
                       "Initialized test input buffer with data from `%s`",
                       path);
+}
+
+static int DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test,
+                                        const char *dir, const char *name) {
+  int num_failed_tests = 0;
+
+  size_t path_len = 2 + sizeof(char) * (strlen(dir) + strlen(name));
+  char *path = (char *) malloc(path_len);
+  if (path == NULL) {
+      DeepState_Abandon("Error allocating memory");
+  }
+  snprintf(path, path_len, "%s/%s", dir, name);
+
+  InitializeInputFromFile(path);
+
+  free(path);
 
   DeepState_Begin(test);
 
@@ -439,8 +445,6 @@ static int DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test,
   } else {
     DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
   }
-
-  free(path);
 
   return num_failed_tests;
 }
