@@ -374,7 +374,9 @@ static void InitializeInputFromFile(const char *path) {
   if (fd < 0) {
       DeepState_Abandon("Tried to get file descriptor for invalid stream");
   }
-  fstat(fd, &stat_buf);
+  if (fstat(fd, &stat_buf) < 0) {
+      DeepState_Abandon("Unable to access input file");
+  };
 
   if (stat_buf.st_size > sizeof(DeepState_Input)) {
       /* TODO(joe): Add error log with more info. */
