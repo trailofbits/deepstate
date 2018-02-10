@@ -366,21 +366,21 @@ static void InitializeInputFromFile(const char *path) {
 
   FILE *fp = fopen(path, "r");
   if (fp == NULL) {
-      /* TODO(joe): Add error log with more info. */
-      DeepState_Abandon("Unable to open file");
+    /* TODO(joe): Add error log with more info. */
+    DeepState_Abandon("Unable to open file");
   }
 
   int fd = fileno(fp);
   if (fd < 0) {
-      DeepState_Abandon("Tried to get file descriptor for invalid stream");
+    DeepState_Abandon("Tried to get file descriptor for invalid stream");
   }
   if (fstat(fd, &stat_buf) < 0) {
-      DeepState_Abandon("Unable to access input file");
+    DeepState_Abandon("Unable to access input file");
   };
 
   if (stat_buf.st_size > sizeof(DeepState_Input)) {
-      /* TODO(joe): Add error log with more info. */
-      DeepState_Abandon("File too large");
+    /* TODO(joe): Add error log with more info. */
+    DeepState_Abandon("File too large");
   }
 
   /* Reset the input buffer and reset the index. */
@@ -391,8 +391,8 @@ static void InitializeInputFromFile(const char *path) {
   fclose(fp);
 
   if (count != stat_buf.st_size) {
-      /* TODO(joe): Add error log with more info. */
-      DeepState_Abandon("Error reading file");
+    /* TODO(joe): Add error log with more info. */
+    DeepState_Abandon("Error reading file");
   }
 
   DeepState_LogFormat(DeepState_LogInfo,
@@ -407,7 +407,7 @@ static int DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test,
   size_t path_len = 2 + sizeof(char) * (strlen(dir) + strlen(name));
   char *path = (char *) malloc(path_len);
   if (path == NULL) {
-      DeepState_Abandon("Error allocating memory");
+    DeepState_Abandon("Error allocating memory");
   }
   snprintf(path, path_len, "%s/%s", dir, name);
 
@@ -534,8 +534,8 @@ static int DeepState_Run(void) {
       try {
 #endif  /* __cplusplus */
 
-      test->test_func();  /* Run the test function. */
-      DeepState_Pass();
+        test->test_func();  /* Run the test function. */
+        DeepState_Pass();
 
 #if defined(__cplusplus) && defined(__cpp_exceptions)
       } catch(...) {
