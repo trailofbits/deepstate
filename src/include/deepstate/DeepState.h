@@ -348,6 +348,9 @@ extern void DeepState_SaveFailingTest(void);
 /* Jump buffer for returning to `DeepState_Run`. */
 extern jmp_buf DeepState_ReturnToRun;
 
+/* Checks a filename to see if might be a saved test case.
+ *
+ * Valid saved test cases have the suffix `.pass` or `.fail`. */
 static bool IsTestCaseFile(const char *name) {
   const char *suffix = strchr(name, '.');
   if (suffix == NULL) {
@@ -361,6 +364,8 @@ static bool IsTestCaseFile(const char *name) {
   return false;
 }
 
+/* Resets the global `DeepState_Input` buffer, then fills it with the
+ * data found in the file `path`. */
 static void InitializeInputFromFile(const char *path) {
   struct stat stat_buf;
 
@@ -400,6 +405,10 @@ static void InitializeInputFromFile(const char *path) {
                       path);
 }
 
+/* Run a single saved test case with input initialized from the file
+ * `name` in directory `dir`.
+ *
+ * This function does not attempt to save test outcomes. */
 static int DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test,
                                         const char *dir, const char *name) {
   int num_failed_tests = 0;
