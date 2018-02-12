@@ -77,6 +77,9 @@ void DeepState_Log(enum DeepState_LogLevel level, const char *str) {
   if (DeepState_LogError == level) {
     DeepState_SoftFail();
   } else if (DeepState_LogFatal == level) {
+    /* `DeepState_Fail()` calls `longjmp()`, so we need to make sure
+     * we clean up the log buffer first. */
+    DeepState_ClearStream(level);
     DeepState_Fail();
   }
 }

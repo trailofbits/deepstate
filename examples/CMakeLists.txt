@@ -28,8 +28,8 @@ target_link_libraries(Euler deepstate)
 add_executable(IntegerOverflow IntegerOverflow.cpp)
 target_link_libraries(IntegerOverflow deepstate)
 
-add_executable(IntegerArtihmetic IntegerArithmetic.cpp)
-target_link_libraries(IntegerArtihmetic deepstate)
+add_executable(IntegerArithmetic IntegerArithmetic.cpp)
+target_link_libraries(IntegerArithmetic deepstate)
 
 add_executable(Lists Lists.cpp)
 target_link_libraries(Lists deepstate)
