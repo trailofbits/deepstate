@@ -451,12 +451,32 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
   }
 }
 
+/* Fork and run `test`.
+ *
+ * Returns 1 if the test failed, 0 otherwise. */
+static int DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
+  pid_t test_pid = fork();
+  if (!test_pid) {
+    DeepState_RunTest(test);
+  }
+  int wstatus;
+  waitpid(test_pid, &wstatus, 0);
+
+  /* If we exited normally, the status code tells us if the test passed. */
+  if (WIFEXITED(wstatus)) {
+    uint8_t status = WEXITSTATUS(wstatus);
+
+    return status ? 1 : 0;
+  }
+
+  /* If here, we exited abnormally, and so the test failed. */
+  return 1;
+}
+
 /* Run a single saved test case with input initialized from the file
  * `name` in directory `dir`. */
 static int DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test,
                                         const char *dir, const char *name) {
-  int num_failed_tests = 0;
-
   size_t path_len = 2 + sizeof(char) * (strlen(dir) + strlen(name));
   char *path = (char *) malloc(path_len);
   if (path == NULL) {
@@ -470,23 +490,7 @@ static int DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test,
 
   DeepState_Begin(test);
 
-  pid_t test_pid = fork();
-  if (!test_pid) {
-    DeepState_RunTest(test);
-  }
-  int wstatus;
-  waitpid(test_pid, &wstatus, 0);
-
-  if (WIFEXITED(wstatus)) {
-    uint8_t status = WEXITSTATUS(wstatus);
-    if (!status) {
-      num_failed_tests++;
-    }
-  } else {
-    num_failed_tests++;
-  }
-
-  return num_failed_tests;
+  return DeepState_ForkAndRunTest(test);
 }
 
 /* Run tests with saved input from `FLAGS_input_test_dir`.
@@ -566,21 +570,7 @@ static int DeepState_Run(void) {
       DeepState_Begin(test);
     }
 
-    pid_t test_pid = fork();
-    if (!test_pid) {
-      DeepState_RunTest(test);
-    }
-    int wstatus;
-    waitpid(test_pid, &wstatus, 0);
-
-    if (WIFEXITED(wstatus)) {
-      uint8_t status = WEXITSTATUS(wstatus);
-      if (!status) {
-        num_failed_tests++;
-      }
-    } else {
-      num_failed_tests++;
-    }
+    num_failed_tests += DeepState_ForkAndRunTest(test);
   }
 
   if (use_drfuzz) {
