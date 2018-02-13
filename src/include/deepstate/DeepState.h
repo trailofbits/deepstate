@@ -565,42 +565,21 @@ static int DeepState_Run(void) {
     } else {
       DeepState_Begin(test);
     }
-    /* Run the test. */
-    if (!setjmp(DeepState_ReturnToRun)) {
-      /* Convert uncaught C++ exceptions into a test failure. */
-#if defined(__cplusplus) && defined(__cpp_exceptions)
-      try {
-#endif  /* __cplusplus */
 
-        test->test_func();  /* Run the test function. */
-        DeepState_Pass();
+    pid_t test_pid = fork();
+    if (!test_pid) {
+      DeepState_ForkTest(test);
+    }
+    int wstatus;
+    waitpid(test_pid, &wstatus, 0);
 
-#if defined(__cplusplus) && defined(__cpp_exceptions)
-      } catch(...) {
-        DeepState_Fail();
+    if (WIFEXITED(wstatus)) {
+      uint8_t status = WEXITSTATUS(wstatus);
+      if (!status) {
+        num_failed_tests++;
       }
-#endif  /* __cplusplus */
-
-
-    /* We caught a failure when running the test. */
-    } else if (DeepState_CatchFail()) {
-      ++num_failed_tests;
-      DeepState_LogFormat(DeepState_LogError, "Failed: %s", test->test_name);
-      if (HAS_FLAG_output_test_dir) {
-        DeepState_SaveFailingTest();
-      }
-
-    /* The test was abandoned. We may have gotten soft failures before
-     * abandoning, so we prefer to catch those first. */
-    } else if (DeepState_CatchAbandoned()) {
-      DeepState_LogFormat(DeepState_LogFatal, "Abandoned: %s", test->test_name);
-
-    /* The test passed. */
     } else {
-      DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
-      if (HAS_FLAG_output_test_dir) {
-        DeepState_SavePassingTest();
-      }
+      num_failed_tests++;
     }
   }
 
