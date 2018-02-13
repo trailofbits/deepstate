@@ -473,6 +473,8 @@ static int DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
   }
 
   /* If here, we exited abnormally, and so the test failed due to a crash. */
+  DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
+
   if (HAS_FLAG_output_test_dir) {
     DeepState_SaveCrashingTest();
   }
