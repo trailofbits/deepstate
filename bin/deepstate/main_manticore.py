@@ -272,7 +272,7 @@ def do_run_test(state, apis, test):
   mc = DeepManticore(state)
   mc.begin_test(test)
   del mc
-  
+
   m.add_hook(apis['IsSymbolicUInt'], hook(hook_IsSymbolicUInt))
   m.add_hook(apis['ConcretizeData'], hook(hook_ConcretizeData))
   m.add_hook(apis['ConcretizeCStr'], hook(hook_ConcretizeCStr))
@@ -308,7 +308,7 @@ def run_tests(args, state, apis):
   results = []
   mc = DeepManticore(state)
   tests = mc.find_test_cases()
-  
+
   L.info("Running {} tests across {} workers".format(
       len(tests), args.num_workers))
 
@@ -334,7 +334,7 @@ def main():
 
   m.verbosity(1)
 
-  # Hack to get around current broken _get_symbol_address 
+  # Hack to get around current broken _get_symbol_address
   m._binary_type = 'not elf'
   m._binary_obj = m._initial_state.platform.elf
 
@@ -352,7 +352,7 @@ def main():
   if not ea_of_api_table:
     L.critical("Could not find API table in binary `{}`".format(args.binary))
     return 1
-    
+
   apis = mc.read_api_table(ea_of_api_table)
   del mc
   m.add_hook(setup_ea, lambda state: run_tests(args, state, apis))

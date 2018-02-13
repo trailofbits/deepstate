@@ -265,7 +265,7 @@ def do_run_test(project, test, apis, run_state):
   mc = DeepAngr(state=test_state)
   mc.begin_test(test)
   del mc
-  
+
   errored = []
   test_manager = angr.SimulationManager(
       project=project,
