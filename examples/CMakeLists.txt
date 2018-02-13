@@ -13,6 +13,9 @@
 # limitations under the License.
 
 
+add_executable(Crash Crash.cpp)
+target_link_libraries(Crash deepstate)
+
 add_executable(OneOf OneOf.cpp)
 target_link_libraries(OneOf deepstate)
 
