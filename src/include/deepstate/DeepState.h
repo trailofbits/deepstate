@@ -410,7 +410,7 @@ static void InitializeInputFromFile(const char *path) {
  *
  * An exit code of 0 indicates that the test passed. Any other exit
  * code, or termination by a signal, indicates a test failure. */
-static void DeepState_ForkTest(struct DeepState_TestInfo *test) {
+static void DeepState_RunTest(struct DeepState_TestInfo *test) {
   /* Run the test. */
   if (!setjmp(DeepState_ReturnToRun)) {
     /* Convert uncaught C++ exceptions into a test failure. */
@@ -472,7 +472,7 @@ static int DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test,
 
   pid_t test_pid = fork();
   if (!test_pid) {
-    DeepState_ForkTest(test);
+    DeepState_RunTest(test);
   }
   int wstatus;
   waitpid(test_pid, &wstatus, 0);
@@ -568,7 +568,7 @@ static int DeepState_Run(void) {
 
     pid_t test_pid = fork();
     if (!test_pid) {
-      DeepState_ForkTest(test);
+      DeepState_RunTest(test);
     }
     int wstatus;
     waitpid(test_pid, &wstatus, 0);
