@@ -365,14 +365,10 @@ void DeepState_BeginDrFuzz(struct DeepState_TestInfo *test) {
 }
 
 /* Save a passing test to the output test directory. */
-void DeepState_SavePassingTest(void) {
-
-}
+void DeepState_SavePassingTest(void) {}
 
 /* Save a failing test to the output test directory. */
-void DeepState_SaveFailingTest(void) {
-  printf("Saving to %s\n", FLAGS_output_test_dir);
-}
+void DeepState_SaveFailingTest(void) {}
 
 /* Save a crashing test to the output test directory. */
 void DeepState_SaveCrashingTest(void) {}
