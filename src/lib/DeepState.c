@@ -374,6 +374,9 @@ void DeepState_SaveFailingTest(void) {
   printf("Saving to %s\n", FLAGS_output_test_dir);
 }
 
+/* Save a crashing test to the output test directory. */
+void DeepState_SaveCrashingTest(void) {}
+
 /* Return the first test case to run. */
 struct DeepState_TestInfo *DeepState_FirstTest(void) {
   return DeepState_LastTestInfo;

@@ -346,6 +346,9 @@ extern void DeepState_SavePassingTest(void);
 /* Save a failing test to the output test directory. */
 extern void DeepState_SaveFailingTest(void);
 
+/* Save a crashing test to the output test directory. */
+extern void DeepState_SaveCrashingTest(void);
+
 /* Jump buffer for returning to `DeepState_Run`. */
 extern jmp_buf DeepState_ReturnToRun;
 
@@ -469,7 +472,11 @@ static int DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
     return status ? 1 : 0;
   }
 
-  /* If here, we exited abnormally, and so the test failed. */
+  /* If here, we exited abnormally, and so the test failed due to a crash. */
+  if (HAS_FLAG_output_test_dir) {
+    DeepState_SaveCrashingTest();
+  }
+
   return 1;
 }
 
