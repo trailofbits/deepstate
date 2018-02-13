@@ -430,6 +430,9 @@ static void DeepState_ForkTest(struct DeepState_TestInfo *test) {
     /* We caught a failure when running the test. */
   } else if (DeepState_CatchFail()) {
     DeepState_LogFormat(DeepState_LogError, "Failed: %s", test->test_name);
+    if (HAS_FLAG_output_test_dir) {
+      DeepState_SaveFailingTest();
+    }
     exit(1);
 
     /* The test was abandoned. We may have gotten soft failures before
@@ -441,14 +444,15 @@ static void DeepState_ForkTest(struct DeepState_TestInfo *test) {
     /* The test passed. */
   } else {
     DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
+    if (HAS_FLAG_output_test_dir) {
+      DeepState_SavePassingTest();
+    }
     exit(0);
   }
 }
 
 /* Run a single saved test case with input initialized from the file
- * `name` in directory `dir`.
- *
- * This function does not attempt to save test outcomes. */
+ * `name` in directory `dir`. */
 static int DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test,
                                         const char *dir, const char *name) {
   int num_failed_tests = 0;
