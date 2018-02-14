@@ -364,8 +364,17 @@ static bool IsTestCaseFile(const char *name) {
     return false;
   }
 
-  if (strcmp(suffix, ".pass") == 0 || strcmp(suffix, ".fail") == 0) {
-    return true;
+  const char *extensions[] = {
+    ".pass",
+    ".fail",
+    ".crash",
+  };
+  const size_t ext_count = sizeof(extensions) / sizeof(char *);
+
+  for (size_t i = 0; i < ext_count; i++) {
+    if (!strcmp(suffix, extensions[i])) {
+      return true;
+    }
   }
 
   return false;
