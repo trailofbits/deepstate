@@ -423,7 +423,7 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
 
 #if defined(__cplusplus) && defined(__cpp_exceptions)
     } catch(...) {
-      exit(1);
+      DeepState_Fail();
     }
 #endif  /* __cplusplus */
 
