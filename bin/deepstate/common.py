@@ -215,6 +215,7 @@ class DeepState(object):
   def begin_test(self, info):
     """Begin processing the test associated with `info`."""
     self.context['failed'] = False
+    self.context['crashed'] = False
     self.context['abandoned'] = False
     self.context['log'] = []
     for level in LOG_LEVEL_TO_LOGGER:
@@ -324,6 +325,8 @@ class DeepState(object):
 
     if self.context['failed']:
       test_name += ".fail"
+    elif self.context['crashed']:
+      test_name += ".crash"
     else:
       test_name += ".pass"
 
@@ -374,6 +377,11 @@ class DeepState(object):
     """Notify the symbolic executor that this test has passed and stop
     executing the current state."""
     pass
+
+  def crash_test(self):
+    """Notify the symbolic executor that this test has crashed and stop
+    executing the current state."""
+    self.context['crashed'] = True
 
   def fail_test(self):
     """Notify the symbolic executor that this test has failed and stop
@@ -468,6 +476,14 @@ class DeepState(object):
       info = self.context['info']
       self.log_message(LOG_LEVEL_INFO, "Passed: {}".format(info.name))
       self.pass_test()
+
+  def api_crash(self):
+    """Implements the `DeepState_Crash` API function, which marks this test as
+    having failed, and stops further execution."""
+    self.context['crashed'] = True
+    info = self.context['info']
+    self.log_message(LOG_LEVEL_ERROR, "Crashed: {}".format(info.name))
+    self.crash_test()
 
   def api_fail(self):
     """Implements the `DeepState_Fail` API function, which marks this test as
