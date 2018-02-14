@@ -55,6 +55,11 @@ void DeepState_Abandon(const char *reason) {
   longjmp(DeepState_ReturnToRun, 1);
 }
 
+/* Mark this test as having crashed. */
+void DeepState_Crash(void) {
+  DeepState_TestFailed = 1;
+}
+
 /* Mark this test as failing. */
 DEEPSTATE_NORETURN
 void DeepState_Fail(void) {
@@ -261,6 +266,7 @@ const struct DeepState_IndexEntry DeepState_API[] = {
 
   /* Control-flow during the test. */
   {"Pass",            (void *) DeepState_Pass},
+  {"Crash",           (void *) DeepState_Crash},
   {"Fail",            (void *) DeepState_Fail},
   {"SoftFail",        (void *) DeepState_SoftFail},
   {"Abandon",         (void *) DeepState_Abandon},

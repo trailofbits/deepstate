@@ -184,6 +184,9 @@ extern void _DeepState_Assume(int expr, const char *expr_str, const char *file,
 DEEPSTATE_NORETURN
 extern void DeepState_Abandon(const char *reason);
 
+/* Mark this test as having crashed. */
+extern void DeepState_Crash(void);
+
 DEEPSTATE_NORETURN
 extern void DeepState_Fail(void);
 
@@ -473,6 +476,7 @@ static int DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
   }
 
   /* If here, we exited abnormally, and so the test failed due to a crash. */
+  DeepState_Crash();
   DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
 
   if (HAS_FLAG_output_test_dir) {
