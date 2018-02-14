@@ -186,7 +186,7 @@ def hook_Pass(state):
 
 
 def hook_Fail(state):
-  """Implements DeepState_Fail, which notifies us of a passing test."""
+  """Implements DeepState_Fail, which notifies us of a failing test."""
   DeepManticore(state).api_fail()
 
 

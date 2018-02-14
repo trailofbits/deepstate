@@ -479,7 +479,7 @@ class DeepState(object):
 
   def api_crash(self):
     """Implements the `DeepState_Crash` API function, which marks this test as
-    having failed, and stops further execution."""
+    having crashed, and stops further execution."""
     self.context['crashed'] = True
     info = self.context['info']
     self.log_message(LOG_LEVEL_ERROR, "Crashed: {}".format(info.name))
