@@ -180,6 +180,16 @@ extern void _DeepState_Assume(int expr, const char *expr_str, const char *file,
 
 #define DeepState_Assume(x) _DeepState_Assume(!!(x), #x, __FILE__, __LINE__)
 
+/* Result of a single forked test run.
+ *
+ * Will be passed to the parent process as an exit code. */
+enum DeepState_TestRunResult {
+  DeepState_TestRunPass = 0,
+  DeepState_TestRunFail = 1,
+  DeepState_TestRunCrash = 2,
+  DeepState_TestRunAbandon = 3,
+};
+
 /* Abandon this test. We've hit some kind of internal problem. */
 DEEPSTATE_NORETURN
 extern void DeepState_Abandon(const char *reason);
@@ -434,7 +444,7 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
 #endif  /* __cplusplus */
 
       test->test_func();  /* Run the test function. */
-      exit(0);
+      exit(DeepState_TestRunPass);
 
 #if defined(__cplusplus) && defined(__cpp_exceptions)
     } catch(...) {
@@ -448,13 +458,13 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
     if (HAS_FLAG_output_test_dir) {
       DeepState_SaveFailingTest();
     }
-    exit(1);
+    exit(DeepState_TestRunFail);
 
     /* The test was abandoned. We may have gotten soft failures before
      * abandoning, so we prefer to catch those first. */
   } else if (DeepState_CatchAbandoned()) {
     DeepState_LogFormat(DeepState_LogFatal, "Abandoned: %s", test->test_name);
-    exit(1);
+    exit(DeepState_TestRunAbandon);
 
     /* The test passed. */
   } else {
@@ -462,14 +472,13 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
     if (HAS_FLAG_output_test_dir) {
       DeepState_SavePassingTest();
     }
-    exit(0);
+    exit(DeepState_TestRunPass);
   }
 }
 
-/* Fork and run `test`.
- *
- * Returns 1 if the test failed, 0 otherwise. */
-static int DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
+/* Fork and run `test`. */
+static enum DeepState_TestRunResult
+DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
   pid_t test_pid = fork();
   if (!test_pid) {
     DeepState_RunTest(test);
@@ -480,25 +489,19 @@ static int DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
   /* If we exited normally, the status code tells us if the test passed. */
   if (WIFEXITED(wstatus)) {
     uint8_t status = WEXITSTATUS(wstatus);
-
-    return status ? 1 : 0;
+    return (enum DeepState_TestRunResult) status;
   }
 
-  /* If here, we exited abnormally, and so the test failed due to a crash. */
-  DeepState_Crash();
-  DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
-
-  if (HAS_FLAG_output_test_dir) {
-    DeepState_SaveCrashingTest();
-  }
-
-  return 1;
+  /* If here, we exited abnormally but didn't catch it in the signal
+   * handler, and thus the test failed due to a crash. */
+  return DeepState_TestRunCrash;
 }
 
 /* Run a single saved test case with input initialized from the file
  * `name` in directory `dir`. */
-static int DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test,
-                                        const char *dir, const char *name) {
+static enum DeepState_TestRunResult
+DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
+                             const char *name) {
   size_t path_len = 2 + sizeof(char) * (strlen(dir) + strlen(name));
   char *path = (char *) malloc(path_len);
   if (path == NULL) {
@@ -512,7 +515,19 @@ static int DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test,
 
   DeepState_Begin(test);
 
-  return DeepState_ForkAndRunTest(test);
+  enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
+
+  if (result == DeepState_TestRunCrash) {
+    DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
+
+    if (HAS_FLAG_output_test_dir) {
+      DeepState_SaveCrashingTest();
+    }
+
+    DeepState_Crash();
+  }
+
+  return result;
 }
 
 /* Run tests with saved input from `FLAGS_input_test_dir`.
@@ -552,8 +567,12 @@ static int DeepState_RunSavedTestCases(void) {
     /* Read generated test cases and run a test for each file found. */
     while ((dp = readdir(dir_fd)) != NULL) {
       if (IsTestCaseFile(dp->d_name)) {
-        num_failed_tests += DeepState_DoRunSavedTestCase(test, test_case_dir,
-                                                         dp->d_name);
+        enum DeepState_TestRunResult result =
+          DeepState_DoRunSavedTestCase(test, test_case_dir, dp->d_name);
+
+        if (result != DeepState_TestRunPass) {
+          num_failed_tests++;
+        }
       }
     }
     closedir(dir_fd);
