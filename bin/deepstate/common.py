@@ -191,7 +191,7 @@ class DeepState(object):
     """Find the test case descriptors."""
     tests = []
     info_ea, _ = self.read_uintptr_t(self.context['apis']['LastTestInfo'])
-    
+
     while info_ea:
       test, info_ea = self._read_test_info(info_ea)
       if test:
@@ -215,11 +215,12 @@ class DeepState(object):
   def begin_test(self, info):
     """Begin processing the test associated with `info`."""
     self.context['failed'] = False
+    self.context['crashed'] = False
     self.context['abandoned'] = False
     self.context['log'] = []
     for level in LOG_LEVEL_TO_LOGGER:
       self.context['stream_{}'.format(level)] = []
-    
+
     self.context['info'] = info
     self.log_message(LOG_LEVEL_INFO, "Running {} from {}({})".format(
         info.name, info.file_name, info.line_number))
@@ -294,7 +295,7 @@ class DeepState(object):
         val = struct.unpack(unpack_str, data)[0]
       else:
         assert val_type == int
-        
+
         # TODO(pag): I am pretty sure that this is wrong for big-endian.
         data = struct.pack('BBBBBBBB', *val_bytes)
         val = struct.unpack(unpack_str, data[:struct.calcsize(unpack_str)])[0]
@@ -324,6 +325,8 @@ class DeepState(object):
 
     if self.context['failed']:
       test_name += ".fail"
+    elif self.context['crashed']:
+      test_name += ".crash"
     else:
       test_name += ".pass"
 
@@ -340,7 +343,7 @@ class DeepState(object):
     info = self.context['info']
     apis = self.context['apis']
     input_length, _ = self.read_uint32_t(apis['InputIndex'])
-    
+
     symbols = self.context['symbols']
 
     # Check to see if the test case actually read too many symbols.
@@ -375,6 +378,11 @@ class DeepState(object):
     executing the current state."""
     pass
 
+  def crash_test(self):
+    """Notify the symbolic executor that this test has crashed and stop
+    executing the current state."""
+    self.context['crashed'] = True
+
   def fail_test(self):
     """Notify the symbolic executor that this test has failed and stop
     executing the current state."""
@@ -384,7 +392,7 @@ class DeepState(object):
     """Notify the symbolic executor that this test has been abandoned due to
     some critical error and stop executing the current state."""
     self.context['abandoned'] = True
-  
+
   def api_min_uint(self, arg):
     """Implements the `DeepState_MinUInt` API function, which returns the
     minimum satisfiable value for `arg`."""
@@ -417,7 +425,7 @@ class DeepState(object):
         self.abandon_test()
       else:
         return
-    
+
     constraint = arg != 0
     if not self.add_constraint(constraint):
       expr, _ = self.read_c_string(expr_ea, concretize=False)
@@ -469,6 +477,14 @@ class DeepState(object):
       self.log_message(LOG_LEVEL_INFO, "Passed: {}".format(info.name))
       self.pass_test()
 
+  def api_crash(self):
+    """Implements the `DeepState_Crash` API function, which marks this test as
+    having crashed, and stops further execution."""
+    self.context['crashed'] = True
+    info = self.context['info']
+    self.log_message(LOG_LEVEL_ERROR, "Crashed: {}".format(info.name))
+    self.crash_test()
+
   def api_fail(self):
     """Implements the `DeepState_Fail` API function, which marks this test as
     having failed, and stops further execution."""
@@ -500,7 +516,7 @@ class DeepState(object):
     ea = self.concretize(ea, constrain=True)
     assert level in LOG_LEVEL_TO_LOGGER
     self.log_message(level, self.read_c_string(ea, concretize=False)[0])
-    
+
     if level == LOG_LEVEL_FATAL:
       self.api_fail()
     elif level == LOG_LEVEL_ERROR:
@@ -551,7 +567,7 @@ class DeepState(object):
     str_ea = self.concretize(str_ea, constrain=True)
     format_str = self.read_c_string(format_ea)[0]
     print_str = self.read_c_string(str_ea, concretize=False)[0]
-    
+
     stream_id = 'stream_{}'.format(level)
     stream = list(self.context[stream_id])
     stream.append((str, format_str, None, print_str))

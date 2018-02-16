@@ -130,6 +130,10 @@ class DeepManticore(DeepState):
     super(DeepManticore, self).pass_test()
     raise TerminateState(OUR_TERMINATION_REASON, testcase=False)
 
+  def crash_test(self):
+    super(DeepManticore, self).crash_test()
+    raise TerminateState(OUR_TERMINATION_REASON, testcase=False)
+
   def fail_test(self):
     super(DeepManticore, self).fail_test()
     raise TerminateState(OUR_TERMINATION_REASON, testcase=False)
@@ -184,9 +188,12 @@ def hook_Pass(state):
   """Implements DeepState_Pass, which notifies us of a passing test."""
   DeepManticore(state).api_pass()
 
+def hook_Crash(state):
+  """Implements DeepState_Crash, which notifies us of a crashing test."""
+  DeepManticore(state).api_crash()
 
 def hook_Fail(state):
-  """Implements DeepState_Fail, which notifies us of a passing test."""
+  """Implements DeepState_Fail, which notifies us of a failing test."""
   DeepManticore(state).api_fail()
 
 
@@ -238,11 +245,13 @@ def hook(func):
 
 def done_test(_, state, state_id, reason):
   """Called when a state is terminated."""
-  if OUR_TERMINATION_REASON not in reason:
-    L.error("State {} terminated for unknown reason: {}".format(
-        state_id, reason))
-    return
   mc = DeepManticore(state)
+
+  if OUR_TERMINATION_REASON not in reason:
+    L.info("State {} terminated for unknown reason, treating as crash: {}".format(
+      state_id, reason))
+    super(DeepManticore, mc).crash_test()
+
   mc.report()
 
 
@@ -272,7 +281,7 @@ def do_run_test(state, apis, test):
   mc = DeepManticore(state)
   mc.begin_test(test)
   del mc
-  
+
   m.add_hook(apis['IsSymbolicUInt'], hook(hook_IsSymbolicUInt))
   m.add_hook(apis['ConcretizeData'], hook(hook_ConcretizeData))
   m.add_hook(apis['ConcretizeCStr'], hook(hook_ConcretizeCStr))
@@ -280,6 +289,7 @@ def do_run_test(state, apis, test):
   m.add_hook(apis['MaxUInt'], hook(hook_MaxUInt))
   m.add_hook(apis['Assume'], hook(hook_Assume))
   m.add_hook(apis['Pass'], hook(hook_Pass))
+  m.add_hook(apis['Crash'], hook(hook_Crash))
   m.add_hook(apis['Fail'], hook(hook_Fail))
   m.add_hook(apis['SoftFail'], hook(hook_SoftFail))
   m.add_hook(apis['Abandon'], hook(hook_Abandon))
@@ -308,7 +318,7 @@ def run_tests(args, state, apis):
   results = []
   mc = DeepManticore(state)
   tests = mc.find_test_cases()
-  
+
   L.info("Running {} tests across {} workers".format(
       len(tests), args.num_workers))
 
@@ -334,7 +344,7 @@ def main():
 
   m.verbosity(1)
 
-  # Hack to get around current broken _get_symbol_address 
+  # Hack to get around current broken _get_symbol_address
   m._binary_type = 'not elf'
   m._binary_obj = m._initial_state.platform.elf
 
@@ -352,7 +362,7 @@ def main():
   if not ea_of_api_table:
     L.critical("Could not find API table in binary `{}`".format(args.binary))
     return 1
-    
+
   apis = mc.read_api_table(ea_of_api_table)
   del mc
   m.add_hook(setup_ea, lambda state: run_tests(args, state, apis))

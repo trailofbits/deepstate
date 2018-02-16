@@ -55,6 +55,11 @@ void DeepState_Abandon(const char *reason) {
   longjmp(DeepState_ReturnToRun, 1);
 }
 
+/* Mark this test as having crashed. */
+void DeepState_Crash(void) {
+  DeepState_TestFailed = 1;
+}
+
 /* Mark this test as failing. */
 DEEPSTATE_NORETURN
 void DeepState_Fail(void) {
@@ -261,6 +266,7 @@ const struct DeepState_IndexEntry DeepState_API[] = {
 
   /* Control-flow during the test. */
   {"Pass",            (void *) DeepState_Pass},
+  {"Crash",           (void *) DeepState_Crash},
   {"Fail",            (void *) DeepState_Fail},
   {"SoftFail",        (void *) DeepState_SoftFail},
   {"Abandon",         (void *) DeepState_Abandon},
@@ -365,14 +371,13 @@ void DeepState_BeginDrFuzz(struct DeepState_TestInfo *test) {
 }
 
 /* Save a passing test to the output test directory. */
-void DeepState_SavePassingTest(void) {
-
-}
+void DeepState_SavePassingTest(void) {}
 
 /* Save a failing test to the output test directory. */
-void DeepState_SaveFailingTest(void) {
-  printf("Saving to %s\n", FLAGS_output_test_dir);
-}
+void DeepState_SaveFailingTest(void) {}
+
+/* Save a crashing test to the output test directory. */
+void DeepState_SaveCrashingTest(void) {}
 
 /* Return the first test case to run. */
 struct DeepState_TestInfo *DeepState_FirstTest(void) {

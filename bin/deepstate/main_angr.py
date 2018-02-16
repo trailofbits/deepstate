@@ -165,6 +165,12 @@ class Pass(angr.SimProcedure):
     DeepAngr(procedure=self).api_pass()
 
 
+class Crash(angr.SimProcedure):
+  """Implements DeepState_Crash, which notifies us of a crashing test."""
+  def run(self):
+    DeepAngr(procedure=self).api_crash()
+
+
 class Fail(angr.SimProcedure):
   """Implements DeepState_Fail, which notifies us of a failing test."""
   def run(self):
@@ -265,7 +271,7 @@ def do_run_test(project, test, apis, run_state):
   mc = DeepAngr(state=test_state)
   mc.begin_test(test)
   del mc
-  
+
   errored = []
   test_manager = angr.SimulationManager(
       project=project,
@@ -281,8 +287,9 @@ def do_run_test(project, test, apis, run_state):
     DeepAngr(state=state).report()
 
   for error in test_manager.errored:
-    print "Error", error.error
-    error.debug()
+    da = DeepAngr(state=error.state)
+    da.crash_test()
+    da.report()
 
 def run_test(project, test, apis, run_state):
   """Symbolically executes a single test function."""
@@ -374,6 +381,7 @@ def main():
   hook_function(project, apis['MaxUInt'], MaxUInt)
   hook_function(project, apis['Assume'], Assume)
   hook_function(project, apis['Pass'], Pass)
+  hook_function(project, apis['Crash'], Crash)
   hook_function(project, apis['Fail'], Fail)
   hook_function(project, apis['Abandon'], Abandon)
   hook_function(project, apis['SoftFail'], SoftFail)
