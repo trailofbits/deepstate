@@ -17,9 +17,16 @@ import logging
 logging.basicConfig()
 
 import collections
-import manticore
-import multiprocessing
 import sys
+try:
+  import manticore
+except Exception as e:
+  if "Z3NotFoundError" in repr(type(e)):  
+    print "Manticore requires Z3 to be installed."
+    sys.exit(255)
+  else:
+    raise
+import multiprocessing
 import traceback
 from .common import DeepState
 
