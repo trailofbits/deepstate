@@ -250,14 +250,39 @@ def hook(func):
   return lambda state: state.invoke_model(func)
 
 
+def _is_program_crash(reason):
+  """Using the `reason` for the termination of a Manticore `will_terminate_state`
+  event, decide if we want to treat the termination as a "crash" of the program
+  being analyzed."""
+
+  if not isinstance(reason, TerminateState):
+    return False
+
+  return 'Invalid memory access' in reason.message
+
+
 def done_test(_, state, state_id, reason):
   """Called when a state is terminated."""
   mc = DeepManticore(state)
 
+  # Note that `reason` is either an `Exception` or a `str`. If it is the special
+  # `OUR_TERMINATION_REASON`, then the state was terminated via a hook into the
+  # DeepState API, so we can just report it as is. Otherwise, we check to see if
+  # it was due to behavior that would typically crash the program being analyzed.
+  # If so, we save it as a crash. If not, we abandon it.
   if OUR_TERMINATION_REASON not in reason:
-    L.info("State {} terminated for unknown reason, treating as crash: {}".format(
-      state_id, reason))
-    super(DeepManticore, mc).crash_test()
+    if _is_program_crash(reason):
+      L.info("State {} terminated due to crashing program behavior: {}".format(
+        state_id, reason))
+
+      # Don't raise new `TerminateState` exception
+      super(DeepManticore, mc).crash_test()
+    else:
+      L.error("State {} terminated due to internal error: {}".format(state_id,
+                                                                     reason))
+
+      # Don't raise new `TerminateState` exception
+      super(DeepManticore, mc).abandon_test()
 
   mc.report()
 
