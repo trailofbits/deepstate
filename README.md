@@ -34,7 +34,7 @@ $ make
 
 ## Installing
 
-Install the DeepState Python package. For example, assuming the DeepState build resides in `$DEEPSTATE`:
+Assuming the DeepState build resides in `$DEEPSTATE`, run the following commands to install the DeepState python package:
 
 ```shell
 $ virtualenv venv
@@ -42,7 +42,7 @@ $ . venv/bin/activate
 $ python $DEEPSTATE/build/setup.py install
 ```
 
-The `virtualenv`-enabled `$PATH` should now include two executables: `deepstate` and `deepstate-angr`. These are _executors_, which are used to run DeepState test binaries with specific backends (automatically installed as Python dependencies). The `deepstate` executor uses the Manticore backend and requires the Z3 SMT solver to be installed while `deepstate-angr` uses angr. They share a common interface where you may specify a number of workers and an output directory for saving backend-generated test cases.
+The `virtualenv`-enabled `$PATH` should now include two executables: `deepstate` and `deepstate-angr`. These are _executors_, which are used to run DeepState test binaries with specific backends (automatically installed as Python dependencies). The `deepstate` executor uses the Manticore backend while `deepstate-angr` uses angr. They share a common interface where you may specify a number of workers and an output directory for saving backend-generated test cases.
 
 You can check your build using the test binaries that were (by default) built and emitted to `deepstate/build/examples`. For example, to use angr to symbolically execute the `IntegerOverflow` test harness with 4 workers, saving generated test cases in a directory called `out`, you would invoke:
 
@@ -65,7 +65,7 @@ $ deepstate-angr --num_workers 4 -output_test_dir out $DEEPSTATE/build/examples/
 
 ## Usage
 
-DeepState is a static library, used to write test harnesses, accompanied by command-line _executors_ written in Python. At this time, the best documentation are the [examples](/examples) and our [paper](https://www.cefns.nau.edu/~adg326/bar18.pdf).
+DeepState consists of a static library, used to write test harnesses and command-line _executors_ written in Python. At this time, the best documentation are the [examples](/examples) and our [paper](https://www.cefns.nau.edu/~adg326/bar18.pdf).
 
 ## Contributing
 
