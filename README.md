@@ -65,7 +65,7 @@ $ deepstate-angr --num_workers 4 -output_test_dir out $DEEPSTATE/build/examples/
 
 ## Usage
 
-DeepState consists of a static library, used to write test harnesses and command-line _executors_ written in Python. At this time, the best documentation are the [examples](/examples) and our [paper](https://www.cefns.nau.edu/~adg326/bar18.pdf).
+DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation are the [examples](/examples) and our [paper](https://www.cefns.nau.edu/~adg326/bar18.pdf).
 
 ## Contributing
 
