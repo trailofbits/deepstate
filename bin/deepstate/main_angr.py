@@ -314,31 +314,42 @@ def find_symbol_ea(project, name):
 
   return 0
 
-def main():
-  """Run DeepState."""
-  args = DeepAngr.parse_args()
 
-  try:
-    project = angr.Project(
-        args.binary,
-        use_sim_procedures=True,
-        translation_cache=True,
-        support_selfmodifying_code=False,
-        auto_load_libs=True,
-        exclude_sim_procedures_list=['printf', '__printf_chk',
-                                     'vprintf', '__vprintf_chk',
-                                     'fprintf', '__fprintf_chk',
-                                     'vfprintf', '__vfprintf_chk',
-                                     'puts', 'abort', '__assert_fail',
-                                     '__stack_chk_fail'])
-  except Exception as e:
-    L.critical("Cannot create Angr instance on binary {}: {}".format(
-        args.binary, e))
+def hook_apis(project, run_state):
+  # Read the API table, which will tell us about the location of various
+  # symbols. Technically we can look these up with the `labels.lookup` API,
+  # but we have the API table for Manticore-compatibility, so we may as well
+  # use it.
+  ea_of_api_table = find_symbol_ea(project, 'DeepState_API')
+  if not ea_of_api_table:
+    L.critical("Could not find API table in binary `{}`".format(args.binary))
     return 1
 
-  setup_ea = find_symbol_ea(project, 'DeepState_Setup')
-  if not setup_ea:
-    L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
+  mc = DeepAngr(state=run_state)
+  apis = mc.read_api_table(ea_of_api_table)
+
+  # Hook various functions.
+  hook_function(project, apis['IsSymbolicUInt'], IsSymbolicUInt)
+  hook_function(project, apis['ConcretizeData'], ConcretizeData)
+  hook_function(project, apis['ConcretizeCStr'], ConcretizeCStr)
+  hook_function(project, apis['MinUInt'], MinUInt)
+  hook_function(project, apis['MaxUInt'], MaxUInt)
+  hook_function(project, apis['Assume'], Assume)
+  hook_function(project, apis['Pass'], Pass)
+  hook_function(project, apis['Crash'], Crash)
+  hook_function(project, apis['Fail'], Fail)
+  hook_function(project, apis['Abandon'], Abandon)
+  hook_function(project, apis['SoftFail'], SoftFail)
+  hook_function(project, apis['Log'], Log)
+  hook_function(project, apis['StreamInt'], StreamInt)
+  hook_function(project, apis['StreamFloat'], StreamFloat)
+  hook_function(project, apis['StreamString'], StreamString)
+  hook_function(project, apis['ClearStream'], ClearStream)
+  hook_function(project, apis['LogStream'], LogStream)
+
+  return mc, apis
+
+
         args.binary))
     return 1
 
@@ -392,6 +403,37 @@ def main():
   hook_function(project, apis['ClearStream'], ClearStream)
   hook_function(project, apis['LogStream'], LogStream)
 
+
+
+def main_unit_test(args, project):
+  setup_ea = find_symbol_ea(project, 'DeepState_Setup')
+  if not setup_ea:
+    L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
+        args.binary))
+    return 1
+
+  entry_state = project.factory.entry_state(
+      add_options={angr.options.ZERO_FILL_UNCONSTRAINED_MEMORY,
+                   angr.options.STRICT_PAGE_ACCESS})
+
+  addr_size_bits = entry_state.arch.bits
+
+  # Concretely execute up until `DeepState_Setup`.
+  concrete_manager = angr.SimulationManager(
+        project=project,
+        active_states=[entry_state])
+  concrete_manager.explore(find=setup_ea)
+
+  try:
+    run_state = concrete_manager.found[0]
+  except:
+    L.critical("Execution never hit `DeepState_Setup` in binary `{}`".format(
+        args.binary))
+    return 1
+
+  # Hook the DeepState API functions.
+  mc, apis = hook_apis(project, run_state)
+
   # Find the test cases that we want to run.
   tests = mc.find_test_cases()
   del mc
@@ -413,6 +455,32 @@ def main():
   pool.join()
 
   return 0
+
+
+def main():
+  """Run DeepState."""
+  args = DeepAngr.parse_args()
+
+  try:
+    project = angr.Project(
+        args.binary,
+        use_sim_procedures=True,
+        translation_cache=True,
+        support_selfmodifying_code=False,
+        auto_load_libs=True,
+        exclude_sim_procedures_list=['printf', '__printf_chk',
+                                     'vprintf', '__vprintf_chk',
+                                     'fprintf', '__fprintf_chk',
+                                     'vfprintf', '__vfprintf_chk',
+                                     'puts', 'abort', '__assert_fail',
+                                     '__stack_chk_fail'])
+  except Exception as e:
+    L.critical("Cannot create Angr instance on binary {}: {}".format(
+        args.binary, e))
+    return 1
+
+  return main_unit_test(args, project)
+
 
 if "__main__" == __name__:
   exit(main())
