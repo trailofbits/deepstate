@@ -21,7 +21,7 @@ import sys
 try:
   import manticore
 except Exception as e:
-  if "Z3NotFoundError" in repr(type(e)):  
+  if "Z3NotFoundError" in repr(type(e)):
     print "Manticore requires Z3 to be installed."
     sys.exit(255)
   else:
@@ -364,22 +364,7 @@ def run_tests(args, state, apis):
   exit(0)
 
 
-def main():
-  args = DeepManticore.parse_args()
-
-  try:
-    m = manticore.Manticore(args.binary)
-  except Exception as e:
-    L.critical("Cannot create Manticore instance on binary {}: {}".format(
-        args.binary, e))
-    return 1
-
-  m.verbosity(1)
-
-  # Hack to get around current broken _get_symbol_address
-  m._binary_type = 'not elf'
-  m._binary_obj = m._initial_state.platform.elf
-
+def main_unit_test(m, args):
   setup_ea = find_symbol_ea(m, 'DeepState_Setup')
   if not setup_ea:
     L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
@@ -399,6 +384,25 @@ def main():
   del mc
   m.add_hook(setup_ea, lambda state: run_tests(args, state, apis))
   m.run()
+
+
+def main():
+  args = DeepManticore.parse_args()
+
+  try:
+    m = manticore.Manticore(args.binary)
+  except Exception as e:
+    L.critical("Cannot create Manticore instance on binary {}: {}".format(
+        args.binary, e))
+    return 1
+
+  m.verbosity(1)
+
+  # Hack to get around current broken _get_symbol_address
+  m._binary_type = 'not elf'
+  m._binary_obj = m._initial_state.platform.elf
+
+  return main_unit_test(m, args)
 
 
 if "__main__" == __name__:
