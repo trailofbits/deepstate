@@ -364,6 +364,19 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
   }
 }
 
+int DeepState_TakeOver(void) {
+  struct DeepState_TestInfo test = {
+    .prev = NULL,
+    .test_func = NULL,
+    .test_name = "<__TAKE_OVER_TEST>",
+    .file_name = "<__TAKE_OVER_FILE>",
+    .line_number = 0,
+  };
+  DeepState_Begin(&test);
+
+  return 0;
+}
+
 /* Notify that we're about to begin a test while running under Dr. Fuzz. */
 void DeepState_BeginDrFuzz(struct DeepState_TestInfo *test) {
   DeepState_DrFuzzTest = test;

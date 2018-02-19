@@ -309,6 +309,8 @@ struct DeepState_TestInfo {
 /* Pointer to the last registered `TestInfo` structure. */
 extern struct DeepState_TestInfo *DeepState_LastTestInfo;
 
+extern int DeepState_TakeOver(void);
+
 /* Defines the entrypoint of a test case. This creates a data structure that
  * contains the information about the test, and then creates an initializer
  * function that runs before `main` that registers the test entrypoint with
