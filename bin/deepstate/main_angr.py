@@ -19,7 +19,7 @@ import logging
 import multiprocessing
 import sys
 import traceback
-from .common import DeepState
+from .common import DeepState, TestInfo
 
 L = logging.getLogger("deepstate.angr")
 L.setLevel(logging.INFO)
@@ -261,12 +261,22 @@ class Log(angr.SimProcedure):
     DeepAngr(procedure=self).api_log(level, ea)
 
 
-def do_run_test(project, test, apis, run_state):
+class TakeOver(angr.SimProcedure):
+    def run(self):
+        """Do nothing, returning 1 to indicate that `DeepState_TakeOver()` has
+        been hooked for symbolic execution."""
+        return 1
+
+
+def do_run_test(project, test, apis, run_state, should_call_state):
   """Symbolically executes a single test function."""
 
-  test_state = project.factory.call_state(
-      test.ea,
-      base_state=run_state)
+  if should_call_state:
+    test_state = project.factory.call_state(
+        test.ea,
+        base_state=run_state)
+  else:
+      test_state = run_state
 
   mc = DeepAngr(state=test_state)
   mc.begin_test(test)
@@ -291,10 +301,10 @@ def do_run_test(project, test, apis, run_state):
     da.crash_test()
     da.report()
 
-def run_test(project, test, apis, run_state):
+def run_test(project, test, apis, run_state, should_call_state=True):
   """Symbolically executes a single test function."""
   try:
-    do_run_test(project, test, apis, run_state)
+    do_run_test(project, test, apis, run_state, should_call_state)
   except Exception as e:
     L.error("Uncaught exception: {}\n{}".format(e, traceback.format_exc()))
 
@@ -350,6 +360,13 @@ def hook_apis(project, run_state):
   return mc, apis
 
 
+def main_take_over(args, project):
+  takeover_ea = find_symbol_ea(project, 'DeepState_TakeOver')
+
+  hook_function(project, takeover_ea, TakeOver)
+
+  if not takeover_ea:
+    L.critical("Cannot find symbol `DeepState_TakeOver` in binary `{}`".format(
         args.binary))
     return 1
 
@@ -359,16 +376,23 @@ def hook_apis(project, run_state):
 
   addr_size_bits = entry_state.arch.bits
 
-  # Concretely execute up until `DeepState_Setup`.
+  # Concretely execute up until `DeepState_TakeOver`.
   concrete_manager = angr.SimulationManager(
         project=project,
         active_states=[entry_state])
-  concrete_manager.explore(find=setup_ea)
+  concrete_manager.explore(find=takeover_ea)
 
   try:
-    run_state = concrete_manager.found[0]
+    takeover_state = concrete_manager.found[0]
   except:
-    L.critical("Execution never hit `DeepState_Setup` in binary `{}`".format(
+    L.critical("Execution never hit `DeepState_TakeOver` in binary `{}`".format(
+        args.binary))
+    return 1
+
+  try:
+    run_state = takeover_state.step().successors[0]
+  except:
+    L.critical("Unable to exit from `DeepState_TakeOver` in binary `{}`".format(
         args.binary))
     return 1
 
@@ -381,28 +405,10 @@ def hook_apis(project, run_state):
     L.critical("Could not find API table in binary `{}`".format(args.binary))
     return 1
 
-  mc = DeepAngr(state=run_state)
-  apis = mc.read_api_table(ea_of_api_table)
+  _, apis = hook_apis(project, run_state)
+  fake_test = TestInfo(takeover_ea, '_takeover_test', '_takeover_file', 0)
 
-  # Hook various functions.
-  hook_function(project, apis['IsSymbolicUInt'], IsSymbolicUInt)
-  hook_function(project, apis['ConcretizeData'], ConcretizeData)
-  hook_function(project, apis['ConcretizeCStr'], ConcretizeCStr)
-  hook_function(project, apis['MinUInt'], MinUInt)
-  hook_function(project, apis['MaxUInt'], MaxUInt)
-  hook_function(project, apis['Assume'], Assume)
-  hook_function(project, apis['Pass'], Pass)
-  hook_function(project, apis['Crash'], Crash)
-  hook_function(project, apis['Fail'], Fail)
-  hook_function(project, apis['Abandon'], Abandon)
-  hook_function(project, apis['SoftFail'], SoftFail)
-  hook_function(project, apis['Log'], Log)
-  hook_function(project, apis['StreamInt'], StreamInt)
-  hook_function(project, apis['StreamFloat'], StreamFloat)
-  hook_function(project, apis['StreamString'], StreamString)
-  hook_function(project, apis['ClearStream'], ClearStream)
-  hook_function(project, apis['LogStream'], LogStream)
-
+  return run_test(project, fake_test, apis, run_state, should_call_state=False)
 
 
 def main_unit_test(args, project):
@@ -479,7 +485,10 @@ def main():
         args.binary, e))
     return 1
 
-  return main_unit_test(args, project)
+  if args.take_over:
+    return main_take_over(args, project)
+  else:
+    return main_unit_test(args, project)
 
 
 if "__main__" == __name__:
