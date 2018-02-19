@@ -137,7 +137,6 @@ class DeepState(object):
     """Read a NUL-terminated string from `ea`."""
     assert isinstance(ea, (int, long))
     chars = []
-    i = 0
     while True:
       b, ea = self.read_uint8_t(ea, concretize=concretize, constrain=constrain)
       if self.is_symbolic(b):
