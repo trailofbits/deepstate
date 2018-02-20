@@ -4,6 +4,24 @@
 
 DeepState is a framework that provides C and C++ developers with a common interface to various symbolic execution and fuzzing engines. Users can write one test harness using a Google Test-like API, then execute it using multiple backends without having to learn the complexities of the underlying engines. It supports writing unit tests and API sequence tests, as well as automatic test generation. Read more about the goals and design of DeepState in our [paper](https://www.cefns.nau.edu/~adg326/bar18.pdf).
 
+## Overview of Features
+
+* Tests look like Google Test, but can use symbolic execution/fuzzing to generate data (parameterized unit testing)
+  * Easier to learn than binary analysis tools/fuzzers, but provides similar functionality
+* Already supports Manticore, Angr, Dr. Fuzz; more back-ends likely in future
+  * Switch test generation tool without re-writing test harness
+    * Work around show-stopper bugs
+    * Find out which tool works best for your code under test
+    * Different tools find different bugs/vulnerabilities
+    * Fair way to benchmark/bakeoff tools
+* Supports API-sequence generation with extensions to Google Test interface
+  * Concise readable way (OneOf) to say "run one of these blocks of code"
+  * Same construct supports fixed value set non-determinism
+  * E.g., writing a POSIX file system tester is pleasant, not painful as in pure Google Test idioms
+* Provides high-level strategies for improving symbolic execution/fuzzing effectiveness
+  * Pumping (novel to DeepState) to pick concrete values when symbolic execution is too expensive
+  * Automatic decomposition of integer compares to guide coverage-driven fuzzers
+
 ## Supported Platforms
 
 DeepState currently targets Linux, with macOS support in progress.
