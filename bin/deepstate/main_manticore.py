@@ -338,6 +338,10 @@ def do_run_test(state, apis, test):
   m.add_hook(apis['ClearStream'], hook(hook_ClearStream))
   m.add_hook(apis['LogStream'], hook(hook_LogStream))
 
+  # Here we hook `DeepState_TakeOver()`, even if running unit tests.
+  # In that case, we simply will never hit this hooked function model.
+  m.add_hook(test.ea, hook(hook_TakeOver))
+
   m.subscribe('will_terminate_state', done_test)
   m.run()
 
