@@ -65,7 +65,13 @@ void DeepState_Crash(void) {
 DEEPSTATE_NORETURN
 void DeepState_Fail(void) {
   DeepState_TestFailed = 1;
-  longjmp(DeepState_ReturnToRun, 1);
+
+  if (FLAGS_take_over) {
+    // We want to communicate the failure to a parent process, so exit.
+    exit(DeepState_TestRunFail);
+  } else {
+    longjmp(DeepState_ReturnToRun, 1);
+  }
 }
 
 /* Mark this test as passing. */
