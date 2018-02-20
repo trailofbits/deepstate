@@ -28,7 +28,7 @@ except Exception as e:
     raise
 import multiprocessing
 import traceback
-from .common import DeepState
+from .common import DeepState, TestInfo
 
 from manticore.core.state import TerminateState
 from manticore.utils.helpers import issymbolic
@@ -246,6 +246,12 @@ def hook_Log(state, level, ea):
   DeepManticore(state).api_log(level, ea)
 
 
+def hook_TakeOver(state):
+  """Implements `DeepState_TakeOver`, returning 1 to indicate that it was
+  hooked for symbolic execution."""
+  return 1
+
+
 def hook(func):
   return lambda state: state.invoke_model(func)
 
@@ -364,6 +370,30 @@ def run_tests(args, state, apis):
   exit(0)
 
 
+def main_takeover(m, args):
+  takeover_ea = find_symbol_ea(m, 'DeepState_TakeOver')
+  if not takeover_ea:
+    L.critical("Cannot find symbol `DeepState_TakeOver` in binary `{}`".format(
+        args.binary))
+    return 1
+
+  takeover_state = m._initial_state
+
+  mc = DeepManticore(takeover_state)
+
+  ea_of_api_table = find_symbol_ea(m, 'DeepState_API')
+  if not ea_of_api_table:
+    L.critical("Could not find API table in binary `{}`".format(args.binary))
+    return 1
+
+  apis = mc.read_api_table(ea_of_api_table)
+  del mc
+
+  fake_test = TestInfo(takeover_ea, '_takeover_test', '_takeover_file', 0)
+  m.add_hook(takeover_ea, lambda state: run_test(state, apis, fake_test))
+  m.run()
+
+
 def main_unit_test(m, args):
   setup_ea = find_symbol_ea(m, 'DeepState_Setup')
   if not setup_ea:
@@ -382,6 +412,7 @@ def main_unit_test(m, args):
 
   apis = mc.read_api_table(ea_of_api_table)
   del mc
+
   m.add_hook(setup_ea, lambda state: run_tests(args, state, apis))
   m.run()
 
@@ -402,7 +433,10 @@ def main():
   m._binary_type = 'not elf'
   m._binary_obj = m._initial_state.platform.elf
 
-  return main_unit_test(m, args)
+  if args.take_over:
+    return main_takeover(m, args)
+  else:
+    return main_unit_test(m, args)
 
 
 if "__main__" == __name__:
