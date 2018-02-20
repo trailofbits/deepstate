@@ -411,13 +411,25 @@ void DeepState_RunSavedTakeOverCases(jmp_buf env,
       if (WIFEXITED(wstatus)) {
         uint8_t status = WEXITSTATUS(wstatus);
 
-        if (status) {
+        switch (status) {
+        case DeepState_TestRunPass:
+          DeepState_LogFormat(DeepState_LogInfo,
+                              "Passed: TakeOver test with data from `%s`",
+                              dp->d_name);
+          break;
+        case DeepState_TestRunFail:
           DeepState_LogFormat(DeepState_LogError,
                               "Failed: TakeOver test with data from `%s`",
                               dp->d_name);
-        } else {
-          DeepState_LogFormat(DeepState_LogInfo,
-                              "Passed: TakeOver test with data from `%s`",
+          break;
+        case DeepState_TestRunAbandon:
+          DeepState_LogFormat(DeepState_LogError,
+                              "Abandoned: TakeOver test with data from `%s`",
+                              dp->d_name);
+          break;
+        default:
+          DeepState_LogFormat(DeepState_LogError,
+                              "Unknown exit code from test with data from `%s`",
                               dp->d_name);
         }
       } else {
