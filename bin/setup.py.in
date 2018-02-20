@@ -34,6 +34,7 @@ setuptools.setup(
     entry_points={
         'console_scripts': [
             'deepstate = deepstate.main_manticore:main',
-            'deepstate-angr = deepstate.main_angr:main'
+            'deepstate-angr = deepstate.main_angr:main',
+            'deepstate-manticore = deepstate.main_manticore:main',
         ]
     })
