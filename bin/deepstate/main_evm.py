@@ -16,10 +16,37 @@
 import logging
 logging.basicConfig()
 
-import collections
+#import collections
+import argparse
 import sys
 import os
 import md5
+from .common import DeepState
+
+class DeepEVM(DeepState):
+   @classmethod
+   def parse_args(cls):
+    """Parses command-line arguments needed by DeepState."""
+    if cls._ARGS:
+      return cls._ARGS
+
+    parser = argparse.ArgumentParser(
+        description="Symbolically execute unit tests with ManticoreEVM")
+
+    parser.add_argument(
+        "--initial_balance", default=1000, type=int,
+        help="Initial balance for the contract to run.")
+
+    parser.add_argument(
+        "--output_test_dir", default="out", type=str, required=False,
+        help="Directory where tests will be saved.")
+
+    parser.add_argument(
+        "contract", type=str, help="Path to the contract to run.")
+
+    cls._ARGS = parser.parse_args()
+    return cls._ARGS
+
 
 try:
   import manticore.ethereum
@@ -38,10 +65,10 @@ L.setLevel(logging.INFO)
 def move_tests(workspace, outdir):
   """Parse and sort testcases"""  
   tx_files = []
-  for prefix,d,files in list(os.walk(workspace)):
+  for prefix, d, files in list(os.walk(workspace)):
     for f in files: 
       if "test" in f and ".tx" in f:
-        tx_files.append(prefix+"/"+ "/".join(d) + f)
+        tx_files.append(os.path.join(prefix,os.path.join('', *d), f))
 
   for filename in tx_files:
       txs = open(filename, "r+").read()
@@ -59,24 +86,24 @@ def move_tests(workspace, outdir):
       except:
         L.critical("Error saving input to {}".format(test_file))
 
-def compile_contract(contract):
+def compile_contract(contract, initial_balance):
   """Compile a contract"""
   m = manticore.ethereum.ManticoreEVM()
-  source_code = open(contract,"r").read()
-  owner_account = m.create_account(balance=1000)
+  source_code = open(contract, "r").read()
+  owner_account = m.create_account(balance=initial_balance)
   contract_account = m.solidity_create_contract(source_code, owner=owner_account, contract_name="TEST")
   return m, owner_account, contract_account
  
 def do_run_test(args, contract, test):
   """Run an individual test case."""
   test_name, test_args = test
-  m, owner_account, contract_account = compile_contract(contract)
+  m, owner_account, contract_account = compile_contract(contract, args.initial_balance)
   m.verbosity(1)
-  func = contract_account.__getattribute__(test_name)
-  xs = [None]*len(test_args)
-  func(*xs)
+  func = getattr(contract_account, test_name)
+  func_args = [None]*len(test_args)
+  func( *func_args )
   m.finalize()
-  move_tests(m.workspace, mk_test_dir(args, test))
+  move_tests(m.workspace, get_test_dir_name(args, test))
 
 def run_test(args, contract, test):
   try:
@@ -87,7 +114,7 @@ def run_test(args, contract, test):
 
 def find_test_cases(contract):
   """Iterate over all the methods in the TEST contract and collect the "Test_" ones"""
-  m, owner_account, contract_account = compile_contract(contract) 
+  m, owner_account, contract_account = compile_contract(contract, 0) 
   signatures = m.get_metadata(contract_account.address).signatures
   test_cases = []
   for (h, n) in signatures.items():
@@ -98,26 +125,29 @@ def find_test_cases(contract):
 
   return test_cases
 
-def mk_test_dir(args, test):
+def get_test_dir_name(args, test):
   """Returns the complete path to save the results"""
   test_name, _ = test
   test_name = test_name.replace("Test_", "") 
-  test_dir = os.path.join(args.output_test_dir, os.path.basename(args.binary), test_name)
+  test_dir = os.path.join(args.output_test_dir, os.path.basename(args.contract), test_name)
   return test_dir   
+
+def try_make_test_dir(dirname):
+  try:
+    os.makedirs(dirname)
+  except:
+    pass
 
 def run_tests(args):
   """Run all of the test cases."""
   results = []
-  contract = args.binary
+  contract = args.contract
   tests = find_test_cases(contract)
   for test in tests:
-    test_dir = mk_test_dir(args, test)
-    try:
-      os.makedirs(test_dir)
-    except:
-      pass
+    test_dir = get_test_dir_name(args, test)
+    try_make_test_dir(test_dir)
 
-  L.info("Running {} tests.".format(len(tests))
+  L.info("Running {} tests.".format(len(tests)))
 
   for test in tests:
     res = run_test(args, contract, test)
@@ -127,18 +157,18 @@ def run_tests(args):
 
 
 def main():
-  args = DeepState.parse_args()
+  args = DeepEVM.parse_args()
 
   try:
-    compile_contract(args.binary)
- 
+    compile_contract(args.contract, 0) 
   except Exception as e:
     L.critical("Cannot create Manticore instance on contract {}: {}".format(
-        args.binary, e))
+        args.contract, e))
     return 1
 
+  # after this point, compile_contract cannot fail with any exception
   run_tests(args)
-
+  return 0
 
 if "__main__" == __name__:
   exit(main())
