@@ -68,10 +68,11 @@ def move_tests(workspace, outdir):
   for prefix, d, files in list(os.walk(workspace)):
     for f in files: 
       if "test" in f and ".tx" in f:
-        tx_files.append(os.path.join(prefix,os.path.join('', *d), f))
+        tx_files.append(os.path.join(prefix, os.path.join('', *d), f))
 
   for filename in tx_files:
-      txs = open(filename, "r+").read()
+      with open(filename, "r") as f:
+        txs = f.read()
       test_name = md5.new(txs).hexdigest()
       if "THROW" in txs:
           test_name = test_name + ".fail"
@@ -89,15 +90,18 @@ def move_tests(workspace, outdir):
 def compile_contract(contract, initial_balance):
   """Compile a contract"""
   m = manticore.ethereum.ManticoreEVM()
-  source_code = open(contract, "r").read()
+  with open(contract, "r") as f:
+    source_code = f.read()
   owner_account = m.create_account(balance=initial_balance)
-  contract_account = m.solidity_create_contract(source_code, owner=owner_account, contract_name="TEST")
+  contract_account = m.solidity_create_contract(source_code, 
+      owner=owner_account, contract_name="TEST")
   return m, owner_account, contract_account
  
 def do_run_test(args, contract, test):
   """Run an individual test case."""
   test_name, test_args = test
-  m, owner_account, contract_account = compile_contract(contract, args.initial_balance)
+  m, owner_account, contract_account = compile_contract(contract, 
+      args.initial_balance)
   m.verbosity(1)
   func = getattr(contract_account, test_name)
   func_args = [None]*len(test_args)
@@ -113,7 +117,8 @@ def run_test(args, contract, test):
         sys.exc_info()[0], traceback.format_exc()))
 
 def find_test_cases(contract):
-  """Iterate over all the methods in the TEST contract and collect the "Test_" ones"""
+  """Iterate over all the methods in the TEST contract and 
+     collect the 'Test_' ones"""
   m, owner_account, contract_account = compile_contract(contract, 0) 
   signatures = m.get_metadata(contract_account.address).signatures
   test_cases = []
@@ -129,7 +134,8 @@ def get_test_dir_name(args, test):
   """Returns the complete path to save the results"""
   test_name, _ = test
   test_name = test_name.replace("Test_", "") 
-  test_dir = os.path.join(args.output_test_dir, os.path.basename(args.contract), test_name)
+  test_dir = os.path.join(args.output_test_dir, 
+      os.path.basename(args.contract), test_name)
   return test_dir   
 
 def try_make_test_dir(dirname):
