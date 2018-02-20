@@ -1,6 +1,11 @@
 contract DeepStateProperty {
 
     event ASSERT_LOG(bytes32 msg);
+
+    function ASSERT(bool x) internal {
+        assert(x);
+    }
+
     function ASSUME_GT(uint x, uint y) internal {
         assert(x > y);
     }
@@ -18,6 +23,10 @@ contract DeepStateProperty {
     }
 
     function ASSUME_NE(uint x, uint y) internal {
+        assert(x != y);
+    }
+
+    function ASSERT_NE(uint x, uint y, bytes32 msg) internal {
         assert(x != y);
     }
 
