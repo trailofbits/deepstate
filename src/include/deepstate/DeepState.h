@@ -55,6 +55,7 @@ DEEPSTATE_BEGIN_EXTERN_C
 
 DECLARE_string(input_test_dir);
 DECLARE_string(output_test_dir);
+DECLARE_string(take_over);
 
 enum {
   DeepState_InputSize = 8192
