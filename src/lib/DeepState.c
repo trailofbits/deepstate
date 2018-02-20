@@ -368,8 +368,8 @@ int DeepState_TakeOver(void) {
   struct DeepState_TestInfo test = {
     .prev = NULL,
     .test_func = NULL,
-    .test_name = "<__TAKE_OVER_TEST>",
-    .file_name = "<__TAKE_OVER_FILE>",
+    .test_name = "__takeover_test",
+    .file_name = "__takeover_file",
     .line_number = 0,
   };
   DeepState_Begin(&test);
