@@ -118,7 +118,7 @@ class DeepState(object):
         help="Number of workers to spawn for testing and test generation.")
 
     parser.add_argument(
-        "--output_test_dir", type=str, required=False,
+        "--output_test_dir", default="out", type=str, required=False,
         help="Directory where tests will be saved.")
 
     parser.add_argument(
