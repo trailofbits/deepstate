@@ -391,6 +391,8 @@ void DeepState_RunSavedTakeOverCases(jmp_buf env,
     if (IsTestCaseFile(dp->d_name)) {
       pid_t case_pid = fork();
       if (!case_pid) {
+        DeepState_Begin(test);
+
         size_t path_len = 2 + sizeof(char) * (strlen(test_case_dir) +
                                               strlen(dp->d_name));
         char *path = (char *) malloc(path_len);
@@ -452,7 +454,7 @@ int DeepState_TakeOver(void) {
     .file_name = "__takeover_file",
     .line_number = 0,
   };
-  // DeepState_Begin(&test);
+
   jmp_buf env;
   if (!setjmp(env)) {
     DeepState_RunSavedTakeOverCases(env, &test);
