@@ -6,7 +6,7 @@ contract DeepStateProperty {
         assert(x > y);
     }
 
-    function ASSUME_GE(uint x, uint y) internal {
+    function ASSUME_GE(int x, int y) internal {
         assert(x >= y);
     }
 
@@ -33,13 +33,13 @@ contract DeepStateProperty {
     }
 }
 contract TEST is DeepStateProperty {
-    function Test_AdditionOverflow(uint x) public {
-        uint y = x + x;
+    function Test_SignedInteger_AdditionOverflow(int x) public {
+        int y = x + x;
         ASSUME_GE(y, 0);
     }
 
-    function Test_MultiplicationOverflow(uint x) public {
-        uint y = x * x;
+    function Test_SignedInteger_MultiplicationOverflow(int x) public {
+        int y = x * x;
         ASSUME_GE(y, 0);
     }
 
