@@ -502,8 +502,8 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
 /* Run a single saved test case with input initialized from the file
  * `name` in directory `dir`. */
 static enum DeepState_TestRunResult
-DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
-                             const char *name) {
+DeepState_RunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
+                           const char *name) {
   size_t path_len = 2 + sizeof(char) * (strlen(dir) + strlen(name));
   char *path = (char *) malloc(path_len);
   if (path == NULL) {
@@ -532,6 +532,50 @@ DeepState_DoRunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
   return result;
 }
 
+/* Run a single test many times, initialized against each saved test case in
+ * `FLAGS_input_test_dir`. */
+static int DeepState_RunSavedCasesForTest(struct DeepState_TestInfo *test) {
+  int num_failed_tests = 0;
+  const char *test_file_name = basename((char *) test->file_name);
+
+  size_t test_case_dir_len = 3 + strlen(FLAGS_input_test_dir)
+    + strlen(test_file_name) + strlen(test->test_name);
+  char *test_case_dir = (char *) malloc(test_case_dir_len);
+  if (test_case_dir == NULL) {
+    DeepState_Abandon("Error allocating memory");
+  }
+  snprintf(test_case_dir, test_case_dir_len, "%s/%s/%s",
+           FLAGS_input_test_dir, test_file_name, test->test_name);
+
+  struct dirent *dp;
+  DIR *dir_fd;
+
+  dir_fd = opendir(test_case_dir);
+  if (dir_fd == NULL) {
+    DeepState_LogFormat(DeepState_LogInfo,
+                        "Skipping test `%s`, no saved test cases",
+                        test->test_name);
+    free(test_case_dir);
+    return 0;
+  }
+
+  /* Read generated test cases and run a test for each file found. */
+  while ((dp = readdir(dir_fd)) != NULL) {
+    if (IsTestCaseFile(dp->d_name)) {
+      enum DeepState_TestRunResult result =
+        DeepState_RunSavedTestCase(test, test_case_dir, dp->d_name);
+
+      if (result != DeepState_TestRunPass) {
+        num_failed_tests++;
+      }
+    }
+  }
+  closedir(dir_fd);
+  free(test_case_dir);
+
+  return num_failed_tests;
+}
+
 /* Run tests with saved input from `FLAGS_input_test_dir`.
  *
  * For each test unit and case, see if there are input files in the
@@ -544,41 +588,7 @@ static int DeepState_RunSavedTestCases(void) {
   DeepState_Setup();
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
-    const char *test_file_name = basename((char *) test->file_name);
-
-    size_t test_case_dir_len = 3 + strlen(FLAGS_input_test_dir)
-                             + strlen(test_file_name) + strlen(test->test_name);
-    char *test_case_dir = (char *) malloc(test_case_dir_len);
-    if (test_case_dir == NULL) {
-      DeepState_Abandon("Error allocating memory");
-    }
-    snprintf(test_case_dir, test_case_dir_len, "%s/%s/%s",
-             FLAGS_input_test_dir, test_file_name, test->test_name);
-
-    struct dirent *dp;
-    DIR *dir_fd;
-
-    dir_fd = opendir(test_case_dir);
-    if (dir_fd == NULL) {
-      DeepState_LogFormat(DeepState_LogInfo,
-                          "Skipping test `%s`, no saved test cases",
-                          test->test_name);
-      continue;
-    }
-
-    /* Read generated test cases and run a test for each file found. */
-    while ((dp = readdir(dir_fd)) != NULL) {
-      if (IsTestCaseFile(dp->d_name)) {
-        enum DeepState_TestRunResult result =
-          DeepState_DoRunSavedTestCase(test, test_case_dir, dp->d_name);
-
-        if (result != DeepState_TestRunPass) {
-          num_failed_tests++;
-        }
-      }
-    }
-    closedir(dir_fd);
-    free(test_case_dir);
+    num_failed_tests += DeepState_RunSavedCasesForTest(test);
   }
 
   DeepState_Teardown();
