@@ -364,6 +364,67 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
   }
 }
 
+void DeepState_RunSavedTakeOverCases(jmp_buf env,
+                                     struct DeepState_TestInfo *test) {
+  int num_failed_tests = 0;
+  const char *test_case_dir = FLAGS_input_test_dir;
+
+  DIR *dir_fd = opendir(test_case_dir);
+  if (dir_fd == NULL) {
+    DeepState_LogFormat(DeepState_LogInfo,
+                        "Skipping test `%s`, no saved test cases",
+                        test->test_name);
+    return;
+  }
+
+  struct dirent *dp;
+
+  /* Read generated test cases and run a test for each file found. */
+  while ((dp = readdir(dir_fd)) != NULL) {
+    if (IsTestCaseFile(dp->d_name)) {
+      pid_t case_pid = fork();
+      if (!case_pid) {
+        size_t path_len = 2 + sizeof(char) * (strlen(test_case_dir) +
+                                              strlen(dp->d_name));
+        char *path = (char *) malloc(path_len);
+        if (path == NULL) {
+          DeepState_Abandon("Error allocating memory");
+        }
+        snprintf(path, path_len, "%s/%s", test_case_dir, dp->d_name);
+        InitializeInputFromFile(path);
+        free(path);
+
+        longjmp(env, 1);
+      }
+
+      int wstatus;
+      waitpid(case_pid, &wstatus, 0);
+
+      /* If we exited normally, the status code tells us if the test passed. */
+      if (WIFEXITED(wstatus)) {
+        uint8_t status = WEXITSTATUS(wstatus);
+
+        if (status) {
+          DeepState_LogFormat(DeepState_LogError,
+                              "Failed: TakeOver test with data from `%s`",
+                              dp->d_name);
+        } else {
+          DeepState_LogFormat(DeepState_LogInfo,
+                              "Passed: TakeOver test with data from `%s`",
+                              dp->d_name);
+        }
+      } else {
+        /* If here, we exited abnormally but didn't catch it in the signal
+         * handler, and thus the test failed due to a crash. */
+        DeepState_LogFormat(DeepState_LogError,
+                            "Crashed: TakeOver test with data from `%s`",
+                            dp->d_name);
+      }
+    }
+  }
+  closedir(dir_fd);
+}
+
 int DeepState_TakeOver(void) {
   struct DeepState_TestInfo test = {
     .prev = NULL,
@@ -372,7 +433,12 @@ int DeepState_TakeOver(void) {
     .file_name = "__takeover_file",
     .line_number = 0,
   };
-  DeepState_Begin(&test);
+  // DeepState_Begin(&test);
+  jmp_buf env;
+  if (!setjmp(env)) {
+    DeepState_RunSavedTakeOverCases(env, &test);
+    exit(0);
+  }
 
   return 0;
 }
