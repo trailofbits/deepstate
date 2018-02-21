@@ -1,4 +1,4 @@
-contract DeepStateProperty {
+contract DeepStateTest {
 
     event ASSERT_LOG(bytes32 msg);
 

@@ -1,6 +1,6 @@
 import "examples/DeepState.sol";
 
-contract TEST is DeepStateProperty {
+contract TEST is DeepStateTest {
    
     function IsPrime(uint p) internal returns (bool) { 
         uint i;
