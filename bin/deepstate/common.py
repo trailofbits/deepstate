@@ -122,6 +122,10 @@ class DeepState(object):
         help="Directory where tests will be saved.")
 
     parser.add_argument(
+        "--take_over", action='store_true',
+        help="Explore the program starting at the `TakeOver` hook.")
+
+    parser.add_argument(
         "binary", type=str, help="Path to the test binary to run.")
 
     cls._ARGS = parser.parse_args()

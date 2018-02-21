@@ -19,7 +19,7 @@ import logging
 import multiprocessing
 import sys
 import traceback
-from .common import DeepState
+from .common import DeepState, TestInfo
 
 L = logging.getLogger("deepstate.angr")
 L.setLevel(logging.INFO)
@@ -261,12 +261,22 @@ class Log(angr.SimProcedure):
     DeepAngr(procedure=self).api_log(level, ea)
 
 
-def do_run_test(project, test, apis, run_state):
+class TakeOver(angr.SimProcedure):
+    def run(self):
+        """Do nothing, returning 1 to indicate that `DeepState_TakeOver()` has
+        been hooked for symbolic execution."""
+        return 1
+
+
+def do_run_test(project, test, apis, run_state, should_call_state):
   """Symbolically executes a single test function."""
 
-  test_state = project.factory.call_state(
-      test.ea,
-      base_state=run_state)
+  if should_call_state:
+    test_state = project.factory.call_state(
+        test.ea,
+        base_state=run_state)
+  else:
+      test_state = run_state
 
   mc = DeepAngr(state=test_state)
   mc.begin_test(test)
@@ -291,10 +301,10 @@ def do_run_test(project, test, apis, run_state):
     da.crash_test()
     da.report()
 
-def run_test(project, test, apis, run_state):
+def run_test(project, test, apis, run_state, should_call_state=True):
   """Symbolically executes a single test function."""
   try:
-    do_run_test(project, test, apis, run_state)
+    do_run_test(project, test, apis, run_state, should_call_state)
   except Exception as e:
     L.error("Uncaught exception: {}\n{}".format(e, traceback.format_exc()))
 
@@ -314,53 +324,8 @@ def find_symbol_ea(project, name):
 
   return 0
 
-def main():
-  """Run DeepState."""
-  args = DeepAngr.parse_args()
 
-  try:
-    project = angr.Project(
-        args.binary,
-        use_sim_procedures=True,
-        translation_cache=True,
-        support_selfmodifying_code=False,
-        auto_load_libs=True,
-        exclude_sim_procedures_list=['printf', '__printf_chk',
-                                     'vprintf', '__vprintf_chk',
-                                     'fprintf', '__fprintf_chk',
-                                     'vfprintf', '__vfprintf_chk',
-                                     'puts', 'abort', '__assert_fail',
-                                     '__stack_chk_fail'])
-  except Exception as e:
-    L.critical("Cannot create Angr instance on binary {}: {}".format(
-        args.binary, e))
-    return 1
-
-  setup_ea = find_symbol_ea(project, 'DeepState_Setup')
-  if not setup_ea:
-    L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
-        args.binary))
-    return 1
-
-  entry_state = project.factory.entry_state(
-      add_options={angr.options.ZERO_FILL_UNCONSTRAINED_MEMORY,
-                   angr.options.STRICT_PAGE_ACCESS})
-
-  addr_size_bits = entry_state.arch.bits
-
-  # Concretely execute up until `DeepState_Setup`.
-  concrete_manager = angr.SimulationManager(
-        project=project,
-        active_states=[entry_state])
-  concrete_manager.explore(find=setup_ea)
-
-  try:
-    run_state = concrete_manager.found[0]
-  except:
-    L.critical("Execution never hit `DeepState_Setup` in binary `{}`".format(
-        args.binary))
-    return 1
-
+def hook_apis(project, run_state):
   # Read the API table, which will tell us about the location of various
   # symbols. Technically we can look these up with the `labels.lookup` API,
   # but we have the API table for Manticore-compatibility, so we may as well
@@ -392,6 +357,89 @@ def main():
   hook_function(project, apis['ClearStream'], ClearStream)
   hook_function(project, apis['LogStream'], LogStream)
 
+  return mc, apis
+
+
+def main_take_over(args, project):
+  takeover_ea = find_symbol_ea(project, 'DeepState_TakeOver')
+
+  hook_function(project, takeover_ea, TakeOver)
+
+  if not takeover_ea:
+    L.critical("Cannot find symbol `DeepState_TakeOver` in binary `{}`".format(
+        args.binary))
+    return 1
+
+  entry_state = project.factory.entry_state(
+      add_options={angr.options.ZERO_FILL_UNCONSTRAINED_MEMORY,
+                   angr.options.STRICT_PAGE_ACCESS})
+
+  addr_size_bits = entry_state.arch.bits
+
+  # Concretely execute up until `DeepState_TakeOver`.
+  concrete_manager = angr.SimulationManager(
+        project=project,
+        active_states=[entry_state])
+  concrete_manager.explore(find=takeover_ea)
+
+  try:
+    takeover_state = concrete_manager.found[0]
+  except:
+    L.critical("Execution never hit `DeepState_TakeOver` in binary `{}`".format(
+        args.binary))
+    return 1
+
+  try:
+    run_state = takeover_state.step().successors[0]
+  except:
+    L.critical("Unable to exit from `DeepState_TakeOver` in binary `{}`".format(
+        args.binary))
+    return 1
+
+  # Read the API table, which will tell us about the location of various
+  # symbols. Technically we can look these up with the `labels.lookup` API,
+  # but we have the API table for Manticore-compatibility, so we may as well
+  # use it.
+  ea_of_api_table = find_symbol_ea(project, 'DeepState_API')
+  if not ea_of_api_table:
+    L.critical("Could not find API table in binary `{}`".format(args.binary))
+    return 1
+
+  _, apis = hook_apis(project, run_state)
+  fake_test = TestInfo(takeover_ea, '_takeover_test', '_takeover_file', 0)
+
+  return run_test(project, fake_test, apis, run_state, should_call_state=False)
+
+
+def main_unit_test(args, project):
+  setup_ea = find_symbol_ea(project, 'DeepState_Setup')
+  if not setup_ea:
+    L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
+        args.binary))
+    return 1
+
+  entry_state = project.factory.entry_state(
+      add_options={angr.options.ZERO_FILL_UNCONSTRAINED_MEMORY,
+                   angr.options.STRICT_PAGE_ACCESS})
+
+  addr_size_bits = entry_state.arch.bits
+
+  # Concretely execute up until `DeepState_Setup`.
+  concrete_manager = angr.SimulationManager(
+        project=project,
+        active_states=[entry_state])
+  concrete_manager.explore(find=setup_ea)
+
+  try:
+    run_state = concrete_manager.found[0]
+  except:
+    L.critical("Execution never hit `DeepState_Setup` in binary `{}`".format(
+        args.binary))
+    return 1
+
+  # Hook the DeepState API functions.
+  mc, apis = hook_apis(project, run_state)
+
   # Find the test cases that we want to run.
   tests = mc.find_test_cases()
   del mc
@@ -413,6 +461,35 @@ def main():
   pool.join()
 
   return 0
+
+
+def main():
+  """Run DeepState."""
+  args = DeepAngr.parse_args()
+
+  try:
+    project = angr.Project(
+        args.binary,
+        use_sim_procedures=True,
+        translation_cache=True,
+        support_selfmodifying_code=False,
+        auto_load_libs=True,
+        exclude_sim_procedures_list=['printf', '__printf_chk',
+                                     'vprintf', '__vprintf_chk',
+                                     'fprintf', '__fprintf_chk',
+                                     'vfprintf', '__vfprintf_chk',
+                                     'puts', 'abort', '__assert_fail',
+                                     '__stack_chk_fail'])
+  except Exception as e:
+    L.critical("Cannot create Angr instance on binary {}: {}".format(
+        args.binary, e))
+    return 1
+
+  if args.take_over:
+    return main_take_over(args, project)
+  else:
+    return main_unit_test(args, project)
+
 
 if "__main__" == __name__:
   exit(main())
