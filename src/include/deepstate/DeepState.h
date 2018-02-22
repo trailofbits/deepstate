@@ -379,7 +379,7 @@ extern jmp_buf DeepState_ReturnToRun;
 /* Checks a filename to see if might be a saved test case.
  *
  * Valid saved test cases have the suffix `.pass` or `.fail`. */
-static bool IsTestCaseFile(const char *name) {
+static bool DeepState_IsTestCaseFile(const char *name) {
   const char *suffix = strchr(name, '.');
   if (suffix == NULL) {
     return false;
@@ -403,7 +403,7 @@ static bool IsTestCaseFile(const char *name) {
 
 /* Resets the global `DeepState_Input` buffer, then fills it with the
  * data found in the file `path`. */
-static void InitializeInputFromFile(const char *path) {
+static void DeepState_InitInputFromFile(const char *path) {
   struct stat stat_buf;
 
   FILE *fp = fopen(path, "r");
@@ -520,7 +520,7 @@ DeepState_RunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
   }
   snprintf(path, path_len, "%s/%s", dir, name);
 
-  InitializeInputFromFile(path);
+  DeepState_InitInputFromFile(path);
 
   free(path);
 
@@ -570,7 +570,7 @@ static int DeepState_RunSavedCasesForTest(struct DeepState_TestInfo *test) {
 
   /* Read generated test cases and run a test for each file found. */
   while ((dp = readdir(dir_fd)) != NULL) {
-    if (IsTestCaseFile(dp->d_name)) {
+    if (DeepState_IsTestCaseFile(dp->d_name)) {
       enum DeepState_TestRunResult result =
         DeepState_RunSavedTestCase(test, test_case_dir, dp->d_name);
 

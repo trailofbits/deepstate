@@ -425,7 +425,7 @@ void DeepState_RunSavedTakeOverCases(jmp_buf env,
 
   /* Read generated test cases and run a test for each file found. */
   while ((dp = readdir(dir_fd)) != NULL) {
-    if (IsTestCaseFile(dp->d_name)) {
+    if (DeepState_IsTestCaseFile(dp->d_name)) {
       DeepState_InitCurrentTestRun(test);
 
       pid_t case_pid = fork();
@@ -439,7 +439,7 @@ void DeepState_RunSavedTakeOverCases(jmp_buf env,
           DeepState_Abandon("Error allocating memory");
         }
         snprintf(path, path_len, "%s/%s", test_case_dir, dp->d_name);
-        InitializeInputFromFile(path);
+        DeepState_InitInputFromFile(path);
         free(path);
 
         longjmp(env, 1);
