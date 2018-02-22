@@ -424,8 +424,17 @@ void DeepState_RunSavedTakeOverCases(jmp_buf env,
   /* Read generated test cases and run a test for each file found. */
   while ((dp = readdir(dir_fd)) != NULL) {
     if (IsTestCaseFile(dp->d_name)) {
+      int mem_prot = PROT_READ | PROT_WRITE;
+      int mem_vis = MAP_ANONYMOUS | MAP_SHARED;
+      DeepState_CurrentTestRun = (struct DeepState_TestRunInfo *) mmap(
+        NULL, sizeof(struct DeepState_TestRunInfo), mem_prot, mem_vis, 0, 0);
+
       pid_t case_pid = fork();
       if (!case_pid) {
+        DeepState_CurrentTestRun->test = test;
+        DeepState_CurrentTestRun->result = DeepState_TestRunPass;
+        DeepState_CurrentTestRun->reason = NULL;
+
         DeepState_Begin(test);
 
         size_t path_len = 2 + sizeof(char) * (strlen(test_case_dir) +
@@ -446,9 +455,7 @@ void DeepState_RunSavedTakeOverCases(jmp_buf env,
 
       /* If we exited normally, the status code tells us if the test passed. */
       if (WIFEXITED(wstatus)) {
-        uint8_t status = WEXITSTATUS(wstatus);
-
-        switch (status) {
+        switch (DeepState_CurrentTestRun->result) {
         case DeepState_TestRunPass:
           DeepState_LogFormat(DeepState_LogInfo,
                               "Passed: TakeOver test with data from `%s`",
@@ -459,15 +466,20 @@ void DeepState_RunSavedTakeOverCases(jmp_buf env,
                               "Failed: TakeOver test with data from `%s`",
                               dp->d_name);
           break;
+        case DeepState_TestRunCrash:
+          DeepState_LogFormat(DeepState_LogError,
+                              "Crashed: TakeOver test with data from `%s`",
+                              dp->d_name);
+          break;
         case DeepState_TestRunAbandon:
           DeepState_LogFormat(DeepState_LogError,
                               "Abandoned: TakeOver test with data from `%s`",
                               dp->d_name);
           break;
-        default:
+        default:  /* Should never happen */
           DeepState_LogFormat(DeepState_LogError,
-                              "Unknown exit code from test with data from `%s`",
-                              dp->d_name);
+                              "Error: Invalid test run result %d from `%s`",
+                              DeepState_CurrentTestRun->result, dp->d_name);
         }
       } else {
         /* If here, we exited abnormally but didn't catch it in the signal
