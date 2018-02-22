@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -55,7 +56,8 @@ DEEPSTATE_BEGIN_EXTERN_C
 
 DECLARE_string(input_test_dir);
 DECLARE_string(output_test_dir);
-DECLARE_string(take_over);
+
+DECLARE_bool(take_over);
 
 enum {
   DeepState_InputSize = 8192
@@ -307,6 +309,12 @@ struct DeepState_TestInfo {
   unsigned line_number;
 };
 
+struct DeepState_TestRunInfo {
+  struct DeepState_TestInfo *test;
+  enum DeepState_TestRunResult result;
+  const char *reason;
+};
+
 /* Pointer to the last registered `TestInfo` structure. */
 extern struct DeepState_TestInfo *DeepState_LastTestInfo;
 
@@ -350,11 +358,11 @@ extern void DeepState_Begin(struct DeepState_TestInfo *info);
 /* Return the first test case to run. */
 extern struct DeepState_TestInfo *DeepState_FirstTest(void);
 
-/* Returns 1 if a failure was caught, otherwise 0. */
-extern int DeepState_CatchFail(void);
+/* Returns `true` if a failure was caught for the current test case. */
+extern bool DeepState_CatchFail(void);
 
-/* Returns 1 if this test case was abandoned. */
-extern int DeepState_CatchAbandoned(void);
+/* Returns `true` if the current test case was abandoned. */
+extern bool DeepState_CatchAbandoned(void);
 
 /* Save a passing test to the output test directory. */
 extern void DeepState_SavePassingTest(void);
@@ -371,7 +379,7 @@ extern jmp_buf DeepState_ReturnToRun;
 /* Checks a filename to see if might be a saved test case.
  *
  * Valid saved test cases have the suffix `.pass` or `.fail`. */
-static bool IsTestCaseFile(const char *name) {
+static bool DeepState_IsTestCaseFile(const char *name) {
   const char *suffix = strchr(name, '.');
   if (suffix == NULL) {
     return false;
@@ -395,7 +403,7 @@ static bool IsTestCaseFile(const char *name) {
 
 /* Resets the global `DeepState_Input` buffer, then fills it with the
  * data found in the file `path`. */
-static void InitializeInputFromFile(const char *path) {
+static void DeepState_InitInputFromFile(const char *path) {
   struct stat stat_buf;
 
   FILE *fp = fopen(path, "r");
@@ -512,7 +520,7 @@ DeepState_RunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
   }
   snprintf(path, path_len, "%s/%s", dir, name);
 
-  InitializeInputFromFile(path);
+  DeepState_InitInputFromFile(path);
 
   free(path);
 
@@ -562,7 +570,7 @@ static int DeepState_RunSavedCasesForTest(struct DeepState_TestInfo *test) {
 
   /* Read generated test cases and run a test for each file found. */
   while ((dp = readdir(dir_fd)) != NULL) {
-    if (IsTestCaseFile(dp->d_name)) {
+    if (DeepState_IsTestCaseFile(dp->d_name)) {
       enum DeepState_TestRunResult result =
         DeepState_RunSavedTestCase(test, test_case_dir, dp->d_name);
 
