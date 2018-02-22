@@ -75,11 +75,26 @@ static void DeepState_SetTestAbandoned(const char *reason) {
   }
 }
 
-static void DeepState_InitTestGlobals(void) {
+void DeepState_AllocCurrentTestRun(void) {
+  int mem_prot = PROT_READ | PROT_WRITE;
+  int mem_vis = MAP_ANONYMOUS | MAP_SHARED;
+  void *shared_mem = mmap(NULL, sizeof(struct DeepState_TestRunInfo), mem_prot,
+                          mem_vis, 0, 0);
+
+  if (shared_mem == MAP_FAILED) {
+    DeepState_Log(DeepState_LogError, "Unable to map shared memory.");
+    exit(1);
+  }
+
+  DeepState_CurrentTestRun = (struct DeepState_TestRunInfo *) shared_mem;
+}
+
+static void DeepState_InitCurrentTestRun(struct DeepState_TestInfo *test) {
   DeepState_TestFailed = 0;
   DeepState_TestAbandoned = NULL;
 
   if (DeepState_CurrentTestRun) {
+    DeepState_CurrentTestRun->test = test;
     DeepState_CurrentTestRun->result = DeepState_TestRunPass;
     DeepState_CurrentTestRun->reason = NULL;
   }
@@ -355,10 +370,10 @@ void DeepState_Teardown(void) {
 }
 
 /* Notify that we're about to begin a test. */
-void DeepState_Begin(struct DeepState_TestInfo *info) {
-  DeepState_InitTestGlobals();
+void DeepState_Begin(struct DeepState_TestInfo *test) {
+  DeepState_InitCurrentTestRun(test);
   DeepState_LogFormat(DeepState_LogInfo, "Running: %s from %s(%u)",
-                      info->test_name, info->file_name, info->line_number);
+                      test->test_name, test->file_name, test->line_number);
 }
 
 /* Save a failing test. */
@@ -367,7 +382,7 @@ void DeepState_Begin(struct DeepState_TestInfo *info) {
 void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
   struct DeepState_TestInfo *test = DeepState_DrFuzzTest;
   DeepState_InputIndex = 0;
-  DeepState_InitTestGlobals();
+  DeepState_InitCurrentTestRun(test);
   DeepState_LogFormat(DeepState_LogInfo, "Running: %s from %s(%u)",
                       test->test_name, test->file_name, test->line_number);
 
@@ -424,17 +439,10 @@ void DeepState_RunSavedTakeOverCases(jmp_buf env,
   /* Read generated test cases and run a test for each file found. */
   while ((dp = readdir(dir_fd)) != NULL) {
     if (IsTestCaseFile(dp->d_name)) {
-      int mem_prot = PROT_READ | PROT_WRITE;
-      int mem_vis = MAP_ANONYMOUS | MAP_SHARED;
-      DeepState_CurrentTestRun = (struct DeepState_TestRunInfo *) mmap(
-        NULL, sizeof(struct DeepState_TestRunInfo), mem_prot, mem_vis, 0, 0);
+      DeepState_InitCurrentTestRun(test);
 
       pid_t case_pid = fork();
       if (!case_pid) {
-        DeepState_CurrentTestRun->test = test;
-        DeepState_CurrentTestRun->result = DeepState_TestRunPass;
-        DeepState_CurrentTestRun->reason = NULL;
-
         DeepState_Begin(test);
 
         size_t path_len = 2 + sizeof(char) * (strlen(test_case_dir) +
@@ -501,6 +509,8 @@ int DeepState_TakeOver(void) {
     .file_name = "__takeover_file",
     .line_number = 0,
   };
+
+  DeepState_AllocCurrentTestRun();
 
   jmp_buf env;
   if (!setjmp(env)) {
