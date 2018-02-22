@@ -46,33 +46,20 @@ uint32_t DeepState_InputIndex = 0;
 /* Jump buffer for returning to `DeepState_Run`. */
 jmp_buf DeepState_ReturnToRun = {};
 
-static const char *DeepState_TestAbandoned = NULL;
-static int DeepState_TestFailed = 0;
+/* Information about the current test run, if any. */
 static struct DeepState_TestRunInfo *DeepState_CurrentTestRun = NULL;
 
 static void DeepState_SetTestPassed(void) {
-  DeepState_TestFailed = 0;
-
-  if (DeepState_CurrentTestRun) {
-    DeepState_CurrentTestRun->result = DeepState_TestRunPass;
-  }
+  DeepState_CurrentTestRun->result = DeepState_TestRunPass;
 }
 
 static void DeepState_SetTestFailed(void) {
-  DeepState_TestFailed = 1;
-
-  if (DeepState_CurrentTestRun) {
-    DeepState_CurrentTestRun->result = DeepState_TestRunFail;
-  }
+  DeepState_CurrentTestRun->result = DeepState_TestRunFail;
 }
 
 static void DeepState_SetTestAbandoned(const char *reason) {
-  DeepState_TestAbandoned = reason;
-
-  if (DeepState_CurrentTestRun) {
-    DeepState_CurrentTestRun->result = DeepState_TestRunAbandon;
-    DeepState_CurrentTestRun->reason = reason;
-  }
+  DeepState_CurrentTestRun->result = DeepState_TestRunAbandon;
+  DeepState_CurrentTestRun->reason = reason;
 }
 
 void DeepState_AllocCurrentTestRun(void) {
@@ -90,21 +77,19 @@ void DeepState_AllocCurrentTestRun(void) {
 }
 
 static void DeepState_InitCurrentTestRun(struct DeepState_TestInfo *test) {
-  DeepState_TestFailed = 0;
-  DeepState_TestAbandoned = NULL;
-
-  if (DeepState_CurrentTestRun) {
-    DeepState_CurrentTestRun->test = test;
-    DeepState_CurrentTestRun->result = DeepState_TestRunPass;
-    DeepState_CurrentTestRun->reason = NULL;
-  }
+  DeepState_CurrentTestRun->test = test;
+  DeepState_CurrentTestRun->result = DeepState_TestRunPass;
+  DeepState_CurrentTestRun->reason = NULL;
 }
 
 /* Abandon this test. We've hit some kind of internal problem. */
 DEEPSTATE_NORETURN
 void DeepState_Abandon(const char *reason) {
   DeepState_Log(DeepState_LogFatal, reason);
-  DeepState_TestAbandoned = reason;
+
+  DeepState_CurrentTestRun->result = DeepState_TestRunAbandon;
+  DeepState_CurrentTestRun->reason = reason;
+
   longjmp(DeepState_ReturnToRun, 1);
 }
 
@@ -361,6 +346,8 @@ const struct DeepState_IndexEntry DeepState_API[] = {
 
 /* Set up DeepState. */
 void DeepState_Setup(void) {
+  DeepState_AllocCurrentTestRun();
+
   /* TODO(pag): Sort the test cases by file name and line number. */
 }
 
@@ -543,12 +530,20 @@ struct DeepState_TestInfo *DeepState_FirstTest(void) {
 
 /* Returns 1 if a failure was caught, otherwise 0. */
 int DeepState_CatchFail(void) {
-  return DeepState_TestFailed;
+  if (DeepState_CurrentTestRun->result == DeepState_TestRunFail) {
+    return 1;
+  } else {
+    return 0;
+  }
 }
 
 /* Returns 1 if this test case was abandoned. */
 int DeepState_CatchAbandoned(void) {
-  return DeepState_TestAbandoned != NULL;
+  if (DeepState_CurrentTestRun->result == DeepState_TestRunAbandon) {
+    return 1;
+  } else {
+    return 0;
+  }
 }
 
 /* Overwrite libc's abort. */
