@@ -528,22 +528,14 @@ struct DeepState_TestInfo *DeepState_FirstTest(void) {
   return DeepState_LastTestInfo;
 }
 
-/* Returns 1 if a failure was caught, otherwise 0. */
-int DeepState_CatchFail(void) {
-  if (DeepState_CurrentTestRun->result == DeepState_TestRunFail) {
-    return 1;
-  } else {
-    return 0;
-  }
+/* Returns `true` if a failure was caught for the current test case. */
+bool DeepState_CatchFail(void) {
+  return DeepState_CurrentTestRun->result == DeepState_TestRunFail;
 }
 
-/* Returns 1 if this test case was abandoned. */
-int DeepState_CatchAbandoned(void) {
-  if (DeepState_CurrentTestRun->result == DeepState_TestRunAbandon) {
-    return 1;
-  } else {
-    return 0;
-  }
+/* Returns `true` if the current test case was abandoned. */
+bool DeepState_CatchAbandoned(void) {
+  return DeepState_CurrentTestRun->result == DeepState_TestRunAbandon;
 }
 
 /* Overwrite libc's abort. */

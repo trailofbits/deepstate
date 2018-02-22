@@ -358,11 +358,11 @@ extern void DeepState_Begin(struct DeepState_TestInfo *info);
 /* Return the first test case to run. */
 extern struct DeepState_TestInfo *DeepState_FirstTest(void);
 
-/* Returns 1 if a failure was caught, otherwise 0. */
-extern int DeepState_CatchFail(void);
+/* Returns `true` if a failure was caught for the current test case. */
+extern bool DeepState_CatchFail(void);
 
-/* Returns 1 if this test case was abandoned. */
-extern int DeepState_CatchAbandoned(void);
+/* Returns `true` if the current test case was abandoned. */
+extern bool DeepState_CatchAbandoned(void);
 
 /* Save a passing test to the output test directory. */
 extern void DeepState_SavePassingTest(void);
