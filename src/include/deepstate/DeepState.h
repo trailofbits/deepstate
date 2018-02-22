@@ -308,6 +308,12 @@ struct DeepState_TestInfo {
   unsigned line_number;
 };
 
+struct DeepState_TestRunInfo {
+  struct DeepState_TestInfo *test;
+  enum DeepState_TestRunResult result;
+  const char *reason;
+};
+
 /* Pointer to the last registered `TestInfo` structure. */
 extern struct DeepState_TestInfo *DeepState_LastTestInfo;
 

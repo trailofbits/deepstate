@@ -48,22 +48,41 @@ jmp_buf DeepState_ReturnToRun = {};
 
 static const char *DeepState_TestAbandoned = NULL;
 static int DeepState_TestFailed = 0;
+static struct DeepState_TestRunInfo *DeepState_CurrentTestRun = NULL;
 
 static void DeepState_SetTestPassed(void) {
   DeepState_TestFailed = 0;
+
+  if (DeepState_CurrentTestRun) {
+    DeepState_CurrentTestRun->result = DeepState_TestRunPass;
+  }
 }
 
 static void DeepState_SetTestFailed(void) {
   DeepState_TestFailed = 1;
+
+  if (DeepState_CurrentTestRun) {
+    DeepState_CurrentTestRun->result = DeepState_TestRunFail;
+  }
 }
 
 static void DeepState_SetTestAbandoned(const char *reason) {
   DeepState_TestAbandoned = reason;
+
+  if (DeepState_CurrentTestRun) {
+    DeepState_CurrentTestRun->result = DeepState_TestRunAbandon;
+    DeepState_CurrentTestRun->reason = reason;
+  }
 }
 
 static void DeepState_InitTestGlobals(void) {
   DeepState_TestFailed = 0;
   DeepState_TestAbandoned = NULL;
+
+  if (DeepState_CurrentTestRun) {
+    DeepState_CurrentTestRun->result = DeepState_TestRunPass;
+    DeepState_CurrentTestRun->reason = NULL;
+  }
 }
 
 /* Abandon this test. We've hit some kind of internal problem. */
