@@ -49,6 +49,23 @@ jmp_buf DeepState_ReturnToRun = {};
 static const char *DeepState_TestAbandoned = NULL;
 static int DeepState_TestFailed = 0;
 
+static void DeepState_SetTestPassed(void) {
+  DeepState_TestFailed = 0;
+}
+
+static void DeepState_SetTestFailed(void) {
+  DeepState_TestFailed = 1;
+}
+
+static void DeepState_SetTestAbandoned(const char *reason) {
+  DeepState_TestAbandoned = reason;
+}
+
+static void DeepState_InitTestGlobals(void) {
+  DeepState_TestFailed = 0;
+  DeepState_TestAbandoned = NULL;
+}
+
 /* Abandon this test. We've hit some kind of internal problem. */
 DEEPSTATE_NORETURN
 void DeepState_Abandon(const char *reason) {
@@ -59,13 +76,13 @@ void DeepState_Abandon(const char *reason) {
 
 /* Mark this test as having crashed. */
 void DeepState_Crash(void) {
-  DeepState_TestFailed = 1;
+  DeepState_SetTestFailed();
 }
 
 /* Mark this test as failing. */
 DEEPSTATE_NORETURN
 void DeepState_Fail(void) {
-  DeepState_TestFailed = 1;
+  DeepState_SetTestFailed();
 
   if (FLAGS_take_over) {
     // We want to communicate the failure to a parent process, so exit.
@@ -82,7 +99,7 @@ void DeepState_Pass(void) {
 }
 
 void DeepState_SoftFail(void) {
-  DeepState_TestFailed = 1;
+  DeepState_SetTestFailed();
 }
 
 /* Symbolize the data in the exclusive range `[begin, end)`. */
@@ -320,8 +337,7 @@ void DeepState_Teardown(void) {
 
 /* Notify that we're about to begin a test. */
 void DeepState_Begin(struct DeepState_TestInfo *info) {
-  DeepState_TestFailed = 0;
-  DeepState_TestAbandoned = NULL;
+  DeepState_InitTestGlobals();
   DeepState_LogFormat(DeepState_LogInfo, "Running: %s from %s(%u)",
                       info->test_name, info->file_name, info->line_number);
 }
@@ -331,9 +347,8 @@ void DeepState_Begin(struct DeepState_TestInfo *info) {
 /* Runs in a child process, under the control of Dr. Memory */
 void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
   struct DeepState_TestInfo *test = DeepState_DrFuzzTest;
-  DeepState_TestFailed = 0;
   DeepState_InputIndex = 0;
-  DeepState_TestAbandoned = NULL;
+  DeepState_InitTestGlobals();
   DeepState_LogFormat(DeepState_LogInfo, "Running: %s from %s(%u)",
                       test->test_name, test->file_name, test->line_number);
 
