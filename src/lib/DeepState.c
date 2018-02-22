@@ -30,7 +30,8 @@ DEFINE_uint(num_workers, 1,
 
 DEFINE_string(input_test_dir, "", "Directory of saved tests to run.");
 DEFINE_string(output_test_dir, "", "Directory where tests will be saved.");
-DEFINE_string(take_over, "", "Replay test cases in take-over mode.");
+
+DEFINE_bool(take_over, false, "Replay test cases in take-over mode.");
 
 /* Pointer to the last registers DeepState_TestInfo data structure */
 struct DeepState_TestInfo *DeepState_LastTestInfo = NULL;
