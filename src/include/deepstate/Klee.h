@@ -26,8 +26,9 @@ DEEPSTATE_BEGIN_EXTERN_C
 /* TODO(joe): Implement */
 static void klee_define_fixed_object(void *addr, size_t nbytes);
 
-/* TODO(joe): Implement */
-static void klee_make_symbolic(void *addr, size_t nbytes, const char *name);
+static void klee_make_symbolic(void *addr, size_t nbytes, const char *name) {
+  DeepState_SymbolizeData(addr, addr + nbytes);
+}
 
 /* TODO(joe): Implement */
 static int klee_range(int begin, int end, const char *name);
