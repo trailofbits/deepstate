@@ -126,6 +126,10 @@ class DeepState(object):
         help="Explore the program starting at the `TakeOver` hook.")
 
     parser.add_argument(
+        "--klee", action='store_true',
+        help="Expect the test binary to use the KLEE API and use `main()` as entry point.")
+
+    parser.add_argument(
         "binary", type=str, help="Path to the test binary to run.")
 
     cls._ARGS = parser.parse_args()

@@ -363,7 +363,8 @@ def hook_apis(project, run_state):
 def main_take_over(args, project, takeover_symbol):
   takeover_ea = find_symbol_ea(project, takeover_symbol)
 
-  hook_function(project, takeover_ea, TakeOver)
+  if not args.klee:
+      hook_function(project, takeover_ea, TakeOver)
 
   if not takeover_ea:
     L.critical("Cannot find symbol `{}` in binary `{}`".format(
@@ -490,6 +491,8 @@ def main():
 
   if args.take_over:
     return main_take_over(args, project, 'DeepState_TakeOver')
+  elif args.klee:
+    return main_take_over(args, project, 'main')
   else:
     return main_unit_test(args, project)
 
