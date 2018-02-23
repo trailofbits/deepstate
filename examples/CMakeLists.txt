@@ -46,3 +46,6 @@ set_target_properties(Squares PROPERTIES COMPILE_DEFINITIONS "DEEPSTATE_TEST")
 
 add_executable(TakeOver TakeOver.cpp)
 target_link_libraries(TakeOver deepstate)
+
+add_executable(Klee Klee.c)
+target_link_libraries(Klee deepstate)
