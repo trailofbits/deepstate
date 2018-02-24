@@ -43,8 +43,10 @@ DEEPSTATE_NORETURN static void klee_silent_exit(int status) {
 /* TODO(joe): Implement */
 static size_t klee_get_obj_size(void *ptr);
 
-/* TODO(joe): Implement */
-static void klee_print_expr(const char *msg, ...);
+static void klee_print_expr(const char *msg, ...) {
+  /* KLEE debugging command, no DeepState equivalent. */
+  /* See impl in `runtime/Runtest/intrinsics.c`. */
+}
 
 /* TODO(joe): Implement */
 static uintptr_t klee_choose(uintptr_t n);
@@ -102,11 +104,13 @@ static void klee_set_forking(unsigned enable) {
 /* TODO(joe): Implement */
 static void klee_alias_function(const char *fn_name, const char *new_fn_name);
 
-/* TODO(joe): Implement */
-static void klee_stack_trace(void);
+static void klee_stack_trace(void) {
+  /* KLEE debugging command, no DeepState equivalent. */
+}
 
-/* TODO(joe): Implement */
-static void klee_print_range(const char *name, int arg);
+static void klee_print_range(const char *name, int arg) {
+  /* KLEE debugging command, no DeepState equivalent. */
+}
 
 static void klee_open_merge(void) {
   /* KLEE engine command, no DeepState equivalent. */
