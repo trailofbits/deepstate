@@ -19,8 +19,6 @@
 
 #include <deepstate/DeepState.h>
 
-#define KLEE_GET_VALUE(suffix, type) type klee_get_value ## suffix(type expr)
-
 DEEPSTATE_BEGIN_EXTERN_C
 
 /* Unsupported. */
@@ -80,6 +78,8 @@ static void klee_posix_prefer_cex(void *object, uintptr_t condition) {
 /* Unsupported. */
 /* static void klee_mark_global(void *object); */
 
+#define KLEE_GET_VALUE(suffix, type) type klee_get_value ## suffix(type val)
+
 /* TODO(joe): Implement */
 static KLEE_GET_VALUE(f, float);
 
@@ -97,6 +97,8 @@ static KLEE_GET_VALUE(_i32, int32_t);
 
 /* TODO(joe): Implement */
 static KLEE_GET_VALUE(_i64, int64_t);
+
+#undef KLEE_GET_VALUE
 
 /* Unsupported. */
 /* static void klee_check_memory_access(const void *address, size_t size); */
