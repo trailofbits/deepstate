@@ -52,8 +52,16 @@ static void klee_print_expr(const char *msg, ...) {
   /* See impl in `runtime/Runtest/intrinsics.c`. */
 }
 
-/* TODO(joe): Implement */
-static uintptr_t klee_choose(uintptr_t n);
+static uintptr_t klee_choose(uintptr_t n) {
+  uintptr_t out;
+  klee_make_symbolic(&out, sizeof(out), "klee_choose");
+
+  if (n <= out) {
+    klee_silent_exit(0);
+  }
+
+  return out;
+}
 
 /* Unsupported. */
 /* static unsigned klee_is_symbolic(uintptr_t n); */
