@@ -80,23 +80,27 @@ static void klee_posix_prefer_cex(void *object, uintptr_t condition) {
 
 #define KLEE_GET_VALUE(suffix, type) type klee_get_value ## suffix(type val)
 
-/* TODO(joe): Implement */
-static KLEE_GET_VALUE(f, float);
+/* Unsupported. */
+/* static KLEE_GET_VALUE(f, float); */
+
+/* Unsupported. */
+/* static KLEE_GET_VALUE(d, double); */
+
+static KLEE_GET_VALUE(l, long) {
+  DeepState_MinInt(val);
+}
+
+/* Unsupported. */
+/* static KLEE_GET_VALUE(ll, long long) */
 
 /* TODO(joe): Implement */
-static KLEE_GET_VALUE(d, double);
+static KLEE_GET_VALUE(_i32, int32_t) {
+  DeepState_MinInt(val);
+}
 
 /* TODO(joe): Implement */
-static KLEE_GET_VALUE(l, long);
-
-/* TODO(joe): Implement */
-static KLEE_GET_VALUE(ll, long long);
-
-/* TODO(joe): Implement */
-static KLEE_GET_VALUE(_i32, int32_t);
-
-/* TODO(joe): Implement */
-static KLEE_GET_VALUE(_i64, int64_t);
+/* Unsupported. */
+/* static KLEE_GET_VALUE(_i64, int64_t); */
 
 #undef KLEE_GET_VALUE
 
