@@ -36,8 +36,9 @@ static int klee_range(int begin, int end, const char *name);
 /* TODO(joe): Implement */
 static int klee_int(const char *name);
 
-/* TODO(joe): Implement */
-DEEPSTATE_NORETURN static void klee_silent_exit(int status);
+DEEPSTATE_NORETURN static void klee_silent_exit(int status) {
+  exit(status);
+}
 
 /* TODO(joe): Implement */
 static size_t klee_get_obj_size(void *ptr);
