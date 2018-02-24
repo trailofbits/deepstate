@@ -40,6 +40,10 @@ DEEPSTATE_NORETURN static void klee_silent_exit(int status) {
   exit(status);
 }
 
+DEEPSTATE_NORETURN static void klee_abort(void) {
+  abort();
+}
+
 /* Unsupported. */
 /* static size_t klee_get_obj_size(void *ptr); */
 
