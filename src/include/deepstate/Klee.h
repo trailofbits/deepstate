@@ -54,11 +54,13 @@ static unsigned klee_is_symbolic(uintptr_t n);
 /* TODO(joe): Implement */
 static void klee_assume(uintptr_t condition);
 
-/* TODO(joe): Implement */
-static void klee_warning(const char *message);
+static void klee_warning(const char *message) {
+  DeepState_Log(DeepState_LogWarning, message);
+}
 
-/* TODO(joe): Implement */
-static void klee_warning_once(const char *message);
+static void klee_warning_once(const char *message) {
+  DeepState_Log(DeepState_LogWarning, message);
+}
 
 /* TODO(joe): Implement */
 static void klee_prefer_cex(void *object, uintptr_t condition);
