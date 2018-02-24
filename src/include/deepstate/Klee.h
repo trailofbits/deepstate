@@ -55,8 +55,8 @@ static void klee_print_expr(const char *msg, ...) {
 /* TODO(joe): Implement */
 static uintptr_t klee_choose(uintptr_t n);
 
-/* TODO(joe): Implement */
-static unsigned klee_is_symbolic(uintptr_t n);
+/* Unsupported. */
+/* static unsigned klee_is_symbolic(uintptr_t n); */
 
 /* Unsupported. */
 /* static void klee_assume(uintptr_t condition); */
