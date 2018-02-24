@@ -63,11 +63,13 @@ static void klee_warning_once(const char *message) {
   DeepState_Log(DeepState_LogWarning, message);
 }
 
-/* TODO(joe): Implement */
-static void klee_prefer_cex(void *object, uintptr_t condition);
+static void klee_prefer_cex(void *object, uintptr_t condition) {
+  /* KLEE engine command, no DeepState equivalent. */
+}
 
-/* TODO(joe): Implement */
-static void klee_posix_prefer_cex(void *object, uintptr_t condition);
+static void klee_posix_prefer_cex(void *object, uintptr_t condition) {
+  /* KLEE engine command, no DeepState equivalent. */
+}
 
 /* TODO(joe): Implement */
 static void klee_mark_global(void *object);
@@ -93,8 +95,9 @@ static KLEE_GET_VALUE(_i64, int64_t);
 /* TODO(joe): Implement */
 static void klee_check_memory_access(const void *address, size_t size);
 
-/* TODO(joe): Implement */
-static void klee_set_forking(unsigned enable);
+static void klee_set_forking(unsigned enable) {
+  /* KLEE engine command, no DeepState equivalent. */
+}
 
 /* TODO(joe): Implement */
 static void klee_alias_function(const char *fn_name, const char *new_fn_name);
@@ -105,11 +108,13 @@ static void klee_stack_trace(void);
 /* TODO(joe): Implement */
 static void klee_print_range(const char *name, int arg);
 
-/* TODO(joe): Implement */
-static void klee_open_merge(void);
+static void klee_open_merge(void) {
+  /* KLEE engine command, no DeepState equivalent. */
+}
 
-/* TODO(joe): Implement */
-static void klee_close_merge(void);
+static void klee_close_merge(void) {
+  /* KLEE engine command, no DeepState equivalent. */
+}
 
 DEEPSTATE_END_EXTERN_C
 
