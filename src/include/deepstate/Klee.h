@@ -28,11 +28,13 @@ static void klee_make_symbolic(void *addr, size_t nbytes, const char *name) {
   DeepState_SymbolizeData(addr, addr + nbytes);
 }
 
-/* TODO(joe): Implement */
-static int klee_range(int begin, int end, const char *name);
+static int klee_range(int begin, int end, const char *name) {
+  return DeepState_IntInRange(begin, end);
+}
 
-/* TODO(joe): Implement */
-static int klee_int(const char *name);
+static int klee_int(const char *name) {
+  return DeepState_Int();
+}
 
 DEEPSTATE_NORETURN static void klee_silent_exit(int status) {
   exit(status);
