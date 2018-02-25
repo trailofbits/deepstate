@@ -374,11 +374,12 @@ def run_tests(args, state, apis):
   exit(0)
 
 
-def main_takeover(m, args):
-  takeover_ea = find_symbol_ea(m, 'DeepState_TakeOver')
+def main_takeover(m, args, takeover_symbol):
+  takeover_ea = find_symbol_ea(m, takeover_symbol)
   if not takeover_ea:
-    L.critical("Cannot find symbol `DeepState_TakeOver` in binary `{}`".format(
-        args.binary))
+    L.critical("Cannot find symbol `{}` in binary `{}`".format(
+      takeover_symbol,
+      args.binary))
     return 1
 
   takeover_state = m._initial_state
@@ -438,7 +439,7 @@ def main():
   m._binary_obj = m._initial_state.platform.elf
 
   if args.take_over:
-    return main_takeover(m, args)
+    return main_takeover(m, args, 'DeepState_TakeOver')
   else:
     return main_unit_test(m, args)
 
