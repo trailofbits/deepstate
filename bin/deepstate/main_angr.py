@@ -360,13 +360,15 @@ def hook_apis(project, run_state):
   return mc, apis
 
 
-def main_take_over(args, project):
-  takeover_ea = find_symbol_ea(project, 'DeepState_TakeOver')
+def main_take_over(args, project, takeover_symbol):
+  takeover_ea = find_symbol_ea(project, takeover_symbol)
 
-  hook_function(project, takeover_ea, TakeOver)
+  if not args.klee:
+      hook_function(project, takeover_ea, TakeOver)
 
   if not takeover_ea:
-    L.critical("Cannot find symbol `DeepState_TakeOver` in binary `{}`".format(
+    L.critical("Cannot find symbol `{}` in binary `{}`".format(
+        takeover_symbol,
         args.binary))
     return 1
 
@@ -385,14 +387,16 @@ def main_take_over(args, project):
   try:
     takeover_state = concrete_manager.found[0]
   except:
-    L.critical("Execution never hit `DeepState_TakeOver` in binary `{}`".format(
+    L.critical("Execution never hit `{}` in binary `{}`".format(
+        takeover_symbol,
         args.binary))
     return 1
 
   try:
     run_state = takeover_state.step().successors[0]
   except:
-    L.critical("Unable to exit from `DeepState_TakeOver` in binary `{}`".format(
+    L.critical("Unable to exit from `{}` in binary `{}`".format(
+        takeover_symbol,
         args.binary))
     return 1
 
@@ -486,7 +490,9 @@ def main():
     return 1
 
   if args.take_over:
-    return main_take_over(args, project)
+    return main_take_over(args, project, 'DeepState_TakeOver')
+  elif args.klee:
+    return main_take_over(args, project, 'main')
   else:
     return main_unit_test(args, project)
 
