@@ -37,6 +37,7 @@ set(CMAKE_CXX_EXTENSIONS ON)
 
 # Visual Studio already defaults to c++11
 if (NOT WIN32)
+  set(CMAKE_C_STANDARD 99)
   set(CMAKE_CXX_STANDARD 11)
 endif ()
 
