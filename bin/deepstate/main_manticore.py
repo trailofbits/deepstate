@@ -351,7 +351,7 @@ def run_test(state, apis, test):
     do_run_test(state, apis, test)
   except:
     L.error("Uncaught exception: {}\n{}".format(
-        sys.exc_info()[0], traceback.format_exc()))
+      sys.exc_info()[0], traceback.format_exc()))
 
 
 def run_tests(args, state, apis):
@@ -362,7 +362,7 @@ def run_tests(args, state, apis):
   tests = mc.find_test_cases()
 
   L.info("Running {} tests across {} workers".format(
-      len(tests), args.num_workers))
+    len(tests), args.num_workers))
 
   for test in tests:
     res = pool.apply_async(run_test, (state, apis, test))
@@ -403,7 +403,7 @@ def main_unit_test(m, args):
   setup_ea = find_symbol_ea(m, 'DeepState_Setup')
   if not setup_ea:
     L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
-        args.binary))
+      args.binary))
     return 1
 
   setup_state = m._initial_state
@@ -429,7 +429,7 @@ def main():
     m = manticore.Manticore(args.binary)
   except Exception as e:
     L.critical("Cannot create Manticore instance on binary {}: {}".format(
-        args.binary, e))
+      args.binary, e))
     return 1
 
   m.verbosity(1)
