@@ -152,6 +152,9 @@ char *DeepState_CStr(size_t len) {
     DeepState_Abandon("Can't create an SIZE_MAX-length string.");
   }
   char *str = (char *) malloc(sizeof(char) * (len + 1));
+  if (NULL == str) {
+    DeepState_Abandon("Can't allocate memory.");
+  }
   if (len) {
     DeepState_SymbolizeData(str, &(str[len - 1]));
   }
