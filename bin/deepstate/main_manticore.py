@@ -31,7 +31,6 @@ import traceback
 from .common import DeepState, TestInfo
 
 from manticore.core.state import TerminateState
-from manticore.utils.helpers import issymbolic
 
 
 L = logging.getLogger("deepstate.mcore")
@@ -51,7 +50,7 @@ class DeepManticore(DeepState):
     return self.state.context
 
   def is_symbolic(self, val):
-    return manticore.utils.helpers.issymbolic(val)
+    return manticore.issymbolic(val)
 
   def create_symbol(self, name, size_in_bits):
     return self.state.new_symbolic_value(size_in_bits, name)
