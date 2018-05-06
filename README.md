@@ -2,7 +2,7 @@
 
 [![Slack Chat](http://empireslacking.herokuapp.com/badge.svg)](https://empireslacking.herokuapp.com/)
 
-DeepState is a framework that provides C and C++ developers with a common interface to various symbolic execution and fuzzing engines. Users can write one test harness using a Google Test-like API, then execute it using multiple backends without having to learn the complexities of the underlying engines. It supports writing unit tests and API sequence tests, as well as automatic test generation. Read more about the goals and design of DeepState in our [paper](https://www.cefns.nau.edu/~adg326/bar18.pdf).
+DeepState is a framework that provides C and C++ developers with a common interface to various symbolic execution and fuzzing engines. Users can write one test harness using a Google Test-like API, then execute it using multiple backends without having to learn the complexities of the underlying engines. It supports writing unit tests and API sequence tests, as well as automatic test generation. Read more about the goals and design of DeepState in our [paper](https://agroce.github.io/bar18.pdf).
 
 ## Overview of Features
 
@@ -83,7 +83,7 @@ $ deepstate-angr --num_workers 4 --output_test_dir out $DEEPSTATE/build/examples
 
 ## Usage
 
-DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation are the [examples](/examples) and our [paper](https://www.cefns.nau.edu/~adg326/bar18.pdf).
+DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation are the [examples](/examples) and our [paper](https://agroce.github.io/bar18.pdf).
 
 ## Contributing
 
