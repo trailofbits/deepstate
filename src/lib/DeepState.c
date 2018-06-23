@@ -278,8 +278,7 @@ int32_t DeepState_MaxInt(int32_t v) {
 void _DeepState_Assume(int expr, const char *expr_str, const char *file,
                        unsigned line) {
   if (!expr) {
-    DeepState_LogFormat(DeepState_LogFatal, "Assumption %s at %s(%u) failed",
-                        expr_str, file, line);
+    DeepState_Abandon("Assumption failed");
   }
 }
 
