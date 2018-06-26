@@ -399,7 +399,7 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
   /* The test was abandoned. We may have gotten soft failures before
    * abandoning, so we prefer to catch those first. */
   } else if (DeepState_CatchAbandoned()) {
-    DeepState_LogFormat(DeepState_LogError, "Abandoning test: %s", test->test_name);
+    DeepState_LogFormat(DeepState_LogError, "Abandoned: %s", test->test_name);
 
   /* The test passed. */
   } else {
