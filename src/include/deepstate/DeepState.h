@@ -474,7 +474,7 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
     /* The test was abandoned. We may have gotten soft failures before
      * abandoning, so we prefer to catch those first. */
   } else if (DeepState_CatchAbandoned()) {
-    DeepState_LogFormat(DeepState_LogFatal, "Abandoned: %s", test->test_name);
+    DeepState_LogFormat(DeepState_LogError, "Abandoned: %s", test->test_name);
     exit(DeepState_TestRunAbandon);
 
     /* The test passed. */
