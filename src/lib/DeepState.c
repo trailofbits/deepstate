@@ -85,7 +85,7 @@ static void DeepState_InitCurrentTestRun(struct DeepState_TestInfo *test) {
 /* Abandon this test. We've hit some kind of internal problem. */
 DEEPSTATE_NORETURN
 void DeepState_Abandon(const char *reason) {
-  DeepState_Log(DeepState_LogFatal, reason);
+  DeepState_Log(DeepState_LogError, reason);
 
   DeepState_CurrentTestRun->result = DeepState_TestRunAbandon;
   DeepState_CurrentTestRun->reason = reason;
@@ -399,7 +399,7 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
   /* The test was abandoned. We may have gotten soft failures before
    * abandoning, so we prefer to catch those first. */
   } else if (DeepState_CatchAbandoned()) {
-    DeepState_LogFormat(DeepState_LogFatal, "Abandoned: %s", test->test_name);
+    DeepState_LogFormat(DeepState_LogError, "Abandoning test: %s", test->test_name);
 
   /* The test passed. */
   } else {
