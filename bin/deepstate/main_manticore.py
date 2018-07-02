@@ -352,7 +352,7 @@ def run_test(state, apis, test, hook_test):
       sys.exc_info()[0], traceback.format_exc()))
 
 
-def run_tests(state, apis, hook_test_ea):
+def run_tests(args, state, apis):
   """Run all of the test cases."""
   pool = multiprocessing.Pool(processes=max(1, args.num_workers))
   results = []
