@@ -371,6 +371,11 @@ def run_tests(args, state, apis):
 
   exit(0)
 
+def get_base(m):
+  if m.initial_state.cpu.address_bit_size == 32:
+    return 0x56555000
+  else:
+    return 0x555555554000
 
 def main_takeover(m, args, takeover_symbol):
   takeover_ea = find_symbol_ea(m, takeover_symbol)
@@ -389,7 +394,8 @@ def main_takeover(m, args, takeover_symbol):
     L.critical("Could not find API table in binary `{}`".format(args.binary))
     return 1
 
-  apis = mc.read_api_table(ea_of_api_table)
+  base = get_base(m)
+  apis = mc.read_api_table(ea_of_api_table, base)
   del mc
 
   fake_test = TestInfo(takeover_ea, '_takeover_test', '_takeover_file', 0)
@@ -417,7 +423,8 @@ def main_unit_test(m, args):
     L.critical("Could not find API table in binary `{}`".format(args.binary))
     return 1
 
-  apis = mc.read_api_table(ea_of_api_table)
+  base = get_base(m)
+  apis = mc.read_api_table(ea_of_api_table, base)
   del mc
 
   m.add_hook(setup_ea, lambda state: run_tests(args, state, apis))
