@@ -206,16 +206,17 @@ class DeepState(object):
     tests.sort(key=lambda t: (t.file_name, t.line_number))
     return tests
 
-  def read_api_table(self, ea):
+  def read_api_table(self, ea, base = 0):
     """Reads in the API table."""
+    ea = ea + base
     apis = {}
     while True:
       api_name_ea, ea = self.read_uintptr_t(ea)
       api_ea, ea = self.read_uintptr_t(ea)
       if not api_name_ea or not api_ea:
         break
-      api_name, _ = self.read_c_string(api_name_ea)
-      apis[api_name] = api_ea
+      api_name, _ = self.read_c_string(api_name_ea + base)
+      apis[api_name] = api_ea + base
     self.context['apis'] = apis
     return apis
 
