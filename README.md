@@ -45,7 +45,7 @@ Runtime:
 ## Building on Ubuntu 16.04 (Xenial)
 
 ```shell
-$ sudo apt update && sudo apt-get install build-essential gcc-multilib cmake python python-setuptools
+$ sudo apt update && sudo apt-get install build-essential gcc-multilib cmake python python-setuptools libffi-dev
 $ git clone https://github.com/trailofbits/deepstate deepstate
 $ mkdir deepstate/build && cd deepstate/build
 $ cmake ../
