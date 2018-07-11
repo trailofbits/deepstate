@@ -372,10 +372,17 @@ def run_tests(args, state, apis):
   exit(0)
 
 def get_base(m):
-  if m.initial_state.cpu.address_bit_size == 32:
-    return 0x56555000
+  e_type = m.initial_state.platform.elf['e_type']
+  if e_type == 'ET_EXEC':
+    return 0x0
+  elif e_type == 'ET_DYN':
+    if m.initial_state.cpu.address_bit_size == 32:
+      return 0x56555000
+    else:
+      return 0x555555554000
   else:
-    return 0x555555554000
+    L.critical("Invalid binary type `{}`".format(e_type))
+    exit(1)
 
 def main_takeover(m, args, takeover_symbol):
   takeover_ea = find_symbol_ea(m, takeover_symbol)
