@@ -344,7 +344,7 @@ def do_run_test(state, apis, test, hook_test=False):
   m.run()
 
 
-def run_test(state, apis, test, hook_test):
+def run_test(state, apis, test, hook_test=False):
   try:
     do_run_test(state, apis, test, hook_test)
   except:
