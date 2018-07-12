@@ -55,10 +55,11 @@ add_library(${PROJECT_NAME}32 STATIC
   src/lib/Stream.c
 )
 
-target_compile_options(${PROJECT_NAME} PUBLIC -mno-avx --static)
+target_compile_options(${PROJECT_NAME} PUBLIC -mno-avx)
 
-target_compile_options(${PROJECT_NAME}32 PUBLIC -m32 -g3 -mno-avx --static)
+target_compile_options(${PROJECT_NAME}32 PUBLIC -m32 -g3 -mno-avx)
 
+target_link_libraries(${PROJECT_NAME} -static "-Wl,--allow-multiple-definition")
 
 target_include_directories(${PROJECT_NAME}
   PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
