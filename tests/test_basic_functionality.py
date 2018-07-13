@@ -1,29 +1,15 @@
 from __future__ import print_function
 import os
 import subprocess
-import sys
 from unittest import TestCase
 
 
 class TestBasicFunctionality(TestCase):
     def test_basic_functionality(self):
-        outf = open("deepstate.out", 'w')
-
-        class Unbuffered:
-            def __init__(self, stream):
-                self.stream = stream
-
-            def write(self, data):
-                self.stream.write(data)
-                self.stream.flush()
-                outf.write(data)
-
         deepstate = os.getenv("DEEPSTATE_CMD")
 
-        with open("deepstate.out", 'w') as outf:
-            r = subprocess.call([deepstate, "build/examples/IntegerArithmetic"],
-                                    stdout = Unbuffered(sys.stdout),
-                                    stderr = Unbuffered(sys.stdout))
+        r = subprocess.call([deepstate + " build/examples/IntegerArithmetic | tee deepstate.out"],
+                                shell=True)
         self.assertEqual(r, 0)
 
         with open("deepstate.out", 'r') as outf:
