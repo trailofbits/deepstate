@@ -89,8 +89,6 @@ $ deepstate-angr --num_workers 4 --output_test_dir out $DEEPSTATE/build/examples
 
 DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation is in the [examples](/examples) and in our [paper](https://agroce.github.io/bar18.pdf).
 
-DeepState is currently more stable (and faster) when using angr as a backend than when using manticore.
-
 ## Contributing
 
 All accepted PRs are awarded bounties by Trail of Bits. Join the #deepstate channel on the [Empire Hacking Slack](https://empireslacking.herokuapp.com/) to discuss ongoing development and claim bounties. Check the [good first issue](https://github.com/trailofbits/deepstate/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) label for suggested contributions.
