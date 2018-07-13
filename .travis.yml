@@ -4,11 +4,11 @@ sudo: true
 python:
 - "2.7"
 install:
-- sudo apt-get install build-essential gcc-multilib cmake python python-setuptools libffi-dev python-z3
+- sudo apt-get install build-essential gcc-multilib cmake python python-setuptools libffi-dev
 - mkdir build
 - cd build
 - cmake ..
 - make
 - sudo make install
 script:
-- deepstate-manticore examples/IntegerArithmetic
+- deepstate-angr examples/IntegerArithmetic
