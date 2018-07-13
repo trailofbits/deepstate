@@ -11,4 +11,4 @@ install:
 - make
 - python setup.py install
 script:
-- deepstate-manticore examples/IntegerArithmetic
+- deepstate-angr examples/IntegerArithmetic
