@@ -15,6 +15,8 @@ class TestBasicFunctionality(TestCase):
         with open("deepstate.out", 'r') as outf:
             result = outf.read()
 
+        print ("RESULT:", result)
+
         self.assertTrue("Passed: Arithmetic_AdditionIsCommutative" in result)
         self.assertTrue("Passed: Arithmetic_AdditionIsAssociative" in result)
         self.assertTrue("Passed: Arithmetic_InvertibleMultiplication_CanFail" in result)
