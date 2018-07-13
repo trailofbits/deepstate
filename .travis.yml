@@ -9,6 +9,6 @@ install:
 - cd build
 - cmake ..
 - make
-- sudo make install
+- python setup.py install
 script:
-- deepstate-angr examples/IntegerArithmetic
+- deepstate-manticore examples/IntegerArithmetic
