@@ -1,7 +1,7 @@
 from __future__ import print_function
 import os
 import subprocess
-import glob
+import sys
 from unittest import TestCase
 
 
@@ -17,7 +17,7 @@ class TestBasicFunctionality(TestCase):
                 self.stream.write(data)
                 self.stream.flush()
                 outf.write(data)
-        
+
         deepstate = os.getenv("DEEPSTATE_CMD")
 
         with open("deepstate.out", 'w') as outf:
