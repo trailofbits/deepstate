@@ -123,7 +123,7 @@ class DeepManticore(DeepState):
     assert 0 < max_num
     if isinstance(val, (int, long)):
       return [val]
-    return self.state.solver.eval_upto(val, max_num)
+    return self.state.solve_n(val, max_num)
 
   def add_constraint(self, expr):
     if self.is_symbolic(expr):
