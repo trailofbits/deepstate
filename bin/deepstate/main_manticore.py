@@ -16,7 +16,6 @@
 import logging
 logging.basicConfig()
 
-import collections
 import sys
 try:
   import manticore

@@ -14,10 +14,8 @@
 # limitations under the License.
 
 import angr
-import collections
 import logging
 import multiprocessing
-import sys
 import traceback
 from .common import DeepState, TestInfo
 
@@ -325,14 +323,14 @@ def find_symbol_ea(project, name):
   return 0
 
 
-def hook_apis(project, run_state):
+def hook_apis(args, project, run_state):
   # Read the API table, which will tell us about the location of various
   # symbols. Technically we can look these up with the `labels.lookup` API,
   # but we have the API table for Manticore-compatibility, so we may as well
   # use it.
   ea_of_api_table = find_symbol_ea(project, 'DeepState_API')
   if not ea_of_api_table:
-    L.critical("Could not find API table in binary `{}`".format(args.binary))
+    L.critical("Could not find API table in binary {}", args.binary)
     return 1
 
   mc = DeepAngr(state=run_state)
@@ -368,15 +366,14 @@ def main_take_over(args, project, takeover_symbol):
 
   if not takeover_ea:
     L.critical("Cannot find symbol `{}` in binary `{}`".format(
-        takeover_symbol,
-        args.binary))
+        takeover_symbol, args.binary))
     return 1
 
   entry_state = project.factory.entry_state(
       add_options={angr.options.ZERO_FILL_UNCONSTRAINED_MEMORY,
                    angr.options.STRICT_PAGE_ACCESS})
 
-  addr_size_bits = entry_state.arch.bits
+  # addr_size_bits = entry_state.arch.bits
 
   # Concretely execute up until `DeepState_TakeOver`.
   concrete_manager = angr.SimulationManager(
@@ -409,7 +406,7 @@ def main_take_over(args, project, takeover_symbol):
     L.critical("Could not find API table in binary `{}`".format(args.binary))
     return 1
 
-  _, apis = hook_apis(project, run_state)
+  _, apis = hook_apis(args, project, run_state)
   fake_test = TestInfo(takeover_ea, '_takeover_test', '_takeover_file', 0)
 
   return run_test(project, fake_test, apis, run_state, should_call_state=False)
@@ -426,7 +423,7 @@ def main_unit_test(args, project):
       add_options={angr.options.ZERO_FILL_UNCONSTRAINED_MEMORY,
                    angr.options.STRICT_PAGE_ACCESS})
 
-  addr_size_bits = entry_state.arch.bits
+  # addr_size_bits = entry_state.arch.bits
 
   # Concretely execute up until `DeepState_Setup`.
   concrete_manager = angr.SimulationManager(
@@ -442,7 +439,7 @@ def main_unit_test(args, project):
     return 1
 
   # Hook the DeepState API functions.
-  mc, apis = hook_apis(project, run_state)
+  mc, apis = hook_apis(args, project, run_state)
 
   # Find the test cases that we want to run.
   tests = mc.find_test_cases()
@@ -456,7 +453,6 @@ def main_unit_test(args, project):
 
   # For each test, create a simulation manager whose initial state calls into
   # the test case function.
-  test_managers = []
   for test in tests:
     res = pool.apply_async(run_test, (project, test, apis, run_state))
     results.append(res)

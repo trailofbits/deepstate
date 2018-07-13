@@ -16,7 +16,6 @@ import logging
 logging.basicConfig()
 
 import argparse
-import collections
 import md5
 import os
 import struct
@@ -459,7 +458,7 @@ class DeepState(object):
 
     for i in xrange(end_ea - begin_ea):
       val, _ = self.read_uint8_t(begin_ea + i, concretize=True, constrain=True)
-      _ = self.write_uint8_t(begin_ea + i, val)
+      self.write_uint8_t(begin_ea + i, val)
 
     return begin_ea
 
