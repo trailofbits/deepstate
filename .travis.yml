@@ -6,6 +6,9 @@ python:
 install:
 - sudo apt-get update
 - sudo apt-get install build-essential gcc-multilib cmake python python-setuptools libffi-dev
+- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo add-apt-repository ppa:neon1ks/xenial
+- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo apt-get update
+- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo apt-get install z3
 - mkdir build
 - cd build
 - cmake ..
