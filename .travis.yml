@@ -6,9 +6,13 @@ python:
 install:
 - sudo apt-get -y update
 - sudo apt-get -y install build-essential gcc-multilib cmake python python-setuptools libffi-dev
-- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo add-apt-repository -y ppa:neon1ks/xenial; fi
-- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo apt-get -y update; fi
-- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo apt-get -y install z3; fi
+- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then git clone https://github.com/Z3Prover/z3.git; fi
+- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then cd z3; f
+- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then python scripts/mk_make.py; f
+- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then cd build; fi
+- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then make; fi
+- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo make install; fi
+- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then cd ../..; fi
 - mkdir build
 - cd build
 - cmake ..
