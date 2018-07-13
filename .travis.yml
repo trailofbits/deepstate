@@ -1,10 +1,10 @@
 language: python
 dist: trusty
-sudo: false
+sudo: true
 python:
 - "2.7"
 install:
-- apt-get install build-essential gcc-multilib cmake python python-setuptools libffi-dev
+- sudo apt-get install build-essential gcc-multilib cmake python python-setuptools libffi-dev
 - cd deepstate
 - mkdir build
 - cd build
