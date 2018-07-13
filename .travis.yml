@@ -4,11 +4,11 @@ sudo: true
 python:
 - "2.7"
 install:
-- sudo apt-get update
-- sudo apt-get install build-essential gcc-multilib cmake python python-setuptools libffi-dev
-- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo add-apt-repository ppa:neon1ks/xenial; fi
-- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo apt-get update; fi
-- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo apt-get install z3; fi
+- sudo apt-get -y update
+- sudo apt-get -y install build-essential gcc-multilib cmake python python-setuptools libffi-dev
+- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo add-apt-repository -y ppa:neon1ks/xenial; fi
+- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo apt-get -y update; fi
+- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo apt-get -y install z3; fi
 - mkdir build
 - cd build
 - cmake ..
