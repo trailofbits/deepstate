@@ -17,8 +17,12 @@ install:
 - python setup.py install
 - cd ..
 env:
-- TASK=ANGR_BASIC DEEPSTATE_CMD=deepstate-angr
-- TASK=MANTICORE_BASIC DEEPSTATE_CMD=deepstate-manticore
+- TASK=PRIMES DEEPSTATE_CMD=deepstate-angr
+- TASK=PRIMES DEEPSTATE_CMD=deepstate-manticore
+- TASK=ONEOF DEEPSTATE_CMD=deepstate-angr
+- TASK=ONEOF DEEPSTATE_CMD=deepstate-manticore
+- TASK=ARITHMETIC DEEPSTATE_CMD=deepstate-angr
+- TASK=ARITHMETIC DEEPSTATE_CMD=deepstate-manticore
 script:
 - pyflakes bin/deepstate/*.py
 - pyflakes tests/*.py
