@@ -1,6 +1,7 @@
 from __future__ import print_function
 import subprocess
 import time
+import sys
 
 def logrun(cmd, file, timeout):
     with open(file, 'w') as outf:
@@ -11,10 +12,11 @@ def logrun(cmd, file, timeout):
         with open(file, 'r') as inf:            
             contents = inf.read()
         if len(contents) > len(oldContents):
-            print(contents[len(oldContents):], end="")
+            sys.stderr.write(contents[len(oldContents):])
+            sys.stderr.flush()
             oldContents = contents
         time.sleep(1)
-    print()
+    sys.stderr.write("\n")
     if p.poll() is None:
         return ("TIMEOUT", contents)
     return (p.returncode, contents)
