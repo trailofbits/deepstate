@@ -11,6 +11,7 @@ install:
 - cmake ..
 - make
 - python setup.py install
+- cd ..
 env:
 - TASK=ANGR DEEPSTATE_CMD=deepstate-angr
 - TASK=MANTICORE DEEPSTATE_CMD=deepstate-manticore

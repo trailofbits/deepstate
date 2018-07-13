@@ -10,7 +10,7 @@ class TestBasicFunctionality(TestCase):
         deepstate = os.getenv("DEEPSTATE_CMD")
 
         with open("deepstate.out", 'w') as outf:
-            r = subprocess.call([deepstate, "examples/IntegerArithmetic"], stdout = outf, stderr = outf)
+            r = subprocess.call([deepstate, "build/examples/IntegerArithmetic"], stdout = outf, stderr = outf)
         self.assertEqual(r, 0)
 
         with open("deepstate.out", 'r') as outf:
