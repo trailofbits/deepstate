@@ -1,0 +1,15 @@
+language: python
+dist: trusty
+sudo: false
+python:
+- "2.7"
+install:
+- apt-get install build-essential gcc-multilib cmake python python-setuptools libffi-dev
+- cd deepstate
+- mkdir build
+- cd build
+- cmake ..
+- make
+- make install
+script:
+- deepstate-manticore examples/IntegerArithmetic
