@@ -11,4 +11,4 @@ install:
 - make
 - sudo make install
 script:
-- deepstate-manticore examples/IntegerArithmetic
+- deepstate-angr examples/IntegerArithmetic
