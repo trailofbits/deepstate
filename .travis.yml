@@ -4,7 +4,7 @@ sudo: true
 python:
 - "2.7"
 install:
-- sudo apt-get install build-essential gcc-multilib cmake python python-setuptools libffi-dev z3
+- sudo apt-get install build-essential gcc-multilib cmake python python-setuptools libffi-dev python-z3
 - mkdir build
 - cd build
 - cmake ..
