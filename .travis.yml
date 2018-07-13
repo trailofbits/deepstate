@@ -8,6 +8,8 @@ install:
 - sudo apt-get -y update
 - sudo apt-get -y install build-essential gcc-multilib cmake python python-pip python-setuptools libffi-dev
 - if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo pip install -U pip ; sudo pip install manticore ; fi
+- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then pip uninstall -y Manticore || echo "Manticore not cached" ; fi
+- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then pip install https://github.com/trailofbits/manticore/archive/master.zip ; fi
 - mkdir build
 - cd build
 - cmake ..
