@@ -9,6 +9,6 @@ install:
 - cd build
 - cmake ..
 - make
-- make install
+- sudo make install
 script:
 - deepstate-manticore examples/IntegerArithmetic
