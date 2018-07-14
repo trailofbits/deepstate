@@ -32,7 +32,7 @@ def logrun(cmd, file, timeout):
     sys.stderr.write("\nDONE\n\n")
     sys.stderr.write("TOTAL EXECUTION TIME: " + str(totalTime) + "\n")
     sys.stderr.write("RETURN VALUE: " + str(p.returncode) + "\n")
-    sys.stderr.write("RETURNING AS RESULT: " + str(rv[1]) + "\n")
+    sys.stderr.write("RETURNING AS RESULT: " + str(rv[0]) + "\n")
     sys.stderr.write("=" * 80 + "\n")
 
     return rv
