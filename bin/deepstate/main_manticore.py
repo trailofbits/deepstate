@@ -226,16 +226,16 @@ def hook_ConcretizeCStr(state, begin_ea):
   return DeepManticore(state).api_concretize_cstr(begin_ea)
 
 
-def hook_MinUInt(self, val):
+def hook_MinUInt(state, val):
   """Implements the `Deeptate_MinUInt` API function, which lets the
   programmer ask for the minimum satisfiable value of an unsigned integer."""
-  return DeepManticore(procedure=self).api_min_uint(val)
+  return DeepManticore(state).api_min_uint(val)
 
 
-def hook_MaxUInt(self, val):
+def hook_MaxUInt(state, val):
   """Implements the `Deeptate_MaxUInt` API function, which lets the
   programmer ask for the minimum satisfiable value of a signed integer."""
-  return DeepManticore(procedure=self).api_max_uint(val)
+  return DeepManticore(state).api_max_uint(val)
 
 
 def hook_Log(state, level, ea):
