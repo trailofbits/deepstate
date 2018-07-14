@@ -8,7 +8,7 @@ class TestBasicFunctionality(TestCase):
     def test_basic_functionality(self):
         if os.getenv("DEEPSTATE_CMD") is not None:
             deepstates = [os.getenv("DEEPSTATE_CMD")]
-        if deepstate is None:
+        else:
             deepstates = ["deepstate-angr", "deepstate-manticore"]
 
         for deepstate in deepstates:
