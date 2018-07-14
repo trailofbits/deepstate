@@ -95,8 +95,8 @@ class TestBasicFunctionality(TestCase):
                 self.assertTrue(": 1" in output)
                 self.assertTrue(": 1.000000" in output)
                 self.assertTrue(": string" in output)
-                self.assertTrue(": hello string=world" in output)
-                self.assertTrue(": hello again!" in output)
+                self.assertTrue("hello string=world" in output)
+                self.assertTrue("hello again!" in output)
                 self.assertTrue("Passed: Formatting_OverridePrintf" in output)
                 self.assertFalse("Failed: Formatting_OverridePrintf" in output)                
 
