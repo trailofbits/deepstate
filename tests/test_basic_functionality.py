@@ -59,7 +59,18 @@ class TestBasicFunctionality(TestCase):
                 for line in output.split("\n"):
                     if ("Saving input to" in line) and (".pass" in line):
                         foundPassSave = True
-                self.assertTrue(foundPassSave)                
+                self.assertTrue(foundPassSave)
+
+            if os.getenv("TASK") is None or os.getenv("TASK") == "FIXTURE":
+                (r, output) = logrun.logrun([deepstate, "build/examples/Fixture"],
+                                            "deepstate.out", 1800)
+                self.assertEqual(r, 0)
+
+                self.assertTrue("Passed: MyTest_Something" in output)
+                self.assertFalse("Failed: MyTest_Something" in output)
+
+                self.assertTrue("Setting up!" in output)
+                self.assertTrue("Tearing down!" in output)
                 
             if os.getenv("TASK") is None or os.getenv("TASK") == "LISTS":
                 (r, output) = logrun.logrun([deepstate, "build/examples/Lists"],
