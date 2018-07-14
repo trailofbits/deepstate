@@ -108,6 +108,16 @@ class TestBasicFunctionality(TestCase):
                 self.assertTrue("Failed: OneOfExample_ProduceSixtyOrHigher" in output)
                 self.assertTrue("Passed: OneOfExample_ProduceSixtyOrHigher" in output)
 
+            if os.getenv("TASK") is None or os.getenv("TASK") == "OVERFLOW":
+                (r, output) = logrun.logrun([deepstate, "build/examples/IntegerOverflow"],
+                                            "deepstate.out", 1800)
+                self.assertEqual(r, 0)
+
+                self.assertTrue("Failed: SignedInteger_AdditionOverflow" in output)
+                self.assertTrue("Passed: SignedInteger_AdditionOverflow" in output)
+                self.assertTrue("Failed: SignedInteger_MultiplicationOverflow" in output)
+                self.assertTrue("Passed: SignedInteger_MultiplicationOverflow" in output)                                                
+                
             if os.getenv("TASK") is None or os.getenv("TASK") == "ARITHMETIC":
                 (r, output) = logrun.logrun([deepstate, "build/examples/IntegerArithmetic", "--num_workers", "4"],
                                             "deepstate.out", 1800)

@@ -12,13 +12,18 @@ def logrun(cmd, file, timeout):
         p = subprocess.Popen(cmd, stdout=outf, stderr=outf)
     start = time.time()
     oldContents = ""
+    lastOutput = time.time()
     while (p.poll() is None) and ((time.time() - start) < timeout):
+        if (time.time() - lastOutput) > 300:
+            sys.stderr.write("\n\n** FIVE MINUTE KEEPALIVE FROM TEST LOGGING **\n\n")
+            sys.stderr.flush()
         with open(file, 'r') as inf:            
             contents = inf.read()
         if len(contents) > len(oldContents):
             sys.stderr.write(contents[len(oldContents):])
             sys.stderr.flush()
             oldContents = contents
+            lastOutput = time.time()
         time.sleep(0.05)
     totalTime = time.time() - start
     sys.stderr.write("\n")

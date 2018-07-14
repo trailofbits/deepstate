@@ -33,6 +33,8 @@ env:
 - TASK=STREAMINGANDFORMATTING DEEPSTATE_CMD=deepstate-manticore
 - TASK=ONEOF DEEPSTATE_CMD=deepstate-angr
 - TASK=ONEOF DEEPSTATE_CMD=deepstate-manticore
+- TASK=OVERFLOW DEEPSTATE_CMD=deepstate-angr
+- TASK=OVERFLOW DEEPSTATE_CMD=deepstate-manticore
 - TASK=ARITHMETIC DEEPSTATE_CMD=deepstate-angr
 - TASK=ARITHMETIC DEEPSTATE_CMD=deepstate-manticore
 script:
