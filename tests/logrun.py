@@ -15,7 +15,7 @@ def logrun(cmd, file, timeout):
     lastOutput = time.time()
     while (p.poll() is None) and ((time.time() - start) < timeout):
         if (time.time() - lastOutput) > 300:
-            sys.stderr.write("\n\n** FIVE MINUTE KEEPALIVE FROM TEST LOGGING **\n\n")
+            sys.stderr.write(".")
             sys.stderr.flush()
         with open(file, 'r') as inf:            
             contents = inf.read()
