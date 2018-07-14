@@ -6,7 +6,7 @@ import sys
 def logrun(cmd, file, timeout):
     sys.stderr.write("\n\n" + ("=" * 80) + "\n")
     sys.stderr.write("RUNNING: ")
-    sys.stderr.write(" ".join(cmd) + "\n")
+    sys.stderr.write(" ".join(cmd) + "\n\n")
     sys.stderr.flush()
     with open(file, 'w') as outf:
         p = subprocess.Popen(cmd, stdout=outf, stderr=outf)
