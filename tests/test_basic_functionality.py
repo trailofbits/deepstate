@@ -11,6 +11,8 @@ class TestBasicFunctionality(TestCase):
         else:
             deepstates = ["deepstate-angr", "deepstate-manticore"]
 
+        print("RUNNING WITH DEEPSTATE COMMANDS:", deepstates)
+
         for deepstate in deepstates:
             if os.getenv("TASK") is None or os.getenv("TASK") == "CRASH":
                 (r, output) = logrun.logrun([deepstate, "build/examples/Crash"],
@@ -43,7 +45,22 @@ class TestBasicFunctionality(TestCase):
 
                 self.assertTrue("Passed: PrimePolynomial_OnlyGeneratesPrimes" in output)
                 self.assertTrue("Passed: PrimePolynomial_OnlyGeneratesPrimes_NoStreaming" in output)
+                
+            if os.getenv("TASK") is None or os.getenv("TASK") == "TAKEOVER":
+                (r, output) = logrun.logrun([deepstate, "build/examples/TakeOver", "--take_over"],
+                                            "deepstate.out", 1800)
+                self.assertEqual(r, 0)
 
+                self.assertTrue("hi" in output)
+                self.assertTrue("bye" in output)
+                self.assertTrue("was not greater than" in output)                
+
+                foundPassSave = False
+                for line in output.split("\n"):
+                    if ("Saving input to" in line) and (".pass" in line):
+                        foundPassSave = True
+                self.assertTrue(foundPassSave)                
+                
             if os.getenv("TASK") is None or os.getenv("TASK") == "LISTS":
                 (r, output) = logrun.logrun([deepstate, "build/examples/Lists"],
                                             "deepstate.out", 1800)
