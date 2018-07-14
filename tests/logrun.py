@@ -17,6 +17,7 @@ def logrun(cmd, file, timeout):
         if (time.time() - lastOutput) > 300:
             sys.stderr.write(".")
             sys.stderr.flush()
+            lastOutput = time.time()
         with open(file, 'r') as inf:            
             contents = inf.read()
         if len(contents) > len(oldContents):
