@@ -17,6 +17,12 @@ install:
 - python setup.py install
 - cd ..
 env:
+- TASK=CRASH DEEPSTATE_CMD=deepstate-angr
+- TASK=CRASH DEEPSTATE_CMD=deepstate-manticore
+- TASK=KLEE DEEPSTATE_CMD=deepstate-angr
+- TASK=KLEE DEEPSTATE_CMD=deepstate-manticore
+- TASK=LISTS DEEPSTATE_CMD=deepstate-angr
+- TASK=LISTS DEEPSTATE_CMD=deepstate-manticore
 - TASK=PRIMES DEEPSTATE_CMD=deepstate-angr
 - TASK=PRIMES DEEPSTATE_CMD=deepstate-manticore
 - TASK=ONEOF DEEPSTATE_CMD=deepstate-angr

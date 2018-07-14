@@ -19,5 +19,9 @@ def logrun(cmd, file, timeout):
     sys.stderr.write("\n")
     if p.poll() is None:
         return ("TIMEOUT", contents)
+    if "internal error" in contents:
+        return ("INTERNAL ERROR", contents)
+    if "Traceback (most recent call last)" in contents:
+        return ("EXCEPTION RAISED", contents)    
     return (p.returncode, contents)
         
