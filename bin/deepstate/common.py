@@ -129,6 +129,10 @@ class DeepState(object):
         help="Expect the test binary to use the KLEE API and use `main()` as entry point.")
 
     parser.add_argument(
+        "--verbosity", default=1, type=int,
+        help="Verbosity level.")
+
+    parser.add_argument(
         "binary", type=str, help="Path to the test binary to run.")
 
     cls._ARGS = parser.parse_args()

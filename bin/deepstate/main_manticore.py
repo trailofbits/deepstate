@@ -447,7 +447,7 @@ def main():
       args.binary, e))
     return 1
 
-  m.verbosity(1)
+  m.verbosity(args.verbosity)
 
   # Hack to get around current broken _get_symbol_address
   m._binary_type = 'not elf'
