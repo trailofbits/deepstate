@@ -1,6 +1,5 @@
 from __future__ import print_function
 from unittest import TestCase
-import logrun
 
 
 class DeepStateTestCase(TestCase):
