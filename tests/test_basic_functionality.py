@@ -1,19 +1,18 @@
 from __future__ import print_function
-import os
 from unittest import TestCase
 import logrun
 
 
 class DeepStateTestCase(TestCase):
   def test_angr(self):
-    self.run_test("deepstate-angr")
+    self.run_deepstate("deepstate-angr")
 
   def test_manticore(self):
-    self.run_test("deepstate-manticore")
+    self.run_deepstate("deepstate-manticore")
 
 
 class CrashTest(DeepStateTestCase):
-  def run_test(self, deepstate):
+  def run_deepstate(self, deepstate):
     (r, output) = logrun.logrun([deepstate, "build/examples/Crash"],
                   "deepstate.out", 1800)
     self.assertEqual(r, 0)
@@ -27,7 +26,7 @@ class CrashTest(DeepStateTestCase):
 
 
 class KleeTest(DeepStateTestCase):
-  def run_test(self, deepstate):
+  def run_deepstate(self, deepstate):
     (r, output) = logrun.logrun([deepstate, "build/examples/Klee", "--klee"],
                   "deepstate.out", 1800)
     self.assertEqual(r, 0)
@@ -38,7 +37,7 @@ class KleeTest(DeepStateTestCase):
 
 
 class PrimesTest(DeepStateTestCase):
-  def run_test(self, deepstate):
+  def run_deepstate(self, deepstate):
     (r, output) = logrun.logrun([deepstate, "build/examples/Primes"],
                   "deepstate.out", 1800)
     self.assertEqual(r, 0)
@@ -51,7 +50,7 @@ class PrimesTest(DeepStateTestCase):
 
 
 class TakeOverTest(DeepStateTestCase):
-  def run_test(self, deepstate):
+  def run_deepstate(self, deepstate):
     (r, output) = logrun.logrun([deepstate, "build/examples/TakeOver", "--take_over"],
                   "deepstate.out", 1800)
     self.assertEqual(r, 0)
@@ -68,7 +67,7 @@ class TakeOverTest(DeepStateTestCase):
 
 
 class FixtureTest(DeepStateTestCase):
-  def run_test(self, deepstate):
+  def run_deepstate(self, deepstate):
     (r, output) = logrun.logrun([deepstate, "build/examples/Fixture"],
                   "deepstate.out", 1800)
     self.assertEqual(r, 0)
@@ -81,7 +80,7 @@ class FixtureTest(DeepStateTestCase):
 
 
 class ListsTest(DeepStateTestCase):
-  def run_test(self, deepstate):
+  def run_deepstate(self, deepstate):
     (r, output) = logrun.logrun([deepstate, "build/examples/Lists"],
                   "deepstate.out", 3000)
     self.assertEqual(r, 0)
@@ -91,7 +90,7 @@ class ListsTest(DeepStateTestCase):
 
 
 class StreamingAndFormattingTest(DeepStateTestCase):
-  def run_test(self, deepstate):
+  def run_deepstate(self, deepstate):
     (r, output) = logrun.logrun([deepstate, "build/examples/StreamingAndFormatting"],
                   "deepstate.out", 1800)
     #self.assertEqual(r, 0)
@@ -113,7 +112,7 @@ class StreamingAndFormattingTest(DeepStateTestCase):
 
 
 class OneOfTest(DeepStateTestCase):
-  def run_test(self, deepstate):
+  def run_deepstate(self, deepstate):
     (r, output) = logrun.logrun([deepstate, "build/examples/OneOf"],
                   "deepstate.out", 1800)
     self.assertEqual(r, 0)
@@ -123,7 +122,7 @@ class OneOfTest(DeepStateTestCase):
 
 
 class OverflowTest(DeepStateTestCase):
-  def run_test(self, deepstate):
+  def run_deepstate(self, deepstate):
     (r, output) = logrun.logrun([deepstate, "build/examples/IntegerOverflow"],
                   "deepstate.out", 1800)
     self.assertEqual(r, 0)
@@ -135,7 +134,7 @@ class OverflowTest(DeepStateTestCase):
 
 
 class ArithmeticTest(DeepStateTestCase):
-  def run_test(self, deepstate):
+  def run_deepstate(self, deepstate):
     (r, output) = logrun.logrun([deepstate, "build/examples/IntegerArithmetic", "--num_workers", "4"],
                   "deepstate.out", 1800)
     self.assertEqual(r, 0)
