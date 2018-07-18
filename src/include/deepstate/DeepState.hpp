@@ -153,6 +153,42 @@ class Symbolic {
 template <typename T>
 class Symbolic<T &> {};
 
+template <typename T>
+class SymbolicLinearContainer {
+ public:
+  DEEPSTATE_INLINE explicit SymbolicLinearContainer(size_t len)
+      : value(len) {
+    if (!value.empty()) {
+      DeepState_SymbolizeData(&(value.front()), &(value.back()));
+    }
+  }
+
+  DEEPSTATE_INLINE SymbolicLinearContainer(void) {
+    value.reserve(32);
+    value.resize(DeepState_SizeInRange(0, 32));  // Avoids symbolic `malloc`.
+  }
+
+  DEEPSTATE_INLINE operator T (void) const {
+    return value;
+  }
+
+  T value;
+};
+
+template <>
+class Symbolic<std::string> : public SymbolicLinearContainer<std::string> {
+  using SymbolicLinearContainer::SymbolicLinearContainer;
+};
+
+template <>
+class Symbolic<std::wstring> : public SymbolicLinearContainer<std::wstring> {
+  using SymbolicLinearContainer::SymbolicLinearContainer;
+};
+
+template <typename T>
+class Symbolic<std::vector<T>> :
+    public SymbolicLinearContainer<std::vector<T>> {};
+
 #define MAKE_SYMBOL_SPECIALIZATION(Tname, tname) \
     template <> \
     class Symbolic<tname> { \
@@ -278,40 +314,6 @@ static T Pump(T val, unsigned max=10) {
   }
   return Minimize(val);
 }
-
-template <typename T>
-class SymbolicLinearContainer {
- public:
-  DEEPSTATE_INLINE explicit SymbolicLinearContainer(size_t len)
-      : value(len) {
-    if (!value.empty()) {
-      DeepState_SymbolizeData(&(value.front()), &(value.back()));
-    }
-  }
-
-  DEEPSTATE_INLINE SymbolicLinearContainer(void)
-      : SymbolicLinearContainer(Pump(DeepState_SizeInRange(0, 32), 32)) {}
-
-  DEEPSTATE_INLINE operator T (void) const {
-    return value;
-  }
-
-  T value;
-};
-
-template <>
-class Symbolic<std::string> : public SymbolicLinearContainer<std::string> {
-  using SymbolicLinearContainer::SymbolicLinearContainer;
-};
-
-template <>
-class Symbolic<std::wstring> : public SymbolicLinearContainer<std::wstring> {
-  using SymbolicLinearContainer::SymbolicLinearContainer;
-};
-
-template <typename T>
-class Symbolic<std::vector<T>> :
-    public SymbolicLinearContainer<std::vector<T>> {};
 
 template <typename... Args>
 inline static void ForAll(void (*func)(Args...)) {
