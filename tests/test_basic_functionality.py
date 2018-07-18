@@ -6,10 +6,10 @@ import logrun
 
 class DeepStateTestCase(TestCase):
   def test_angr(self):
-    self.run_test(self, "deepstate-angr")
+    self.run_test("deepstate-angr")
 
   def test_manticore(self):
-    self.run_test(self, "deepstate-manticore")
+    self.run_test("deepstate-manticore")
 
 
 class CrashTest(DeepStateTestCase):
