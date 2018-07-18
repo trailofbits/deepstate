@@ -30,14 +30,14 @@ env:
 script:
 - pyflakes bin/deepstate/*.py
 - pyflakes tests/*.py
-- if [ $TASK = ARITHMETIC ]; then nosetests test_arithmetic ; fi
-- if [ $TASK = CRASH ]; then nosetests test_crash ; fi
-- if [ $TASK = FIXTURE ]; then nosetests test_fixture ; fi
-- if [ $TASK = KLEE ]; then nosetests test_klee ; fi
-- if [ $TASK = LISTS ]; then nosetests test_lists ; fi
-- if [ $TASK = ONEOF ]; then nosetests test_oneof ; fi
-- if [ $TASK = OVERFLOW ]; then nosetests test_overflow ; fi
-- if [ $TASK = PRIMES ]; then nosetests test_primes ; fi
-- if [ $TASK = STREAMINGANDFORMATTING ]; then nosetests test_streamingandformatting ; fi
-- if [ $TASK = TAKEOVER ]; then nosetests test_takeover ; fi
+- if [ $TASK = ARITHMETIC ]; then nosetests tests/test_arithmetic ; fi
+- if [ $TASK = CRASH ]; then nosetests tests/test_crash ; fi
+- if [ $TASK = FIXTURE ]; then nosetests tests/test_fixture ; fi
+- if [ $TASK = KLEE ]; then nosetests tests/test_klee ; fi
+- if [ $TASK = LISTS ]; then nosetests tests/test_lists ; fi
+- if [ $TASK = ONEOF ]; then nosetests tests/test_oneof ; fi
+- if [ $TASK = OVERFLOW ]; then nosetests tests/test_overflow ; fi
+- if [ $TASK = PRIMES ]; then nosetests tests/test_primes ; fi
+- if [ $TASK = STREAMINGANDFORMATTING ]; then nosetests tests/test_streamingandformatting ; fi
+- if [ $TASK = TAKEOVER ]; then nosetests tests/test_takeover ; fi
 
