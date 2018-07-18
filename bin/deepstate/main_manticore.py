@@ -265,6 +265,17 @@ def _is_program_crash(reason):
   return 'Invalid memory access' in reason.message
 
 
+def _is_program_exit(reason):
+  """Using the `reason` for the termination of a Manticore `will_terminate_state`
+  event, decide if we want to treat the termination as a simple exit of the program
+  being analyzed."""
+
+  if not isinstance(reason, TerminateState):
+    return False
+
+  return 'Program finished with exit status' in reason.message
+
+
 def done_test(_, state, state_id, reason):
   """Called when a state is terminated."""
   mc = DeepManticore(state)
@@ -281,6 +292,10 @@ def done_test(_, state, state_id, reason):
 
       # Don't raise new `TerminateState` exception
       super(DeepManticore, mc).crash_test()
+    elif _is_program_exit(reason):
+      L.info("State {} terminated due to program exit: {}".format(
+        state_id, reason))
+      super(DeepManticore, mc).abandon_test()      
     else:
       L.error("State {} terminated due to internal error: {}".format(state_id,
                                                                      reason))
