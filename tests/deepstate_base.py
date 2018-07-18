@@ -11,4 +11,4 @@ class DeepStateTestCase(TestCase):
     self.run_deepstate("deepstate-manticore")
 
   def run_deepstate(self, deepstate):
-    print("You should define an actual test of DeepState here.")
+    print("define an actual test of DeepState here.")
