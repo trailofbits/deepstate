@@ -7,9 +7,9 @@ install:
 - pip install pyflakes
 - sudo apt-get -y update
 - sudo apt-get -y install build-essential gcc-multilib cmake python python-pip python-setuptools libffi-dev
-- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo pip install -U pip ; sudo pip install manticore ; fi
-- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo pip uninstall -y Manticore || echo "Manticore not cached" ; fi
-- if [ $DEEPSTATE_CMD = deepstate-manticore ]; then sudo pip install https://github.com/trailofbits/manticore/archive/master.zip ; fi
+- sudo pip install -U pip ; sudo pip install manticore
+- sudo pip uninstall -y Manticore || echo "Manticore not cached"
+- sudo pip install https://github.com/trailofbits/manticore/archive/master.zip
 - mkdir build
 - cd build
 - cmake ..
@@ -17,13 +17,27 @@ install:
 - python setup.py install
 - cd ..
 env:
-- TASK=PRIMES DEEPSTATE_CMD=deepstate-angr
-- TASK=PRIMES DEEPSTATE_CMD=deepstate-manticore
-- TASK=ONEOF DEEPSTATE_CMD=deepstate-angr
-- TASK=ONEOF DEEPSTATE_CMD=deepstate-manticore
-- TASK=ARITHMETIC DEEPSTATE_CMD=deepstate-angr
-- TASK=ARITHMETIC DEEPSTATE_CMD=deepstate-manticore
+- TASK=ARITHMETIC
+- TASK=CRASH
+- TASK=FIXTURE
+- TASK=KLEE
+- TASK=LISTS
+- TASK=ONEOF
+- TASK=OVERFLOW
+- TASK=PRIMES
+- TASK=STREAMINGANDFORMATTING
+- TASK=TAKEOVER
 script:
 - pyflakes bin/deepstate/*.py
 - pyflakes tests/*.py
-- nosetests --verbose
+- if [ $TASK = ARITHMETIC ]; then nosetests tests/test_arithmetic.py ; fi
+- if [ $TASK = CRASH ]; then nosetests tests/test_crash.py ; fi
+- if [ $TASK = FIXTURE ]; then nosetests tests/test_fixture.py ; fi
+- if [ $TASK = KLEE ]; then nosetests tests/test_klee.py ; fi
+- if [ $TASK = LISTS ]; then nosetests tests/test_lists.py ; fi
+- if [ $TASK = ONEOF ]; then nosetests tests/test_oneof.py ; fi
+- if [ $TASK = OVERFLOW ]; then nosetests tests/test_overflow.py ; fi
+- if [ $TASK = PRIMES ]; then nosetests tests/test_primes.py ; fi
+- if [ $TASK = STREAMINGANDFORMATTING ]; then nosetests tests/test_streamingandformatting.py ; fi
+- if [ $TASK = TAKEOVER ]; then nosetests tests/test_takeover.py ; fi
+

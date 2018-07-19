@@ -163,8 +163,10 @@ class SymbolicLinearContainer {
     }
   }
 
-  DEEPSTATE_INLINE SymbolicLinearContainer(void)
-      : SymbolicLinearContainer(DeepState_SizeInRange(0, 32)) {}
+  DEEPSTATE_INLINE SymbolicLinearContainer(void) {
+    value.reserve(32);
+    value.resize(DeepState_SizeInRange(0, 32));  // Avoids symbolic `malloc`.
+  }
 
   DEEPSTATE_INLINE operator T (void) const {
     return value;
