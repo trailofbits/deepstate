@@ -199,9 +199,20 @@ void _DeepState_StreamString(enum DeepState_LogLevel level, const char *format,
 
 void DeepState_StreamPointer(enum DeepState_LogLevel level, void *val) {
   struct DeepState_Stream *stream = &(DeepState_Streams[level]);
-  stream->format[0] = '%';
-  stream->format[1] = 'p';
-  stream->format[2] = '\0';
+  stream->format[0] = '0';
+  stream->format[1] = 'x';
+  stream->format[2] = '%';
+  stream->format[3] = '0';
+  if (sizeof(void *) == 4) {
+    stream->format[4] = '8';
+    stream->format[5] = 'x';
+    stream->format[6] = '\0';
+  } else {
+    stream->format[4] = '1';
+    stream->format[5] = '6';
+    stream->format[6] = 'x';
+    stream->format[7] = '\0';
+  }
   DeepState_StreamUnpack(stream, (sizeof(void *) == 8 ? 'Q' : 'I'));
   stream->value.as_uint64 = (uintptr_t) val;
   _DeepState_StreamInt(level, stream->format, stream->unpack,
