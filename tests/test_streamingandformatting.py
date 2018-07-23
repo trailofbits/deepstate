@@ -7,7 +7,7 @@ class StreamingAndFormattingTest(deepstate_base.DeepStateTestCase):
   def run_deepstate(self, deepstate):
     (r, output) = logrun.logrun([deepstate, "build/examples/StreamingAndFormatting"],
                   "deepstate.out", 1800)
-    #self.assertEqual(r, 0)
+    self.assertEqual(r, 0)
 
     self.assertTrue("Failed: Streaming_BasicLevels" in output)
     self.assertTrue("This is a debug message" in output)
