@@ -35,7 +35,7 @@ DeepState currently targets Linux, with macOS support in progress.
 Build:
 
 - CMake
-- GCC with multilib support
+- GCC and G++ with multilib support
 - Python 2.7
 - Setuptools
 
@@ -47,7 +47,7 @@ Runtime:
 ## Building on Ubuntu 16.04 (Xenial)
 
 ```shell
-$ sudo apt update && sudo apt-get install build-essential gcc-multilib cmake python python-setuptools libffi-dev
+$ sudo apt update && sudo apt-get install build-essential gcc-multilib g++-multilib cmake python python-setuptools libffi-dev
 $ git clone https://github.com/trailofbits/deepstate deepstate
 $ mkdir deepstate/build && cd deepstate/build
 $ cmake ../
