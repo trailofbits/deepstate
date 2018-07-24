@@ -47,11 +47,11 @@ Runtime:
 ## Building on Ubuntu 16.04 (Xenial)
 
 ```shell
-$ sudo apt update && sudo apt-get install build-essential gcc-multilib g++-multilib cmake python python-setuptools libffi-dev
-$ git clone https://github.com/trailofbits/deepstate deepstate
-$ mkdir deepstate/build && cd deepstate/build
-$ cmake ../
-$ make
+sudo apt update && sudo apt-get install build-essential gcc-multilib g++-multilib cmake python python-setuptools libffi-dev z3
+git clone https://github.com/trailofbits/deepstate deepstate
+mkdir deepstate/build && cd deepstate/build
+cmake ../
+make
 ```
 
 ## Installing
@@ -59,9 +59,9 @@ $ make
 Assuming the DeepState build resides in `$DEEPSTATE`, run the following commands to install the DeepState python package:
 
 ```shell
-$ virtualenv venv
-$ . venv/bin/activate
-$ python $DEEPSTATE/build/setup.py install
+virtualenv venv
+. venv/bin/activate
+python $DEEPSTATE/build/setup.py install
 ```
 
 The `virtualenv`-enabled `$PATH` should now include two executables: `deepstate` and `deepstate-angr`. These are _executors_, which are used to run DeepState test binaries with specific backends (automatically installed as Python dependencies). The `deepstate` executor uses the Manticore backend while `deepstate-angr` uses angr. They share a common interface where you may specify a number of workers and an output directory for saving backend-generated test cases.
@@ -69,7 +69,7 @@ The `virtualenv`-enabled `$PATH` should now include two executables: `deepstate`
 You can check your build using the test binaries that were (by default) built and emitted to `deepstate/build/examples`. For example, to use angr to symbolically execute the `IntegerOverflow` test harness with 4 workers, saving generated test cases in a directory called `out`, you would invoke:
 
 ```shell
-$ deepstate-angr --num_workers 4 --output_test_dir out $DEEPSTATE/build/examples/IntegerOverflow
+deepstate-angr --num_workers 4 --output_test_dir out $DEEPSTATE/build/examples/IntegerOverflow
 ```
 
  The resulting `out` directory should look something like:
