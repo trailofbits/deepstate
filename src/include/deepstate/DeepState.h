@@ -605,6 +605,8 @@ static int DeepState_RunSingleSavedTestCase(void) {
 	break;
       }
     } else {
+      DeepState_LogFormat(DeepState_LogInfo,
+			  "No test specified, defaulting to first test");
       break;
     }
   }

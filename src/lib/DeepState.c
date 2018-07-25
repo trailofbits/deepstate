@@ -29,8 +29,8 @@ DEFINE_uint(num_workers, 1,
             "Number of workers to spawn for testing and test generation.");
 
 DEFINE_string(input_test_dir, "", "Directory of saved tests to run.");
+DEFINE_string(input_which_test, "", "Test to use with --input_test_file.");
 DEFINE_string(input_test_file, "", "Saved test to run.");
-DEFINE_string(input_which_test, "", "Test that saved file is for.");
 DEFINE_string(output_test_dir, "", "Directory where tests will be saved.");
 
 DEFINE_bool(take_over, false, "Replay test cases in take-over mode.");
