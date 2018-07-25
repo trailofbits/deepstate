@@ -438,6 +438,7 @@ class DeepState(object):
         return
 
     expr_ea = self.concretize(expr_ea, constrain=True)
+    file_ea = self.concretize(file_ea, constrain=True)    
     constraint = arg != 0
     if not self.add_constraint(constraint):
       expr, _ = self.read_c_string(expr_ea, concretize=False)
