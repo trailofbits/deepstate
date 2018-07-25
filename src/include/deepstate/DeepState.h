@@ -609,6 +609,13 @@ static int DeepState_RunSingleSavedTestCase(void) {
     }
   }
 
+  if (test == NULL) {
+    DeepState_LogFormat(DeepState_LogInfo,
+                        "Could not find matching test for %s",
+                        FLAGS_input_which_test);
+    return 0;
+  }
+
   enum DeepState_TestRunResult result =
     DeepState_RunSavedTestCase(test, "", FLAGS_input_test_file);
 
