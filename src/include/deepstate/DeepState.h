@@ -55,6 +55,8 @@
 DEEPSTATE_BEGIN_EXTERN_C
 
 DECLARE_string(input_test_dir);
+DECLARE_string(input_test_file);
+DECLARE_string(input_which_test);
 DECLARE_string(output_test_dir);
 
 DECLARE_bool(take_over);
@@ -605,6 +607,26 @@ static int DeepState_RunSavedTestCases(void) {
   return num_failed_tests;
 }
 
+/* Run test `FLAGS_input_which_test` with saved input from `FLAGS_input_test_file`.
+ *
+ * For each test unit and case, see if there are input files in the
+ * expected directories. If so, use them to initialize
+ * `DeepState_Input`, then run the test. If not, skip the test. */
+static int DeepState_RunSavedTestCases(void) {
+  int num_failed_tests = 0;
+  struct DeepState_TestInfo *test = NULL;
+
+  DeepState_Setup();
+
+  for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
+    num_failed_tests += DeepState_RunSavedCasesForTest(test);
+  }
+
+  DeepState_Teardown();
+
+  return num_failed_tests;
+}
+
 /* Start DeepState and run the tests. Returns the number of failed tests. */
 static int DeepState_Run(void) {
   if (!DeepState_OptionsAreInitialized) {
@@ -614,6 +636,10 @@ static int DeepState_Run(void) {
   if (HAS_FLAG_input_test_dir) {
     return DeepState_RunSavedTestCases();
   }
+
+  if (HAS_FLAG_input_test_file) {
+    return DeepState_RunSingleSavedTestCase();
+  }  
 
   int num_failed_tests = 0;
   int use_drfuzz = getenv("DYNAMORIO_EXE_PATH") != NULL;
