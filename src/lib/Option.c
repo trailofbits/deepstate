@@ -21,6 +21,8 @@
 #include <stdio.h>
 #include <string.h>
 
+DEFINE_bool(help, false, "Show the usage message.");
+
 enum {
   kMaxNumOptions = 32,
   kMaxOptionLength = 1024 - 1
@@ -204,6 +206,11 @@ void DeepState_InitOptions(int argc, ...) {
   ProcessOptionString();
   DeepState_OptionsAreInitialized = 1;
   ProcessPendingOptions();
+
+  if (FLAGS_help) {
+    DeepState_PrintAllOptions(argv[0]);
+    exit(0);
+  }
 }
 
 enum {
@@ -239,24 +246,31 @@ static const char *BufferDocString(char *buff, const char *docstring) {
 
 /* Works for --help option: print out each options along with their document. */
 void DeepState_PrintAllOptions(const char *prog_name) {
-  fprintf(stderr, "Usage: %s <options>\n\n", prog_name);
-
+  char buff[4096];
+  ssize_t write_len = 0;
   char line_buff[kLineLength];
   struct DeepState_Option *option = DeepState_Options;
   struct DeepState_Option *next_option = NULL;
+
+  sprintf(buff, "Usage: %s <options>\n\n", prog_name);
+  write_len = write(STDERR_FILENO, buff, strlen(buff));
+
   for (; option != NULL; option = next_option) {
     next_option = option->next;
 
-    fprintf(stderr, "--%s", option->name);
+    sprintf(buff, "--%s", option->name);
+    write_len = write(STDERR_FILENO, buff, strlen(buff));
+
     const char *docstring = option->docstring;
     do {
       docstring = BufferDocString(line_buff, docstring);
-      fprintf(stderr, "\n        %s", line_buff);
+      sprintf(buff, "\n        %s", line_buff);
+      write_len = write(STDERR_FILENO, buff, strlen(buff));
     } while (*docstring);
-    fprintf(stderr, "\n\n");
+    write_len = write(STDERR_FILENO, "\n\n", 2);
   }
+  (void) write_len;  /* Deal with -Wunused-result. */
 }
-
 
 /* Initialize an option. */
 void DeepState_AddOption(struct DeepState_Option *option) {
