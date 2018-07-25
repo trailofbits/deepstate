@@ -592,7 +592,7 @@ static int DeepState_RunSavedCasesForTest(struct DeepState_TestInfo *test) {
  * For each test unit and case, see if there are input files in the
  * expected directories. If so, use them to initialize
  * `DeepState_Input`, then run the test. If not, skip the test. */
-static int DeepState_RunSavedTestCases(void) {
+static int DeepState_RunSingleSavedTestCase(void) {
   int num_failed_tests = 0;
   struct DeepState_TestInfo *test = NULL;
 
