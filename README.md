@@ -12,7 +12,7 @@ The [2018 IEEE Cybersecurity Development Conference](https://secdev.ieee.org/201
 
 * Tests look like Google Test, but can use symbolic execution/fuzzing to generate data (parameterized unit testing)
   * Easier to learn than binary analysis tools/fuzzers, but provides similar functionality
-* Already supports Manticore, Angr, Dr. Fuzz; more back-ends likely in future
+* Already supports Manticore, Angr, Dr. Fuzz, file-based fuzzing with e.g., AFL; more back-ends likely in future
   * Switch test generation tool without re-writing test harness
     * Work around show-stopper bugs
     * Find out which tool works best for your code under test
