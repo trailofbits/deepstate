@@ -623,7 +623,7 @@ static int DeepState_RunSingleSavedTestCase(void) {
   enum DeepState_TestRunResult result =
     DeepState_RunSavedTestCase(test, "", FLAGS_input_test_file);
 
-  if (result != DeepState_TestRunPass) {
+  if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {    
     if (FLAGS_abort_on_fail) {
       abort();
     }
@@ -685,7 +685,7 @@ static int DeepState_RunSingleSavedTestDir(void) {
       enum DeepState_TestRunResult result =
         DeepState_RunSavedTestCase(test, FLAGS_input_test_files_dir, dp->d_name);
 
-      if (result != DeepState_TestRunPass) {
+      if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
 	if (FLAGS_abort_on_fail) {
 	  abort();
 	}
