@@ -83,7 +83,7 @@ deepstate-angr --num_workers 4 --output_test_dir out $DEEPSTATE/build/examples/I
     └── SignedInteger_MultiplicationOverflow
         ├── 6a1a90442b4d898cb3fac2800fef5baf.fail
         └── f1d3ff8443297732862df21dc4e57262.pass
-		```
+```
 
 ## Usage
 
