@@ -83,11 +83,52 @@ deepstate-angr --num_workers 4 --output_test_dir out $DEEPSTATE/build/examples/I
     └── SignedInteger_MultiplicationOverflow
         ├── 6a1a90442b4d898cb3fac2800fef5baf.fail
         └── f1d3ff8443297732862df21dc4e57262.pass
- ```
+		```
 
 ## Usage
 
 DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation is in the [examples](/examples) and in our [paper](https://agroce.github.io/bar18.pdf).
+
+## Fuzzing
+
+DeepState now can be used with a file-based fuzzer (e.g. AFL).  There
+are a few steps to this.  First, compile DeepState itself with any
+needed instrumentation.  E.g., to use it with AFL, you might want to add
+something like:
+
+```
+SET(CMAKE_C_COMPILER /usr/local/bin/afl-gcc)
+SET(CMAKE_CXX_COMPILER /usr/local/bin/afl-g++)
+```
+
+to `deepstate/CMakeLists.txt`.  Second, do the same for your DeepState
+test harness and any code it links to you want instrumented.  Finally, run the fuzzing via the
+interface to replay test files.  For example, to fuzz the `OneOf`
+example, if we were in the `deepstate/build/examples` directory, you
+would do something like:
+
+```shell
+afl-fuzz -d -i corpus -o afl_OneOf -- ./OneOf --input_test_file @@ --abort_on_fail
+```
+
+where `corpus` contains at least one file to start fuzzing from.  The
+file needs to be smaller than the DeepState input size limit, but has
+few other limitations (for AFL it should also not cause test
+failure).  The `abort_on_fail` flag makes DeepState crashes and failed
+tests appear as crashes to the fuzzer.
+
+To replay the tests from AFL:
+
+```shell
+./OneOf --input_test_files_dir afl_OneOf/crashes
+./OneOf --input_test_files_dir afl_OneOf/queue
+```
+
+Finally, if an example has more than one test, you need to specify,
+with a fully qualified name (e.g.,
+`Arithmetic_InvertibleMultiplication_CanFail`), which test to run,
+using the `--input_which_test` flag to the binary.  By
+default, DeepState will run the first test defined.
 
 ## Contributing
 

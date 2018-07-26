@@ -29,9 +29,13 @@ DEFINE_uint(num_workers, 1,
             "Number of workers to spawn for testing and test generation.");
 
 DEFINE_string(input_test_dir, "", "Directory of saved tests to run.");
+DEFINE_string(input_which_test, "", "Test to use with --input_test_file or --input_test_files_dir.");
+DEFINE_string(input_test_file, "", "Saved test to run.");
+DEFINE_string(input_test_files_dir, "", "Directory of saved test files to run (flat structure).");
 DEFINE_string(output_test_dir, "", "Directory where tests will be saved.");
 
 DEFINE_bool(take_over, false, "Replay test cases in take-over mode.");
+DEFINE_bool(abort_on_fail, false, "Abort on file replay failure (useful in file fuzzing).");
 
 /* Pointer to the last registers DeepState_TestInfo data structure */
 struct DeepState_TestInfo *DeepState_LastTestInfo = NULL;
