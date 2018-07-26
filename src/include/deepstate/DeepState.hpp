@@ -329,7 +329,7 @@ template <typename... FuncTys>
 inline static void OneOf(FuncTys&&... funcs) {
   std::function<void(void)> func_arr[sizeof...(FuncTys)] = {funcs...};
   unsigned index = DeepState_UIntInRange(
-      0U, static_cast<unsigned>(sizeof...(funcs)));
+      0U, static_cast<unsigned>(sizeof...(funcs))-1);
   func_arr[Pump(index, sizeof...(funcs))]();
 }
 
