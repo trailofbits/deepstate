@@ -56,10 +56,12 @@ DEEPSTATE_BEGIN_EXTERN_C
 
 DECLARE_string(input_test_dir);
 DECLARE_string(input_test_file);
+DECLARE_string(input_test_files_dir);
 DECLARE_string(input_which_test);
 DECLARE_string(output_test_dir);
 
 DECLARE_bool(take_over);
+DECLARE_bool(abort_on_fail);
 
 enum {
   DeepState_InputSize = 8192
@@ -622,10 +624,77 @@ static int DeepState_RunSingleSavedTestCase(void) {
     DeepState_RunSavedTestCase(test, "", FLAGS_input_test_file);
 
   if (result != DeepState_TestRunPass) {
+    if (FLAGS_abort_on_fail) {
+      abort();
+    }
     num_failed_tests++;
   }
 
   DeepState_Teardown();
+
+  return num_failed_tests;
+}
+
+/* Run tests from `FLAGS_input_test_files_dir`, under `FLAGS_input_which_test`
+ * or first test, if not defined. */
+static int DeepState_RunSingleSavedTestDir(void) {
+  int num_failed_tests = 0;
+  struct DeepState_TestInfo *test = NULL;  
+
+  DeepState_Setup();
+
+  for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
+    if (HAS_FLAG_input_which_test) {
+      if (strncmp(FLAGS_input_which_test, test->test_name, strlen(FLAGS_input_which_test)) == 0) {
+	break;
+      }
+    } else {
+      DeepState_LogFormat(DeepState_LogInfo,
+			  "No test specified, defaulting to first test");
+      break;
+    }
+  }
+
+  if (test == NULL) {
+    DeepState_LogFormat(DeepState_LogInfo,
+                        "Could not find matching test for %s",
+                        FLAGS_input_which_test);
+    return 0;
+  }
+
+  struct dirent *dp;
+  DIR *dir_fd;
+
+  struct stat path_stat;
+
+  dir_fd = opendir(FLAGS_input_test_files_dir);
+  if (dir_fd == NULL) {
+    DeepState_LogFormat(DeepState_LogInfo,
+                        "No tests to run.");
+    return 0;
+  }
+
+  /* Read generated test cases and run a test for each file found. */
+  while ((dp = readdir(dir_fd)) != NULL) {
+    size_t path_len = 2 + sizeof(char) * (strlen(FLAGS_input_test_files_dir) + strlen(dp->d_name));
+    char *path = (char *) malloc(path_len);
+    snprintf(path, path_len, "%s/%s", FLAGS_input_test_files_dir, dp->d_name);    
+    stat(path, &path_stat);
+    
+    if (S_ISREG(path_stat.st_mode)) {
+      enum DeepState_TestRunResult result =
+        DeepState_RunSavedTestCase(test, FLAGS_input_test_files_dir, dp->d_name);
+
+      if (result != DeepState_TestRunPass) {
+	if (FLAGS_abort_on_fail) {
+	  abort();
+	}
+	
+        num_failed_tests++;
+      }
+    }
+  }
+  closedir(dir_fd);
 
   return num_failed_tests;
 }
@@ -662,6 +731,10 @@ static int DeepState_Run(void) {
 
   if (HAS_FLAG_input_test_file) {
     return DeepState_RunSingleSavedTestCase();
+  }
+
+  if (HAS_FLAG_input_test_files_dir) {
+    return DeepState_RunSingleSavedTestDir();
   }  
 
   int num_failed_tests = 0;
