@@ -719,39 +719,6 @@ static int DeepState_RunSavedTestCases(void) {
   return num_failed_tests;
 }
 
-extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
-  if (Size > sizeof(DeepState_Input)) {
-    return 0; // Just ignore any too-big inputs
-  }
-  
-  struct DeepState_TestInfo *test = NULL;
-
-  DeepState_Setup();
-
-#ifdef LIBFUZZER_WHICH_TEST
-  for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
-    if (strncmp(LIBFUZZER_WHICH_TEST, test->test_name, strlen(FLAGS_input_which_test)) == 0) {
-      break;
-    }
-  }
-#else
-  test = DeepState_FirstTest();
-#endif
-
-  memset((void *) DeepState_Input, 0, sizeof(DeepState_Input));
-  DeepState_InputIndex = 0;
-
-  memcpy((void *) DeepState_Input, (void *) Data, Size);
-
-  DeepState_Begin(test);
-
-  enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
-
-  DeepState_Teardown();
-  
-  return 0;  // Non-zero return values are reserved for future use.
-}
-
 /* Start DeepState and run the tests. Returns the number of failed tests. */
 static int DeepState_Run(void) {
   if (!DeepState_OptionsAreInitialized) {
