@@ -719,7 +719,7 @@ static int DeepState_RunSavedTestCases(void) {
   return num_failed_tests;
 }
 
-int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
+extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   if (Size > sizeof(DeepState_Input)) {
     return 0; // Just ignore any too-big inputs
   }
