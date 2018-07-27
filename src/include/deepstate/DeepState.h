@@ -719,7 +719,7 @@ static int DeepState_RunSavedTestCases(void) {
   return num_failed_tests;
 }
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
+extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   return 0;  // Non-zero return values are reserved for future use.
 }
 
