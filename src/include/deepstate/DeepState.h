@@ -719,6 +719,10 @@ static int DeepState_RunSavedTestCases(void) {
   return num_failed_tests;
 }
 
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
+  return 0;  // Non-zero return values are reserved for future use.
+}
+
 /* Start DeepState and run the tests. Returns the number of failed tests. */
 static int DeepState_Run(void) {
   if (!DeepState_OptionsAreInitialized) {
