@@ -130,6 +130,18 @@ with a fully qualified name (e.g.,
 using the `--input_which_test` flag to the binary.  By
 default, DeepState will run the first test defined.
 
+You can compile with `afl-clang-fast` and `afl-clang-fast++` for
+deferred instrumentation.  You'll need code like:
+
+```
+#ifdef __AFL_HAVE_MANUAL_CONTROL
+  __AFL_INIT();
+#endif
+```
+
+just before the call to `DeepState_Run()` (which reads the entire
+input file) in your `main`.
+
 ## Contributing
 
 All accepted PRs are awarded bounties by Trail of Bits. Join the #deepstate channel on the [Empire Hacking Slack](https://empireslacking.herokuapp.com/) to discuss ongoing development and claim bounties. Check the [good first issue](https://github.com/trailofbits/deepstate/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) label for suggested contributions.
