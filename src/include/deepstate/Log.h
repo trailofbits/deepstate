@@ -23,6 +23,8 @@
 
 DEEPSTATE_BEGIN_EXTERN_C
 
+extern int DeepState_UsingLibFuzzer;
+
 struct DeepState_Stream;
 
 struct DeepState_VarArgs {

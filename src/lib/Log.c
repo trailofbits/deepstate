@@ -64,6 +64,8 @@ enum {
   DeepState_LogBufSize = 4096
 };
 
+int DeepState_UsingLibFuzzer = 0;
+
 char DeepState_LogBuf[DeepState_LogBufSize + 1] = {};
 
 /* Log a C string. */
@@ -144,7 +146,17 @@ int __vprintf_chk(int flag, const char *format, va_list args) {
 
 DEEPSTATE_NOINLINE
 int vfprintf(FILE *file, const char *format, va_list args) {
-  if (stderr == file) {
+  if (DeepState_UsingLibFuzzer) {
+    if (stderr == file) {
+      // Silence DeepState output
+      // DeepState_LogVFormat(DeepState_LogDebug, format, args);
+    } else if (stdout == file) {
+      // Silence DeepState output      
+      // DeepState_LogVFormat(DeepState_LogInfo, format, args);
+    } else {
+      DeepState_LogVFormat(DeepState_LogInfo, format, args);
+    }
+  } else if (stderr == file) {
     DeepState_LogVFormat(DeepState_LogDebug, format, args);
   } else if (stdout == file) {
     DeepState_LogVFormat(DeepState_LogInfo, format, args);
