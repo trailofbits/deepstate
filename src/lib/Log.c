@@ -92,6 +92,20 @@ void DeepState_LogVFormat(enum DeepState_LogLevel level,
                           const char *format, va_list args) {
   struct DeepState_VarArgs va;
   va_copy(va.args, args);
+  if (DeepState_UsingLibFuzzer && (level < DeepState_Fatal)) {
+    return;
+  }
+  DeepState_LogStream(level);
+  DeepState_StreamVFormat(level, format, va.args);
+  DeepState_LogStream(level);
+}
+
+/* Log some formatted output. */
+DEEPSTATE_NOINLINE
+void DeepState_LogVFormatLLVM(enum DeepState_LogLevel level,
+			      const char *format, va_list args) {
+  struct DeepState_VarArgs va;
+  va_copy(va.args, args);
   DeepState_LogStream(level);
   DeepState_StreamVFormat(level, format, va.args);
   DeepState_LogStream(level);
@@ -157,7 +171,7 @@ int vfprintf(FILE *file, const char *format, va_list args) {
 		    "vfprintf with non-stdout/stderr stream follows:");
       DeepState_LogVFormat(DeepState_LogInfo, format, args);
     } else {
-      DeepState_LogVFormat(DeepState_LogInfo, format, args);
+      DeepState_LogVFormatLLVM(DeepState_LogInfo, format, args);
     }
 
   }
