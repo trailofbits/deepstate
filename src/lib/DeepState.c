@@ -551,6 +551,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   
   struct DeepState_TestInfo *test = NULL;
 
+  DeepState_InitOptions(0, "");  
   DeepState_Setup();
 
 #ifdef LIBFUZZER_WHICH_TEST
