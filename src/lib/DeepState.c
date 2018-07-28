@@ -549,7 +549,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     return 0; // Just ignore any too-big inputs
   }
 
-  printf("LLVM fuzzing with input of size %u\n", Size);
+  printf("LLVM fuzzing with input of size %ul\n", Size);
 
   struct DeepState_TestInfo *test = NULL;
 
