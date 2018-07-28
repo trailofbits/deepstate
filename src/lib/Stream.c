@@ -563,6 +563,10 @@ static char DeepState_Format[DeepState_StreamSize + 1];
  * into a */
 void DeepState_StreamVFormat(enum DeepState_LogLevel level,
                              const char *format_, va_list args) {
+  if (DeepState_UsingLibFuzzer && (level < DeepState_LogCritical)) {
+    return; // just silence anything less than a critical
+  }
+  
   struct DeepState_VarArgs va;
   va_copy(va.args, args);
 
