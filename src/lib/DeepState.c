@@ -577,6 +577,10 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 
   enum DeepState_TestRunResult result = DeepState_RunTestLLVM(test);
 
+  if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
+    abort();
+  }
+
   DeepState_Teardown();
   DeepState_CurrentTestRun = NULL;
   free(mem);
