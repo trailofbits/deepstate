@@ -554,7 +554,9 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   struct DeepState_TestInfo *test = NULL;
 
   DeepState_InitOptions(0, "");  
-  DeepState_Setup();
+  //DeepState_Setup(); we want to do our own, simpler, memory management
+  void *mem = malloc(sizeof(struct DeepState_TestRunInfo));
+  DeepState_CurrentTestRun = (struct DeepState_TestRunInfo *) mem;
 
 #ifdef LIBFUZZER_WHICH_TEST
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
@@ -576,6 +578,8 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   enum DeepState_TestRunResult result = DeepState_RunTestLLVM(test);
 
   DeepState_Teardown();
+  DeepState_CurrentTestRun = NULL;
+  free(mem);
   
   return 0;  // Non-zero return values are reserved for future use.
 }
