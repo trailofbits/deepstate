@@ -53,6 +53,8 @@ static const char *DeepState_LogLevelStr(enum DeepState_LogLevel level) {
       return "WARNING";
     case DeepState_LogError:
       return "ERROR";
+    case DeepState_LogFuzzer:
+      return "FUZZER";
     case DeepState_LogFatal:
       return "FATAL";
     default:
@@ -71,6 +73,9 @@ char DeepState_LogBuf[DeepState_LogBufSize + 1] = {};
 /* Log a C string. */
 DEEPSTATE_NOINLINE
 void DeepState_Log(enum DeepState_LogLevel level, const char *str) {
+  if (DeepState_UsingLibFuzzer && (level < DeepState_LogFatal)) {
+    return;
+  }
   memset(DeepState_LogBuf, 0, DeepState_LogBufSize);
   snprintf(DeepState_LogBuf, DeepState_LogBufSize, "%s: %s\n",
            DeepState_LogLevelStr(level), str);
@@ -165,15 +170,14 @@ int vfprintf(FILE *file, const char *format, va_list args) {
   } else if (stdout == file) {
     DeepState_LogVFormat(DeepState_LogInfo, format, args);
   } else {
-    if (!DeepState_UsingLibFuzzer) {
-      DeepState_LogStream(DeepState_LogWarning);
-      DeepState_Log(DeepState_LogWarning,
-		    "vfprintf with non-stdout/stderr stream follows:");
-      DeepState_LogVFormat(DeepState_LogInfo, format, args);
-    } else {
-      DeepState_LogVFormatLLVM(DeepState_LogInfo, format, args);
-    }
-
+#ifndef LIBFUZZER
+    DeepState_LogStream(DeepState_LogWarning);
+    DeepState_Log(DeepState_LogWarning,
+		  "vfprintf with non-stdout/stderr stream follows:");
+    DeepState_LogVFormat(DeepState_LogInfo, format, args);    
+#else
+    DeepState_LogVFormat(DeepState_LogFuzzer, format, args);    
+#endif
   }
   return 0;
 }
