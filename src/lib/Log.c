@@ -189,7 +189,6 @@ int vfprintf(FILE *file, const char *format, va_list args) {
       DeepState_LogVFormat(DeepState_LogFuzzer, format, args);      
     }
   */
-  }
   return 0;
 }
 
