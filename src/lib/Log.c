@@ -146,24 +146,16 @@ int __vprintf_chk(int flag, const char *format, va_list args) {
 
 DEEPSTATE_NOINLINE
 int vfprintf(FILE *file, const char *format, va_list args) {
-  if (DeepState_UsingLibFuzzer) {
-    if (stderr == file) {
-      // Silence DeepState output
-      // DeepState_LogVFormat(DeepState_LogDebug, format, args);
-    } else if (stdout == file) {
-      // Silence DeepState output      
-      // DeepState_LogVFormat(DeepState_LogInfo, format, args);
-    } else {
-      DeepState_LogVFormat(DeepState_LogInfo, format, args);
-    }
-  } else if (stderr == file) {
+  if (stderr == file) {
     DeepState_LogVFormat(DeepState_LogDebug, format, args);
   } else if (stdout == file) {
     DeepState_LogVFormat(DeepState_LogInfo, format, args);
   } else {
-    DeepState_LogStream(DeepState_LogWarning);
-    DeepState_Log(DeepState_LogWarning,
-                  "vfprintf with non-stdout/stderr stream follows:");
+    if (!DeepState_UsingLibFuzzer) {
+      DeepState_LogStream(DeepState_LogWarning);
+      DeepState_Log(DeepState_LogWarning,
+		    "vfprintf with non-stdout/stderr stream follows:");
+    }
     DeepState_LogVFormat(DeepState_LogInfo, format, args);
   }
   return 0;
