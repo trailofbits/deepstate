@@ -491,6 +491,48 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
   }
 }
 
+/* Run a test case, but in libFuzzer, so not inside a fork. */
+static void DeepState_RunTestLLVM(struct DeepState_TestInfo *test) {
+  /* Run the test. */
+  if (!setjmp(DeepState_ReturnToRun)) {
+    /* Convert uncaught C++ exceptions into a test failure. */
+#if defined(__cplusplus) && defined(__cpp_exceptions)
+    try {
+#endif  /* __cplusplus */
+
+      test->test_func();  /* Run the test function. */
+      return(DeepState_TestRunPass);
+
+#if defined(__cplusplus) && defined(__cpp_exceptions)
+    } catch(...) {
+      DeepState_Fail();
+    }
+#endif  /* __cplusplus */
+
+    /* We caught a failure when running the test. */
+  } else if (DeepState_CatchFail()) {
+    DeepState_LogFormat(DeepState_LogError, "Failed: %s", test->test_name);
+    if (HAS_FLAG_output_test_dir) {
+      DeepState_SaveFailingTest();
+    }
+    return(DeepState_TestRunFail);
+
+    /* The test was abandoned. We may have gotten soft failures before
+     * abandoning, so we prefer to catch those first. */
+  } else if (DeepState_CatchAbandoned()) {
+    DeepState_LogFormat(DeepState_LogError, "Abandoned: %s", test->test_name);
+    return(DeepState_TestRunAbandon);
+
+    /* The test passed. */
+  } else {
+    DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
+    if (HAS_FLAG_output_test_dir) {
+      DeepState_SavePassingTest();
+    }
+    return(DeepState_TestRunPass);
+  }
+}
+
 /* Fork and run `test`. */
 static enum DeepState_TestRunResult
 DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {

@@ -573,7 +573,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 
   DeepState_Begin(test);
 
-  enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
+  enum DeepState_TestRunResult result = DeepState_RunTestLLVM(test);
 
   DeepState_Teardown();
   
