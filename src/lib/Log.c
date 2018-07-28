@@ -171,7 +171,7 @@ int vfprintf(FILE *file, const char *format, va_list args) {
     DeepState_LogVFormat(DeepState_LogInfo, format, args);
   } else {
     if (!DeepState_UsingLibFuzzer) {
-      if (strnstr(format, "INFO: ", 7) == 0) {
+      if (strstr(format, "INFO: ") == 0) {
 	// Assume such a string to an nonstd target is libFuzzer
 	DeepState_LogVFormat(DeepState_LogFuzzer, format, args);
       } else {
