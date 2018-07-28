@@ -492,7 +492,7 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
 }
 
 /* Run a test case, but in libFuzzer, so not inside a fork. */
-static void DeepState_RunTestLLVM(struct DeepState_TestInfo *test) {
+static int DeepState_RunTestLLVM(struct DeepState_TestInfo *test) {
   /* Run the test. */
   if (!setjmp(DeepState_ReturnToRun)) {
     /* Convert uncaught C++ exceptions into a test failure. */
