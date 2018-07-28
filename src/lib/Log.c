@@ -157,7 +157,7 @@ int vfprintf(FILE *file, const char *format, va_list args) {
 		    "vfprintf with non-stdout/stderr stream follows:");
       DeepState_LogVFormat(DeepState_LogInfo, format, args);      
     } else {
-      DeepState_LogVFormat(DeepState_LogCritical, format, args);      
+      printf(format, args);      
     }
 
   }
