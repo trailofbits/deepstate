@@ -171,10 +171,15 @@ int vfprintf(FILE *file, const char *format, va_list args) {
     DeepState_LogVFormat(DeepState_LogInfo, format, args);
   } else {
     if (!DeepState_UsingLibFuzzer) {
-      DeepState_LogStream(DeepState_LogWarning);
-      DeepState_Log(DeepState_LogWarning,
-		    "vfprintf with non-stdout/stderr stream follows:");
-      DeepState_LogVFormat(DeepState_LogInfo, format, args);      
+      if (strnstr(format, "INFO: ", 7) == 0) {
+	// Assume such a string to an nonstd target is libFuzzer
+	DeepState_LogVFormat(DeepState_LogFuzzer, format, args);
+      } else {
+	DeepState_LogStream(DeepState_LogWarning);
+	DeepState_Log(DeepState_LogWarning,
+		      "vfprintf with non-stdout/stderr stream follows:");
+	DeepState_LogVFormat(DeepState_LogInfo, format, args);
+      }
     } else {
       DeepState_LogVFormat(DeepState_LogFuzzer, format, args);      
     }
