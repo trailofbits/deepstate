@@ -54,7 +54,7 @@ static const char *DeepState_LogLevelStr(enum DeepState_LogLevel level) {
     case DeepState_LogError:
       return "ERROR";
     case DeepState_LogFuzzer:
-      return "FUZZER";
+      return "EXTERNAL";
     case DeepState_LogFatal:
       return "FATAL";
     default:
@@ -170,8 +170,13 @@ int vfprintf(FILE *file, const char *format, va_list args) {
   } else if (stdout == file) {
     DeepState_LogVFormat(DeepState_LogInfo, format, args);
   } else {
+    DeepState_LogVFormat(DeepState_LogFuzzer, format, args);
+  }
+  /*
+    Old code.  Now let's just log everything with odd dest as "external."
+
     if (!DeepState_UsingLibFuzzer) {
-      if (strstr(format, "INFO: ") != NULL) {
+      if (strstr(format, "INFO:") != NULL) {
 	// Assume such a string to an nonstd target is libFuzzer
 	DeepState_LogVFormat(DeepState_LogFuzzer, format, args);
       } else {
@@ -183,6 +188,7 @@ int vfprintf(FILE *file, const char *format, va_list args) {
     } else {
       DeepState_LogVFormat(DeepState_LogFuzzer, format, args);      
     }
+  */
   }
   return 0;
 }
