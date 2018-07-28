@@ -73,7 +73,7 @@ char DeepState_LogBuf[DeepState_LogBufSize + 1] = {};
 /* Log a C string. */
 DEEPSTATE_NOINLINE
 void DeepState_Log(enum DeepState_LogLevel level, const char *str) {
-  if (DeepState_UsingLibFuzzer && (level < DeepState_LogFatal)) {
+  if (DeepState_UsingLibFuzzer && (level != DeepState_LogFuzzer)) {
     return;
   }
   memset(DeepState_LogBuf, 0, DeepState_LogBufSize);
@@ -97,7 +97,7 @@ void DeepState_LogVFormat(enum DeepState_LogLevel level,
                           const char *format, va_list args) {
   struct DeepState_VarArgs va;
   va_copy(va.args, args);
-  if (DeepState_UsingLibFuzzer && (level < DeepState_LogFatal)) {
+  if (DeepState_UsingLibFuzzer && (level != DeepState_LogFuzzer)) {
     return;
   }
   DeepState_LogStream(level);
