@@ -37,7 +37,7 @@ enum DeepState_LogLevel {
   DeepState_LogWarning = 2,
   DeepState_LogWarn = DeepState_LogWarning,
   DeepState_LogError = 3,
-  DeepState_LogFuzzer = 4,
+  DeepState_LogExternal = 4,
   DeepState_LogFatal = 5,
   DeepState_LogCritical = DeepState_LogFatal,
 };
