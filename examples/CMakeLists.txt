@@ -16,8 +16,14 @@
 add_executable(Crash Crash.cpp)
 target_link_libraries(Crash deepstate)
 
-add_executable(OneOf OneOf.cpp)
+add_executable(OneOf OneOf.cpp) 
 target_link_libraries(OneOf deepstate)
+
+if (BUILD_LIBFUZZER)
+   add_executable(OneOfLF OneOf.cpp) 
+   target_link_libraries(OneOf_LF deepstate_LF)
+   set_target_properties(OneOf_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
+endif()
 
 add_executable(Fixture Fixture.cpp)
 target_link_libraries(Fixture deepstate)

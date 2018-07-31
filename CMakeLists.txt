@@ -22,7 +22,7 @@ set(BUILD_LIBFUZZER "$ENV{BUILD_LIBFUZZER}")
 if (BUILD_LIBFUZZER)
     SET(CMAKE_C_COMPILER clang-6.0)
     SET(CMAKE_CXX_COMPILER clang++-6.0)
-endif ()
+endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -45,7 +45,7 @@ set(CMAKE_CXX_EXTENSIONS ON)
 if (NOT WIN32)
   set(CMAKE_C_STANDARD 99)
   set(CMAKE_CXX_STANDARD 11)
-endif ()
+endif()
 
 add_library(${PROJECT_NAME} STATIC
   src/lib/DeepState.c
@@ -109,7 +109,7 @@ if (BUILD_LIBFUZZER)
        LIBRARY DESTINATION lib
        ARCHIVE DESTINATION lib
     )
-endif ()
+endif()
 
 
 set(SETUP_PY_IN "${CMAKE_SOURCE_DIR}/bin/setup.py.in")
