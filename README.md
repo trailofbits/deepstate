@@ -104,7 +104,7 @@ tests to examine the results, would look like:
 ```shell
 mkdir OneOf_corpus
 ./OneOf_LF OneOf_libFuzzer_corpus --runs 5000
-/OneOf --input_test_files_dir OneOf_libFuzzer_corpus
+./OneOf --input_test_files_dir OneOf_libFuzzer_corpus
 ```
 
 Use the `LIBFUZZER_WHICH_TEST`
