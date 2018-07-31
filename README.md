@@ -97,7 +97,9 @@ Because both DeepState and libFuzzer want to be `main`, this requires
 building a different executable for libFuzzer.  The `examples`
 directory shows how this can be done.  The libFuzzer executable works
 like any other libFuzzer executable, and the tests produced can be run
-using the normal DeepState executable.
+using the normal DeepState executable.  Use the `LIBFUZZER_WHICH_TEST`
+environment variable to control which test libFuzzer runs, using a
+fully qualified name (e.g., `Arithmetic_InvertibleMultiplication_CanFail`).
 
 ## Fuzzing with AFL
 
