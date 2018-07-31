@@ -692,7 +692,7 @@ static int DeepState_RunSingleSavedTestDir(void) {
       }
     } else {
       DeepState_LogFormat(DeepState_LogInfo,
-			  "No test specified, defaulting to first test");
+			  "No test specified, defaulting to last test defined");
       break;
     }
   }

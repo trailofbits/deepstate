@@ -89,9 +89,19 @@ deepstate-angr --num_workers 4 --output_test_dir out $DEEPSTATE/build/examples/I
 
 DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation is in the [examples](/examples) and in our [paper](https://agroce.github.io/bar18.pdf).
 
-## Fuzzing
+## Fuzzing with libFuzzer
 
-DeepState now can be used with a file-based fuzzer (e.g. AFL).  There
+If you install a recent-enough clang, and run `cmake` when you install
+with `BUILD_LIBFUZZER` defined, you can generate tests using LlibFuzzer.
+Because both DeepState and libFuzzer want to be `main`, this requires
+building a different executable for libFuzzer.  The `examples`
+directory shows how this can be done.  The libFuzzer executable works
+like any other libFuzzer executable, and the tests produced can be run
+using the normal DeepState executable.
+
+## Fuzzing with AFL
+
+DeepState can also be used with a file-based fuzzer (e.g. AFL).  There
 are a few steps to this.  First, compile DeepState itself with any
 needed instrumentation.  E.g., to use it with AFL, you might want to add
 something like:
@@ -128,7 +138,7 @@ Finally, if an example has more than one test, you need to specify,
 with a fully qualified name (e.g.,
 `Arithmetic_InvertibleMultiplication_CanFail`), which test to run,
 using the `--input_which_test` flag to the binary.  By
-default, DeepState will run the first test defined.
+default, DeepState will run the last test defined.
 
 You can compile with `afl-clang-fast` and `afl-clang-fast++` for
 deferred instrumentation.  You'll need code like:
