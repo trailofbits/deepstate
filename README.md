@@ -97,7 +97,17 @@ Because both DeepState and libFuzzer want to be `main`, this requires
 building a different executable for libFuzzer.  The `examples`
 directory shows how this can be done.  The libFuzzer executable works
 like any other libFuzzer executable, and the tests produced can be run
-using the normal DeepState executable.  Use the `LIBFUZZER_WHICH_TEST`
+using the normal DeepState executable.  For example, generating some
+tests of the `OneOf` example (up to 5,000 runs), then running those
+tests to examine the results, would look like:
+
+```shell
+mkdir OneOf_corpus
+./OneOf_LF OneOf_libFuzzer_corpus --runs 5000
+/OneOf --input_test_files_dir OneOf_libFuzzer_corpus
+```
+
+Use the `LIBFUZZER_WHICH_TEST`
 environment variable to control which test libFuzzer runs, using a
 fully qualified name (e.g., `Arithmetic_InvertibleMultiplication_CanFail`).
 
