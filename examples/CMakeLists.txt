@@ -75,9 +75,8 @@ if (BUILD_LIBFUZZER)
   add_executable(IntegerOverflow_Addition_LF IntegerArithmetic.cpp) 
    target_link_libraries(IntegerOverflow_Addition_LF deepstate_LF)
    target_link_libraries (IntegerOverflow_Addition_LF "-fsanitize=fuzzer")
-   set_target_properties(IntegerOverflow_Addition_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
    set_target_properties(IntegerOverflow_Addition_LF PROPERTIES COMPILE_DEFINITIONS
-       "LIBFUZZER_WHICH_TEST=\"SignedInteger_AdditionOverflow\"")
+       "LIBFUZZER,LIBFUZZER_WHICH_TEST=\"SignedInteger_AdditionOverflow\"")
 endif()
 
 add_executable(IntegerArithmetic IntegerArithmetic.cpp)
