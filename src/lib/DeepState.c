@@ -560,7 +560,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 
   test = DeepState_FirstTest();
   const char* which_test = getenv("LIBFUZZER_WHICH_TEST");
-  if (!(strnlen(which_test, 1024) == 0)) {
+  if (which_test != NULL) {
     for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
       if (strncmp(which_test, test->test_name, strnlen(which_test, 1024)) == 0) {
 	break;
