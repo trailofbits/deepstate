@@ -12,7 +12,7 @@ The [2018 IEEE Cybersecurity Development Conference](https://secdev.ieee.org/201
 
 * Tests look like Google Test, but can use symbolic execution/fuzzing to generate data (parameterized unit testing)
   * Easier to learn than binary analysis tools/fuzzers, but provides similar functionality
-* Already supports Manticore, Angr, Dr. Fuzz, file-based fuzzing with e.g., AFL; more back-ends likely in future
+* Already supports Manticore, Angr, libFuzzer, file-based fuzzing with e.g., AFL; more back-ends likely in future
   * Switch test generation tool without re-writing test harness
     * Work around show-stopper bugs
     * Find out which tool works best for your code under test
@@ -46,7 +46,7 @@ Runtime:
 
 ## Building on Ubuntu 16.04 (Xenial)
 
-```shell
+AFL```shell
 sudo apt update && sudo apt-get install build-essential gcc-multilib g++-multilib cmake python python-setuptools libffi-dev z3
 git clone https://github.com/trailofbits/deepstate deepstate
 mkdir deepstate/build && cd deepstate/build
@@ -109,7 +109,13 @@ mkdir OneOf_corpus
 
 Use the `LIBFUZZER_WHICH_TEST`
 environment variable to control which test libFuzzer runs, using a
-fully qualified name (e.g., `Arithmetic_InvertibleMultiplication_CanFail`).
+fully qualified name (e.g.,
+`Arithmetic_InvertibleMultiplication_CanFail`).
+
+One hint when using libFuzzer is to avoid dynamically allocating
+memory during a test, if that memory would not be freed on a test
+failure.  This will leak memory and libFuzzer will run out of memory
+very quickly in each fuzzing session.
 
 ## Fuzzing with AFL
 
