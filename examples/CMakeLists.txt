@@ -16,6 +16,13 @@
 add_executable(Crash Crash.cpp)
 target_link_libraries(Crash deepstate)
 
+if (BUILD_LIBFUZZER)
+   add_executable(Crash_LF Crash.cpp) 
+   target_link_libraries(Crash_LF deepstate_LF)
+   target_link_libraries (Crash_LF "-fsanitize=fuzzer")
+   set_target_properties(Crash_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
+endif()
+
 add_executable(OneOf OneOf.cpp) 
 target_link_libraries(OneOf deepstate)
 
@@ -29,23 +36,72 @@ endif()
 add_executable(Fixture Fixture.cpp)
 target_link_libraries(Fixture deepstate)
 
+if (BUILD_LIBFUZZER)
+   add_executable(Fixture_LF Fixture.cpp) 
+   target_link_libraries(Fixture_LF deepstate_LF)
+   target_link_libraries (Fixture_LF "-fsanitize=fuzzer")
+   set_target_properties(Fixture_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
+endif()
+
 add_executable(Primes Primes.cpp)
 target_link_libraries(Primes deepstate)
+
+if (BUILD_LIBFUZZER)
+   add_executable(Primes_LF Primes.cpp) 
+   target_link_libraries(Primes_LF deepstate_LF)
+   target_link_libraries (Primes_LF "-fsanitize=fuzzer")
+   set_target_properties(Primes_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
+endif()
 
 add_executable(Euler Euler.cpp)
 target_link_libraries(Euler deepstate)
 
+if (BUILD_LIBFUZZER)
+   add_executable(Euler_LF Euler.cpp) 
+   target_link_libraries(Euler_LF deepstate_LF)
+   target_link_libraries (Euler_LF "-fsanitize=fuzzer")
+   set_target_properties(Euler_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
+endif()
+
 add_executable(IntegerOverflow IntegerOverflow.cpp)
 target_link_libraries(IntegerOverflow deepstate)
+
+if (BUILD_LIBFUZZER)
+   add_executable(IntegerOverflow_LF IntegerOverflow.cpp) 
+   target_link_libraries(IntegerOverflow_LF deepstate_LF)
+   target_link_libraries (IntegerOverflow_LF "-fsanitize=fuzzer")
+   set_target_properties(IntegerOverflow_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
+endif()
 
 add_executable(IntegerArithmetic IntegerArithmetic.cpp)
 target_link_libraries(IntegerArithmetic deepstate)
 
+if (BUILD_LIBFUZZER)
+   add_executable(IntegerArithmetic_LF IntegerArithmetic.cpp) 
+   target_link_libraries(IntegerArithmetic_LF deepstate_LF)
+   target_link_libraries (IntegerArithmetic_LF "-fsanitize=fuzzer")
+   set_target_properties(IntegerArithmetic_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
+endif()
+
 add_executable(Lists Lists.cpp)
 target_link_libraries(Lists deepstate)
 
+if (BUILD_LIBFUZZER)
+   add_executable(Lists_LF Lists.cpp) 
+   target_link_libraries(Lists_LF deepstate_LF)
+   target_link_libraries (Lists_LF "-fsanitize=fuzzer")
+   set_target_properties(Lists_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
+endif()
+
 add_executable(StreamingAndFormatting StreamingAndFormatting.cpp)
 target_link_libraries(StreamingAndFormatting deepstate)
+
+if (BUILD_LIBFUZZER)
+   add_executable(StreamingAndFormatting_LF StreamingAndFormatting.cpp) 
+   target_link_libraries(StreamingAndFormatting_LF deepstate_LF)
+   target_link_libraries (StreamingAndFormatting_LF "-fsanitize=fuzzer")
+   set_target_properties(StreamingAndFormatting_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
+endif()
 
 add_executable(Squares Squares.c)
 target_link_libraries(Squares deepstate)

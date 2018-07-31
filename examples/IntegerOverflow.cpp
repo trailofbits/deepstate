@@ -40,7 +40,9 @@ TEST(SignedInteger, MultiplicationOverflow) {
       << x << " squared overflowed.";
 }
 
+#ifndef LIBFUZZER
 int main(int argc, char *argv[]) {
   DeepState_InitOptions(argc, argv);
   return DeepState_Run();
 }
+#endif

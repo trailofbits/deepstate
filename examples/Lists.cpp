@@ -31,7 +31,9 @@ TEST(Vector, DoubleReversal) {
   });
 }
 
+#ifndef LIBFUZZER
 int main(int argc, char *argv[]) {
   DeepState_InitOptions(argc, argv);
   DeepState_Run();
 }
+#endif
