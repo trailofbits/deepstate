@@ -558,6 +558,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   void *mem = malloc(sizeof(struct DeepState_TestRunInfo));
   DeepState_CurrentTestRun = (struct DeepState_TestRunInfo *) mem;
 
+  test = DeepState_FirstTest();
   const char* which_test = getenv("LIBFUZZER_WHICH_TEST");
   if (!(strnlen(which_test, 1024) == 0)) {
     for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
@@ -565,10 +566,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	break;
       }
     }
-  } else
-    test = DeepState_FirstTest();
   }
-
 
   memset((void *) DeepState_Input, 0, sizeof(DeepState_Input));
   DeepState_InputIndex = 0;
