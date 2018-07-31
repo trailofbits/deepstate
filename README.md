@@ -99,6 +99,10 @@ directory shows how this can be done.  The libFuzzer executable works
 like any other libFuzzer executable, and the tests produced can be run
 using the normal DeepState executable.
 
+Because libFuzzer controls `main`, you need a different executable for
+each test when using libFuzzer, which can be done as shown in the compilation for the
+`IntegerOverflow` example.
+
 ## Fuzzing with AFL
 
 DeepState can also be used with a file-based fuzzer (e.g. AFL).  There
