@@ -7,6 +7,7 @@ install:
 - pip install pyflakes
 - sudo apt-get -y update
 - sudo apt-get -y install build-essential gcc-multilib cmake python python-pip python-setuptools libffi-dev
+- sudo pip install z3-solver==4.5.1.0.post2
 - sudo pip install -U pip ; sudo pip install manticore
 - sudo pip uninstall -y Manticore || echo "Manticore not cached"
 - sudo pip install https://github.com/trailofbits/manticore/archive/last_python2.zip
