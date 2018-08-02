@@ -7,7 +7,6 @@ install:
 - pip install pyflakes
 - sudo apt-get -y update
 - sudo apt-get -y install build-essential gcc-multilib cmake python python-pip python-setuptools libffi-dev
-- sudo pip install claripy==7.8.6.16
 - sudo pip install -U pip ; sudo pip install manticore
 - sudo pip uninstall -y Manticore || echo "Manticore not cached"
 - sudo pip install https://github.com/trailofbits/manticore/archive/last_python2.zip
@@ -15,6 +14,8 @@ install:
 - cd build
 - cmake ..
 - make
+- sudo pip uninstall claripy
+- sudo pip install claripy==7.8.6.16
 - python setup.py install
 - cd ..
 env:
