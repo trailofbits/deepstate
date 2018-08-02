@@ -14,6 +14,7 @@ install:
 - cd build
 - cmake ..
 - make
+- pip install angr==7.8.7.1
 - python setup.py install
 - cd ..
 env:
