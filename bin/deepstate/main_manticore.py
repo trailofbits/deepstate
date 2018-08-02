@@ -295,7 +295,7 @@ def done_test(_, state, state_id, reason):
     elif _is_program_exit(reason):
       L.info("State {} terminated due to program exit: {}".format(
         state_id, reason))
-      mc.report()
+      super(DeepManticore, mc).pass_test()
       #super(DeepManticore, mc).abandon_test()      
     else:
       L.error("State {} terminated due to internal error: {}".format(state_id,
