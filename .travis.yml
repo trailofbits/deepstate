@@ -14,8 +14,6 @@ install:
 - cd build
 - cmake ..
 - make
-- sudo pip uninstall -y z3-solver
-- sudo pip install z3-solver==4.5.1.0.post2
 - python setup.py install
 - cd ..
 env:
