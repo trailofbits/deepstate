@@ -12,7 +12,7 @@ The [2018 IEEE Cybersecurity Development Conference](https://secdev.ieee.org/201
 
 * Tests look like Google Test, but can use symbolic execution/fuzzing to generate data (parameterized unit testing)
   * Easier to learn than binary analysis tools/fuzzers, but provides similar functionality
-* Already supports Manticore, Angr, Dr. Fuzz, file-based fuzzing with e.g., AFL; more back-ends likely in future
+* Already supports Manticore, Angr, libFuzzer, file-based fuzzing with e.g., AFL; more back-ends likely in future
   * Switch test generation tool without re-writing test harness
     * Work around show-stopper bugs
     * Find out which tool works best for your code under test
@@ -89,9 +89,41 @@ deepstate-angr --num_workers 4 --output_test_dir out $DEEPSTATE/build/examples/I
 
 DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation is in the [examples](/examples) and in our [paper](https://agroce.github.io/bar18.pdf).
 
-## Fuzzing
+## Fuzzing with libFuzzer
 
-DeepState now can be used with a file-based fuzzer (e.g. AFL).  There
+If you install clang 6.0 or later, and run `cmake` when you install
+with the `BUILD_LIBFUZZER` environment variable defined, you can
+generate tests using LlibFuzzer.  Because both DeepState and libFuzzer
+want to be `main`, this requires building a different executable for
+libFuzzer.  The `examples` directory shows how this can be done.  The
+libFuzzer executable works like any other libFuzzer executable, and
+the tests produced can be run using the normal DeepState executable.
+For example, generating some tests of the `OneOf` example (up to 5,000
+runs), then running those tests to examine the results, would look
+like:
+
+```shell
+mkdir OneOf_libFuzzer_corpus
+./OneOf_LF -runs=5000 OneOf_libFuzzer_corpus
+./OneOf --input_test_files_dir OneOf_libFuzzer_corpus
+```
+
+Use the `LIBFUZZER_WHICH_TEST`
+environment variable to control which test libFuzzer runs, using a
+fully qualified name (e.g.,
+`Arithmetic_InvertibleMultiplication_CanFail`).  By default, you get
+the last test defined (which works fine if there is only one test).
+Obviously, libFuzzer may work better if you provide a non-empty
+corpus, but fuzzing will work even without an initial corpus, unlike AFL.
+
+One hint when using libFuzzer is to avoid dynamically allocating
+memory during a test, if that memory would not be freed on a test
+failure.  This will leak memory and libFuzzer will run out of memory
+very quickly in each fuzzing session.
+
+## Fuzzing with AFL
+
+DeepState can also be used with a file-based fuzzer (e.g. AFL).  There
 are a few steps to this.  First, compile DeepState itself with any
 needed instrumentation.  E.g., to use it with AFL, you might want to add
 something like:
@@ -128,7 +160,7 @@ Finally, if an example has more than one test, you need to specify,
 with a fully qualified name (e.g.,
 `Arithmetic_InvertibleMultiplication_CanFail`), which test to run,
 using the `--input_which_test` flag to the binary.  By
-default, DeepState will run the first test defined.
+default, DeepState will run the last test defined.
 
 You can compile with `afl-clang-fast` and `afl-clang-fast++` for
 deferred instrumentation.  You'll need code like:

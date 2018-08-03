@@ -544,6 +544,46 @@ bool DeepState_CatchAbandoned(void) {
   return DeepState_CurrentTestRun->result == DeepState_TestRunAbandon;
 }
 
+extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
+  if (Size > sizeof(DeepState_Input)) {
+    return 0; // Just ignore any too-big inputs
+  }
+
+  DeepState_UsingLibFuzzer = 1;
+  
+  struct DeepState_TestInfo *test = NULL;
+
+  DeepState_InitOptions(0, "");  
+  //DeepState_Setup(); we want to do our own, simpler, memory management
+  void *mem = malloc(sizeof(struct DeepState_TestRunInfo));
+  DeepState_CurrentTestRun = (struct DeepState_TestRunInfo *) mem;
+
+  test = DeepState_FirstTest();
+  const char* which_test = getenv("LIBFUZZER_WHICH_TEST");
+  if (which_test != NULL) {
+    for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
+      if (strncmp(which_test, test->test_name, strnlen(which_test, 1024)) == 0) {
+	break;
+      }
+    }
+  }
+
+  memset((void *) DeepState_Input, 0, sizeof(DeepState_Input));
+  DeepState_InputIndex = 0;
+
+  memcpy((void *) DeepState_Input, (void *) Data, Size);
+
+  DeepState_Begin(test);
+
+  enum DeepState_TestRunResult result = DeepState_RunTestLLVM(test);
+
+  DeepState_Teardown();
+  DeepState_CurrentTestRun = NULL;
+  free(mem);
+  
+  return 0;  // Non-zero return values are reserved for future use.
+}
+
 /* Overwrite libc's abort. */
 void abort(void) {
   DeepState_Fail();

@@ -18,6 +18,12 @@ cmake_minimum_required(VERSION 2.8)
 enable_language(C)
 enable_language(CXX)
 
+set(BUILD_LIBFUZZER "$ENV{BUILD_LIBFUZZER}")
+if (BUILD_LIBFUZZER)
+    SET(CMAKE_C_COMPILER clang)
+    SET(CMAKE_CXX_COMPILER clang++)
+endif()
+
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -39,7 +45,7 @@ set(CMAKE_CXX_EXTENSIONS ON)
 if (NOT WIN32)
   set(CMAKE_C_STANDARD 99)
   set(CMAKE_CXX_STANDARD 11)
-endif ()
+endif()
 
 add_library(${PROJECT_NAME} STATIC
   src/lib/DeepState.c
@@ -71,7 +77,7 @@ target_include_directories(${PROJECT_NAME}32
   PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
 )
 
-# Install the
+# Install the library
 install(
   DIRECTORY "${CMAKE_SOURCE_DIR}/src/include/deepstate"
   DESTINATION include
@@ -83,6 +89,28 @@ install(
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
 )
+
+if (BUILD_LIBFUZZER)
+    add_library(${PROJECT_NAME}_LF STATIC
+       src/lib/DeepState.c
+       src/lib/Log.c
+       src/lib/Option.c
+       src/lib/Stream.c
+    )
+    
+    target_compile_options(${PROJECT_NAME}_LF PUBLIC -mno-avx -fsanitize=fuzzer-no-link)
+    
+    target_include_directories(${PROJECT_NAME}_LF
+       PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
+    )
+    
+    install(
+       TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_LF
+       LIBRARY DESTINATION lib
+       ARCHIVE DESTINATION lib
+    )
+endif()
+
 
 set(SETUP_PY_IN "${CMAKE_SOURCE_DIR}/bin/setup.py.in")
 set(SETUP_PY "${CMAKE_CURRENT_BINARY_DIR}/setup.py")

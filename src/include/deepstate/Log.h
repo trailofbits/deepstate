@@ -23,6 +23,8 @@
 
 DEEPSTATE_BEGIN_EXTERN_C
 
+extern int DeepState_UsingLibFuzzer;
+
 struct DeepState_Stream;
 
 struct DeepState_VarArgs {
@@ -35,8 +37,9 @@ enum DeepState_LogLevel {
   DeepState_LogWarning = 2,
   DeepState_LogWarn = DeepState_LogWarning,
   DeepState_LogError = 3,
-  DeepState_LogFatal = 4,
-  DeepState_LogCritical = DeepState_LogFatal
+  DeepState_LogExternal = 4,
+  DeepState_LogFatal = 5,
+  DeepState_LogCritical = DeepState_LogFatal,
 };
 
 /* Log a C string. */
