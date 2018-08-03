@@ -103,8 +103,8 @@ runs), then running those tests to examine the results, would look
 like:
 
 ```shell
-mkdir OneOf_corpus
-./OneOf_LF OneOf_libFuzzer_corpus --runs 5000
+mkdir OneOf_libFuzzer_corpus
+./OneOf_LF OneOf_libFuzzer_corpus -runs 5000
 ./OneOf --input_test_files_dir OneOf_libFuzzer_corpus
 ```
 
