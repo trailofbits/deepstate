@@ -104,7 +104,7 @@ like:
 
 ```shell
 mkdir OneOf_libFuzzer_corpus
-./OneOf_LF OneOf_libFuzzer_corpus -runs 5000
+./OneOf_LF -runs=5000 OneOf_libFuzzer_corpus
 ./OneOf --input_test_files_dir OneOf_libFuzzer_corpus
 ```
 
