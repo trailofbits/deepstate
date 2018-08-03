@@ -111,7 +111,10 @@ mkdir OneOf_libFuzzer_corpus
 Use the `LIBFUZZER_WHICH_TEST`
 environment variable to control which test libFuzzer runs, using a
 fully qualified name (e.g.,
-`Arithmetic_InvertibleMultiplication_CanFail`).
+`Arithmetic_InvertibleMultiplication_CanFail`).  By default, you get
+the last test defined (which works fine if there is only one test).
+Obviously, libFuzzer may work better if you provide a non-empty
+corpus, but fuzzing will work even without an initial corpus, unlike AFL.
 
 One hint when using libFuzzer is to avoid dynamically allocating
 memory during a test, if that memory would not be freed on a test
