@@ -46,7 +46,7 @@ Runtime:
 
 ## Building on Ubuntu 16.04 (Xenial)
 
-AFL```shell
+```shell
 sudo apt update && sudo apt-get install build-essential gcc-multilib g++-multilib cmake python python-setuptools libffi-dev z3
 git clone https://github.com/trailofbits/deepstate deepstate
 mkdir deepstate/build && cd deepstate/build
@@ -91,15 +91,16 @@ DeepState consists of a static library, used to write test harnesses, and comman
 
 ## Fuzzing with libFuzzer
 
-If you install a recent-enough clang, and run `cmake` when you install
-with `BUILD_LIBFUZZER` defined, you can generate tests using LlibFuzzer.
-Because both DeepState and libFuzzer want to be `main`, this requires
-building a different executable for libFuzzer.  The `examples`
-directory shows how this can be done.  The libFuzzer executable works
-like any other libFuzzer executable, and the tests produced can be run
-using the normal DeepState executable.  For example, generating some
-tests of the `OneOf` example (up to 5,000 runs), then running those
-tests to examine the results, would look like:
+If you install clang 6.0 or later, and run `cmake` when you install
+with the `BUILD_LIBFUZZER` environment variable defined, you can
+generate tests using LlibFuzzer.  Because both DeepState and libFuzzer
+want to be `main`, this requires building a different executable for
+libFuzzer.  The `examples` directory shows how this can be done.  The
+libFuzzer executable works like any other libFuzzer executable, and
+the tests produced can be run using the normal DeepState executable.
+For example, generating some tests of the `OneOf` example (up to 5,000
+runs), then running those tests to examine the results, would look
+like:
 
 ```shell
 mkdir OneOf_corpus
