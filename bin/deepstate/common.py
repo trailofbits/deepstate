@@ -16,7 +16,8 @@ import logging
 logging.basicConfig()
 
 import argparse
-import md5
+#import md5
+import hashlib
 import os
 import struct
 
@@ -147,7 +148,7 @@ class DeepState(object):
 
   def read_c_string(self, ea, concretize=True, constrain=False):
     """Read a NUL-terminated string from `ea`."""
-    assert isinstance(ea, (int, long))
+    assert isinstance(ea, (int))
     chars = []
     while True:
       b, ea = self.read_uint8_t(ea, concretize=concretize, constrain=constrain)
@@ -285,7 +286,7 @@ class DeepState(object):
     for b in byte_str:
       if isinstance(b, str):
         new_bytes.extend(ord(bn) for bn in b)
-      elif isinstance(b, (int, long)):
+      elif isinstance(b, (int)):
         new_bytes.append(b)
       elif isinstance(b, (list, tuple)):
         new_bytes.extend(self._concretize_bytes(b))
@@ -333,7 +334,7 @@ class DeepState(object):
       return
 
     test_dir = self.context['test_dir']
-    test_name = md5.new(input_bytes).hexdigest()
+    test_name = hashlib.md5.new(input_bytes).hexdigest()
 
     if self.context['failed']:
       test_name += ".fail"

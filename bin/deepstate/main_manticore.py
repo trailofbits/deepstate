@@ -21,7 +21,7 @@ try:
   import manticore
 except Exception as e:
   if "Z3NotFoundError" in repr(type(e)):
-    print "Manticore requires Z3 to be installed."
+    print("Manticore requires Z3 to be installed.")
     sys.exit(255)
   else:
     raise
@@ -88,7 +88,7 @@ class DeepManticore(DeepState):
     return ea + 1
 
   def concretize(self, val, constrain=False):
-    if isinstance(val, (int, long)):
+    if isinstance(val, (int)):
       return val
     elif isinstance(val, str):
       assert len(val) == 1
@@ -104,7 +104,7 @@ class DeepManticore(DeepState):
     return concrete_val
 
   def concretize_min(self, val, constrain=False):
-    if isinstance(val, (int, long)):
+    if isinstance(val, (int)):
       return val
     concrete_val = min(self.state.concretize(val, policy='MINMAX'))
     if constrain:
@@ -112,7 +112,7 @@ class DeepManticore(DeepState):
     return concrete_val
 
   def concretize_max(self, val, constrain=False):
-    if isinstance(val, (int, long)):
+    if isinstance(val, (int)):
       return val
     concrete_val = max(self.state.concretize(val, policy='MINMAX'))
     if constrain:
@@ -121,7 +121,7 @@ class DeepManticore(DeepState):
 
   def concretize_many(self, val, max_num):
     assert 0 < max_num
-    if isinstance(val, (int, long)):
+    if isinstance(val, (int)):
       return [val]
     return self.state.solve_n(val, max_num)
 
