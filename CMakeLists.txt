@@ -98,7 +98,7 @@ if (BUILD_LIBFUZZER)
        src/lib/Stream.c
     )
     
-    target_compile_options(${PROJECT_NAME}_LF PUBLIC -mno-avx -fsanitize=fuzzer-no-link)
+    target_compile_options(${PROJECT_NAME}_LF PUBLIC -mno-avx -fsanitize=fuzzer-no-link,undefined)
     
     target_include_directories(${PROJECT_NAME}_LF
        PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
