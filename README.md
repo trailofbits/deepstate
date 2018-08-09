@@ -85,6 +85,29 @@ deepstate-angr --num_workers 4 --output_test_dir out $DEEPSTATE/build/examples/I
         └── f1d3ff8443297732862df21dc4e57262.pass
 ```
 
+To run these tests, you can just use the native executable, e.g.:
+
+```shell
+$DEEPSTATE/build/examples/IntegerOverflow --input_test_dir out
+```
+
+to run all the generated tests, or
+
+```shell
+$DEEPSTATE/build/examples/IntegerOverflow --input_test_files_dir out/IntegerOverflow.cpp/SignedInteger_AdditionOverflow --input_which_test SignedInteger_AdditionOverflow
+```
+
+to run the tests in one directory (in this case, you want to specify
+which test to run, also).  You can also run a single test, e.g.:
+
+```shell
+$DEEPSTATE/build/examples/IntegerOverflow --input_test_file out/IntegerOverflow.cpp/SignedInteger_AdditionOverflow/a512f8ffb2c1bb775a9779ec60b699cb.fail--input_which_test SignedInteger_AdditionOverflow
+```
+
+In the absence of an `--input_which_test` argument, DeepState defaults
+to the last-defined test.  Run the native executable with the `--help`
+argument to see all DeepState options.
+
 ## Usage
 
 DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation is in the [examples](/examples) and in our [paper](https://agroce.github.io/bar18.pdf).
