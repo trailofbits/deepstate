@@ -7,7 +7,10 @@ install:
 - pip install pyflakes
 - sudo apt-get -y update
 - sudo apt-get -y install build-essential gcc-multilib cmake python python-pip python-setuptools libffi-dev
-- sudo pip install -U pip ; sudo pip install https://github.com/trailofbits/manticore/archive/last_python2.zip
+- sudo pip2 install -U pip2 
+- wget https://github.com/trailofbits/manticore/archive/last_python2.zip
+- unzip last_python2.zip
+- cd manticore-last_python2 ; python2 setup install --user ; cd -
 - mkdir build
 - cd build
 - cmake ..
