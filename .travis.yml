@@ -10,7 +10,7 @@ install:
 - sudo pip2 install -U pip 
 - wget https://github.com/trailofbits/manticore/archive/last_python2.zip
 - unzip last_python2.zip
-- cd manticore-last_python2 ; python2 setup install --user ; cd -
+- cd manticore-last_python2 ; python2 setup.py install --user ; cd -
 - mkdir build
 - cd build
 - cmake ..
