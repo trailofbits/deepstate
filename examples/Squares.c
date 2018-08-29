@@ -6,6 +6,9 @@ int square(int x) {
 }
 
 #ifdef DEEPSTATE_TEST
+
+int old_main(int argc, const char *argv[]);
+
 #include <deepstate/DeepState.h>
 DeepState_EntryPoint(test_main) {
   const char *new_args[2];
@@ -19,12 +22,13 @@ int main(int argc, const char *argv[]) {
   DeepState_InitOptions(argc, argv);
   return 0 == DeepState_Run();
 }
+
 // TODO(artem): yes this is awful but avoids another `ifdef`.
 #define main old_main
 
 #endif
 
-int main(int argc, char *argv[]) {
+int main(int argc, const char *argv[]) {
   if (argc != 2) {
     printf("Usage: %s <integer>\n", argv[0]);
     return -1;
