@@ -182,8 +182,8 @@ DEEPSTATE_MAKE_SYMBOLIC_ARRAY(UChar, unsigned char)
 
 /* Creates an assumption about a symbolic value. Returns `1` if the assumption
  * can hold and was asserted. */
-extern void _DeepState_Assume(int expr, const char *expr_str, const char *file,
-                              unsigned line);
+extern int _DeepState_Assume(int expr, const char *expr_str, const char *file,
+                             unsigned line);
 
 #define DeepState_Assume(x) _DeepState_Assume(!!(x), #x, __FILE__, __LINE__)
 

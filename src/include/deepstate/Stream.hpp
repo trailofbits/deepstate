@@ -40,8 +40,9 @@ class Stream {
 
   DEEPSTATE_INLINE ~Stream(void) {
     if (do_log) {
-      if (!has_something_to_log) {
-        DeepState_StreamCStr(level, "Checked condition");
+      if (!has_something_to_log &&
+          DeepState_LogInfo < level) {
+        DeepState_StreamCStr(level, "Condition failed");
       }
       DeepState_LogStream(level);
     }
