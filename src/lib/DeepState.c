@@ -279,11 +279,13 @@ int32_t DeepState_MaxInt(int32_t v) {
                     0x80000000U);
 }
 
-void _DeepState_Assume(int expr, const char *expr_str, const char *file,
-                       unsigned line) {
+int _DeepState_Assume(int expr, const char *expr_str, const char *file,
+                      unsigned line) {
   if (!expr) {
     DeepState_Abandon("Assumption failed");
+    return 0;  /* Never reached. */
   }
+  return 1;
 }
 
 int DeepState_IsSymbolicUInt(uint32_t x) {
