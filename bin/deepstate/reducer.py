@@ -127,7 +127,10 @@ def main():
         print "PADDING TEST WITH", (s[1] + 1) - len(currentTest), "ZEROS"
         padding = bytearray('\x00' * ((s[1] + 1) - len(currentTest)))
         currentTest = currentTest + padding
-
+    
+    print
+    print "WRITING REDUCED TEST TO", out
+        
     with open(out, 'wb') as outf:
         outf.write(currentTest)
 
