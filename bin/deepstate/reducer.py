@@ -106,6 +106,18 @@ def main():
                 currentTest = newTest
                 break
         for b in range(0, len(currentTest)):
+            for v in range(b+1, len(currentTest)):
+                newTest = currentTest[:b] + currentTest[v:]
+                with open(".candidate.test", 'wb') as outf:
+                    outf.write(newTest)
+                r = runCandidate(".candidate.test")
+                if checks(r):
+                    print "BYTE RANGE REMOVAL REDUCED TEST TO", len(newTest), "BYTES"
+                    s = structure(r)
+                    changed = True
+                    currentTest = newTest
+                    break
+        for b in range(0, len(currentTest)):
             for v in range(0, currentTest[b]):
                 newTest = bytearray(currentTest)
                 newTest[b] = v
@@ -117,7 +129,7 @@ def main():
                     s = structure(r)
                     changed = True
                     currentTest = newTest
-                    break            
+                    break
         if not changed:
             print "NO REDUCTIONS FOUND"
 
