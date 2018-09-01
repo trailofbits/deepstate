@@ -327,10 +327,16 @@ inline static void ForAll(Closure func) {
 
 template <typename... FuncTys>
 inline static void OneOf(FuncTys&&... funcs) {
+  if (FLAGS_verbose_reads) {
+    printf("DeepState: STARTING OneOf CALL\n");
+  }
   std::function<void(void)> func_arr[sizeof...(FuncTys)] = {funcs...};
   unsigned index = DeepState_UIntInRange(
       0U, static_cast<unsigned>(sizeof...(funcs))-1);
   func_arr[Pump(index, sizeof...(funcs))]();
+  if (FLAGS_verbose_reads) {  
+    printf("DeepState: FINISHED OneOf CALL\n");
+  }
 }
 
 inline static char OneOf(const char *str) {
