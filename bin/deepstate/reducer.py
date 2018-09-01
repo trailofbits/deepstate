@@ -1,7 +1,5 @@
 import sys
 import subprocess
-import os
-import shutil
 
 def main():
     if "--help" in sys.argv:
