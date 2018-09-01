@@ -105,6 +105,8 @@ def main():
                 changed = True
                 currentTest = newTest
                 break
+        if changed:
+            continue
         for b in range(0, len(currentTest)):
             for v in range(b+1, len(currentTest)):
                 newTest = currentTest[:b] + currentTest[v:]
@@ -117,6 +119,8 @@ def main():
                     changed = True
                     currentTest = newTest
                     break
+        if changed:
+            continue
         for b in range(0, len(currentTest)):
             for v in range(0, currentTest[b]):
                 newTest = bytearray(currentTest)
