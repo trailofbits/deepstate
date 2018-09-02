@@ -161,11 +161,13 @@ deepstate-reduce ./TestFileSystem rmdirfail.test minrmdirfail.test
 
 In many cases, this will result in finding a different failure or
 crash that allow smaller test cases, so you can also provide a string
-that controls which test outputs are considered valid reductions (by
-default, the reducer looks for any test that fails or crashes):
+that controls the criteria for which test outputs are considered valid
+reductions (by default, the reducer looks for any test that fails or
+crashes).  Only outputs containing the `--criteria` are considered to
+be valid reductions:
 
 ```shell
-deepstate-reduce ./TestFileSystem rmdirfail.test minrmdirfail.test "FATAL: /root/testfs/super.c(252)"
+deepstate-reduce ./TestFileSystem rmdirfail.test minrmdirfail.test --criteria "FATAL: /root/testfs/super.c(252)"
 ```
 
 The output will look something like:
@@ -193,7 +195,7 @@ PADDING TEST WITH 5 ZEROS
 WRITING REDUCED TEST TO minrmdirfail.test
 ```
 
-You can use `--which <testname>` to specify which test to
+You can use `--which_test <testname>` to specify which test to
 run, as with the `--input_which_test` options to test replay.
 
 ## Fuzzing with AFL
