@@ -18,21 +18,6 @@ import subprocess
 import argparse
 
 def main():
-    if "--help" in sys.argv:
-        print "usage: deepstate-reduce binary input-test output-test [string] [--which test]"
-        print
-        print "Reduces input-test by trying to delete OneOf blocks and lower byte values."
-        print
-        print "Writes reduced test to output-test."
-        print
-        print "Optional string gives an reduction criteria (searched for in test output)."
-        print "If no string is provided, looks for Failure or Crash."
-        print
-        print "--which test allows control over which DeepState test is executed, if none"
-        print "is provided, defaults to last test defined."
-        sys.exit(0)
-
-
     parser = argparse.ArgumentParser(description="Intelligently reduce test case")
 
     parser.add_argument(
