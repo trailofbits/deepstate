@@ -144,6 +144,19 @@ def main():
                     changed = True
                     currentTest = newTest
                     break
+        for b in range(0, len(currentTest)):
+            newTest = byteArray(currentTest)
+            newTest[b] = currentTest[b]-1
+            newTest = newTest[:b+1] + newTest[b+2]
+            with open(".candidate.test", 'wb') as outf:
+                outf.write(newTest)
+            r = runCandidate(".candidate.test")
+            if checks(r):
+                print "BYTE REDUCE AND DELETE AT BYTE", b
+                s = structure(r)
+                changed = True
+                currentTest = newTest
+                break
 
     print "NO REDUCTIONS FOUND"
 
