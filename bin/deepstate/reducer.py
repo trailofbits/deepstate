@@ -149,7 +149,7 @@ def main():
                 continue
             newTest = bytearray(currentTest)
             newTest[b] = currentTest[b]-1
-            newTest = newTest[:b+1] + newTest[b+2]
+            newTest = newTest[:b+1] + newTest[b+2:]
             with open(".candidate.test", 'wb') as outf:
                 outf.write(newTest)
             r = runCandidate(".candidate.test")
