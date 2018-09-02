@@ -32,26 +32,32 @@ def main():
         print "is provided, defaults to last test defined."
         sys.exit(0)
 
+
     parser = argparse.ArgumentParser(description="Intelligently reduce test case")
-    if parser:
-        pass
-        
-    args = sys.argv
 
-    try:
-        which = args.index("--which")
-        whichTest = args[which+1]
-        args = args[:which] + args[which + 2:]
-    except:
-        whichTest = None
+    parser.add_argument(
+        "binary", type=str, help="Path to the test binary to run.")
 
-    deepstate = args[1]
-    test = args[2]
-    out = args[3]
-    if len(args) > 4:
-        checkString = args[4]
-    else:
-        checkString = None
+    parser.add_argument(
+        "input_test", type=str, help="Path to test to reduce.")
+
+    parser.add_argument(
+        "output_test", type=str, help="Path for reduced test.")
+
+    parser.add_argument(
+        "--which_test", type=str, help="Which test run run.", default=None)
+
+    parser.add_argument(
+        "--criteria", type=str, help="String to search for in valid reduction outputs.",
+        default=None)
+
+    args = parser.parse_args()
+
+    deepstate = args.binary
+    test = args.input_test
+    out = args.output_test
+    checkString = args.criteria
+    whichTest = args.which_test
 
     def runCandidate(candidate):
         with open(".reducer.out", 'w') as outf:
