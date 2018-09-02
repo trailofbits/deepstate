@@ -234,7 +234,7 @@ int DeepState_Bool(void) {
       type val = 0; \
       if (FLAGS_verbose_reads) { \
         printf("STARTING MULTI-BYTE READ\n"); \
-      } \      
+      } \
       _Pragma("unroll") \
       for (size_t i = 0; i < sizeof(type); ++i) { \
         if (FLAGS_verbose_reads) { \
@@ -244,7 +244,7 @@ int DeepState_Bool(void) {
       } \
       if (FLAGS_verbose_reads) { \
         printf("FINISHED MULTI-BYTE READ\n"); \
-      } \      
+      } \
       return val; \
     }
 
