@@ -30,7 +30,7 @@ def main():
         "output_test", type=str, help="Path for reduced test.")
 
     parser.add_argument(
-        "--which_test", type=str, help="Which test run run.", default=None)
+        "--which_test", type=str, help="Which test to run (equivalent to --input_which_test).", default=None)
 
     parser.add_argument(
         "--criteria", type=str, help="String to search for in valid reduction outputs.",
