@@ -145,7 +145,7 @@ def main():
                     currentTest = newTest
                     break
         for b in range(0, len(currentTest)):
-            newTest = byteArray(currentTest)
+            newTest = bytearray(currentTest)
             newTest[b] = currentTest[b]-1
             newTest = newTest[:b+1] + newTest[b+2]
             with open(".candidate.test", 'wb') as outf:
