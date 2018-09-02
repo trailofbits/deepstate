@@ -33,6 +33,8 @@ def main():
         sys.exit(0)
 
     parser = argparse.ArgumentParser(description="Intelligently reduce test case")
+    if parser:
+        pass
         
     args = sys.argv
 
