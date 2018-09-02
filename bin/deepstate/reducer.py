@@ -32,6 +32,8 @@ def main():
         print "is provided, defaults to last test defined."
         sys.exit(0)
 
+    parser = argparse.ArgumentParser(description="Intelligently reduce test case")
+        
     args = sys.argv
 
     try:
