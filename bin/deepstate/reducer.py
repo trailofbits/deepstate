@@ -145,6 +145,8 @@ def main():
                     currentTest = newTest
                     break
         for b in range(0, len(currentTest)):
+            if currentTest[b] == 0:
+                continue
             newTest = bytearray(currentTest)
             newTest[b] = currentTest[b]-1
             newTest = newTest[:b+1] + newTest[b+2]
