@@ -36,6 +36,10 @@ def main():
     "--criteria", type=str, help="String to search for in valid reduction outputs.",
     default=None)
 
+  parser.add_argument(
+    "--search", action="store_true", help="Allow initial test to not satisfy criteria (search for test).",
+    default=None)
+
   args = parser.parse_args()
 
   deepstate = args.binary
@@ -91,7 +95,7 @@ def main():
     return (OneOfs, lastRead)
 
   initial = runCandidate(test)
-  if not checks(initial):
+  if (not args.search) and (not checks(initial)):
     print("STARTING TEST DOES NOT SATISFY REDUCTION CRITERIA")
     return 1
 
