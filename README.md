@@ -171,7 +171,8 @@ deepstate-reduce ./TestFileSystem rmdirfail.test minrmdirfail.test --criteria "F
 ```
 
 The output will look something like:
-```shell
+
+```
 ORIGINAL TEST HAS 119 BYTES
 LAST BYTE READ IS 123
 ONEOF REMOVAL REDUCED TEST TO 103 BYTES
