@@ -36,6 +36,7 @@ DEFINE_string(output_test_dir, "", "Directory where tests will be saved.");
 
 DEFINE_bool(take_over, false, "Replay test cases in take-over mode.");
 DEFINE_bool(abort_on_fail, false, "Abort on file replay failure (useful in file fuzzing).");
+DEFINE_bool(verbose_reads, false, "Report on bytes being read during execution of test.");
 
 /* Pointer to the last registers DeepState_TestInfo data structure */
 struct DeepState_TestInfo *DeepState_LastTestInfo = NULL;
@@ -140,6 +141,9 @@ void DeepState_SymbolizeData(void *begin, void *end) {
       if (DeepState_InputIndex >= DeepState_InputSize) {
         DeepState_Abandon("Read too many symbols");
       }
+      if (FLAGS_verbose_reads) {
+        printf("Reading byte at %u\n", DeepState_InputIndex);
+      }
       bytes[i] = DeepState_Input[DeepState_InputIndex++];
     }
   }
@@ -216,6 +220,9 @@ int DeepState_Bool(void) {
   if (DeepState_InputIndex >= DeepState_InputSize) {
     DeepState_Abandon("Read too many symbols");
   }
+  if (FLAGS_verbose_reads) {
+    printf("Reading byte as boolean at %u\n", DeepState_InputIndex);
+  }  
   return DeepState_Input[DeepState_InputIndex++] & 1;
 }
 
@@ -225,9 +232,18 @@ int DeepState_Bool(void) {
         DeepState_Abandon("Read too many symbols"); \
       } \
       type val = 0; \
+      if (FLAGS_verbose_reads) { \
+        printf("STARTING MULTI-BYTE READ\n"); \
+      } \
       _Pragma("unroll") \
       for (size_t i = 0; i < sizeof(type); ++i) { \
+        if (FLAGS_verbose_reads) { \
+          printf("Reading byte at %u\n", DeepState_InputIndex); \
+        } \
         val = (val << 8) | ((type) DeepState_Input[DeepState_InputIndex++]); \
+      } \
+      if (FLAGS_verbose_reads) { \
+        printf("FINISHED MULTI-BYTE READ\n"); \
       } \
       return val; \
     }

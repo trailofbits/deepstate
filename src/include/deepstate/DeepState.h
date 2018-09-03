@@ -62,6 +62,7 @@ DECLARE_string(output_test_dir);
 
 DECLARE_bool(take_over);
 DECLARE_bool(abort_on_fail);
+DECLARE_bool(verbose_reads);
 
 enum {
   DeepState_InputSize = 8192
