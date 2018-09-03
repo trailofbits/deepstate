@@ -113,7 +113,7 @@ def main():
     cuts = s[0]
     for c in cuts:
       newTest = currentTest[:c[0]] + currentTest[c[1]+1:]
-      r = writeAndRunCandidate(".candidate.test")      
+      r = writeAndRunCandidate(newTest)      
       if checks(r):
         print("ONEOF REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
         changed = True
@@ -123,7 +123,7 @@ def main():
       for b in range(0, len(currentTest)):
         for v in range(b+1, len(currentTest)):
           newTest = currentTest[:b] + currentTest[v:]
-          r = writeAndRunCandidate(".candidate.test")
+          r = writeAndRunCandidate(newTest)
           if checks(r):
             print("BYTE RANGE REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
             changed = True
