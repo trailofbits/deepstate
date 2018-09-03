@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import print_function
 import argparse
 import subprocess
 
@@ -68,6 +69,12 @@ def main():
           return True
     return False
 
+  def writeAndRunCandidate(test):
+    with open(".candidate.test", 'wb') as outf:
+      outf.write(test)
+    r = runCandidate(".candidate.test")
+    return r
+
   def structure(result):
     OneOfs = []
     currentOneOf = []
@@ -85,90 +92,83 @@ def main():
 
   initial = runCandidate(test)
   if not checks(initial):
-    print "STARTING TEST DOES NOT SATISFY REDUCTION CRITERIA"
+    print("STARTING TEST DOES NOT SATISFY REDUCTION CRITERIA")
     return 1
 
   with open(test, 'rb') as test:
     currentTest = bytearray(test.read())
 
-  print "ORIGINAL TEST HAS", len(currentTest), "BYTES"
+  print("ORIGINAL TEST HAS", len(currentTest), "BYTES")
 
   s = structure(initial)
-  print "LAST BYTE READ IS", s[1]
+  print("LAST BYTE READ IS", s[1])
 
   if s[1] < len(currentTest):
-    print "SHRINKING TO IGNORE UNREAD BYTES"
+    print("SHRINKING TO IGNORE UNREAD BYTES")
     currentTest = currentTest[:s[1]+1]
 
   changed = True
   while changed:
     changed = False
+
     cuts = s[0]
     for c in cuts:
       newTest = currentTest[:c[0]] + currentTest[c[1]+1:]
-      with open(".candidate.test", 'wb') as outf:
-        outf.write(newTest)
-      r = runCandidate(".candidate.test")
+      r = writeAndRunCandidate(".candidate.test")      
       if checks(r):
-        print "ONEOF REMOVAL REDUCED TEST TO", len(newTest), "BYTES"
-        s = structure(r)
+        print("ONEOF REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
         changed = True
-        currentTest = newTest
-        break
-    if changed:
-      continue
-    for b in range(0, len(currentTest)):
-      for v in range(b+1, len(currentTest)):
-        newTest = currentTest[:b] + currentTest[v:]
-        with open(".candidate.test", 'wb') as outf:
-          outf.write(newTest)
-        r = runCandidate(".candidate.test")
-        if checks(r):
-          print "BYTE RANGE REMOVAL REDUCED TEST TO", len(newTest), "BYTES"
-          s = structure(r)
-          changed = True
-          currentTest = newTest
-          break
-    if changed:
-      continue
-    for b in range(0, len(currentTest)):
-      for v in range(0, currentTest[b]):
-        newTest = bytearray(currentTest)
-        newTest[b] = v
-        with open(".candidate.test", 'wb') as outf:
-          outf.write(newTest)
-        r = runCandidate(".candidate.test")
-        if checks(r):
-          print "BYTE REDUCTION: BYTE", b, "FROM", currentTest[b], "TO", v
-          s = structure(r)
-          changed = True
-          currentTest = newTest
-          break
-    for b in range(0, len(currentTest)):
-      if currentTest[b] == 0:
-        continue
-      newTest = bytearray(currentTest)
-      newTest[b] = currentTest[b]-1
-      newTest = newTest[:b+1] + newTest[b+2:]
-      with open(".candidate.test", 'wb') as outf:
-        outf.write(newTest)
-      r = runCandidate(".candidate.test")
-      if checks(r):
-        print "BYTE REDUCE AND DELETE AT BYTE", b
-        s = structure(r)
-        changed = True
-        currentTest = newTest
         break
 
-  print "NO REDUCTIONS FOUND"
+    if not changed:
+      for b in range(0, len(currentTest)):
+        for v in range(b+1, len(currentTest)):
+          newTest = currentTest[:b] + currentTest[v:]
+          r = writeAndRunCandidate(".candidate.test")
+          if checks(r):
+            print("BYTE RANGE REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
+            changed = True
+            break
+
+    if not changed:
+      for b in range(0, len(currentTest)):
+        for v in range(0, currentTest[b]):
+          newTest = bytearray(currentTest)
+          newTest[b] = v
+          r = writeAndRunCandidate(newTest)
+          if checks(r):
+            print("BYTE REDUCTION: BYTE", b, "FROM", currentTest[b], "TO", v)
+            changed = True
+            break
+        if changed:
+          break
+
+    if not changed:
+      for b in range(0, len(currentTest)):
+        if currentTest[b] == 0:
+          continue
+        newTest = bytearray(currentTest)
+        newTest[b] = currentTest[b]-1
+        newTest = newTest[:b+1] + newTest[b+2:]
+        r = writeAndRunCandidate(newTest)      
+        if checks(r):
+          print("BYTE REDUCE AND DELETE AT BYTE", b)
+          changed = True
+          break
+
+    if changed:
+      currentTest = newTest
+      s = structure(r)
+
+  print("NO REDUCTIONS FOUND")
 
   if (s[1] + 1) > len(currentTest):
-    print "PADDING TEST WITH", (s[1] + 1) - len(currentTest), "ZEROS"
+    print("PADDING TEST WITH", (s[1] + 1) - len(currentTest), "ZEROS")
     padding = bytearray('\x00' * ((s[1] + 1) - len(currentTest)))
     currentTest = currentTest + padding
   
-  print
-  print "WRITING REDUCED TEST TO", out
+  print()
+  print("WRITING REDUCED TEST WITH", len(currentTest), "BYTES TO", out)
     
   with open(out, 'wb') as outf:
     outf.write(currentTest)
