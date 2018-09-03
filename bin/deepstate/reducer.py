@@ -128,6 +128,8 @@ def main():
             print("BYTE RANGE REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
             changed = True
             break
+        if changed:
+          break
 
     if not changed:
       for b in range(0, len(currentTest)):
