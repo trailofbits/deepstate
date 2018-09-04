@@ -18,6 +18,7 @@ The [2018 IEEE Cybersecurity Development Conference](https://secdev.ieee.org/201
     * Find out which tool works best for your code under test
     * Different tools find different bugs/vulnerabilities
     * Fair way to benchmark/bakeoff tools
+* Provides test replay for regression and effective automatic test case minimization
 * Supports API-sequence generation with extensions to Google Test interface
   * Concise readable way (OneOf) to say "run one of these blocks of code"
   * Same construct supports fixed value set non-determinism
