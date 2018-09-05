@@ -182,7 +182,6 @@ def main():
               banews.append(bytearray([ba[0]-1]))
             for banew in banews:
               newTest = part1 + banew + part2 + banew + part3
-              print(len(newTest),len(currentTest))
               r = writeAndRunCandidate(newTest)
               if checks(r):
                 print("BYTE PATTERN", ba, "AT", b1, "AND", b2, "CHANGED TO", banew)
