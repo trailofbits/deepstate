@@ -179,7 +179,7 @@ def main():
             banews.append(ba[0:1])
             banews.append(ba[1:2])
             if ba[0] > 0:
-              banews.append(bytearray[ba[0]-1])
+              banews.append(bytearray([ba[0]-1]))
             for banew in banews:
               newTest = part1 + banew + part2 + banew + part3
               r = writeAndRunCandidate(newTest)
