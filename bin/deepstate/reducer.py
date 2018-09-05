@@ -167,7 +167,7 @@ def main():
 
     if args.matches and (not changed):
       for b1 in range(0, len(currentTest)-4):
-        for b2 = range(b1+2, len(currentTest)-4):
+        for b2 in range(b1+2, len(currentTest)-4):
           v1 = (currentTest[b1], currentTest[b1+1])
           v2 = (currentTest[b2], currentTest[b2+1])
           if v1 == v2:
