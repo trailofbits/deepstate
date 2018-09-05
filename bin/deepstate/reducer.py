@@ -187,7 +187,7 @@ def main():
               newTest = part1 + banew + part2 + banew + part3
               r = writeAndRunCandidate(newTest)
               if checks(r):
-                print("BYTE PATTERN", ba, "AT", b1, "AND", b2, "CHANGED TO", banew)
+                print("BYTE PATTERN", tuple(ba), "AT", b1, "AND", b2, "CHANGED TO", tuple(banew))
                 changed = True
                 break
             if changed:
