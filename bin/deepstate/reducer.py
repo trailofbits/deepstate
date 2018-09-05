@@ -172,7 +172,6 @@ def main():
           v2 = (currentTest[b2], currentTest[b2+1])
           if (v1 == v2):
             ba = bytearray(v1)
-            print("BYTE SEQUENCE MATCH AT", b1, b2, ba)
             part1 = currentTest[:b1]
             part2 = currentTest[b1+2:b2]
             part3 = currentTest[b2+2:]
