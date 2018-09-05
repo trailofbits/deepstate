@@ -181,6 +181,7 @@ def main():
             if ba[0] > 0:
               banews.append(bytearray([ba[0]-1]))
             for banew in banews:
+              print(b1, b2, ba, " --> ", banew)
               newTest = part1 + banew + part2 + banew + part3
               r = writeAndRunCandidate(newTest)
               if checks(r):
