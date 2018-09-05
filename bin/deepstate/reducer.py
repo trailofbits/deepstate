@@ -171,7 +171,7 @@ def main():
           v1 = (currentTest[b1], currentTest[b1+1])
           v2 = (currentTest[b2], currentTest[b2+1])
           if v1 == v2:
-            print("BYTE SEQUENCE MATCH AT", b1, b2)
+            print("BYTE SEQUENCE MATCH AT", b1, b2, v1)
 
     if changed:
       currentTest = newTest
