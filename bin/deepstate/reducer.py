@@ -170,8 +170,28 @@ def main():
         for b2 in range(b1+2, len(currentTest)-4):
           v1 = (currentTest[b1], currentTest[b1+1])
           v2 = (currentTest[b2], currentTest[b2+1])
-          if (v1 == v2) and (v1 != (0,0)):
-            print("BYTE SEQUENCE MATCH AT", b1, b2, v1)
+          if (v1 == v2):
+            ba = bytearray(v1)
+            print("BYTE SEQUENCE MATCH AT", b1, b2, ba)
+            part1 = currentTest[:b1]
+            part2 = currentTest[b1+2:b2]
+            part3 = currentTest[b2+2:]
+            banews = []
+            banews.append(ba[0:1])
+            banews.append(ba[1:2])
+            if ba[0] > 0:
+              banews.append(bytearray[ba[0]-1])
+            for banew in banews:
+              newTest = part1 + banew + part2 + banew + part3
+              r = writeAndRunCandidate(newTest)
+              if checks(r):
+                print("BYTE PATTERN", ba, "AT", b1, "AND", b2, "CHANGED TO", banew)
+                changed = True
+                break
+            if changed:
+              break
+        if changed:
+          break
 
     if changed:
       currentTest = newTest
