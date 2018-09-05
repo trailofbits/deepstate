@@ -40,6 +40,10 @@ def main():
     "--search", action="store_true", help="Allow initial test to not satisfy criteria (search for test).",
     default=None)
 
+  parser.add_argument(
+    "--matches", action="store_true", help="Try reducing matching 2-byte patterns together.",
+    default=None)
+
   args = parser.parse_args()
 
   deepstate = args.binary
@@ -160,6 +164,14 @@ def main():
           print("BYTE REDUCE AND DELETE AT BYTE", b)
           changed = True
           break
+
+    if args.matches and (not changed):
+      for b1 in range(0, len(currentTest)-4):
+        for b2 = range(b1+2, len(currentTest)-4):
+          v1 = (currentTest[b1], currentTest[b1+1])
+          v2 = (currentTest[b2], currentTest[b2+1])
+          if v1 == v2:
+            print("BYTE SEQUENCE MATCH AT", b1, b2)
 
     if changed:
       currentTest = newTest
