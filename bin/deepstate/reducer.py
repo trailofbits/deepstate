@@ -170,7 +170,7 @@ def main():
         for b2 in range(b1+2, len(currentTest)-4):
           v1 = (currentTest[b1], currentTest[b1+1])
           v2 = (currentTest[b2], currentTest[b2+1])
-          if v1 == v2:
+          if (v1 == v2) and (v1 != (0,0)):
             print("BYTE SEQUENCE MATCH AT", b1, b2, v1)
 
     if changed:
