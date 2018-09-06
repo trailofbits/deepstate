@@ -188,10 +188,12 @@ def main():
               banews.append(ba[0:1])
               banews.append(ba[1:2])
               if ba[0] > 0:
-                banews.append(bytearray([ba[0]-1, ba[1]]))
+                for v in range(0, ba[0]):
+                  banews.append(bytearray([v, ba[1]]))
                 banews.append(bytearray([ba[0]-1]))
               if ba[1] > 0:
-                banews.append(bytearray([ba[0], ba[1]-1]))
+                for v in range(0, ba[1]):
+                  banews.append(bytearray([ba[0], v))
               for banew in banews:
                 newTest = part1 + banew + part2 + banew + part3
                 r = writeAndRunCandidate(newTest)
