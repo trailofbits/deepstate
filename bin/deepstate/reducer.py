@@ -56,6 +56,8 @@ def main():
   checkString = args.criteria
   whichTest = args.which_test
 
+  start = time.time()
+
   def runCandidate(candidate):
     if (time.time() - start) > args.timeout:
       raise TimeoutException
@@ -119,8 +121,6 @@ def main():
     print("LAST BYTE READ IS", s[1])
     print("SHRINKING TO IGNORE UNREAD BYTES")
     currentTest = currentTest[:s[1]+1]
-
-  start = time.time()
 
   changed = True
   try:
