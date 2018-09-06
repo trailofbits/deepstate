@@ -16,6 +16,7 @@
 from __future__ import print_function
 import argparse
 import subprocess
+import time
 
 def main():
   parser = argparse.ArgumentParser(description="Intelligently reduce test case")
@@ -41,8 +42,11 @@ def main():
     default=None)
 
   parser.add_argument(
-    "--matches", action="store_true", help="Try reducing matching 2-byte patterns together.",
-    default=None)
+    "--timeout", type=int, help="After this amount of time (in seconds), give up on reduction.",
+    default=1200)
+
+  class TimeoutException(Exception):
+    pass
 
   args = parser.parse_args()
 
@@ -53,6 +57,8 @@ def main():
   whichTest = args.which_test
 
   def runCandidate(candidate):
+    if (time.time() - start) > args.timeout:
+      raise TimeoutException
     with open(".reducer.out", 'w') as outf:
       cmd = [deepstate + " --input_test_file " +
            candidate + " --verbose_reads"]
@@ -114,92 +120,97 @@ def main():
     print("SHRINKING TO IGNORE UNREAD BYTES")
     currentTest = currentTest[:s[1]+1]
 
+  start = time.time()
+
   changed = True
-  while changed:
-    changed = False
+  try:
+    while changed:
+      changed = False
 
-    cuts = s[0]
-    for c in cuts:
-      newTest = currentTest[:c[0]] + currentTest[c[1]+1:]
-      r = writeAndRunCandidate(newTest)      
-      if checks(r):
-        print("ONEOF REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
-        changed = True
-        break
-
-    if not changed:
-      for b in range(0, len(currentTest)):
-        for v in range(b+1, len(currentTest)):
-          newTest = currentTest[:b] + currentTest[v:]
-          r = writeAndRunCandidate(newTest)
-          if checks(r):
-            print("BYTE RANGE REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
-            changed = True
-            break
-        if changed:
-          break
-
-    if not changed:
-      for b in range(0, len(currentTest)):
-        for v in range(0, currentTest[b]):
-          newTest = bytearray(currentTest)
-          newTest[b] = v
-          r = writeAndRunCandidate(newTest)
-          if checks(r):
-            print("BYTE REDUCTION: BYTE", b, "FROM", currentTest[b], "TO", v)
-            changed = True
-            break
-        if changed:
-          break
-
-    if not changed:
-      for b in range(0, len(currentTest)):
-        if currentTest[b] == 0:
-          continue
-        newTest = bytearray(currentTest)
-        newTest[b] = currentTest[b]-1
-        newTest = newTest[:b+1] + newTest[b+2:]
-        r = writeAndRunCandidate(newTest)      
+      cuts = s[0]
+      for c in cuts:
+        newTest = currentTest[:c[0]] + currentTest[c[1]+1:]
+        r = writeAndRunCandidate(newTest)
         if checks(r):
-          print("BYTE REDUCE AND DELETE AT BYTE", b)
+          print("ONEOF REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
           changed = True
           break
 
-    if args.matches and (not changed):
-      for b1 in range(0, len(currentTest)-4):
-        for b2 in range(b1+2, len(currentTest)-4):
-          v1 = (currentTest[b1], currentTest[b1+1])
-          v2 = (currentTest[b2], currentTest[b2+1])
-          if (v1 == v2):
-            ba = bytearray(v1)
-            part1 = currentTest[:b1]
-            part2 = currentTest[b1+2:b2]
-            part3 = currentTest[b2+2:]
-            banews = []
-            banews.append(ba[0:1])
-            banews.append(ba[1:2])
-            if ba[0] > 0:
-              banews.append(bytearray([ba[0]-1, ba[1]]))
-              banews.append(bytearray([ba[0]-1]))
-            if ba[1] > 0:
-              banews.append(bytearray([ba[0], ba[1]-1]))
-            for banew in banews:
-              newTest = part1 + banew + part2 + banew + part3
-              r = writeAndRunCandidate(newTest)
-              if checks(r):
-                print("BYTE PATTERN", tuple(ba), "AT", b1, "AND", b2, "CHANGED TO", tuple(banew))
-                changed = True
-                break
-            if changed:
+      if not changed:
+        for b in range(0, len(currentTest)):
+          for v in range(b+1, len(currentTest)):
+            newTest = currentTest[:b] + currentTest[v:]
+            r = writeAndRunCandidate(newTest)
+            if checks(r):
+              print("BYTE RANGE REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
+              changed = True
               break
-        if changed:
-          break
+          if changed:
+            break
 
-    if changed:
-      currentTest = newTest
-      s = structure(r)
+      if not changed:
+        for b in range(0, len(currentTest)):
+          for v in range(0, currentTest[b]):
+            newTest = bytearray(currentTest)
+            newTest[b] = v
+            r = writeAndRunCandidate(newTest)
+            if checks(r):
+              print("BYTE REDUCTION: BYTE", b, "FROM", currentTest[b], "TO", v)
+              changed = True
+              break
+          if changed:
+            break
 
-  print("NO REDUCTIONS FOUND")
+      if not changed:
+        for b in range(0, len(currentTest)):
+          if currentTest[b] == 0:
+            continue
+          newTest = bytearray(currentTest)
+          newTest[b] = currentTest[b]-1
+          newTest = newTest[:b+1] + newTest[b+2:]
+          r = writeAndRunCandidate(newTest)
+          if checks(r):
+            print("BYTE REDUCE AND DELETE AT BYTE", b)
+            changed = True
+            break
+
+      if not changed:
+        for b1 in range(0, len(currentTest)-4):
+          for b2 in range(b1+2, len(currentTest)-4):
+            v1 = (currentTest[b1], currentTest[b1+1])
+            v2 = (currentTest[b2], currentTest[b2+1])
+            if (v1 == v2):
+              ba = bytearray(v1)
+              part1 = currentTest[:b1]
+              part2 = currentTest[b1+2:b2]
+              part3 = currentTest[b2+2:]
+              banews = []
+              banews.append(ba[0:1])
+              banews.append(ba[1:2])
+              if ba[0] > 0:
+                banews.append(bytearray([ba[0]-1, ba[1]]))
+                banews.append(bytearray([ba[0]-1]))
+              if ba[1] > 0:
+                banews.append(bytearray([ba[0], ba[1]-1]))
+              for banew in banews:
+                newTest = part1 + banew + part2 + banew + part3
+                r = writeAndRunCandidate(newTest)
+                if checks(r):
+                  print("BYTE PATTERN", tuple(ba), "AT", b1, "AND", b2, "CHANGED TO", tuple(banew))
+                  changed = True
+                  break
+              if changed:
+                break
+          if changed:
+            break
+
+      if changed:
+        currentTest = newTest
+        s = structure(r)
+      else:
+        print("NO (MORE) REDUCTIONS FOUND")
+  except TimeoutException:
+    print("REDUCTION TIMED OUT AFTER", args.timeout, "SECONDS")
 
   if (s[1] + 1) > len(currentTest):
     print("PADDING TEST WITH", (s[1] + 1) - len(currentTest), "ZEROS")
