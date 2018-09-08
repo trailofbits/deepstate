@@ -111,7 +111,7 @@ argument to see all DeepState options.
 
 ## Usage
 
-DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation is in the [examples](/examples) and in our [paper](https://agroce.github.io/bar18.pdf).
+DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation is in the [examples](/examples) and in our [paper](https://agroce.github.io/bar18.pdf).  A more extensive example, using DeepState and libFuzzer to test a user-mode file system, is available [here](https://github.com/agroce/testfs); in particular the [Tests.cpp](https://github.com/agroce/testfs/blob/master/Tests.cpp) file and CMakeLists.txt show DeepState usage.
 
 ## Fuzzing with libFuzzer
 
