@@ -161,7 +161,7 @@ deepstate-reduce ./TestFileSystem rmdirfail.test minrmdirfail.test
 ```
 
 In many cases, this will result in finding a different failure or
-crash that allow smaller test cases, so you can also provide a string
+crash that allows smaller test cases, so you can also provide a string
 that controls the criteria for which test outputs are considered valid
 reductions (by default, the reducer looks for any test that fails or
 crashes).  Only outputs containing the `--criteria` are considered to
