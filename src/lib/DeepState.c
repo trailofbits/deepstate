@@ -618,4 +618,10 @@ void __stack_chk_fail(void) {
   __builtin_unreachable();
 }
 
+__attribute__((weak))
+int main(int argc, char *argv[]) {
+  DeepState_InitOptions(argc, argv);
+  return DeepState_Run();
+}
+
 DEEPSTATE_END_EXTERN_C

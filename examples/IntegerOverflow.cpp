@@ -15,7 +15,7 @@
  */
 
 #include <deepstate/DeepState.hpp>
-
+#include <climits>
 using namespace deepstate;
 
 DEEPSTATE_NOINLINE int ident1(int x) {
@@ -40,9 +40,3 @@ TEST(SignedInteger, MultiplicationOverflow) {
       << x << " squared overflowed.";
 }
 
-#ifndef LIBFUZZER
-int main(int argc, char *argv[]) {
-  DeepState_InitOptions(argc, argv);
-  return DeepState_Run();
-}
-#endif

@@ -126,6 +126,14 @@ void DeepState_LogFormat(enum DeepState_LogLevel level,
   va_end(args);
 }
 
+#pragma clang diagnostic push
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
+/*#pragma clang diagnostic ignored "-Wbuiltin-declaration-mismatch"
+*/
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wbuiltin-declaration-mismatch"
+
 /* Override libc! */
 DEEPSTATE_NOINLINE
 int puts(const char *str) {
@@ -215,5 +223,8 @@ int __vfprintf_chk(int flag, FILE *file, const char *format, va_list args) {
   vfprintf(file, format, args);
   return 0;
 }
+
+#pragma clang diagnostic pop
+#pragma GCC diagnostic pop
 
 DEEPSTATE_END_EXTERN_C
