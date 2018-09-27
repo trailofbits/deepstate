@@ -127,9 +127,7 @@ void DeepState_LogFormat(enum DeepState_LogLevel level,
 }
 
 #pragma clang diagnostic push
-#pragma GCC diagnostic ignored "-Wunknown-warning-option"
-/*#pragma clang diagnostic ignored "-Wbuiltin-declaration-mismatch"
-*/
+#pragma clang diagnostic ignored "-Wunknown-warning-option"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wbuiltin-declaration-mismatch"
