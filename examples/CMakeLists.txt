@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 add_executable(Crash Crash.cpp)
 target_link_libraries(Crash deepstate)
 
@@ -103,9 +102,11 @@ if (BUILD_LIBFUZZER)
    set_target_properties(StreamingAndFormatting_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
 endif()
 
-add_executable(Squares Squares.c)
-target_link_libraries(Squares deepstate)
-set_target_properties(Squares PROPERTIES COMPILE_DEFINITIONS "DEEPSTATE_TEST")
+if (NOT APPLE)
+  add_executable(Squares Squares.c)
+  target_link_libraries(Squares deepstate)
+  set_target_properties(Squares PROPERTIES COMPILE_DEFINITIONS "DEEPSTATE_TEST")
+endif()
 
 add_executable(TakeOver TakeOver.cpp)
 target_link_libraries(TakeOver deepstate)

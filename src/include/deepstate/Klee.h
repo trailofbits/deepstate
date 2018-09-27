@@ -97,7 +97,12 @@ static void klee_posix_prefer_cex(void *object, uintptr_t condition) {
 /* static KLEE_GET_VALUE(d, double); */
 
 static KLEE_GET_VALUE(l, long) {
-  DeepState_MinInt(val);
+  if (sizeof(long) == sizeof(int)) {
+    return DeepState_MinInt((int) val);
+  } else {
+    // TODO: We need a MinInt64 function.
+    return DeepState_MinInt(val);
+  }
 }
 
 /* Unsupported. */
@@ -105,7 +110,7 @@ static KLEE_GET_VALUE(l, long) {
 
 /* TODO(joe): Implement */
 static KLEE_GET_VALUE(_i32, int32_t) {
-  DeepState_MinInt(val);
+  return DeepState_MinInt(val);
 }
 
 /* TODO(joe): Implement */

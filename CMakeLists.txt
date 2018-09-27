@@ -65,9 +65,10 @@ target_compile_options(${PROJECT_NAME} PUBLIC -mno-avx)
 
 target_compile_options(${PROJECT_NAME}32 PUBLIC -m32 -g3 -mno-avx)
 
-target_link_libraries(${PROJECT_NAME} -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
-
-target_link_libraries(${PROJECT_NAME}32 -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
+if (NOT APPLE)
+  target_link_libraries(${PROJECT_NAME} -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
+  target_link_libraries(${PROJECT_NAME}32 -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
+endif()
 
 target_include_directories(${PROJECT_NAME}
   PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
