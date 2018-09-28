@@ -351,7 +351,7 @@ inline static const T &OneOf(const std::vector<T> &arr) {
   if (arr.empty()) {
     DeepState_Abandon("Empty vector passed to OneOf.");
   }
-  return arr[DeepState_IntInRange(0, arr.size - 1)];
+  return arr[DeepState_IntInRange(0, arr.size() - 1)];
 }
 
 
