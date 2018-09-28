@@ -367,8 +367,13 @@ const struct DeepState_IndexEntry DeepState_API[] = {
 };
 
 /* Set up DeepState. */
+DEEPSTATE_NOINLINE
 void DeepState_Setup(void) {
-  DeepState_AllocCurrentTestRun();
+  static int was_setup = 0;
+  if (!was_setup) {
+    DeepState_AllocCurrentTestRun();
+    was_setup = 1;
+  }
 
   /* TODO(pag): Sort the test cases by file name and line number. */
 }
@@ -620,8 +625,12 @@ void __stack_chk_fail(void) {
 
 __attribute__((weak))
 int main(int argc, char *argv[]) {
+  int ret = 0;
+  DeepState_Setup();
   DeepState_InitOptions(argc, argv);
-  return DeepState_Run();
+  ret = DeepState_Run();
+  DeepState_Teardown();
+  return ret;
 }
 
 DEEPSTATE_END_EXTERN_C
