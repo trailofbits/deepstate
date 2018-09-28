@@ -19,6 +19,8 @@
 #include <functional>
 #include <vector>
 
+#include <deepstate/DeepState.hpp>
+
 class Wallet;
 
 struct Cheque {
@@ -57,24 +59,29 @@ class Wallet {
   }
 
   bool MultiTransfer(const std::vector<Cheque> &cheques) {
-    printf("D");
-    //printf("Num cheques = %lu", cheques.size());
-    printf("cheques = %p", &cheques);
+    
+    LOG(DEBUG)
+        << "Processing " << cheques.size() << " cheques";
+
     uint16_t total_to_withdraw = 0;
     for (auto cheque : cheques) {
-      printf("Transferring %hu", cheque.amount);
       total_to_withdraw += cheque.amount;
     }
 
     if (balance < total_to_withdraw) {
+      LOG(WARNING)
+          << "Insufficient funds! Can't transfer " << total_to_withdraw
+          << " from account with balance of " << balance;
       return false;
     }
 
+    LOG(DEBUG)
+        << "Withdrawing " << total_to_withdraw << " from account";
+
     for (auto cheque : cheques) {
-      if (!Transfer(cheque)) {
-        printf("WTF???");
-        abort();
-      }
+      ASSERT(Transfer(cheque))
+          << "Insufficient funds! Can't transfer " << cheque.amount
+          << " from account with balance of " << balance;
     }
 
     return true;

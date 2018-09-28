@@ -43,19 +43,14 @@ class WalletTests : public deepstate::Test {
 
   Symbolic<uint16_t> amount1;
   Symbolic<uint16_t> amount2;
-  Symbolic<uint16_t> amount3;
 };
 
 TEST_F(WalletTests, SimpleMultiTransfer) {
-  printf("A");
   auto old_balance1 = account1.Balance();
-  printf("B");
   auto old_balance2 = account2.Balance();
-  printf("C");
   auto transfer_succeeded = account1.MultiTransfer({
     {amount1, &account2},
     {amount2, &account2},
-    {amount3, &account2}
   });
 
   if (!transfer_succeeded) {

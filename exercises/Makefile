@@ -13,7 +13,7 @@
 # limitations under the License.
 
 CXX=clang++
-CXX_FLAGS=-std=c++11 -O0
+CXX_FLAGS=-std=c++11 -O0 -mno-avx -fno-exceptions -fno-rtti
 FUZZ_FLAGS=-fsanitize=fuzzer,undefined -DLIBFUZZER
 TARGETS = Wallet Wallet_tests Wallet_fuzz_tests
 
