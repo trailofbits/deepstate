@@ -29,16 +29,16 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  /* Read a uint16_t value from argv[1] into x */
-  uint16_t initial_balance = 0;
-  sscanf(argv[1], "%hu", &initial_balance);
+  /* Read a unsigned value from argv[1] into x */
+  unsigned initial_balance = 0;
+  sscanf(argv[1], "%u", &initial_balance);
 
   Wallet wallet(initial_balance);
 
   for (int i = 2; (i + 1) < argc; i += 2) {
 
-    uint16_t amount = 0;
-    sscanf(argv[i + 1], "%hu", &amount);
+    unsigned amount = 0;
+    sscanf(argv[i + 1], "%u", &amount);
 
     if (argv[i][0] == 'W') {
       wallet.Withdraw(amount);
@@ -52,6 +52,6 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  printf("New balance is %hu\n", wallet.Balance());
+  printf("New balance is %u\n", wallet.Balance());
   return EXIT_SUCCESS;
 }

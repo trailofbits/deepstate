@@ -17,6 +17,11 @@ CXX_FLAGS=-std=c++11 -O0 -mno-avx -fno-exceptions -fno-rtti
 FUZZ_FLAGS=-fsanitize=fuzzer,undefined -DLIBFUZZER
 TARGETS = Wallet Wallet_tests Wallet_fuzz_tests
 
+FirstTest: FirstTest.cpp
+	$(CXX) $(CXX_FLAGS) $^ -ldeepstate -o $@
+
+exercise_1: FirstTest
+
 Wallet: Wallet.cpp
 	$(CXX) $(CXX_FLAGS) $^ -o $@
 
@@ -26,11 +31,11 @@ Wallet_tests: Wallet_tests.cpp
 Wallet_fuzz_tests: Wallet_tests.cpp
 	$(CXX) $(CXX_FLAGS) $(FUZZ_FLAGS) $^ -ldeepstate -o $@
 
-exercise_1: Wallet Wallet_tests Wallet_fuzz_tests
+exercise_2: Wallet Wallet_tests Wallet_fuzz_tests
 
 clean:
 	@rm -f $(TARGETS)
 
-all: exercise_1
+all: exercise_1 exercise_2
 
 .PHONY: all

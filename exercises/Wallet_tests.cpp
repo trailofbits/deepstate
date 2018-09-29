@@ -35,20 +35,40 @@ class WalletTests : public deepstate::Test {
   }
  protected:
 
-  Symbolic<uint16_t> initial_balance1;
-  Symbolic<uint16_t> initial_balance2;
+  symbolic_unsigned initial_balance1;
+  symbolic_unsigned initial_balance2;
 
   Wallet account1;
   Wallet account2;
 
-  Symbolic<uint16_t> amount1;
-  Symbolic<uint16_t> amount2;
+  symbolic_unsigned amount1;
+  symbolic_unsigned amount2;
 };
 
-TEST_F(WalletTests, SimpleMultiTransfer) {
-  auto old_balance1 = account1.Balance();
-  auto old_balance2 = account2.Balance();
-  auto transfer_succeeded = account1.MultiTransfer({
+TEST_F(WalletTests, WithdrawalDecreasesAccountBalance) {
+  ASSUME_GT(amount1, 0);
+  ASSUME(account1.Withdraw(amount1));
+  ASSERT_LT(account1.Balance(), initial_balance1);
+}
+
+TEST_F(WalletTests, FailedWithdrawalPreservesAccountBalance) {
+  ASSUME(!account1.Withdraw(amount1));
+  ASSERT_EQ(account1.Balance(), initial_balance1);
+}
+
+TEST_F(WalletTests, SelfTransferPreservesAccountBalance) {
+  (void) account1.Transfer({amount1, &account1});
+
+  ASSERT_EQ(account1.Balance(), initial_balance1)
+      << "Account1's balance has increased with a self transfer of "
+      << amount1;
+}
+
+TEST_F(WalletTests, MultiTransferPreservesBankBalance) {
+  const auto old_balance1 = account1.Balance();
+  const auto old_balance2 = account2.Balance();
+  
+  const auto transfer_succeeded = account1.MultiTransfer({
     {amount1, &account2},
     {amount2, &account2},
   });

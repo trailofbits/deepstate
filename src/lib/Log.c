@@ -130,6 +130,7 @@ void DeepState_LogFormat(enum DeepState_LogLevel level,
 #pragma clang diagnostic ignored "-Wunknown-warning-option"
 
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Wbuiltin-declaration-mismatch"
 
 /* Override libc! */
@@ -222,7 +223,7 @@ int __vfprintf_chk(int flag, FILE *file, const char *format, va_list args) {
   return 0;
 }
 
-#pragma clang diagnostic pop
 #pragma GCC diagnostic pop
+#pragma clang diagnostic pop
 
 DEEPSTATE_END_EXTERN_C

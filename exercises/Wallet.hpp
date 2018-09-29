@@ -24,7 +24,7 @@
 class Wallet;
 
 struct Cheque {
-  uint16_t amount;
+  unsigned amount;
   Wallet *dest;
 };
 
@@ -33,14 +33,14 @@ class Wallet {
   Wallet(void)
       : balance(0) {}
 
-  explicit Wallet(uint16_t initial_balance)
+  explicit Wallet(unsigned initial_balance)
       : balance(initial_balance) {}
 
-  void Deposit(uint16_t amount) {
+  void Deposit(unsigned amount) {
     balance += amount;
   }
 
-  bool Withdraw(uint16_t amount) {
+  bool Withdraw(unsigned amount) {
     if (amount <= balance) {
       balance -= amount;
       return true;
@@ -63,7 +63,7 @@ class Wallet {
     LOG(DEBUG)
         << "Processing " << cheques.size() << " cheques";
 
-    uint16_t total_to_withdraw = 0;
+    unsigned total_to_withdraw = 0;
     for (auto cheque : cheques) {
       total_to_withdraw += cheque.amount;
     }
@@ -87,10 +87,10 @@ class Wallet {
     return true;
   }
 
-  uint16_t Balance(void) const {
+  unsigned Balance(void) const {
     return balance;
   }
 
  private:
-  uint16_t balance;
+  unsigned balance;
 };
