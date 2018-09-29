@@ -15,6 +15,8 @@ install:
 - cd build
 - cmake ..
 - sudo make install
+- sudo pip2 uninstall -y pycparser==2.19
+- sudo pip2 install pycparser==2.18
 - cd ..
 env:
 - TASK=ARITHMETIC
