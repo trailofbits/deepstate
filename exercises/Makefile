@@ -22,6 +22,7 @@ FirstTest: FirstTest.cpp
 
 exercise_1: FirstTest
 
+LongLongOver: CXX_FLAGS=-std=c++11 -O1 -fno-exceptions -fno-rtti
 LongLongOver: LongLongOver.cpp
 	$(CXX) $(CXX_FLAGS) $^ -ldeepstate -o $@
 
