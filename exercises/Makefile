@@ -29,7 +29,7 @@ Wallet_fuzz_tests: Wallet_tests.cpp
 exercise_1: Wallet Wallet_tests Wallet_fuzz_tests
 
 clean:
-	@rm $(TARGETS)
+	@rm -f $(TARGETS)
 
 all: exercise_1
 
