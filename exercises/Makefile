@@ -15,12 +15,17 @@
 CXX=clang++
 CXX_FLAGS=-std=c++11 -O0 -mno-avx -fno-exceptions -fno-rtti
 FUZZ_FLAGS=-fsanitize=fuzzer,undefined -DLIBFUZZER
-TARGETS = Wallet Wallet_tests Wallet_fuzz_tests
+TARGETS = FirstTest LongLongOver Wallet Wallet_tests Wallet_fuzz_tests
 
 FirstTest: FirstTest.cpp
 	$(CXX) $(CXX_FLAGS) $^ -ldeepstate -o $@
 
 exercise_1: FirstTest
+
+LongLongOver: LongLongOver.cpp
+	$(CXX) $(CXX_FLAGS) $^ -ldeepstate -o $@
+
+exercise_1.1: LongLongOver
 
 Wallet: Wallet.cpp
 	$(CXX) $(CXX_FLAGS) $^ -o $@
@@ -36,6 +41,6 @@ exercise_2: Wallet Wallet_tests Wallet_fuzz_tests
 clean:
 	@rm -f $(TARGETS)
 
-all: exercise_1 exercise_2
+all: exercise_1 exercise_1.1 exercise_2
 
 .PHONY: all
