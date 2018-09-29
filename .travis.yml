@@ -4,18 +4,17 @@ sudo: true
 python:
 - "2.7"
 install:
-- pip install pyflakes
+- sudo pip2 install pyflakes
 - sudo apt-get -y update
 - sudo apt-get -y install build-essential gcc-multilib cmake python python-pip python-setuptools libffi-dev
 - sudo pip2 install -U pip
-- sudo pip install z3-solver
-- sudo pip install https://github.com/trailofbits/manticore/archive/last_python2.zip
+- sudo pip2 install z3-solver
+- sudo pip2 install https://github.com/trailofbits/manticore/archive/last_python2.zip
 - sudo pip2 install cffi==1.7.0 pycparser==2.18
 - mkdir build
 - cd build
 - cmake ..
-- make
-- python setup.py install
+- sudo make install
 - cd ..
 env:
 - TASK=ARITHMETIC
