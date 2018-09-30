@@ -14,6 +14,7 @@
 
 CXX=clang++
 CXX_FLAGS=-std=c++11 -O0 -mno-avx -fno-exceptions -fno-rtti
+FUZZ_FLAGS=-fsanitize=fuzzer,undefined -DLIBFUZZER
 TARGETS = FirstTest LongLongOver Wallet Wallet_tests
 
 FirstTest: FirstTest.cpp
