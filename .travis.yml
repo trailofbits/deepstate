@@ -6,13 +6,13 @@ sudo: true
 install:
 - sudo apt-get -y update
 - sudo apt-get -y install build-essential gcc-multilib cmake python python-pip python-setuptools libffi-dev
-- sudo pip2 install -U pip
-- pip install pyflakes --user
-- pip install z3-solver --user
-- pip install https://github.com/trailofbits/manticore/archive/last_python2.zip --user
-- pip install cffi==1.7.0 pycparser==2.18 --user 
-- pip install cle==7.8.9.26 pyvex==7.8.9.26 --user
-- pip install angr==7.8.7.1 --user
+#- sudo pip2 install -U pip
+- pip2 install pyflakes --user
+- pip2 install z3-solver --user
+- pip2 install https://github.com/trailofbits/manticore/archive/last_python2.zip --user
+- pip2 install cffi==1.7.0 pycparser==2.18 --user 
+- pip2 install cle==7.8.9.26 pyvex==7.8.9.26 --user
+- pip2 install angr==7.8.7.1 --user
 - mkdir build
 - cd build
 - cmake ..
