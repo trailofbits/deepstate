@@ -10,7 +10,8 @@ install:
 - sudo pip install pyflakes
 - sudo pip install z3-solver
 - sudo pip install https://github.com/trailofbits/manticore/archive/last_python2.zip
-- sudo pip install cffi==1.7.0 pycparser==2.18 cle==7.8.9.26 pyvex==7.8.9.26 angr==7.8.7.1
+- sudo pip install cffi==1.7.0 pycparser==2.18 cle==7.8.9.26 pyvex==7.8.9.26 
+- sudo pip install angr==7.8.7.1
 - mkdir build
 - cd build
 - cmake ..
