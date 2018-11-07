@@ -6,20 +6,12 @@ sudo: true
 install:
 - sudo apt-get -y update
 - sudo apt-get -y install build-essential gcc-multilib cmake python python-pip python-setuptools libffi-dev
-#- sudo pip2 install -U pip
-- pip2 install pyflakes --user
-- pip2 install z3-solver --user
-#- pip2 install https://github.com/trailofbits/manticore/archive/last_python2.zip --user
-- pip2 install cffi==1.7.0 pycparser==2.18 --user 
-- pip2 install cle==7.8.9.26 pyvex==7.8.9.26 --user
-- pip2 uninstall unicorn -y
-- pip2 install angr==7.8.7.1 --user
+- pip2 install angr==7.8.9.26 --user
+- pip2 install https://github.com/trailofbits/manticore/archive/last_python2.zip --user
 - mkdir build
 - cd build
 - cmake ..
 - sudo make install
-#- sudo pip2 uninstall -y pycparser==2.19
-#- sudo pip2 install pycparser==2.18
 - cd ..
 env:
 - TASK=ARITHMETIC
