@@ -1,22 +1,18 @@
-language: python
-dist: trusty
+language: bash
+dist: xenial
 sudo: true
-python:
-- "2.7"
+#python:
+#- "2.7"
 install:
-- sudo pip2 install pyflakes
 - sudo apt-get -y update
-- sudo apt-get -y install build-essential gcc-multilib cmake python python-pip python-setuptools libffi-dev
-- sudo pip2 install -U pip
-- sudo pip2 install z3-solver
-- sudo pip2 install https://github.com/trailofbits/manticore/archive/last_python2.zip
-- sudo pip2 install cffi==1.7.0 pycparser==2.18
+- sudo apt-get -y install build-essential gcc-multilib cmake python python-pip python-setuptools libffi-dev python-nose
+- pip2 install pyflakes --user
+- pip2 install angr==7.8.9.26 --user
+- pip2 install https://github.com/trailofbits/manticore/archive/last_python2.zip --user
 - mkdir build
 - cd build
 - cmake ..
 - sudo make install
-- sudo pip2 uninstall -y pycparser==2.19
-- sudo pip2 install pycparser==2.18
 - cd ..
 env:
 - TASK=ARITHMETIC
