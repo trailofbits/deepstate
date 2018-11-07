@@ -10,7 +10,7 @@ install:
 - sudo pip2 install -U pip
 - sudo pip2 install z3-solver
 - sudo pip2 install https://github.com/trailofbits/manticore/archive/last_python2.zip
-- sudo pip2 install cffi==1.7.0 pycparser==2.18 cle==7.8.9.26 pyvex==7.8.9.26
+- sudo pip2 install cffi==1.7.0 pycparser==2.18 cle==7.8.9.26 pyvex==7.8.9.26 angr==7.8.7.1
 - mkdir build
 - cd build
 - cmake ..
