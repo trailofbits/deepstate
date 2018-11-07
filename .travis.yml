@@ -4,13 +4,13 @@ sudo: true
 python:
 - "2.7"
 install:
-- sudo pip2 install pyflakes
 - sudo apt-get -y update
 - sudo apt-get -y install build-essential gcc-multilib cmake python python-pip python-setuptools libffi-dev
 - sudo pip2 install -U pip
-- sudo pip2 install z3-solver
-- sudo pip2 install https://github.com/trailofbits/manticore/archive/last_python2.zip
-- sudo pip2 install cffi==1.7.0 pycparser==2.18 cle==7.8.9.26 pyvex==7.8.9.26 angr==7.8.7.1
+- sudo pip install pyflakes
+- sudo pip install z3-solver
+- sudo pip install https://github.com/trailofbits/manticore/archive/last_python2.zip
+- sudo pip install cffi==1.7.0 pycparser==2.18 cle==7.8.9.26 pyvex==7.8.9.26 angr==7.8.7.1
 - mkdir build
 - cd build
 - cmake ..
