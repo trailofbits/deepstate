@@ -1,8 +1,8 @@
-language: python
+language: bash
 dist: xenial
 sudo: true
-python:
-- "2.7"
+#python:
+#- "2.7"
 install:
 - sudo apt-get -y update
 - sudo apt-get -y install build-essential gcc-multilib cmake python python-pip python-setuptools libffi-dev
