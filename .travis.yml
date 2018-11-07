@@ -9,7 +9,7 @@ install:
 #- sudo pip2 install -U pip
 - pip2 install pyflakes --user
 - pip2 install z3-solver --user
-- pip2 install https://github.com/trailofbits/manticore/archive/last_python2.zip --user
+#- pip2 install https://github.com/trailofbits/manticore/archive/last_python2.zip --user
 - pip2 install cffi==1.7.0 pycparser==2.18 --user 
 - pip2 install cle==7.8.9.26 pyvex==7.8.9.26 --user
 - pip2 uninstall unicorn -y
