@@ -6,7 +6,7 @@
 
 DeepState is a framework that provides C and C++ developers with a common interface to various symbolic execution and fuzzing engines. Users can write one test harness using a Google Test-like API, then execute it using multiple backends without having to learn the complexities of the underlying engines. It supports writing unit tests and API sequence tests, as well as automatic test generation. Read more about the goals and design of DeepState in our [paper](https://agroce.github.io/bar18.pdf).
 
-The [2018 IEEE Cybersecurity Development Conference](https://secdev.ieee.org/2018/home) included a full tutorial on effective use of DeepState.
+The [2018 IEEE Cybersecurity Development Conference](https://secdev.ieee.org/2018/home) included a [full tutorial](http://www.petergoodman.me/docs/secdev-2018-slides.pdf) on effective use of DeepState.
 
 ## Overview of Features
 
