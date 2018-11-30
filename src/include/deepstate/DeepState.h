@@ -235,14 +235,11 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
     DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
         tname low, tname high) { \
       tname x = DeepState_ ## Tname(); \
-      DeepState_LogFormat(DeepState_LogInfo, "Computing a range"); \
       if (!(DeepState_UsingLibFuzzer || HAS_FLAG_input_test_file \
 	    || HAS_FLAG_input_test_dir || HAS_FLAG_input_test_files_dir)) \
         (void) DeepState_Assume(low <= x && x <= high); \
-      else { \
-        DeepState_LogFormat(DeepState_LogInfo, "Fixing value"); \
+      else \
 	x = low + (x%((high+1)-low)); \
-      } \
       return x; \
     }
 
