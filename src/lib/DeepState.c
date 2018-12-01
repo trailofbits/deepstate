@@ -299,8 +299,8 @@ void _DeepState_Assume(int expr, const char *expr_str, const char *file,
                        unsigned line) {
   if (!expr) {
     DeepState_LogFormat(DeepState_LogError,
-                      "%s(%u): Assumption %s failed",
-                      file, line, expr_str);    
+                        "%s(%u): Assumption %s failed",
+                        file, line, expr_str);    
     DeepState_Abandon("Assumption failed");
   }
 }
