@@ -235,7 +235,11 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
     DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
         tname low, tname high) { \
       tname x = DeepState_ ## Tname(); \
-      (void) DeepState_Assume(low <= x && x <= high); \
+      if (!(DeepState_UsingLibFuzzer || HAS_FLAG_input_test_file \
+            || HAS_FLAG_input_test_dir || HAS_FLAG_input_test_files_dir)) \
+        (void) DeepState_Assume(low <= x && x <= high); \
+      else \
+        x = low + (x%((high+1)-low)); \
       return x; \
     }
 

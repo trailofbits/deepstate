@@ -298,6 +298,9 @@ int32_t DeepState_MaxInt(int32_t v) {
 void _DeepState_Assume(int expr, const char *expr_str, const char *file,
                        unsigned line) {
   if (!expr) {
+    DeepState_LogFormat(DeepState_LogError,
+                        "%s(%u): Assumption %s failed",
+                        file, line, expr_str);    
     DeepState_Abandon("Assumption failed");
   }
 }
@@ -597,6 +600,13 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   DeepState_Begin(test);
 
   enum DeepState_TestRunResult result = DeepState_RunTestLLVM(test);
+
+  const char* abort_check = getenv("LIBFUZZER_ABORT_ON_FAIL");
+  if (abort_check != NULL) {
+    if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
+      abort();
+    }
+  }
 
   DeepState_Teardown();
   DeepState_CurrentTestRun = NULL;
