@@ -73,7 +73,8 @@ char DeepState_LogBuf[DeepState_LogBufSize + 1] = {};
 /* Log a C string. */
 DEEPSTATE_NOINLINE
 void DeepState_Log(enum DeepState_LogLevel level, const char *str) {
-  if (DeepState_UsingLibFuzzer && (level < DeepState_LogExternal)) {
+  if ((DeepState_UsingLibFuzzer && (level < DeepState_LogExternal)) ||
+      (level < FLAGS_log_level)) {
     return;
   }
   memset(DeepState_LogBuf, 0, DeepState_LogBufSize);
