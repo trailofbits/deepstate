@@ -240,8 +240,8 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
       if (!(DeepState_UsingLibFuzzer || HAS_FLAG_input_test_file \
             || HAS_FLAG_input_test_dir || HAS_FLAG_input_test_files_dir)) \
         (void) DeepState_Assume(low <= x && x <= high); \
-      else \
-        x = low + (x%((high+1)-low)); \
+      else if ((x < low) || (x > high))	\
+        x = low + (x%(((high-low)+1)));	\
       return x; \
     }
 
