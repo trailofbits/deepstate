@@ -240,7 +240,7 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
  *    size = (high - low) + 1
  *    if (symbolic mode) {
  *      assume 0 <= x and x < size
- *      return x
+ *      return low + x
  *    } else {
  *      return low + (x % size)
  *    }
