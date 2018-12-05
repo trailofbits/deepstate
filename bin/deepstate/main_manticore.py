@@ -89,7 +89,7 @@ class DeepManticore(DeepState):
 
   def write_uint32_t(self, ea, val):
     self.state.cpu.write_int(ea, val, size=32)
-    return ea + 1
+    return ea + 4
 
   def concretize(self, val, constrain=False):
     if isinstance(val, (int, long)):
