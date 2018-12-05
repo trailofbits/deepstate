@@ -64,6 +64,8 @@ DECLARE_bool(take_over);
 DECLARE_bool(abort_on_fail);
 DECLARE_bool(verbose_reads);
 
+DECLARE_int(log_level);
+
 enum {
   DeepState_InputSize = 8192
 };
