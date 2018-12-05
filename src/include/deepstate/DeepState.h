@@ -230,17 +230,41 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
   }
 }
 
-/* Return a symbolic value in a the range `[low_inc, high_inc]`. */
+/* Return a symbolic value in a the range `[low_inc, high_inc]`.
+ *
+ * Current implementation saturates values. An alternative implementation
+ * worth exploring, and perhaps supporting in addition to saturation, is
+ * something like:
+ *
+ *    x = symbolic_value;
+ *    size = (high - low) + 1
+ *    if (symbolic mode) {
+ *      assume 0 <= x and x < size
+ *      return x
+ *    } else {
+ *      return low + (x % size)
+ *    }
+ *
+ * This type of version lets a reducer drive toward zero.
+ */
 #define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname) \
     DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
         tname low, tname high) { \
-      tname x = DeepState_ ## Tname(); \
-      if (!(DeepState_UsingLibFuzzer || HAS_FLAG_input_test_file \
-            || HAS_FLAG_input_test_dir || HAS_FLAG_input_test_files_dir)) \
+      if (low > high) { \
+        return DeepState_ ## Tname ## InRange(high, low); \
+      } \
+      const tname x = DeepState_ ## Tname(); \
+      if (DeepState_UsingSymExec) { \
         (void) DeepState_Assume(low <= x && x <= high); \
-      else \
-        x = low + (x%((high+1)-low)); \
-      return x; \
+        return x; \
+      } \
+      if (x < low) { \
+        return low; \
+      } else if (x > high) { \
+        return high; \
+      } else { \
+        return x; \
+      } \
     }
 
 DEEPSTATE_MAKE_SYMBOLIC_RANGE(Size, size_t)

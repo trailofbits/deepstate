@@ -38,6 +38,12 @@ DEFINE_bool(take_over, false, "Replay test cases in take-over mode.");
 DEFINE_bool(abort_on_fail, false, "Abort on file replay failure (useful in file fuzzing).");
 DEFINE_bool(verbose_reads, false, "Report on bytes being read during execution of test.");
 
+/* Set to 1 by Manticore/Angr/etc. when we're running symbolically. */
+int DeepState_UsingSymExec = 0;
+
+/* Set to 1 when we're using libFuzzer. */
+int DeepState_UsingLibFuzzer = 0;
+
 /* Pointer to the last registers DeepState_TestInfo data structure */
 struct DeepState_TestInfo *DeepState_LastTestInfo = NULL;
 
@@ -365,6 +371,9 @@ const struct DeepState_IndexEntry DeepState_API[] = {
   {"StreamInt",       (void *) _DeepState_StreamInt},
   {"StreamFloat",     (void *) _DeepState_StreamFloat},
   {"StreamString",    (void *) _DeepState_StreamString},
+
+  {"UsingLibFuzzer", (void *) &DeepState_UsingLibFuzzer},
+  {"UsingSymExec", (void *) &DeepState_UsingSymExec},
 
   {NULL, NULL},
 };
