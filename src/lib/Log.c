@@ -66,7 +66,7 @@ enum {
   DeepState_LogBufSize = 4096
 };
 
-int DeepState_UsingLibFuzzer = 0;
+extern int DeepState_UsingLibFuzzer;
 
 char DeepState_LogBuf[DeepState_LogBufSize + 1] = {};
 

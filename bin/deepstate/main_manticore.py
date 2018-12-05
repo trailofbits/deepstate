@@ -87,6 +87,10 @@ class DeepManticore(DeepState):
     self.state.cpu.write_int(ea, val, size=8)
     return ea + 1
 
+  def write_uint32_t(self, ea, val):
+    self.state.cpu.write_int(ea, val, size=32)
+    return ea + 4
+
   def concretize(self, val, constrain=False):
     if isinstance(val, (int, long)):
       return val
@@ -418,6 +422,10 @@ def main_takeover(m, args, takeover_symbol):
 
   base = get_base(m)
   apis = mc.read_api_table(ea_of_api_table, base)
+
+  # Tell the system that we're using symbolic execution.
+  mc.write_uint32_t(apis["UsingSymExec"], 1)
+  
   del mc
 
   fake_test = TestInfo(takeover_ea, '_takeover_test', '_takeover_file', 0)

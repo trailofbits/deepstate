@@ -84,6 +84,10 @@ class DeepAngr(DeepState):
     self.state.memory.store(ea, val, size=1)
     return ea + 1
 
+  def write_uint32_t(self, ea, val):
+    self.state.memory.store(ea, val, size=4)
+    return ea + 4
+
   def concretize(self, val, constrain=False):
     if isinstance(val, (int, long)):
       return val
@@ -335,6 +339,9 @@ def hook_apis(args, project, run_state):
 
   mc = DeepAngr(state=run_state)
   apis = mc.read_api_table(ea_of_api_table)
+
+  # Tell the system that we're using symbolic execution.
+  mc.write_uint32_t(apis["UsingSymExec"], 1)
 
   # Hook various functions.
   hook_function(project, apis['IsSymbolicUInt'], IsSymbolicUInt)

@@ -24,6 +24,7 @@
 DEEPSTATE_BEGIN_EXTERN_C
 
 extern int DeepState_UsingLibFuzzer;
+extern int DeepState_UsingSymExec;
 
 struct DeepState_Stream;
 
