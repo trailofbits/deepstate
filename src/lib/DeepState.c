@@ -38,7 +38,7 @@ DEFINE_bool(take_over, false, "Replay test cases in take-over mode.");
 DEFINE_bool(abort_on_fail, false, "Abort on file replay failure (useful in file fuzzing).");
 DEFINE_bool(verbose_reads, false, "Report on bytes being read during execution of test.");
 
-DEFINE_int(log_level, 0, "Minimum level of logging to output.")
+DEFINE_int(log_level, 0, "Minimum level of logging to output.");
 
 /* Pointer to the last registers DeepState_TestInfo data structure */
 struct DeepState_TestInfo *DeepState_LastTestInfo = NULL;
