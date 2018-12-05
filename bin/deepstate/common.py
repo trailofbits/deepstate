@@ -87,6 +87,9 @@ class DeepState(object):
   def write_uint8_t(self, ea, val):
     raise NotImplementedError("Must be implemented by engine.")
 
+  def write_uint32_t(self, ea, val):
+    raise NotImplementedError("Must be implemented by engine.")
+
   def concretize(self, val, constrain=False):
     raise NotImplementedError("Must be implemented by engine.")
 
