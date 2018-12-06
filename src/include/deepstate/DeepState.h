@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <dirent.h>
 #include <libgen.h>
+#include <random.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -32,6 +33,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <deepstate/Log.h>
@@ -63,8 +65,11 @@ DECLARE_string(output_test_dir);
 DECLARE_bool(take_over);
 DECLARE_bool(abort_on_fail);
 DECLARE_bool(verbose_reads);
+DECLARE_bool(fuzz);
 
 DECLARE_int(log_level);
+DECLARE_int(seed);
+DECLARE_int(timeout);
 
 enum {
   DeepState_InputSize = 8192
@@ -708,6 +713,29 @@ static int DeepState_RunSingleSavedTestCase(void) {
   return num_failed_tests;
 }
 
+/* Fuzz test `FLAGS_input_which_test` or first test, if not defined. */
+static int DeepState_Fuzz(void) {
+  if (HAS_FLAG_seed) {
+    srand(FLAGS_seed);
+  } else {
+    srand(time(NULL));
+  }
+
+  long start = (long)time(NULL);
+  long current = (long)time(NULL);
+  long diff = 0;
+  unsigned i = 0;
+  while (diff < FLAGS_timeout) {
+    i++;
+
+    /* Do the actual fuzzing here! */
+    
+    current = (long)time(NULL);
+    diff = current-start;
+  }
+  LOG(INFO) << "Ran " << i << " tests in " << diff << " seconds.";
+}
+
 /* Run tests from `FLAGS_input_test_files_dir`, under `FLAGS_input_which_test`
  * or first test, if not defined. */
 static int DeepState_RunSingleSavedTestDir(void) {
@@ -808,7 +836,11 @@ static int DeepState_Run(void) {
 
   if (HAS_FLAG_input_test_files_dir) {
     return DeepState_RunSingleSavedTestDir();
-  }  
+  }
+
+  if (HAS_FLAG_fuzz) {
+    return DeepState_Fuzz();
+  }
 
   int num_failed_tests = 0;
   int use_drfuzz = getenv("DYNAMORIO_EXE_PATH") != NULL;
