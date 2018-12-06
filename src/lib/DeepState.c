@@ -41,7 +41,7 @@ DEFINE_bool(fuzz, false, "Perform brute force unguided fuzzing.");
 
 DEFINE_int(log_level, 0, "Minimum level of logging to output.");
 DEFINE_int(seed, 0, "Seed for brute force fuzzing (uses time if not set).");
-DEFINE_int(timeout, 120, "Timeout for brute force fuzzing.")
+DEFINE_int(timeout, 120, "Timeout for brute force fuzzing.");
 
 /* Set to 1 by Manticore/Angr/etc. when we're running symbolically. */
 int DeepState_UsingSymExec = 0;
