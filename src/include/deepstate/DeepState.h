@@ -260,7 +260,7 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
       if (low > high) { \
         return DeepState_ ## Tname ## InRange(high, low); \
       } \
-      const tname x = DeepState_ ## Tname(); \
+      tname x = DeepState_ ## Tname(); \
       if (DeepState_UsingSymExec) { \
         (void) DeepState_Assume(low <= x && x <= high); \
       } else { \
