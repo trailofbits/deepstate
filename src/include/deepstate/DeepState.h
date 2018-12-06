@@ -20,7 +20,6 @@
 #include <assert.h>
 #include <dirent.h>
 #include <libgen.h>
-#include <random.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdbool.h>
