@@ -263,10 +263,9 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
       tname x = DeepState_ ## Tname(); \
       if (DeepState_UsingSymExec) { \
         (void) DeepState_Assume(low <= x && x <= high); \
-      } else { \
-        if ((x < low) || (x > high)) { \
-          const tname size = (high - low) + 1; \
-          x = low + (x % size); \
+      } else if ((x < low) || (x > high)) { \
+        const tname size = (high - low) + 1; \
+        x = low + (x % size); \
       } \
       return x; \
     }
