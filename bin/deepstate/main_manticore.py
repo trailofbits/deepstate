@@ -335,6 +335,7 @@ def do_run_test(state, apis, test, hook_test=False):
 
   state = m.initial_state
   mc = DeepManticore(state)
+  mc.write_uint32_t(apis["UsingSymExec"], 8589934591)
   mc.begin_test(test)
   del mc
 
