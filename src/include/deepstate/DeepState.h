@@ -261,13 +261,14 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
         return DeepState_ ## Tname ## InRange(high, low); \
       } \
       const tname x = DeepState_ ## Tname(); \
-      const tname size = (high - low) + 1; \
       if (DeepState_UsingSymExec) { \
-        (void) DeepState_Assume(0 <= x && x < size); \
-        return low + x; \
+        (void) DeepState_Assume(low <= x && x <= high); \
       } else { \
-        return low + (x % size); \
+        if ((x < low) || (x > high)) { \
+          const tname size = (high - low) + 1; \
+          x = low + (x % size); \
       } \
+      return x; \
     }
 
 DEEPSTATE_MAKE_SYMBOLIC_RANGE(Size, size_t)
