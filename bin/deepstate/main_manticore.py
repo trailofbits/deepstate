@@ -335,7 +335,10 @@ def do_run_test(state, apis, test, hook_test=False):
 
   state = m.initial_state
   mc = DeepManticore(state)
-  mc.write_uint32_t(apis["UsingSymExec"], 8589934591)
+
+  # Tell the system that we're using symbolic execution.
+  mc.write_uint32_t(apis["UsingSymExec"], 1)
+
   mc.begin_test(test)
   del mc
 
@@ -424,9 +427,6 @@ def main_takeover(m, args, takeover_symbol):
   base = get_base(m)
   apis = mc.read_api_table(ea_of_api_table, base)
 
-  # Tell the system that we're using symbolic execution.
-  mc.write_uint32_t(apis["UsingSymExec"], 1)
-  
   del mc
 
   fake_test = TestInfo(takeover_ea, '_takeover_test', '_takeover_file', 0)
