@@ -561,11 +561,11 @@ void DeepState_BeginDrFuzz(struct DeepState_TestInfo *test) {
 void makeFilename(char *name, size_t size) {
   const char *entities = "0123456789abcdef";
   for (int i = 0; i < size; i++) {
-    name[i] = entities(rand() % 16);
+    name[i] = entities[rand()%16];
   }
 }
 
-void writeInputData(char* path) {
+void writeInputData(char* name) {
   size_t path_len = 2 + sizeof(char) * (strlen(FLAGS_output_test_dir) + strlen(name));
   char *path = (char *) malloc(path_len);
   snprintf(path, path_len, "%s/%s", FLAGS_output_test_dir, name);
@@ -576,7 +576,8 @@ void writeInputData(char* path) {
     return;
   }
   free(path);
-  fwrite(DeepState_Input, 1, DeepState_InputSize, fp);
+  fwrite((void *)DeepState_Input, 1, DeepState_InputSize, fp);
+  DeepState_LogFormat(DeepState_LogInfo, "Saved test case to file `%s`", path);
   fclose(fp);  
 }
 
@@ -584,7 +585,7 @@ void writeInputData(char* path) {
 void DeepState_SavePassingTest(void) {
   char name[48];
   makeFilename(name, 40);
-  name[40] = NULL;
+  name[40] = 0;
   strncat(name, ".pass", 48);
   writeInputData(name);
 }
@@ -593,7 +594,7 @@ void DeepState_SavePassingTest(void) {
 void DeepState_SaveFailingTest(void) {
   char name[48];
   makeFilename(name, 40);
-  name[40] = NULL;
+  name[40] = 0;
   strncat(name, ".fail", 48);
   writeInputData(name);
 }
@@ -602,7 +603,7 @@ void DeepState_SaveFailingTest(void) {
 void DeepState_SaveCrashingTest(void) {
   char name[48];
   makeFilename(name, 40);
-  name[40] = NULL;
+  name[40] = 0;
   strncat(name, ".crash", 48);
   writeInputData(name);
 }
