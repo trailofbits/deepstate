@@ -571,13 +571,17 @@ void writeInputData(char* name) {
   snprintf(path, path_len, "%s/%s", FLAGS_output_test_dir, name);
   FILE *fp = fopen(path, "wb");
   if (fp == NULL) {
-    DeepState_LogFormat(DeepState_LogError, "Failed to write to file `%s`", path);
+    DeepState_LogFormat(DeepState_LogError, "Failed to create file `%s`", path);
     free(path);
     return;
   }
-  free(path);
-  fwrite((void *)DeepState_Input, 1, DeepState_InputSize, fp);
-  DeepState_LogFormat(DeepState_LogInfo, "Saved test case to file `%s`", path);
+  size_t written = fwrite((void *)DeepState_Input, 1, DeepState_InputSize, fp);
+  if (written != DeepState_InputSize) {
+    DeepState_LogFormat(DeepState_LogError, "Failed to write to file `%s`", path);
+  } else {
+    DeepState_LogFormat(DeepState_LogInfo, "Saved test case to file `%s`", path);
+  }
+  free(path);  
   fclose(fp);  
 }
 
