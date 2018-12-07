@@ -337,7 +337,7 @@ def do_run_test(state, apis, test, hook_test=False):
   mc = DeepManticore(state)
 
   # Tell the system that we're using symbolic execution.
-  mc.write_uint32_t(apis["UsingSymExec"], 1)
+  mc.write_uint32_t(apis["UsingSymExec"], 8589934591)
 
   mc.begin_test(test)
   del mc

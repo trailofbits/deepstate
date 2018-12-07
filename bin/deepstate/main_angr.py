@@ -283,7 +283,7 @@ def do_run_test(project, test, apis, run_state, should_call_state):
   mc = DeepAngr(state=test_state)
 
   # Tell the system that we're using symbolic execution.
-  mc.write_uint32_t(apis["UsingSymExec"], 1)
+  mc.write_uint32_t(apis["UsingSymExec"], 8589934591)
   
   mc.begin_test(test)
   del mc
