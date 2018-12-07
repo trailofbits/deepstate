@@ -606,8 +606,6 @@ DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test) {
   enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
 
   if (result == DeepState_TestRunFail) {
-    DeepState_LogFormat(DeepState_LogError, "Failed: %s", test->test_name);
-
     if (HAS_FLAG_output_test_dir) {
       DeepState_SaveFailingTest();
     }
@@ -615,7 +613,7 @@ DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test) {
     
   if (result == DeepState_TestRunCrash) {
     DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
-
+    
     if (HAS_FLAG_output_test_dir) {
       DeepState_SaveCrashingTest();
     }
