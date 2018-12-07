@@ -589,6 +589,38 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
   return DeepState_TestRunCrash;
 }
 
+/* Run a test case with input initialized by fuzzing. */
+static enum DeepState_TestRunResult
+DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test) {
+  for (int i = 0; i < sizeof(DeepState_Input); i++) {
+    DeepState_Input[i] = (char)rand();
+  }
+
+  DeepState_Begin(test);
+
+  enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
+
+  if (result == DeepState_TestRunFail) {
+    DeepState_LogFormat(DeepState_LogError, "Failed: %s", test->test_name);
+
+    if (HAS_FLAG_output_test_dir) {
+      DeepState_SaveFailingTest();
+    }
+  }
+    
+  if (result == DeepState_TestRunCrash) {
+    DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
+
+    if (HAS_FLAG_output_test_dir) {
+      DeepState_SaveCrashingTest();
+    }
+
+    DeepState_Crash();
+  }
+
+  return result;
+}
+
 /* Run a single saved test case with input initialized from the file
  * `name` in directory `dir`. */
 static enum DeepState_TestRunResult
@@ -726,10 +758,34 @@ static int DeepState_Fuzz(void) {
   unsigned i = 0;
 
   int num_failed_tests = 0;
+
+  struct DeepState_TestInfo *test = NULL;  
+
+  DeepState_Setup();
+
+  for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
+    if (HAS_FLAG_input_which_test) {
+      if (strncmp(FLAGS_input_which_test, test->test_name, strlen(FLAGS_input_which_test)) == 0) {
+	break;
+      }
+    } else {
+      DeepState_LogFormat(DeepState_LogInfo,
+			  "No test specified, defaulting to last test defined");
+      break;
+    }
+  }
+
+  if (test == NULL) {
+    DeepState_LogFormat(DeepState_LogInfo,
+                        "Could not find matching test for %s",
+                        FLAGS_input_which_test);
+    return 0;
+  }
+  
   while (diff < FLAGS_timeout) {
     i++;
 
-    /* Do the actual fuzzing here! */
+    num_failed_tests += DeepState_FuzzOneTestCase(test);    
     
     current = (long)time(NULL);
     diff = current-start;
