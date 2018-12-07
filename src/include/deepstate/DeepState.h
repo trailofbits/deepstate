@@ -618,6 +618,11 @@ DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test) {
     DeepState_Crash();
   }
 
+  if (FLAGS_abort_on_fail && ((result == DeepState_TestRunCrash) ||
+			      (result == DeepState_TestRunFail))) {
+      abort();
+  }  
+
   return result;
 }
 
@@ -746,6 +751,8 @@ static int DeepState_RunSingleSavedTestCase(void) {
 
 /* Fuzz test `FLAGS_input_which_test` or first test, if not defined. */
 static int DeepState_Fuzz(void) {
+  DeepState_LogFormat(DeepState_LogInfo, "Starting fuzzing");
+  
   if (HAS_FLAG_seed) {
     srand(FLAGS_seed);
   } else {
@@ -896,7 +903,7 @@ static int DeepState_Run(void) {
     return DeepState_RunSingleSavedTestDir();
   }
 
-  if (HAS_FLAG_fuzz) {
+  if (FLAGS_fuzz) {
     return DeepState_Fuzz();
   }
 
