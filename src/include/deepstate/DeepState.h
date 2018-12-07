@@ -592,7 +592,7 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
 /* Run a test case with input initialized by fuzzing. */
 static enum DeepState_TestRunResult
 DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test) {
-  for (int i = 0; i < sizeof(DeepState_Input); i++) {
+  for (int i = 0; i < DeepState_InputSize; i++) {
     DeepState_Input[i] = (char)rand();
   }
 
