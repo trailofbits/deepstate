@@ -796,14 +796,16 @@ static int DeepState_Fuzz(void) {
   
   while (diff < FLAGS_timeout) {
     i++;
-
     num_failed_tests += DeepState_FuzzOneTestCase(test);    
     
     current = (long)time(NULL);
     diff = current-start;
   }
+
   DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests.  %d failed tests.",
 		      i, num_failed_tests);
+
+  return num_failed_tests;
 }
 
 /* Run tests from `FLAGS_input_test_files_dir`, under `FLAGS_input_which_test`
