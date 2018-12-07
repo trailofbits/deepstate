@@ -281,6 +281,10 @@ def do_run_test(project, test, apis, run_state, should_call_state):
       test_state = run_state
 
   mc = DeepAngr(state=test_state)
+
+  # Tell the system that we're using symbolic execution.
+  mc.write_uint32_t(apis["UsingSymExec"], 8589934591)
+  
   mc.begin_test(test)
   del mc
 
@@ -339,9 +343,6 @@ def hook_apis(args, project, run_state):
 
   mc = DeepAngr(state=run_state)
   apis = mc.read_api_table(ea_of_api_table)
-
-  # Tell the system that we're using symbolic execution.
-  mc.write_uint32_t(apis["UsingSymExec"], 1)
 
   # Hook various functions.
   hook_function(project, apis['IsSymbolicUInt'], IsSymbolicUInt)
