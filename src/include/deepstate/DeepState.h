@@ -65,6 +65,7 @@ DECLARE_bool(take_over);
 DECLARE_bool(abort_on_fail);
 DECLARE_bool(verbose_reads);
 DECLARE_bool(fuzz);
+DECLARE_bool(fuzz_save_passing);
 
 DECLARE_int(log_level);
 DECLARE_int(seed);
@@ -523,7 +524,9 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
   } else {
     DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
     if (HAS_FLAG_output_test_dir) {
-      DeepState_SavePassingTest();
+      if (!FLAGS_fuzz || FLAGS_fuzz_save_passing) {
+	DeepState_SavePassingTest();
+      }
     }
     exit(DeepState_TestRunPass);
   }

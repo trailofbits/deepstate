@@ -38,6 +38,7 @@ DEFINE_bool(take_over, false, "Replay test cases in take-over mode.");
 DEFINE_bool(abort_on_fail, false, "Abort on file replay failure (useful in file fuzzing).");
 DEFINE_bool(verbose_reads, false, "Report on bytes being read during execution of test.");
 DEFINE_bool(fuzz, false, "Perform brute force unguided fuzzing.");
+DEFINE_bool(fuzz_save_passing, false, "Save passing tests during fuzzing.");
 
 DEFINE_int(log_level, 0, "Minimum level of logging to output.");
 DEFINE_int(seed, 0, "Seed for brute force fuzzing (uses time if not set).");
