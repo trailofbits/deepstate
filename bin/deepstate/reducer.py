@@ -130,6 +130,8 @@ def main():
       cuts = s[0]
       for c in cuts:
         newTest = currentTest[:c[0]] + currentTest[c[1]+1:]
+        if len(newTest) == len(currentTest):
+          continue # Ignore non-shrinking reductions
         r = writeAndRunCandidate(newTest)
         if checks(r):
           print("ONEOF REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
