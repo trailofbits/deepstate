@@ -558,6 +558,7 @@ void DeepState_BeginDrFuzz(struct DeepState_TestInfo *test) {
   DrMemFuzzFunc(DeepState_Input, DeepState_InputSize);
 }
 
+/* Right now "fake" a hexdigest by just using random bytes.  Not ideal. */
 void makeFilename(char *name, size_t size) {
   const char *entities = "0123456789abcdef";
   for (int i = 0; i < size; i++) {
