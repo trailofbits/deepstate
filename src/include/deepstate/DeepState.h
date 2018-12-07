@@ -232,23 +232,8 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
   }
 }
 
-/* Return a symbolic value in a the range `[low_inc, high_inc]`.
- *
- * Current implementation saturates values. An alternative implementation
- * worth exploring, and perhaps supporting in addition to saturation, is
- * something like:
- *
- *    x = symbolic_value;
- *    size = (high - low) + 1
- *    if (symbolic mode) {
- *      assume 0 <= x and x < size
- *      return low + x
- *    } else {
- *      return low + (x % size)
- *    }
- *
- * This type of version lets a reducer drive toward zero.
- */
+/* Return a symbolic value in a the range `[low_inc, high_inc]`. */
+/* Saturating version here is an alternative, but worse for fuzzing:
 #define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname) \
     DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
         tname low, tname high) { \
@@ -267,6 +252,24 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
       } else { \
         return x; \
       } \
+    }
+*/
+#define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname) \
+    DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
+        tname low, tname high) { \
+      if (low > high) { \
+        return DeepState_ ## Tname ## InRange(high, low); \
+      } \
+      const tname x = DeepState_ ## Tname(); \
+      if (DeepState_UsingSymExec) { \
+        (void) DeepState_Assume(low <= x && x <= high); \
+	return x; \
+      } \
+      if ((x < low) || (x > high)) { \
+        const tname size = (high - low) + 1; \
+        return low + (x % size); \
+      } \
+      return x; \
     }
 
 DEEPSTATE_MAKE_SYMBOLIC_RANGE(Size, size_t)
