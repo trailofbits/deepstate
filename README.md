@@ -117,7 +117,7 @@ DeepState consists of a static library, used to write test harnesses, and comman
 
 If you install clang 6.0 or later, and run `cmake` when you install
 with the `BUILD_LIBFUZZER` environment variable defined, you can
-generate tests using LlibFuzzer.  Because both DeepState and libFuzzer
+generate tests using libFuzzer.  Because both DeepState and libFuzzer
 want to be `main`, this requires building a different executable for
 libFuzzer.  The `examples` directory shows how this can be done.  The
 libFuzzer executable works like any other libFuzzer executable, and
