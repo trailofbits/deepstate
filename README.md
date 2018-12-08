@@ -30,7 +30,8 @@ The [2018 IEEE Cybersecurity Development Conference](https://secdev.ieee.org/201
 ## Supported Platforms
 
 DeepState currently targets Linux, with macOS support in progress
-(some fuzzers work fine, but symbolic execution is not supported yet.
+(some fuzzers work fine, but symbolic execution is not well-supported
+yet, without a painful cross-compilation process).
 
 ## Dependencies
 
