@@ -29,7 +29,8 @@ The [2018 IEEE Cybersecurity Development Conference](https://secdev.ieee.org/201
 
 ## Supported Platforms
 
-DeepState currently targets Linux, with macOS support in progress.
+DeepState currently targets Linux, with macOS support in progress
+(some fuzzers work fine, but symbolic execution is not supported yet.
 
 ## Dependencies
 
@@ -129,6 +130,10 @@ is set to show all the logging from your tests, which slows fuzzing,
 but setting it to 2 or higher will only show messages produced by
 tests failing or crashing.
 
+Note that while symbolic execution only works on Linux, without a 
+fairly complex cross-compliation process, the brute force fuzzer works 
+on macOS or (as far as we know) any Unix-like system.
+
 ## Fuzzing with libFuzzer
 
 If you install clang 6.0 or later, and run `cmake` when you install
@@ -159,7 +164,10 @@ corpus, but fuzzing will work even without an initial corpus, unlike AFL.
 One hint when using libFuzzer is to avoid dynamically allocating
 memory during a test, if that memory would not be freed on a test
 failure.  This will leak memory and libFuzzer will run out of memory
-very quickly in each fuzzing session.
+very quickly in each fuzzing session.  In theory, libFuzzer will work
+on macOS, but getting everything to build with the right version of
+clang can be difficult, since the Apple-provided LLVM is unlikely to
+support libFuzzer on many versions of the operating system.
 
 ## Test case reduction
 
@@ -211,6 +219,8 @@ WRITING REDUCED TEST WITH 20 BYTES TO minrmdirfail.test
 
 You can use `--which_test <testname>` to specify which test to
 run, as with the `--input_which_test` options to test replay.
+
+Test case reduction should work on any OS.
 
 ## Fuzzing with AFL
 
@@ -264,6 +274,10 @@ deferred instrumentation.  You'll need code like:
 
 just before the call to `DeepState_Run()` (which reads the entire
 input file) in your `main`.
+
+Because AFL and other file-based fuzzers only rely on the DeepState
+native test executable, they should (like DeepState's built-in simple
+fuzzer) work fine on macOS and other Unix-like OSes.
 
 ## Contributing
 
