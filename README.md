@@ -113,6 +113,22 @@ argument to see all DeepState options.
 
 DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation is in the [examples](/examples) and in our [paper](https://agroce.github.io/bar18.pdf).  A more extensive example, using DeepState and libFuzzer to test a user-mode file system, is available [here](https://github.com/agroce/testfs); in particular the [Tests.cpp](https://github.com/agroce/testfs/blob/master/Tests.cpp) file and CMakeLists.txt show DeepState usage.
 
+## Built-In Fuzzer
+
+Every DeepState executable provides a simple built-in fuzzer that
+generates tests using completely random data.  Using this fuzzer is as
+simple as calling the native executable with the `--fuzz` argument.
+The fuzzer also takes a `seed` and `timeout` (default of two minutes)
+to control the fuzzing.  If you want to actually save the test cases
+generated, you need to add a `--output_test_dir` arument to tell
+DeepState where to put the generated tests.  By default fuzzing saves
+only failing and crashing tests.  One more command line argument that
+is particularly useful for fuzzing is the `--log_level` argument,
+which controls how much output each test produces.  By default, this
+is set to show all the logging from your tests, which slows fuzzing,
+but setting it to 2 or higher will only show messages produced by
+tests failing or crashing.
+
 ## Fuzzing with libFuzzer
 
 If you install clang 6.0 or later, and run `cmake` when you install
@@ -121,7 +137,7 @@ generate tests using LlibFuzzer.  Because both DeepState and libFuzzer
 want to be `main`, this requires building a different executable for
 libFuzzer.  The `examples` directory shows how this can be done.  The
 libFuzzer executable works like any other libFuzzer executable, and
-the tests produced can be run using the normal DeepState executable.
+the tests produced can be replayed using the normal DeepState executable.
 For example, generating some tests of the `OneOf` example (up to 5,000
 runs), then running those tests to examine the results, would look
 like:
