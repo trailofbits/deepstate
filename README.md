@@ -29,7 +29,9 @@ The [2018 IEEE Cybersecurity Development Conference](https://secdev.ieee.org/201
 
 ## Supported Platforms
 
-DeepState currently targets Linux, with macOS support in progress.
+DeepState currently targets Linux, with macOS support in progress
+(some fuzzers work fine, but symbolic execution is not well-supported
+yet, without a painful cross-compilation process).
 
 ## Dependencies
 
@@ -113,6 +115,26 @@ argument to see all DeepState options.
 
 DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation is in the [examples](/examples) and in our [paper](https://agroce.github.io/bar18.pdf).  A more extensive example, using DeepState and libFuzzer to test a user-mode file system, is available [here](https://github.com/agroce/testfs); in particular the [Tests.cpp](https://github.com/agroce/testfs/blob/master/Tests.cpp) file and CMakeLists.txt show DeepState usage.
 
+## Built-In Fuzzer
+
+Every DeepState executable provides a simple built-in fuzzer that
+generates tests using completely random data.  Using this fuzzer is as
+simple as calling the native executable with the `--fuzz` argument.
+The fuzzer also takes a `seed` and `timeout` (default of two minutes)
+to control the fuzzing.  If you want to actually save the test cases
+generated, you need to add a `--output_test_dir` arument to tell
+DeepState where to put the generated tests.  By default fuzzing saves
+only failing and crashing tests.  One more command line argument that
+is particularly useful for fuzzing is the `--log_level` argument,
+which controls how much output each test produces.  By default, this
+is set to show all the logging from your tests, which slows fuzzing,
+but setting it to 2 or higher will only show messages produced by
+tests failing or crashing.
+
+Note that while symbolic execution only works on Linux, without a 
+fairly complex cross-compliation process, the brute force fuzzer works 
+on macOS or (as far as we know) any Unix-like system.
+
 ## Fuzzing with libFuzzer
 
 If you install clang 6.0 or later, and run `cmake` when you install
@@ -121,7 +143,7 @@ generate tests using libFuzzer.  Because both DeepState and libFuzzer
 want to be `main`, this requires building a different executable for
 libFuzzer.  The `examples` directory shows how this can be done.  The
 libFuzzer executable works like any other libFuzzer executable, and
-the tests produced can be run using the normal DeepState executable.
+the tests produced can be replayed using the normal DeepState executable.
 For example, generating some tests of the `OneOf` example (up to 5,000
 runs), then running those tests to examine the results, would look
 like:
@@ -143,7 +165,10 @@ corpus, but fuzzing will work even without an initial corpus, unlike AFL.
 One hint when using libFuzzer is to avoid dynamically allocating
 memory during a test, if that memory would not be freed on a test
 failure.  This will leak memory and libFuzzer will run out of memory
-very quickly in each fuzzing session.
+very quickly in each fuzzing session.  In theory, libFuzzer will work
+on macOS, but getting everything to build with the right version of
+clang can be difficult, since the Apple-provided LLVM is unlikely to
+support libFuzzer on many versions of the operating system.
 
 ## Test case reduction
 
@@ -195,6 +220,8 @@ WRITING REDUCED TEST WITH 20 BYTES TO minrmdirfail.test
 
 You can use `--which_test <testname>` to specify which test to
 run, as with the `--input_which_test` options to test replay.
+
+Test case reduction should work on any OS.
 
 ## Fuzzing with AFL
 
@@ -248,6 +275,10 @@ deferred instrumentation.  You'll need code like:
 
 just before the call to `DeepState_Run()` (which reads the entire
 input file) in your `main`.
+
+Because AFL and other file-based fuzzers only rely on the DeepState
+native test executable, they should (like DeepState's built-in simple
+fuzzer) work fine on macOS and other Unix-like OSes.
 
 ## Contributing
 

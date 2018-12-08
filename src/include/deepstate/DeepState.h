@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <deepstate/Log.h>
@@ -63,8 +64,12 @@ DECLARE_string(output_test_dir);
 DECLARE_bool(take_over);
 DECLARE_bool(abort_on_fail);
 DECLARE_bool(verbose_reads);
+DECLARE_bool(fuzz);
+DECLARE_bool(fuzz_save_passing);
 
 DECLARE_int(log_level);
+DECLARE_int(seed);
+DECLARE_int(timeout);
 
 enum {
   DeepState_InputSize = 8192
@@ -519,7 +524,9 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
   } else {
     DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
     if (HAS_FLAG_output_test_dir) {
-      DeepState_SavePassingTest();
+      if (!FLAGS_fuzz || FLAGS_fuzz_save_passing) {
+	DeepState_SavePassingTest();
+      }
     }
     exit(DeepState_TestRunPass);
   }
@@ -586,6 +593,37 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
   /* If here, we exited abnormally but didn't catch it in the signal
    * handler, and thus the test failed due to a crash. */
   return DeepState_TestRunCrash;
+}
+
+/* Run a test case with input initialized by fuzzing. */
+static enum DeepState_TestRunResult
+DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test) {
+  DeepState_InputIndex = 0;
+  
+  for (int i = 0; i < DeepState_InputSize; i++) {
+    DeepState_Input[i] = (char)rand();
+  }
+
+  DeepState_Begin(test);
+
+  enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
+
+  if (result == DeepState_TestRunCrash) {
+    DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
+    
+    if (HAS_FLAG_output_test_dir) {
+      DeepState_SaveCrashingTest();
+    }
+
+    DeepState_Crash();
+  }
+
+  if (FLAGS_abort_on_fail && ((result == DeepState_TestRunCrash) ||
+			      (result == DeepState_TestRunFail))) {
+      abort();
+  }  
+
+  return result;
 }
 
 /* Run a single saved test case with input initialized from the file
@@ -711,6 +749,60 @@ static int DeepState_RunSingleSavedTestCase(void) {
   return num_failed_tests;
 }
 
+/* Fuzz test `FLAGS_input_which_test` or first test, if not defined. */
+static int DeepState_Fuzz(void) {
+  DeepState_LogFormat(DeepState_LogInfo, "Starting fuzzing");
+  
+  if (HAS_FLAG_seed) {
+    srand(FLAGS_seed);
+  } else {
+    srand(time(NULL));
+  }
+
+  long start = (long)time(NULL);
+  long current = (long)time(NULL);
+  long diff = 0;
+  unsigned i = 0;
+
+  int num_failed_tests = 0;
+
+  struct DeepState_TestInfo *test = NULL;  
+
+  DeepState_Setup();
+
+  for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
+    if (HAS_FLAG_input_which_test) {
+      if (strncmp(FLAGS_input_which_test, test->test_name, strlen(FLAGS_input_which_test)) == 0) {
+	break;
+      }
+    } else {
+      DeepState_LogFormat(DeepState_LogInfo,
+			  "No test specified, defaulting to last test defined");
+      break;
+    }
+  }
+
+  if (test == NULL) {
+    DeepState_LogFormat(DeepState_LogInfo,
+                        "Could not find matching test for %s",
+                        FLAGS_input_which_test);
+    return 0;
+  }
+  
+  while (diff < FLAGS_timeout) {
+    i++;
+    num_failed_tests += DeepState_FuzzOneTestCase(test);    
+    
+    current = (long)time(NULL);
+    diff = current-start;
+  }
+
+  DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests.  %d failed tests.",
+		      i, num_failed_tests);
+
+  return num_failed_tests;
+}
+
 /* Run tests from `FLAGS_input_test_files_dir`, under `FLAGS_input_which_test`
  * or first test, if not defined. */
 static int DeepState_RunSingleSavedTestDir(void) {
@@ -811,7 +903,11 @@ static int DeepState_Run(void) {
 
   if (HAS_FLAG_input_test_files_dir) {
     return DeepState_RunSingleSavedTestDir();
-  }  
+  }
+
+  if (FLAGS_fuzz) {
+    return DeepState_Fuzz();
+  }
 
   int num_failed_tests = 0;
   int use_drfuzz = getenv("DYNAMORIO_EXE_PATH") != NULL;

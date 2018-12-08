@@ -125,7 +125,8 @@ static void ProcessOptionString(void) {
         if (' ' == *ch || DeepState_FakeSpace == *ch) {
           *ch = '\0';
           state = kSeenSpace;
-
+	} else if ('-' == *ch) {
+	  state = kSeenDash;
         } else if (IsValidValueChar(*ch)) {  /* E.g. `--tools bbcount`. */
           state = kInValue;
           DeepState_OptionValues[num_options - 1] = ch;

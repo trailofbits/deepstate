@@ -37,8 +37,12 @@ DEFINE_string(output_test_dir, "", "Directory where tests will be saved.");
 DEFINE_bool(take_over, false, "Replay test cases in take-over mode.");
 DEFINE_bool(abort_on_fail, false, "Abort on file replay failure (useful in file fuzzing).");
 DEFINE_bool(verbose_reads, false, "Report on bytes being read during execution of test.");
+DEFINE_bool(fuzz, false, "Perform brute force unguided fuzzing.");
+DEFINE_bool(fuzz_save_passing, false, "Save passing tests during fuzzing.");
 
 DEFINE_int(log_level, 0, "Minimum level of logging to output.");
+DEFINE_int(seed, 0, "Seed for brute force fuzzing (uses time if not set).");
+DEFINE_int(timeout, 120, "Timeout for brute force fuzzing.");
 
 /* Set to 1 by Manticore/Angr/etc. when we're running symbolically. */
 int DeepState_UsingSymExec = 0;
@@ -555,14 +559,60 @@ void DeepState_BeginDrFuzz(struct DeepState_TestInfo *test) {
   DrMemFuzzFunc(DeepState_Input, DeepState_InputSize);
 }
 
+/* Right now "fake" a hexdigest by just using random bytes.  Not ideal. */
+void makeFilename(char *name, size_t size) {
+  const char *entities = "0123456789abcdef";
+  for (int i = 0; i < size; i++) {
+    name[i] = entities[rand()%16];
+  }
+}
+
+void writeInputData(char* name) {
+  size_t path_len = 2 + sizeof(char) * (strlen(FLAGS_output_test_dir) + strlen(name));
+  char *path = (char *) malloc(path_len);
+  snprintf(path, path_len, "%s/%s", FLAGS_output_test_dir, name);
+  FILE *fp = fopen(path, "wb");
+  if (fp == NULL) {
+    DeepState_LogFormat(DeepState_LogError, "Failed to create file `%s`", path);
+    free(path);
+    return;
+  }
+  size_t written = fwrite((void *)DeepState_Input, 1, DeepState_InputSize, fp);
+  if (written != DeepState_InputSize) {
+    DeepState_LogFormat(DeepState_LogError, "Failed to write to file `%s`", path);
+  } else {
+    DeepState_LogFormat(DeepState_LogInfo, "Saved test case to file `%s`", path);
+  }
+  free(path);  
+  fclose(fp);  
+}
+
 /* Save a passing test to the output test directory. */
-void DeepState_SavePassingTest(void) {}
+void DeepState_SavePassingTest(void) {
+  char name[48];
+  makeFilename(name, 40);
+  name[40] = 0;
+  strncat(name, ".pass", 48);
+  writeInputData(name);
+}
 
 /* Save a failing test to the output test directory. */
-void DeepState_SaveFailingTest(void) {}
+void DeepState_SaveFailingTest(void) {
+  char name[48];
+  makeFilename(name, 40);
+  name[40] = 0;
+  strncat(name, ".fail", 48);
+  writeInputData(name);
+}
 
 /* Save a crashing test to the output test directory. */
-void DeepState_SaveCrashingTest(void) {}
+void DeepState_SaveCrashingTest(void) {
+  char name[48];
+  makeFilename(name, 40);
+  name[40] = 0;
+  strncat(name, ".crash", 48);
+  writeInputData(name);
+}
 
 /* Return the first test case to run. */
 struct DeepState_TestInfo *DeepState_FirstTest(void) {
