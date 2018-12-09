@@ -272,7 +272,7 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
       } \
       if ((x < low) || (x > high)) { \
         const tname size = (high - low) + 1; \
-        return low + (x % size); \
+        return low + ((x % size + size) % size); \
       } \
       return x; \
     }
