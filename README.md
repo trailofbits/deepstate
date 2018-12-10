@@ -30,7 +30,7 @@ The [2018 IEEE Cybersecurity Development Conference](https://secdev.ieee.org/201
 ## Supported Platforms
 
 DeepState currently targets Linux, with macOS support in progress
-(some fuzzers work fine, but symbolic execution is not well-supported
+(the fuzzers work fine, but symbolic execution is not well-supported
 yet, without a painful cross-compilation process).
 
 ## Dependencies
@@ -165,10 +165,17 @@ corpus, but fuzzing will work even without an initial corpus, unlike AFL.
 One hint when using libFuzzer is to avoid dynamically allocating
 memory during a test, if that memory would not be freed on a test
 failure.  This will leak memory and libFuzzer will run out of memory
-very quickly in each fuzzing session.  In theory, libFuzzer will work
-on macOS, but getting everything to build with the right version of
-clang can be difficult, since the Apple-provided LLVM is unlikely to
-support libFuzzer on many versions of the operating system.
+very quickly in each fuzzing session.  Using libFuzzer on macOS
+requires compiling DeepState and your program with a clang that
+supports libFuzzer (which the Apple built-in probably won't); this can be as simple as doing:
+
+```shell
+brew install llvm@6
+CC=/usr/local/opt/llvm\@6/bin/clang CXX=/usr/local/opt/llvm\@6/bin/clang++ cmake ..
+make install
+```
+
+Other ways of getting an appropriate LLVM may also work.
 
 ## Test case reduction
 

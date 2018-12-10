@@ -694,6 +694,7 @@ void __stack_chk_fail(void) {
   __builtin_unreachable();
 }
 
+#ifndef LIBFUZZER
 __attribute__((weak))
 int main(int argc, char *argv[]) {
   int ret = 0;
@@ -703,5 +704,6 @@ int main(int argc, char *argv[]) {
   DeepState_Teardown();
   return ret;
 }
+#endif
 
 DEEPSTATE_END_EXTERN_C
