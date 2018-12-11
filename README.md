@@ -171,7 +171,7 @@ supports libFuzzer (which the Apple built-in probably won't); this can be as sim
 
 ```shell
 brew install llvm@6
-CC=/usr/local/opt/llvm\@6/bin/clang CXX=/usr/local/opt/llvm\@6/bin/clang++ cmake ..
+CC=/usr/local/opt/llvm\@6/bin/clang CXX=/usr/local/opt/llvm\@6/bin/clang++ BUILD_LIBFUZZER=TRUE cmake ..
 make install
 ```
 
