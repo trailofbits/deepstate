@@ -578,16 +578,20 @@ static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
 /* Fork and run `test`. */
 static enum DeepState_TestRunResult
 DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
-  if (FLAG_no_fork) {
-    return DeepState_RunTestNoFork(test);
-  }
-  pid_t test_pid = fork();
-  if (!test_pid) {
-    DeepState_RunTest(test);
+  pid_t test_pid;
+  if (!FLAGS_no_fork) {
+    test_pid = fork();
+    if (!test_pid) {
+      DeepState_RunTest(test);
+    }
   }
   int wstatus;
-  waitpid(test_pid, &wstatus, 0);
-
+  if (!FLAGS_no_fork) {
+    waitpid(test_pid, &wstatus, 0);
+  } else {
+    wstatus = DeepState_RunTestNoFork(test);
+  }
+  
   /* If we exited normally, the status code tells us if the test passed. */
   if (WIFEXITED(wstatus)) {
     uint8_t status = WEXITSTATUS(wstatus);
