@@ -66,6 +66,7 @@ DECLARE_bool(abort_on_fail);
 DECLARE_bool(verbose_reads);
 DECLARE_bool(fuzz);
 DECLARE_bool(fuzz_save_passing);
+DECLARE_bool(no_fork);
 
 DECLARE_int(log_level);
 DECLARE_int(seed);
@@ -533,7 +534,7 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
 }
 
 /* Run a test case, but in libFuzzer, so not inside a fork. */
-static int DeepState_RunTestLLVM(struct DeepState_TestInfo *test) {
+static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
   /* Run the test. */
   if (!setjmp(DeepState_ReturnToRun)) {
     /* Convert uncaught C++ exceptions into a test failure. */
@@ -577,6 +578,9 @@ static int DeepState_RunTestLLVM(struct DeepState_TestInfo *test) {
 /* Fork and run `test`. */
 static enum DeepState_TestRunResult
 DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
+  if (FLAG_no_fork) {
+    return DeepState_RunTestNoFork(test);
+  }
   pid_t test_pid = fork();
   if (!test_pid) {
     DeepState_RunTest(test);
