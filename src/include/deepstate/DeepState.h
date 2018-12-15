@@ -66,7 +66,7 @@ DECLARE_bool(abort_on_fail);
 DECLARE_bool(verbose_reads);
 DECLARE_bool(fuzz);
 DECLARE_bool(fuzz_save_passing);
-DECLARE_bool(no_fork);
+DECLARE_bool(fork);
 
 DECLARE_int(log_level);
 DECLARE_int(seed);
@@ -579,14 +579,14 @@ static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
 static enum DeepState_TestRunResult
 DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
   pid_t test_pid;
-  if (!FLAGS_no_fork) {
+  if (FLAGS_fork) {
     test_pid = fork();
     if (!test_pid) {
       DeepState_RunTest(test);
     }
   }
-  int wstatus;
-  if (!FLAGS_no_fork) {
+  int wstatus = 0;
+  if (FLAGS_fork) {
     waitpid(test_pid, &wstatus, 0);
   } else {
     wstatus = DeepState_RunTestNoFork(test);
