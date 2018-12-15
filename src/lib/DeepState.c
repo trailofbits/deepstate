@@ -39,6 +39,7 @@ DEFINE_bool(abort_on_fail, false, "Abort on file replay failure (useful in file 
 DEFINE_bool(verbose_reads, false, "Report on bytes being read during execution of test.");
 DEFINE_bool(fuzz, false, "Perform brute force unguided fuzzing.");
 DEFINE_bool(fuzz_save_passing, false, "Save passing tests during fuzzing.");
+DEFINE_bool(no_fork, false, "Don't fork when running a test.");
 
 DEFINE_int(log_level, 0, "Minimum level of logging to output.");
 DEFINE_int(seed, 0, "Seed for brute force fuzzing (uses time if not set).");
@@ -660,7 +661,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 
   DeepState_Begin(test);
 
-  enum DeepState_TestRunResult result = DeepState_RunTestLLVM(test);
+  enum DeepState_TestRunResult result = DeepState_RunTestNoFork(test);
 
   const char* abort_check = getenv("LIBFUZZER_ABORT_ON_FAIL");
   if (abort_check != NULL) {
