@@ -115,6 +115,15 @@ argument to see all DeepState options.
 
 DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation is in the [examples](/examples) and in our [paper](https://agroce.github.io/bar18.pdf).  A more extensive example, using DeepState and libFuzzer to test a user-mode file system, is available [here](https://github.com/agroce/testfs); in particular the [Tests.cpp](https://github.com/agroce/testfs/blob/master/Tests.cpp) file and CMakeLists.txt show DeepState usage.
 
+## A Note on Mac OS and Forking
+
+Normally, when running a test for replay or fuzzing, DeepState forks
+in order to cleanly handle crashes of a test.  Unfortunately, `fork()`
+on mac OS is extremely slow.  When using the built-in fuzzer or
+replaying tests, it is highly recommended to add the `--no_fork`
+option on mac OS, unless you need the added crash handling (that is,
+things aren't working without that option).
+
 ## Built-In Fuzzer
 
 Every DeepState executable provides a simple built-in fuzzer that
