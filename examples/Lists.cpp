@@ -26,7 +26,7 @@ TEST(Vector, DoubleReversal) {
     std::vector<int> vec2 = vec1;
     std::reverse(vec2.begin(), vec2.end());
     if (vec2.size() > 128)
-        vec2.pop_back();
+        ASSERT(false);
     std::reverse(vec2.begin(), vec2.end());
     ASSERT_EQ(vec1, vec2)
         << "Double reverse of vectors must be equal.";
