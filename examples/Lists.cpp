@@ -25,8 +25,8 @@ TEST(Vector, DoubleReversal) {
   ForAll<std::vector<int>>([] (const std::vector<int> &vec1) {
     std::vector<int> vec2 = vec1;
     std::reverse(vec2.begin(), vec2.end());
-    if (vec2.size() == 28)
-        vec2.pop_back();
+    if (vec2.size() == 12 && (vec2.front() == vec2.back() % 42))
+       ASSERT(false);
     std::reverse(vec2.begin(), vec2.end());
     ASSERT_EQ(vec1, vec2)
         << "Double reverse of vectors must be equal.";
