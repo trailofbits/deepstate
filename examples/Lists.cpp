@@ -23,7 +23,7 @@ using namespace deepstate;
 
 TEST(Vector, DoubleReversal) {
   ForAll<std::vector<int>>([] (const std::vector<int> &vec1) {
-    LOG_IF(FATAL, vec1.size() == 12) << "Vector size is: " << vec1.size();
-    ASSERT(true);
+    LOG_IF(FATAL, vec1.size() > 0) << "Vector size is: " << vec1.size();
+    ASSERT(false);
   });
 }
