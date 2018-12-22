@@ -43,7 +43,9 @@ LOG_LEVEL_FATAL = 6
 
 LOGGER = logging.getLogger("deepstate")
 LOGGER.setLevel(logging.DEBUG)
-LOGGER.trace = 15
+def logTrace(msg, *args, **kwargs):
+    logging.log(15, msg, args, kwargs)
+LOGGER.trace = logTrace
 
 LOG_LEVEL_TO_LOGGER = {
   LOG_LEVEL_DEBUG: LOGGER.debug,
