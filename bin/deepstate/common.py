@@ -14,6 +14,7 @@
 
 import logging
 logging.basicConfig()
+logging.addLevelName(15, "TRACE")
 
 import argparse
 import md5
@@ -42,7 +43,6 @@ LOG_LEVEL_FATAL = 6
 
 LOGGER = logging.getLogger("deepstate")
 LOGGER.setLevel(logging.DEBUG)
-LOGGER.addLevelName(15, "TRACE")
 LOGGER.trace = 15
 
 LOG_LEVEL_TO_LOGGER = {
