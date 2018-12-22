@@ -42,7 +42,8 @@ LOG_LEVEL_FATAL = 6
 
 LOGGER = logging.getLogger("deepstate")
 LOGGER.setLevel(logging.DEBUG)
-
+LOGGER.addLevelName(15, "TRACE")
+LOGGER.trace = 15
 
 LOG_LEVEL_TO_LOGGER = {
   LOG_LEVEL_DEBUG: LOGGER.debug,
