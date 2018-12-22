@@ -521,6 +521,9 @@ struct Comparer {
 #define LOG_DEBUG(cond) \
     ::deepstate::Stream(DeepState_LogDebug, (cond), __FILE__, __LINE__)
 
+#define LOG_TRACE(cond) \
+    ::deepstate::Stream(DeepState_LogTrace, (cond), __FILE__, __LINE__)
+
 #define LOG_INFO(cond) \
     ::deepstate::Stream(DeepState_LogInfo, (cond), __FILE__, __LINE__)
 
