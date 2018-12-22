@@ -20,12 +20,12 @@ class MyTest : public deepstate::Test {
  public:
 
   void SetUp(void) {
-    LOG(INFO)
+    LOG(TRACE)
         << "Setting up!";
   }
 
   void TearDown(void) {
-    LOG(INFO)
+    LOG(TRACE)
         << "Tearing down!";
   }
 

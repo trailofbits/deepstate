@@ -34,12 +34,13 @@ struct DeepState_VarArgs {
 
 enum DeepState_LogLevel {
   DeepState_LogDebug = 0,
-  DeepState_LogInfo = 1,
-  DeepState_LogWarning = 2,
+  DeepState_LogTrace = 1,  
+  DeepState_LogInfo = 2,  
+  DeepState_LogWarning = 3,
   DeepState_LogWarn = DeepState_LogWarning,
-  DeepState_LogError = 3,
-  DeepState_LogExternal = 4,
-  DeepState_LogFatal = 5,
+  DeepState_LogError = 4,
+  DeepState_LogExternal = 5,
+  DeepState_LogFatal = 6,
   DeepState_LogCritical = DeepState_LogFatal,
 };
 
