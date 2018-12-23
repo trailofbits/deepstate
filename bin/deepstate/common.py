@@ -14,8 +14,10 @@
 
 import logging
 logging.basicConfig()
+logging.addLevelName(15, "TRACE")
 
 import argparse
+import functools
 import md5
 import os
 import struct
@@ -32,19 +34,20 @@ class TestInfo(object):
 
 
 LOG_LEVEL_DEBUG = 0
-LOG_LEVEL_INFO = 1
-LOG_LEVEL_WARNING = 2
-LOG_LEVEL_ERROR = 3
-LOG_LEVEL_EXTERNAL = 4
-LOG_LEVEL_FATAL = 5
+LOG_LEVEL_TRACE = 1
+LOG_LEVEL_INFO = 2
+LOG_LEVEL_WARNING = 3
+LOG_LEVEL_ERROR = 4
+LOG_LEVEL_EXTERNAL = 5
+LOG_LEVEL_FATAL = 6
 
 
 LOGGER = logging.getLogger("deepstate")
 LOGGER.setLevel(logging.DEBUG)
 
-
 LOG_LEVEL_TO_LOGGER = {
   LOG_LEVEL_DEBUG: LOGGER.debug,
+  LOG_LEVEL_TRACE: functools.partial(LOGGER.log, 15), 
   LOG_LEVEL_INFO: LOGGER.info,
   LOG_LEVEL_WARNING: LOGGER.warning,
   LOG_LEVEL_ERROR: LOGGER.error,
