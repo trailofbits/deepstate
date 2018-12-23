@@ -11,10 +11,11 @@ class StreamingAndFormattingTest(deepstate_base.DeepStateTestCase):
 
     self.assertTrue("Failed: Streaming_BasicLevels" in output)
     self.assertTrue("This is a debug message" in output)
+    self.assertTrue("This is a trace message" in output)    
     self.assertTrue("This is an info message" in output)
     self.assertTrue("This is a warning message" in output)
     self.assertTrue("This is a error message" in output)
-    self.assertTrue("This is a info message again" in output)
+    self.assertTrue("This is a trace message again" in output)
     self.assertTrue(": 97" in output)
     self.assertTrue(": 1" in output)
     self.assertTrue(": 1.000000" in output)
