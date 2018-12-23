@@ -33,7 +33,7 @@ from manticore.core.state import TerminateState
 
 
 L = logging.getLogger("deepstate.mcore")
-L.setLevel(logging.INFO)
+L.setLevel(logging.TRACE)
 
 OUR_TERMINATION_REASON = "I DeepState'd it"
 
