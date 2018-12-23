@@ -31,6 +31,7 @@ from .common import DeepState, TestInfo
 
 from manticore.core.state import TerminateState
 
+
 L = logging.getLogger("deepstate.mcore")
 L.setLevel(logging.INFO)
 
