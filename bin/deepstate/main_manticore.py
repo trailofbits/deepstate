@@ -31,9 +31,12 @@ from .common import DeepState, TestInfo
 
 from manticore.core.state import TerminateState
 
-
-L = logging.getLogger("deepstate.mcore")
-L.setLevel(logging.TRACE)
+logging.addLevelName(15, "TRACE")
+L = logging.getLogger("deepstate.angr")
+def log_trace(msg, *args, **kwargs):
+    logging.log(15, msg, args, kwargs)
+L.TRACE = log_trace
+L.setLevel(L.TRACE)
 
 OUR_TERMINATION_REASON = "I DeepState'd it"
 

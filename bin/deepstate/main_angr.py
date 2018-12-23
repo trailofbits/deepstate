@@ -19,8 +19,12 @@ import multiprocessing
 import traceback
 from .common import DeepState, TestInfo
 
+logging.addLevelName(15, "TRACE")
 L = logging.getLogger("deepstate.angr")
-L.setLevel(logging.TRACE)
+def log_trace(msg, *args, **kwargs):
+    logging.log(15, msg, args, kwargs)
+L.TRACE = log_trace
+L.setLevel(L.TRACE)
 
 
 class DeepAngr(DeepState):
