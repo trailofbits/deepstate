@@ -764,7 +764,9 @@ static int DeepState_Fuzz(void) {
   if (HAS_FLAG_seed) {
     srand(FLAGS_seed);
   } else {
-    srand(time(NULL));
+    unsigned int seed = time(NULL);
+    DeepState_LogFormat(DeepState_LogWarning, "No seed provided; using %u", seed);
+    srand(seed);
   }
 
   long start = (long)time(NULL);
