@@ -20,7 +20,6 @@ import argparse
 import md5
 import os
 import struct
-import functools
 
 
 class TestInfo(object):
