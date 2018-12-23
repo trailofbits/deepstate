@@ -20,6 +20,7 @@ import argparse
 import md5
 import os
 import struct
+import functools
 
 
 class TestInfo(object):
@@ -43,13 +44,12 @@ LOG_LEVEL_FATAL = 6
 
 LOGGER = logging.getLogger("deepstate")
 LOGGER.setLevel(logging.DEBUG)
-def log_trace(msg, *args, **kwargs):
+def log_trace(msg, *args, **kwargs)
     logging.log(15, msg, args, kwargs)
-LOGGER.trace = log_trace
 
 LOG_LEVEL_TO_LOGGER = {
   LOG_LEVEL_DEBUG: LOGGER.debug,
-  LOG_LEVEL_TRACE: LOGGER.trace,  
+  LOG_LEVEL_TRACE: functools.partial(logging.log, 15),  
   LOG_LEVEL_INFO: LOGGER.info,
   LOG_LEVEL_WARNING: LOGGER.warning,
   LOG_LEVEL_ERROR: LOGGER.error,
