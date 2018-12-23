@@ -20,7 +20,7 @@ import traceback
 from .common import DeepState, TestInfo
 
 L = logging.getLogger("deepstate.angr")
-L.setLevel(logging.DEBUG)
+L.setLevel(logging.INFO)
 
 
 class DeepAngr(DeepState):
