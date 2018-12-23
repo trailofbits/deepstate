@@ -23,7 +23,7 @@ logging.addLevelName(15, "TRACE")
 L = logging.getLogger("deepstate.angr")
 def log_trace(msg, *args, **kwargs):
     logging.log(15, msg, args, kwargs)
-L.TRACE = log_trace
+L.TRACE = 15
 L.setLevel(L.TRACE)
 
 
