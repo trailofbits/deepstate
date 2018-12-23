@@ -17,6 +17,7 @@ logging.basicConfig()
 logging.addLevelName(15, "TRACE")
 
 import argparse
+import functools
 import md5
 import os
 import struct
@@ -46,7 +47,7 @@ LOGGER.setLevel(logging.DEBUG)
 
 LOG_LEVEL_TO_LOGGER = {
   LOG_LEVEL_DEBUG: LOGGER.debug,
-  LOG_LEVEL_TRACE: LOGGER.info,  
+  LOG_LEVEL_TRACE: functools.partial(LOGGER.log, 15)  
   LOG_LEVEL_INFO: LOGGER.info,
   LOG_LEVEL_WARNING: LOGGER.warning,
   LOG_LEVEL_ERROR: LOGGER.error,
