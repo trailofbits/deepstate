@@ -18,7 +18,8 @@ logging.basicConfig()
 
 import sys
 try:
-  import manticore
+    import manticore
+    import manticore.native
 except Exception as e:
   if "Z3NotFoundError" in repr(type(e)):
     print("Manticore requires Z3 to be installed.")
@@ -52,7 +53,7 @@ class DeepManticore(DeepState):
     return manticore.issymbolic(val)
 
   def create_symbol(self, name, size_in_bits):
-    return self.state.new_symbolic_value(size_in_bits, name)
+    return self.state.new_symbolic_value(size_in_bits)
 
   def read_uintptr_t(self, ea, concretize=True, constrain=False):
     addr_size_bits = self.state.cpu.address_bit_size
@@ -285,7 +286,10 @@ def done_test(_, state, state_id, reason):
   # DeepState API, so we can just report it as is. Otherwise, we check to see if
   # it was due to behavior that would typically crash the program being analyzed.
   # If so, we save it as a crash. If not, we abandon it.
-  if OUR_TERMINATION_REASON not in reason:
+  if type(reason) is not str:
+      reason = str(reason)
+  
+  if OUR_TERMINATION_REASON != reason:
     if _is_program_crash(reason):
       L.info("State {} terminated due to crashing program behavior: {}".format(
         state_id, reason))
@@ -326,7 +330,8 @@ def find_symbol_ea(m, name):
 def do_run_test(state, apis, test, hook_test=False):
   """Run an individual test case."""
   state.cpu.PC = test.ea
-  m = manticore.Manticore(state, sys.argv[1:])
+  m = manticore.native.Manticore(state, sys.argv[1:])
+  #m = MainThreadWrapper(m, _CONTROLLER)
   m.verbosity(1)
 
   state = m.initial_state
@@ -356,7 +361,7 @@ def do_run_test(state, apis, test, hook_test=False):
     m.add_hook(test.ea, hook(hook_TakeOver))
 
   m.subscribe('will_terminate_state', done_test)
-  m.run()
+  m.run(procs=1)
 
 
 def run_test(state, apis, test, hook_test=False):
@@ -369,7 +374,7 @@ def run_test(state, apis, test, hook_test=False):
 
 def run_tests(args, state, apis):
   """Run all of the test cases."""
-  pool = multiprocessing.Pool(processes=max(1, args.num_workers))
+  #pool = multiprocessing.Pool(processes=max(1, args.num_workers))
   results = []
   mc = DeepManticore(state)
   tests = mc.find_test_cases()
@@ -378,11 +383,11 @@ def run_tests(args, state, apis):
     len(tests), args.num_workers))
 
   for test in tests:
-    res = pool.apply_async(run_test, (state, apis, test))
+    res = run_test(state, apis, test)
     results.append(res)
 
-  pool.close()
-  pool.join()
+  #pool.close()
+  #pool.join()
 
   exit(0)
 
@@ -426,7 +431,7 @@ def main_takeover(m, args, takeover_symbol):
   takeover_hook = lambda state: run_test(state, apis, fake_test, hook_test)
   m.add_hook(takeover_ea, takeover_hook)
 
-  m.run()
+  m.run(procs=1)
 
 
 def main_unit_test(m, args):
@@ -450,14 +455,14 @@ def main_unit_test(m, args):
   del mc
 
   m.add_hook(setup_ea, lambda state: run_tests(args, state, apis))
-  m.run()
+  m.run(procs=1)
 
 
 def main():
   args = DeepManticore.parse_args()
 
   try:
-    m = manticore.Manticore(args.binary)
+    m = manticore.native.Manticore(args.binary)
   except Exception as e:
     L.critical("Cannot create Manticore instance on binary {}: {}".format(
       args.binary, e))

@@ -242,7 +242,7 @@ class DeepState(object):
 
     # Create the symbols that feed API functions like `DeepState_Int`.
     symbols = []
-    for i, ea in enumerate(xrange(apis['InputBegin'], apis['InputEnd'])):
+    for i, ea in enumerate(range(apis['InputBegin'], apis['InputEnd'])):
       symbol = self.create_symbol('DEEP_INPUT_{}'.format(i), 8)
       self.write_uint8_t(ea, symbol)
       symbols.append(symbol)
@@ -334,7 +334,9 @@ class DeepState(object):
       return
 
     test_dir = self.context['test_dir']
-    test_name = hashlib.md5.new(input_bytes).hexdigest()
+    md5 = hashlib.md5()
+    md5.update(input_bytes)
+    test_name = md5.hexdigest()
 
     if self.context['failed']:
       test_name += ".fail"
@@ -368,7 +370,7 @@ class DeepState(object):
     # likely to get the same concrete byte values across different tools (e.g.
     # Manticore, Angr).
     input_bytes = bytearray()
-    for i in xrange(input_length):
+    for i in range(input_length):
       b = self.concretize_min(symbols[i], constrain=True)
       input_bytes.append(b)
 
@@ -464,7 +466,7 @@ class DeepState(object):
               begin_ea, end_ea))
       self.abandon_test()
 
-    for i in xrange(end_ea - begin_ea):
+    for i in range(end_ea - begin_ea):
       val, _ = self.read_uint8_t(begin_ea + i, concretize=True, constrain=True)
       self.write_uint8_t(begin_ea + i, val)
 
@@ -551,7 +553,7 @@ class DeepState(object):
     format_str = self.read_c_string(format_ea)[0]
     unpack_str = self.read_c_string(unpack_ea)[0]
     uint64_bytes = []
-    for i in xrange(8):
+    for i in range(8):
       b, _ = self.read_uint8_t(uint64_ea + i, concretize=False)
       uint64_bytes.append(b)
 
