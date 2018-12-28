@@ -48,6 +48,8 @@
 #define assume DeepState_Assume
 #define check DeepState_Check
 
+#define rand DeepState_Int
+
 #define MAYBE(...) \
     if (DeepState_Bool()) { \
       __VA_ARGS__ ; \
@@ -603,36 +605,7 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
   return DeepState_TestRunCrash;
 }
 
-/* Run a test case with input initialized by fuzzing. */
-static enum DeepState_TestRunResult
-DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test) {
-  DeepState_InputIndex = 0;
-  
-  for (int i = 0; i < DeepState_InputSize; i++) {
-    DeepState_Input[i] = (char)rand();
-  }
-
-  DeepState_Begin(test);
-
-  enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
-
-  if (result == DeepState_TestRunCrash) {
-    DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
-    
-    if (HAS_FLAG_output_test_dir) {
-      DeepState_SaveCrashingTest();
-    }
-
-    DeepState_Crash();
-  }
-
-  if (FLAGS_abort_on_fail && ((result == DeepState_TestRunCrash) ||
-			      (result == DeepState_TestRunFail))) {
-      abort();
-  }  
-
-  return result;
-}
+enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test);
 
 /* Run a single saved test case with input initialized from the file
  * `name` in directory `dir`. */

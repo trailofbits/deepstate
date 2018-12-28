@@ -23,6 +23,8 @@
 #include <setjmp.h>
 #include <stdio.h>
 
+#undef rand
+
 DEEPSTATE_BEGIN_EXTERN_C
 
 DEFINE_uint(num_workers, 1,
@@ -628,6 +630,37 @@ bool DeepState_CatchFail(void) {
 /* Returns `true` if the current test case was abandoned. */
 bool DeepState_CatchAbandoned(void) {
   return DeepState_CurrentTestRun->result == DeepState_TestRunAbandon;
+}
+
+/* Run a test case with input initialized by fuzzing.
+   Has to be defined here since we redefine rand in the header. */
+enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test) {
+  DeepState_InputIndex = 0;
+  
+  for (int i = 0; i < DeepState_InputSize; i++) {
+    DeepState_Input[i] = (char)rand();
+  }
+
+  DeepState_Begin(test);
+
+  enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
+
+  if (result == DeepState_TestRunCrash) {
+    DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
+    
+    if (HAS_FLAG_output_test_dir) {
+      DeepState_SaveCrashingTest();
+    }
+
+    DeepState_Crash();
+  }
+
+  if (FLAGS_abort_on_fail && ((result == DeepState_TestRunCrash) ||
+			      (result == DeepState_TestRunFail))) {
+      abort();
+  }  
+
+  return result;
 }
 
 extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
