@@ -49,6 +49,7 @@
 #define check DeepState_Check
 
 #define rand DeepState_Int
+#define srand DeepState_Warn_srand
 
 #define MAYBE(...) \
     if (DeepState_Bool()) { \
@@ -447,6 +448,8 @@ static bool DeepState_IsTestCaseFile(const char *name) {
   return false;
 }
 
+extern void DeepState_Warn_srand(unsigned int seed);
+
 /* Resets the global `DeepState_Input` buffer, then fills it with the
  * data found in the file `path`. */
 static void DeepState_InitInputFromFile(const char *path) {
@@ -605,7 +608,7 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
   return DeepState_TestRunCrash;
 }
 
-enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test);
+extern enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test);
 
 /* Run a single saved test case with input initialized from the file
  * `name` in directory `dir`. */
@@ -730,61 +733,7 @@ static int DeepState_RunSingleSavedTestCase(void) {
   return num_failed_tests;
 }
 
-/* Fuzz test `FLAGS_input_which_test` or first test, if not defined. */
-static int DeepState_Fuzz(void) {
-  DeepState_LogFormat(DeepState_LogInfo, "Starting fuzzing");
-  
-  if (HAS_FLAG_seed) {
-    srand(FLAGS_seed);
-  } else {
-    unsigned int seed = time(NULL);
-    DeepState_LogFormat(DeepState_LogWarning, "No seed provided; using %u", seed);
-    srand(seed);
-  }
-
-  long start = (long)time(NULL);
-  long current = (long)time(NULL);
-  long diff = 0;
-  unsigned i = 0;
-
-  int num_failed_tests = 0;
-
-  struct DeepState_TestInfo *test = NULL;  
-
-  DeepState_Setup();
-
-  for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
-    if (HAS_FLAG_input_which_test) {
-      if (strncmp(FLAGS_input_which_test, test->test_name, strlen(FLAGS_input_which_test)) == 0) {
-	break;
-      }
-    } else {
-      DeepState_LogFormat(DeepState_LogInfo,
-			  "No test specified, defaulting to last test defined");
-      break;
-    }
-  }
-
-  if (test == NULL) {
-    DeepState_LogFormat(DeepState_LogInfo,
-                        "Could not find matching test for %s",
-                        FLAGS_input_which_test);
-    return 0;
-  }
-  
-  while (diff < FLAGS_timeout) {
-    i++;
-    num_failed_tests += DeepState_FuzzOneTestCase(test);    
-    
-    current = (long)time(NULL);
-    diff = current-start;
-  }
-
-  DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests.  %d failed tests.",
-		      i, num_failed_tests);
-
-  return num_failed_tests;
-}
+extern int DeepState_Fuzz(void);
 
 /* Run tests from `FLAGS_input_test_files_dir`, under `FLAGS_input_which_test`
  * or first test, if not defined. */
