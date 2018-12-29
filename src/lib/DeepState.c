@@ -23,6 +23,9 @@
 #include <setjmp.h>
 #include <stdio.h>
 
+#undef rand
+#undef srand
+
 DEEPSTATE_BEGIN_EXTERN_C
 
 DEFINE_uint(num_workers, 1,
@@ -454,6 +457,11 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
   }
 }
 
+void DeepState_Warn_srand(unsigned int seed) {
+  DeepState_LogFormat(DeepState_LogWarning,
+		      "srand under DeepState has no effect: rand is re-defined as DeepState_Int");
+}
+
 void DeepState_RunSavedTakeOverCases(jmp_buf env,
                                      struct DeepState_TestInfo *test) {
   int num_failed_tests = 0;
@@ -628,6 +636,95 @@ bool DeepState_CatchFail(void) {
 /* Returns `true` if the current test case was abandoned. */
 bool DeepState_CatchAbandoned(void) {
   return DeepState_CurrentTestRun->result == DeepState_TestRunAbandon;
+}
+
+/* Fuzz test `FLAGS_input_which_test` or first test, if not defined.
+   Has to be defined here since we redefine rand in the header. */
+int DeepState_Fuzz(void){
+  DeepState_LogFormat(DeepState_LogInfo, "Starting fuzzing");
+  
+  if (HAS_FLAG_seed) {
+    srand(FLAGS_seed);
+  } else {
+    unsigned int seed = time(NULL);
+    DeepState_LogFormat(DeepState_LogWarning, "No seed provided; using %u", seed);
+    srand(seed);
+  }
+
+  long start = (long)time(NULL);
+  long current = (long)time(NULL);
+  long diff = 0;
+  unsigned i = 0;
+
+  int num_failed_tests = 0;
+
+  struct DeepState_TestInfo *test = NULL;  
+
+  DeepState_Setup();
+
+  for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
+    if (HAS_FLAG_input_which_test) {
+      if (strncmp(FLAGS_input_which_test, test->test_name, strlen(FLAGS_input_which_test)) == 0) {
+	break;
+      }
+    } else {
+      DeepState_LogFormat(DeepState_LogInfo,
+			  "No test specified, defaulting to last test defined");
+      break;
+    }
+  }
+
+  if (test == NULL) {
+    DeepState_LogFormat(DeepState_LogInfo,
+                        "Could not find matching test for %s",
+                        FLAGS_input_which_test);
+    return 0;
+  }
+  
+  while (diff < FLAGS_timeout) {
+    i++;
+    num_failed_tests += DeepState_FuzzOneTestCase(test);    
+    
+    current = (long)time(NULL);
+    diff = current-start;
+  }
+
+  DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests.  %d failed tests.",
+		      i, num_failed_tests);
+
+  return num_failed_tests;
+}
+
+
+/* Run a test case with input initialized by fuzzing.
+   Has to be defined here since we redefine rand in the header. */
+enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test) {
+  DeepState_InputIndex = 0;
+  
+  for (int i = 0; i < DeepState_InputSize; i++) {
+    DeepState_Input[i] = (char)rand();
+  }
+
+  DeepState_Begin(test);
+
+  enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
+
+  if (result == DeepState_TestRunCrash) {
+    DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
+    
+    if (HAS_FLAG_output_test_dir) {
+      DeepState_SaveCrashingTest();
+    }
+
+    DeepState_Crash();
+  }
+
+  if (FLAGS_abort_on_fail && ((result == DeepState_TestRunCrash) ||
+			      (result == DeepState_TestRunFail))) {
+      abort();
+  }  
+
+  return result;
 }
 
 extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
