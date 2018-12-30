@@ -40,5 +40,6 @@ setuptools.setup(
             'deepstate-angr = deepstate.main_angr:main',
             'deepstate-manticore = deepstate.main_manticore:main',
             'deepstate-reduce = deepstate.reducer:main',
+            'deepstate-s2e = deepstate.main_s2e:main',
         ]
     })

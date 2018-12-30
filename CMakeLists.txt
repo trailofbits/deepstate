@@ -114,13 +114,13 @@ if (BUILD_LIBFUZZER)
        src/lib/Option.c
        src/lib/Stream.c
     )
-    
+
     target_compile_options(${PROJECT_NAME}_LF PUBLIC -DLIBFUZZER -mno-avx -fsanitize=fuzzer-no-link,undefined)
-    
+
     target_include_directories(${PROJECT_NAME}_LF
        PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
     )
-    
+
     install(
        TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_LF
        LIBRARY DESTINATION lib
@@ -128,6 +128,48 @@ if (BUILD_LIBFUZZER)
     )
 endif()
 
+if (NOT DEFINED BUILD_S2E AND DEFINED ENV{BUILD_S2E})
+  set(BUILD_S2E "$ENV{BUILD_S2E}")
+endif()
+
+if (BUILD_S2E)
+  if (NOT DEFINED S2E_ENV_PATH AND DEFINED ENV{S2EDIR})
+    SET(S2E_ENV_PATH "$ENV{S2EDIR}")
+  endif()
+
+  GET_FILENAME_COMPONENT(S2E_ENV_PATH ${S2E_ENV_PATH} ABSOLUTE)
+  if ("${S2E_ENV_PATH}" STREQUAL "")
+    message(FATAL_ERROR "S2E support enabled but S2E environment path not provided."
+                        " Please activate your S2E environment or set S2E_ENV_PATH")
+  endif ()
+
+  set(S2E_INCLUDE "${S2E_ENV_PATH}/source/s2e/guest/common/include")
+  if (EXISTS "${S2E_INCLUDE}/s2e/s2e.h")
+    message(STATUS "Valid S2E environment found at ${S2E_ENV_PATH}")
+  else ()
+    message(FATAL_ERROR "s2e.h not found in ${S2E_INCLUDE}/s2e. Are you sure that this is a valid S2E environment?")
+  endif ()
+
+  add_library(${PROJECT_NAME}_S2E STATIC
+    src/lib/DeepState.c
+    src/lib/Log.c
+    src/lib/Option.c
+    src/lib/Stream.c
+  )
+
+  target_compile_options(${PROJECT_NAME}_S2E PUBLIC -DBUILD_S2E)
+
+  target_include_directories(${PROJECT_NAME}_S2E
+    PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
+    PUBLIC SYSTEM "${S2E_INCLUDE}"
+  )
+
+  install(
+    TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_S2E
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+  )
+endif()
 
 set(SETUP_PY_IN "${CMAKE_SOURCE_DIR}/bin/setup.py.in")
 set(SETUP_PY "${CMAKE_CURRENT_BINARY_DIR}/setup.py")

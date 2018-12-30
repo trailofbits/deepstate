@@ -23,6 +23,10 @@
 #include <setjmp.h>
 #include <stdio.h>
 
+#ifdef BUILD_S2E
+#include "s2e/s2e.h"
+#endif
+
 #ifdef DEEPSTATE_TAKEOVER_RAND
 #undef rand
 #undef srand
@@ -135,17 +139,25 @@ DEEPSTATE_NORETURN
 void DeepState_Fail(void) {
   DeepState_SetTestFailed();
 
+#ifdef BUILD_S2E
+  s2e_kill_state(1, "[DeepState] Test failed");
+#else
   if (FLAGS_take_over) {
     // We want to communicate the failure to a parent process, so exit.
     exit(DeepState_TestRunFail);
   } else {
     longjmp(DeepState_ReturnToRun, 1);
   }
+#endif
 }
 
 /* Mark this test as passing. */
 DEEPSTATE_NORETURN
 void DeepState_Pass(void) {
+#ifdef BUILD_S2E
+  struct DeepState_TestInfo *test = DeepState_CurrentTestRun->test;
+  DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
+#endif
   longjmp(DeepState_ReturnToRun, 0);
 }
 
@@ -163,6 +175,10 @@ void DeepState_SymbolizeData(void *begin, void *end) {
   } else if (begin_addr == end_addr) {
     return;
   } else {
+    uintptr_t length = end_addr - begin_addr;
+    if (DeepState_InputIndex + length >= DeepState_InputSize) {
+      DeepState_Abandon("Read too many symbols");
+    }
     uint8_t *bytes = (uint8_t *) begin;
     for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
       if (DeepState_InputIndex >= DeepState_InputSize) {
@@ -173,6 +189,9 @@ void DeepState_SymbolizeData(void *begin, void *end) {
       }
       bytes[i] = DeepState_Input[DeepState_InputIndex++];
     }
+#ifdef BUILD_S2E
+    s2e_make_symbolic((void*) bytes, length, "__symfile___deepstate_input___0_1_symfile__");
+#endif
   }
 }
 
@@ -205,6 +224,12 @@ void DeepState_SymbolizeDataNoNull(void *begin, void *end) {
 
 /* Concretize some data in exclusive the range `[begin, end)`. */
 void *DeepState_ConcretizeData(void *begin, void *end) {
+#ifdef BUILD_S2E
+  uintptr_t begin_addr = (uintptr_t) begin;
+  uintptr_t end_addr = (uintptr_t) end;
+
+  s2e_concretize(begin, (end_addr - begin_addr));
+#endif
   return begin;
 }
 
@@ -274,6 +299,9 @@ void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
 
 /* Concretize a C string */
 const char *DeepState_ConcretizeCStr(const char *begin) {
+#ifdef BUILD_S2E
+  s2e_concretize((void*) begin, strlen(begin));
+#endif
   return begin;
 }
 
@@ -321,6 +349,31 @@ int DeepState_Bool(void) {
   return DeepState_Input[DeepState_InputIndex++] & 1;
 }
 
+#ifdef BUILD_S2E
+#define MAKE_SYMBOL_FUNC(Type, type) \
+    type DeepState_ ## Type(void) { \
+      if ((DeepState_InputIndex + sizeof(type)) > DeepState_InputSize) { \
+        DeepState_Abandon("Read too many symbols"); \
+      } \
+      type val = 0; \
+      if (FLAGS_verbose_reads) { \
+        printf("STARTING MULTI-BYTE READ\n"); \
+      } \
+      _Pragma("unroll") \
+      for (size_t i = 0; i < sizeof(type); ++i) { \
+        if (FLAGS_verbose_reads) { \
+          printf("Reading byte at %u\n", DeepState_InputIndex); \
+        } \
+        val = (val << 8) | ((type) DeepState_Input[DeepState_InputIndex++]); \
+      } \
+      if (FLAGS_verbose_reads) { \
+        printf("FINISHED MULTI-BYTE READ\n"); \
+      } \
+      s2e_make_symbolic(&val, sizeof(type), \
+                        "__symfile___deepstate_input_" DEEPSTATE_TO_STR(Type) "___0_1_symfile__"); \
+      return val; \
+    }
+#else
 #define MAKE_SYMBOL_FUNC(Type, type) \
     type DeepState_ ## Type(void) { \
       if ((DeepState_InputIndex + sizeof(type)) > DeepState_InputSize) { \
@@ -342,7 +395,7 @@ int DeepState_Bool(void) {
       } \
       return val; \
     }
-
+#endif
 
 MAKE_SYMBOL_FUNC(Size, size_t)
 
@@ -375,6 +428,9 @@ int32_t DeepState_RandInt() {
 /* Returns the minimum satisfiable value for a given symbolic value, given
  * the constraints present on that value. */
 uint32_t DeepState_MinUInt(uint32_t v) {
+#ifdef BUILD_S2E
+  DeepState_Abandon("MinUInt not yet supported by S2E");
+#endif
   return v;
 }
 
@@ -386,6 +442,9 @@ int32_t DeepState_MinInt(int32_t v) {
 /* Returns the maximum satisfiable value for a given symbolic value, given
  * the constraints present on that value. */
 uint32_t DeepState_MaxUInt(uint32_t v) {
+#ifdef BUILD_S2E
+  DeepState_Abandon("MaxUInt not yet supported by S2E");
+#endif
   return v;
 }
 
@@ -404,16 +463,24 @@ extern void DeepState_CleanUp() {
 
 void _DeepState_Assume(int expr, const char *expr_str, const char *file,
                        unsigned line) {
+#ifdef BUILD_S2E
+  s2e_assume(expr);
+#else
   if (!expr) {
     DeepState_LogFormat(DeepState_LogError,
                         "%s(%u): Assumption %s failed",
                         file, line, expr_str);    
     DeepState_Abandon("Assumption failed");
   }
+#endif
 }
 
 int DeepState_IsSymbolicUInt(uint32_t x) {
+#ifdef BUILD_S2E
+  return s2e_is_symbolic(&x, sizeof(x));
+#else
   (void) x;
+#endif
   return 0;
 }
 
@@ -926,6 +993,9 @@ void __stack_chk_fail(void) {
 #ifndef LIBFUZZER
 __attribute__((weak))
 int main(int argc, char *argv[]) {
+#ifdef BUILD_S2E
+  DeepState_UsingSymExec = 1;
+#endif
   int ret = 0;
   DeepState_Setup();
   DeepState_InitOptions(argc, argv);
