@@ -139,9 +139,25 @@ DEEPSTATE_INLINE static int8_t DeepState_MaxChar(int8_t v) {
   return (int8_t) DeepState_MaxInt(v);
 }
 
+/* Given a char pointer (assumed to have enough storage), places a string
+ * value in that location, with size characters (before null).  If allowed is
+ * non-null, chooses characters from allowed char array.  If null_terminated
+ * is true, the string will be null-terminated at size+1, and no prior character
+ * will be null.  For null-terminated strings, storage must have space for the
+ * null terminator, so size should be 1 less than actual size. */
+extern void DeepState_AssignString(char *dest, size_t max_size, const char* allowed,
+				   size_t allowed_size, int null_terminated);
+
+/* Returns a null-terminated string of size characters (before null), allocated on
+ * heap.  DeepState will handle freeing these strings at termination of the test. */
+extern char* DeepState_String(size_t max_size);
+
+/* Function to clean up generated strings, and any other DeepState-managed data. */
+extern void DeepState_CleanUp();
+
 /* Returns `1` if `expr` is true, and `0` otherwise. This is kind of an indirect
  * way to take a symbolic value, introduce a fork, and on each size, replace its
-* value with a concrete value. */
+ * value with a concrete value. */
 extern int DeepState_IsTrue(int expr);
 
 /* Always returns `1`. */
@@ -588,6 +604,7 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
     test_pid = fork();
     if (!test_pid) {
       DeepState_RunTest(test);
+      /* No need to clean up in a fork; exit() is the ultimate garbage collector */
     }
   }
   int wstatus = 0;
@@ -595,6 +612,7 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
     waitpid(test_pid, &wstatus, 0);
   } else {
     wstatus = DeepState_RunTestNoFork(test);
+    DeepState_CleanUp();
   }
   
   /* If we exited normally, the status code tells us if the test passed. */

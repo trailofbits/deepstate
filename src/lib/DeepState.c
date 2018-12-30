@@ -54,6 +54,11 @@ int DeepState_UsingSymExec = 0;
 /* Set to 1 when we're using libFuzzer. */
 int DeepState_UsingLibFuzzer = 0;
 
+/* Array of DeepState generated strings.  Impossible for there to
+ * be more than there are input bytes.  Index stores where we are. */
+char* DeepState_GeneratedStrings[DeepState_InputSize];
+uint32_t DeepState_GeneratedStringsIndex = 0;
+
 /* Pointer to the last registers DeepState_TestInfo data structure */
 struct DeepState_TestInfo *DeepState_LastTestInfo = NULL;
 
@@ -311,6 +316,53 @@ int32_t DeepState_MaxInt(int32_t v) {
                     0x80000000U);
 }
 
+/* Given a char pointer (assumed to have enough storage), places a string
+ * value in that location, with size characters (before null).  If allowed is
+ * non-null, chooses characters from allowed char array.  If null_terminated
+ * is true, the string will be null-terminated at size+1, and no prior character
+ * will be null.  For null-terminated strings, storage must have space for the
+ * null terminator, so size should be 1 less than actual size. */
+void DeepState_AssignString(char *dest, size_t size, const char* allowed,
+			    size_t allowed_size, int null_terminated) {
+    for(int i = 0; i < size; i++) {
+      if (allowed) {
+	size_t index = DeepState_UIntInRange(0, allowed_size);
+	dest[i] = allowed[index];
+      } else if (null_terminated) {
+	dest[i] = DeepState_UCharInRange(1, UCHAR_MAX); /* Disallow null termination till end. */	
+      } else {
+	dest[i] = DeepState_UChar();
+      }
+    }
+    if (null_terminated) {
+      dest[size] = 0;
+    }
+}
+
+/* Returns a null-terminated string of size characters (before null), allocated on
+ * heap.  DeepState will handle freeing these strings at termination of the test. */
+char* DeepState_String(size_t size) {
+  char* rstr = malloc(size+1);
+  if (rstr) {
+    DeepState_GeneratedStrings[DeepState_GeneratedStringsIndex++] = rstr;
+    for (int i = 0; i < size; i++) {
+      rstr[i] = DeepState_UCharInRange(1, UCHAR_MAX); /* Disallow null termination till end. */
+    }
+    rstr[size] = 0;
+  } else {
+    DeepState_LogFormat(DeepState_LogFatal, "Unable to allocate to generate string!");
+  }
+  return rstr;
+}
+
+/* Function to clean up generated strings, and any other DeepState-managed data. */
+extern void DeepState_CleanUp() {
+  for (int i = 0; i < DeepState_GeneratedStringsIndex; i++) {
+    free(DeepState_GeneratedStrings[i]);
+  }
+  DeepState_GeneratedStringsIndex = 0;
+}
+
 void _DeepState_Assume(int expr, const char *expr_str, const char *file,
                        unsigned line) {
   if (!expr) {
@@ -429,6 +481,7 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
 #endif  /* __cplusplus */
 
     test->test_func();
+    DeepState_CleanUp();
     DeepState_Pass();
 
 #if defined(__cplusplus) && defined(__cpp_exceptions)
@@ -759,6 +812,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   DeepState_Begin(test);
 
   enum DeepState_TestRunResult result = DeepState_RunTestNoFork(test);
+  DeepState_CleanUp();
 
   const char* abort_check = getenv("LIBFUZZER_ABORT_ON_FAIL");
   if (abort_check != NULL) {
