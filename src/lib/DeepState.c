@@ -176,22 +176,28 @@ void *DeepState_ConcretizeData(void *begin, void *end) {
 }
 
 /* Assign a symbolic C string of length `len`. */
-void DeepState_AssignCStr(char* str, size_t len, const char* allowed) {
+void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed) {
   if (SIZE_MAX == len) {
     DeepState_Abandon("Can't create an SIZE_MAX-length string.");
   }
   if (NULL == str) {
     DeepState_Abandon("Attempted to populate null pointer.");
   }
-  uint32_t allowed_size = strlen(allowed);
-  for (int i = 0; i < len; i++) {
-    str[i] = allowed[DeepState_UIntInRange(0, allowed_size)];
+  if (len) {
+    if (!allowed) {
+      DeepState_SymbolizeData(str, &(str[len - 1]));
+    } else {
+      uint32_t allowed_size = strlen(allowed);
+      for (int i = 0; i < len; i++) {
+	str[i] = allowed[DeepState_UIntInRange(0, allowed_size)];
+      }
+    }
   }
   str[len] = '\0';
 }
 
 /* Return a symbolic C string of length `len`. */
-char *DeepState_CStr(size_t len) {
+char *DeepState_CStr_C(size_t len, const char* allowed) {
   if (SIZE_MAX == len) {
     DeepState_Abandon("Can't create an SIZE_MAX-length string.");
   }
@@ -201,16 +207,33 @@ char *DeepState_CStr(size_t len) {
   }
   DeepState_GeneratedStrings[DeepState_GeneratedStringsIndex++] = str;  
   if (len) {
-    DeepState_SymbolizeData(str, &(str[len - 1]));
+    if (!allowed) {
+      DeepState_SymbolizeData(str, &(str[len - 1]));
+    } else {
+      uint32_t allowed_size = strlen(allowed);
+      for (int i = 0; i < len; i++) {
+	str[i] = allowed[DeepState_UIntInRange(0, allowed_size)];
+      }
+    }
   }
   str[len] = '\0';
   return str;
 }
 
 /* Symbolize a C string */
-void DeepState_SymbolizeCStr(char *begin) {
+void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
   if (begin && begin[0]) {
-    DeepState_SymbolizeData(begin, begin + strlen(begin));
+    if (!allowed) {
+      DeepState_SymbolizeData(begin, begin + strlen(begin));
+    } else {
+      uint32_t allowed_size = strlen(allowed);      
+      uint8_t *bytes = (uint8_t *) begin;
+      uintptr_t begin_addr = (uintptr_t) begin;
+      uintptr_t end_addr = (uintptr_t) (begin + strlen(begin));  
+      for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
+	bytes[i] = allowed[DeepState_UIntInRange(0, allowed_size)];
+      }      
+    }
   }
 }
 
