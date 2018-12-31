@@ -10,9 +10,9 @@ class RunlenTest(deepstate_base.DeepStateTestCase):
     self.assertEqual(r, 0)
 
     self.assertTrue("Passed: Runlength_EncodeDecode" in output)
-    foundCrashSave = False
+    foundFailSave = False
     for line in output.split("\n"):
-      if ("Saving input to" in line) and (".crash" in line):
-        foundCrashSave = True
-    self.assertTrue(foundCrashSave)
+      if ("Saving input to" in line) and (".fail" in line):
+        foundFailSave = True
+    self.assertTrue(foundFailSave)
 

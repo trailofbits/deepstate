@@ -10,7 +10,7 @@ char* encode(const char* input) {
     return encoded;
   }
   unsigned char last = input[0];
-  unsigned char current;
+  unsigned char current = input[0];
   int count = 1;
   int pos = 0;
   for (int i = 1; i < l; i++) {
@@ -25,14 +25,14 @@ char* encode(const char* input) {
     }
   }
   encoded[pos++] = last;
-  encoded[pos++] = 64 + count;
+  encoded[pos++] = 65;
   encoded[pos] = '\0';
   return encoded;
 }
 
 char* decode(const char* output) {
   unsigned int l = strlen(output);
-  char* decoded = (char*)malloc(((l/2)*25)+1);
+  char* decoded = (char*)malloc(((l/2)*26)+1);
   if (l == 0) {
     decoded[0] = '\0';
     return decoded;
@@ -50,7 +50,7 @@ char* decode(const char* output) {
   return decoded;
 }
 
-#define MAX_STR_LEN 100
+#define MAX_STR_LEN 10
 
 TEST(Runlength, EncodeDecode) {
   char* original = DeepState_CStrUpToLen(MAX_STR_LEN, "abcde");
