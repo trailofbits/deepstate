@@ -102,6 +102,16 @@ if (BUILD_LIBFUZZER)
    set_target_properties(StreamingAndFormatting_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
 endif()
 
+add_executable(Runlen Runlen.cpp) 
+target_link_libraries(Runlen deepstate)
+
+if (BUILD_LIBFUZZER)
+   add_executable(Runlen_LF Runlen.cpp) 
+   target_link_libraries(Runlen_LF deepstate_LF)
+   target_link_libraries (Runlen_LF "-fsanitize=fuzzer,undefined")
+   set_target_properties(Runlen_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
+endif()
+
 if (NOT APPLE)
   add_executable(Squares Squares.c)
   target_link_libraries(Squares deepstate)
