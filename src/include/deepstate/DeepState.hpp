@@ -314,7 +314,7 @@ static T Pump(T val, unsigned max=10) {
   }
   return Minimize(val);
 }
-
+  
 template <typename... Args>
 inline static void ForAll(void (*func)(Args...)) {
   func(Symbolic<Args>()...);
@@ -345,7 +345,7 @@ inline static char OneOf(const char *str) {
   }
   return str[DeepState_IntInRange(0, strlen(str) - 1)];
 }
-
+  
 template <typename T>
 inline static const T &OneOf(const std::vector<T> &arr) {
   if (arr.empty()) {
@@ -470,6 +470,25 @@ struct Comparer {
     return Do(a, b, cmp, tag());
   }
 };
+
+/* Given a char pointer (assumed to have enough storage), places a C string
+ * value in that location, with up to max_size characters (strlen, not counting
+ * null).  If allowed is non-null, chooses characters from allowed char array.
+ * If null_terminated is true, the string will be null-terminated at size+1, and
+ * no prior character will be null.  For null-terminated strings, storage must have
+ * space for the null terminator, so max_size should be 1 less than actual size. */
+inline static void DeepState_AssignCString(char *dest, size_t max_size, const char* allowed,
+					   size_t allowed_size, int null_terminated) {
+  uint32_t size = DeepState_UIntInRange(0, max_size);
+  DeepState_AssignString(dest, Pump(size, max_size), allowed, allowed_size, null_terminated);  
+}
+
+/* Returns a null-terminated C string of up to max_size characters (strlen), allocated on
+ * heap.  DeepState will handle freeing these strings at termination of the test. */
+inline static char* DeepState_CString(size_t max_size) {
+  uint32_t size = DeepState_UIntInRange(0, max_size);
+  return DeepState_String(Pump(size, max_size));
+}
 
 }  // namespace deepstate
 

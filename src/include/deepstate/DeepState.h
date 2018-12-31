@@ -145,12 +145,12 @@ DEEPSTATE_INLINE static int8_t DeepState_MaxChar(int8_t v) {
  * is true, the string will be null-terminated at size+1, and no prior character
  * will be null.  For null-terminated strings, storage must have space for the
  * null terminator, so size should be 1 less than actual size. */
-extern void DeepState_AssignString(char *dest, size_t max_size, const char* allowed,
+extern void DeepState_AssignString(char *dest, size_t size, const char* allowed,
 				   size_t allowed_size, int null_terminated);
 
 /* Returns a null-terminated string of size characters (before null), allocated on
  * heap.  DeepState will handle freeing these strings at termination of the test. */
-extern char* DeepState_String(size_t max_size);
+extern char* DeepState_String(size_t size);
 
 /* Function to clean up generated strings, and any other DeepState-managed data. */
 extern void DeepState_CleanUp();
