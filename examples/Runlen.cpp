@@ -33,7 +33,8 @@ char* decode(const char* output) {
   return decoded;
 }
 
-#define MAX_STR_LEN 10
+// Can be higher if we're using fuzzing, not symbolic execution
+#define MAX_STR_LEN 7 
 
 TEST(Runlength, EncodeDecode) {
   char* original = DeepState_CStrUpToLen(MAX_STR_LEN, "ab");
