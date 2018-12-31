@@ -34,14 +34,12 @@ char* decode(const char* output) {
 }
 
 // Can be higher if we're using fuzzing, not symbolic execution
-#define MAX_STR_LEN 4
+#define MAX_STR_LEN 5
 
 TEST(Runlength, EncodeDecode) {
   char* original = DeepState_CStrUpToLen(MAX_STR_LEN, "ab");
-  DeepState_ConcretizeCStr(original);
-  LOG(TRACE) << "original = `" << original << "`";
   char* encoded = encode(original);
   char* roundtrip = decode(encoded);
   ASSERT (strncmp(roundtrip, original, MAX_STR_LEN) == 0) <<
-    "encode = `" << encoded << "`, decode(encode) = `" << roundtrip << "`";
+    "`" << original << "` ==> `" << encoded << "` ==> `" << roundtrip << "`";
 }
