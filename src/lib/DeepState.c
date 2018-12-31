@@ -176,14 +176,14 @@ void *DeepState_ConcretizeData(void *begin, void *end) {
 }
 
 /* Assign a symbolic C string of length `len`. */
-void DeepState_AssignCStr(char* str, size_t len, const char* allowed,
-			   size_t allowed_size) {
+void DeepState_AssignCStr(char* str, size_t len, const char* allowed) {
   if (SIZE_MAX == len) {
     DeepState_Abandon("Can't create an SIZE_MAX-length string.");
   }
   if (NULL == str) {
     DeepState_Abandon("Attempted to populate null pointer.");
   }
+  uint32_t allowed_size = strlen(allowed);
   for (int i = 0; i < len; i++) {
     str[i] = allowed[DeepState_UIntInRange(0, allowed_size)];
   }

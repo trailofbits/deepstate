@@ -472,10 +472,10 @@ struct Comparer {
 };
 
 /* Like DeepState_AssignCStr, but Pumps through possible string sizes. */
-inline static void DeepState_AssignCStrMax(char* str, size_t max_len, const char* allowed,
-					   size_t allowed_size) {
+inline static void DeepState_AssignCStrMax(char* str, size_t max_len,
+					   const char* allowed) {
   uint32_t size = DeepState_UIntInRange(0, max_len);
-  DeepState_AssignCStr(str, Pump(size, max_len), allowed, allowed_size);  
+  DeepState_AssignCStr(str, Pump(size, max_len), allowed);  
 }
 
 /* Like DeepState_CStr, but Pumps through possible string sizes. */
