@@ -485,17 +485,17 @@ inline static void DeepState_AssignCStrUpToLen(char* str, size_t max_len,
 }
 
 /* Like DeepState_CStr_C, but fills in a null allowed. */
-inline static char* DeepState_CStr(size_t len, char* allowed = 0) {
+inline static char* DeepState_CStr(size_t len, const char* allowed = 0) {
   return DeepState_CStr_C(len, allowed);
 }
   
 /* Like DeepState_CStr, but Pumps through possible string sizes. */
-inline static char* DeepState_CStrUpToLen(size_t max_len, char* allowed = 0) {
+inline static char* DeepState_CStrUpToLen(size_t max_len, const char* allowed = 0) {
   uint32_t len = DeepState_UIntInRange(0, max_len);
   return DeepState_CStr_C(Pump(len, max_len), allowed);
 }
 
-inline static void DeepState_SymbolizeCStr_C(char *begin, char* allowed = 0) {
+inline static void DeepState_SymbolizeCStr_C(char *begin, const char* allowed = 0) {
   DeepState_SymbolizeCStr_C(begin, allowed);
 }
 
