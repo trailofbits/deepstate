@@ -139,19 +139,6 @@ DEEPSTATE_INLINE static int8_t DeepState_MaxChar(int8_t v) {
   return (int8_t) DeepState_MaxInt(v);
 }
 
-/* Given a char pointer (assumed to have enough storage), places a string
- * value in that location, with size characters (before null).  If allowed is
- * non-null, chooses characters from allowed char array.  If null_terminated
- * is true, the string will be null-terminated at size+1, and no prior character
- * will be null.  For null-terminated strings, storage must have space for the
- * null terminator, so size should be 1 less than actual size. */
-extern void DeepState_AssignString(char *dest, size_t size, const char* allowed,
-				   size_t allowed_size, int null_terminated);
-
-/* Returns a null-terminated string of size characters (before null), allocated on
- * heap.  DeepState will handle freeing these strings at termination of the test. */
-extern char* DeepState_String(size_t size);
-
 /* Function to clean up generated strings, and any other DeepState-managed data. */
 extern void DeepState_CleanUp();
 
@@ -175,6 +162,11 @@ extern void DeepState_SymbolizeData(void *begin, void *end);
 /* Concretize some data in exclusive the range `[begin, end)`. Returns a
  * concrete pointer to the beginning of the concretized data. */
 extern void *DeepState_ConcretizeData(void *begin, void *end);
+
+/* Assign a symbolic C string of length `len` with only chars in allowed,
+ * if allowed is non-null */
+extern void DeepState_AssignCStr(char* str, size_t len, const char* allowed,
+				 size_t allowed_size);
 
 /* Return a symbolic C string of length `len`. */
 extern char *DeepState_CStr(size_t len);

@@ -471,23 +471,17 @@ struct Comparer {
   }
 };
 
-/* Given a char pointer (assumed to have enough storage), places a C string
- * value in that location, with up to max_size characters (strlen, not counting
- * null).  If allowed is non-null, chooses characters from allowed char array.
- * If null_terminated is true, the string will be null-terminated at size+1, and
- * no prior character will be null.  For null-terminated strings, storage must have
- * space for the null terminator, so max_size should be 1 less than actual size. */
-inline static void DeepState_AssignCString(char *dest, size_t max_size, const char* allowed,
-					   size_t allowed_size, int null_terminated) {
-  uint32_t size = DeepState_UIntInRange(0, max_size);
-  DeepState_AssignString(dest, Pump(size, max_size), allowed, allowed_size, null_terminated);  
+/* Like DeepState_AssignCStr, but Pumps through possible string sizes. */
+inline static void DeepState_AssignCStrMax(char* str, size_t max_len, const char* allowed,
+					   size_t allowed_size) {
+  uint32_t size = DeepState_UIntInRange(0, max_len);
+  DeepState_AssignCStr(str, Pump(size, max_len), allowed, allowed_size);  
 }
 
-/* Returns a null-terminated C string of up to max_size characters (strlen), allocated on
- * heap.  DeepState will handle freeing these strings at termination of the test. */
-inline static char* DeepState_CString(size_t max_size) {
-  uint32_t size = DeepState_UIntInRange(0, max_size);
-  return DeepState_String(Pump(size, max_size));
+/* Like DeepState_CStr, but Pumps through possible string sizes. */
+inline static char* DeepState_CStrMax(size_t max_len) {
+  uint32_t size = DeepState_UIntInRange(0, max_len);
+  return DeepState_CStr(Pump(size, max_len));
 }
 
 }  // namespace deepstate
