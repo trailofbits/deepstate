@@ -23,6 +23,7 @@ env:
 - TASK=ONEOF
 - TASK=OVERFLOW
 - TASK=PRIMES
+- TASK=RUNLEN
 - TASK=STREAMINGANDFORMATTING
 - TASK=TAKEOVER
 script:
@@ -34,6 +35,7 @@ script:
 - if [ $TASK = KLEE ]; then nosetests tests/test_klee.py ; fi
 - if [ $TASK = LISTS ]; then nosetests tests/test_lists.py ; fi
 - if [ $TASK = ONEOF ]; then nosetests tests/test_oneof.py ; fi
+- if [ $TASK = RUNLEN ]; then nosetests tests/test_runlen.py ; fi
 - if [ $TASK = OVERFLOW ]; then nosetests tests/test_overflow.py ; fi
 - if [ $TASK = PRIMES ]; then nosetests tests/test_primes.py ; fi
 - if [ $TASK = STREAMINGANDFORMATTING ]; then nosetests tests/test_streamingandformatting.py ; fi
