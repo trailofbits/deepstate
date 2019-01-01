@@ -6,11 +6,12 @@ using namespace deepstate;
  * encodings by adding 'A'-1 to the count, and splitting at 26 */
 
 char* encode(const char* input) {
-  char* encoded = (char*)malloc((strlen(input)*2)+1);
+  unsigned int len = strlen(input);
+  char* encoded = (char*)malloc((len*2)+1);
   int pos = 0;
   if (strlen(input) > 0) {
     unsigned char last = input[0]; int count = 1;
-    for (int i = 1; i < strlen(input); i++) {
+    for (int i = 1; i < len; i++) {
       if (((unsigned char)input[i] == last) && (count < 26))
 	count++;
       else {
@@ -25,15 +26,22 @@ char* encode(const char* input) {
 }
 
 char* decode(const char* output) {
-  char* decoded = (char*)malloc(((strlen(output))/2)*26);
+  unsigned int len = strlen(output);
+  char* decoded = (char*)malloc((len/2)*26);
   int pos = 0;
   if (strlen(output) > 0) {
-    for (int i = 0; i < strlen(output); i += 2)
+    for (int i = 0; i < len; i += 2)
       for (int j = 0; j < (output[i+1] - 64); j++)
 	decoded[pos++] = output[i];
   }
   decoded[pos] = '\0';
   return decoded;
+}
+
+void printBytes(const char* bytes) {
+  unsigned int len = strlen(bytes);
+  for (int i = 0; i < len; i++)
+    LOG(ERROR) << "[" << i << "] = " << (unsigned int)(unsigned char)bytes[i];
 }
 
 // Can be (much) higher (e.g., > 1024) if we're using fuzzing, not symbolic execution
@@ -43,6 +51,13 @@ TEST(Runlength, EncodeDecode) {
   char* original = DeepState_CStrUpToLen(MAX_STR_LEN);
   char* encoded = encode(original);
   char* roundtrip = decode(encoded);
-  ASSERT (strncmp(roundtrip, original, MAX_STR_LEN) == 0) <<
-    "`" << original << "` ==> `" << encoded << "` ==> `" << roundtrip << "`";
+  if (!(strncmp(roundtrip, original, MAX_STR_LEN) == 0)) {
+    LOG(ERROR) << "ORIGINAL:";
+    printBytes(original);
+    LOG(ERROR) << "ENCODED:";
+    printBytes(encoded);
+    LOG(ERROR) << "ROUNDTRIP:";
+    printBytes(roundtrip);
+    ASSERT (0) << "Round trip check failed";
+  }
 }
