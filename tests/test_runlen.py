@@ -6,7 +6,7 @@ import logrun
 class RunlenTest(deepstate_base.DeepStateTestCase):
   def run_deepstate(self, deepstate):
     (r, output) = logrun.logrun([deepstate, "build/examples/Runlen"],
-                  "deepstate.out", 2700)
+                  "deepstate.out", 2900)
     self.assertEqual(r, 0)
 
     self.assertTrue("Passed: Runlength_EncodeDecode" in output)
