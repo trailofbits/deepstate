@@ -18,7 +18,7 @@ char* encode(const char* input) {
 	last = (unsigned char)input[i]; count = 1;
       }
     }
-    encoded[pos++] = last; encoded[pos++] = 65; // Should be count, not 65!
+    encoded[pos++] = last; encoded[pos++] = 65; // Should be 64 + count
   }
   encoded[pos] = '\0';
   return encoded;
