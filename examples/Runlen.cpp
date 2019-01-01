@@ -2,6 +2,9 @@
 
 using namespace deepstate;
 
+/* Simple, buggy, run-length encoding that creates "human readable"
+ * encodings by adding 'A'-1 to the count, and splitting at 26 */
+
 char* encode(const char* input) {
   char* encoded = (char*)malloc((strlen(input)*2)+1);
   int pos = 0;
@@ -15,7 +18,7 @@ char* encode(const char* input) {
 	last = (unsigned char)input[i]; count = 1;
       }
     }
-    encoded[pos++] = last; encoded[pos++] = 65;
+    encoded[pos++] = last; encoded[pos++] = 65; // Should be count, not 65!
   }
   encoded[pos] = '\0';
   return encoded;
@@ -33,7 +36,7 @@ char* decode(const char* output) {
   return decoded;
 }
 
-// Can be higher if we're using fuzzing, not symbolic execution
+// Can be (much) higher (e.g., > 1024) if we're using fuzzing, not symbolic execution
 #define MAX_STR_LEN 2
 
 TEST(Runlength, EncodeDecode) {
