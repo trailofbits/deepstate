@@ -189,7 +189,7 @@ void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed) {
     } else {
       uint32_t allowed_size = strlen(allowed);
       for (int i = 0; i < len; i++) {
-	str[i] = allowed[DeepState_UIntInRange(0, allowed_size)];
+	str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
       }
     }
   }
@@ -212,7 +212,7 @@ char *DeepState_CStr_C(size_t len, const char* allowed) {
     } else {
       uint32_t allowed_size = strlen(allowed);
       for (int i = 0; i < len; i++) {
-	str[i] = allowed[DeepState_UIntInRange(0, allowed_size)];
+	str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
       }
     }
   }
@@ -231,7 +231,7 @@ void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
       uintptr_t begin_addr = (uintptr_t) begin;
       uintptr_t end_addr = (uintptr_t) (begin + strlen(begin));  
       for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
-	bytes[i] = allowed[DeepState_UIntInRange(0, allowed_size)];
+	bytes[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
       }      
     }
   }
