@@ -40,7 +40,7 @@ char* decode(const char* output) {
 #define MAX_STR_LEN 3
 
 TEST(Runlength, EncodeDecode) {
-  char* original = DeepState_CStrUpToLen(MAX_STR_LEN, "0123456789");
+  char* original = DeepState_CStrUpToLen(MAX_STR_LEN, "abc");
   char* encoded = encode(original);
   char* roundtrip = decode(encoded);
   ASSERT (strncmp(roundtrip, original, MAX_STR_LEN) == 0) <<
