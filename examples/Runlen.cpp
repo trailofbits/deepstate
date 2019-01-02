@@ -45,7 +45,7 @@ void printBytes(const char* bytes) {
 }
 
 // Can be (much) higher (e.g., > 1024) if we're using fuzzing, not symbolic execution
-#define MAX_STR_LEN 4
+#define MAX_STR_LEN 6
 
 TEST(Runlength, EncodeDecode) {
   char* original = DeepState_CStrUpToLen(MAX_STR_LEN);
