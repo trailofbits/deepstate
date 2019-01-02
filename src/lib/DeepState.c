@@ -44,7 +44,7 @@ DEFINE_bool(fuzz, false, "Perform brute force unguided fuzzing.");
 DEFINE_bool(fuzz_save_passing, false, "Save passing tests during fuzzing.");
 DEFINE_bool(fork, true, "Fork when running a test.");
 
-DEFINE_int(log_level, 0, "Minimum level of logging to output.");
+DEFINE_int(log_level, 2, "Minimum level of logging to output.");
 DEFINE_int(seed, 0, "Seed for brute force fuzzing (uses time if not set).");
 DEFINE_int(timeout, 120, "Timeout for brute force fuzzing.");
 
@@ -408,7 +408,7 @@ void DeepState_Teardown(void) {
 /* Notify that we're about to begin a test. */
 void DeepState_Begin(struct DeepState_TestInfo *test) {
   DeepState_InitCurrentTestRun(test);
-  DeepState_LogFormat(DeepState_LogInfo, "Running: %s from %s(%u)",
+  DeepState_LogFormat(DeepState_LogTrace, "Running: %s from %s(%u)",
                       test->test_name, test->file_name, test->line_number);
 }
 
@@ -419,7 +419,7 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
   struct DeepState_TestInfo *test = DeepState_DrFuzzTest;
   DeepState_InputIndex = 0;
   DeepState_InitCurrentTestRun(test);
-  DeepState_LogFormat(DeepState_LogInfo, "Running: %s from %s(%u)",
+  DeepState_LogFormat(DeepState_LogTrace, "Running: %s from %s(%u)",
                       test->test_name, test->file_name, test->line_number);
 
   if (!setjmp(DeepState_ReturnToRun)) {
@@ -450,7 +450,7 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
 
   /* The test passed. */
   } else {
-    DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
+    DeepState_LogFormat(DeepState_LogTrace, "Passed: %s", test->test_name);
     if (HAS_FLAG_output_test_dir) {
       DeepState_SavePassingTest();
     }
@@ -506,7 +506,7 @@ void DeepState_RunSavedTakeOverCases(jmp_buf env,
       if (WIFEXITED(wstatus)) {
         switch (DeepState_CurrentTestRun->result) {
         case DeepState_TestRunPass:
-          DeepState_LogFormat(DeepState_LogInfo,
+          DeepState_LogFormat(DeepState_LogTrace,
                               "Passed: TakeOver test with data from `%s`",
                               dp->d_name);
           break;

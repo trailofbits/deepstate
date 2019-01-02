@@ -528,7 +528,7 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
 
     /* The test passed. */
   } else {
-    DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
+    DeepState_LogFormat(DeepState_LogTrace, "Passed: %s", test->test_name);
     if (HAS_FLAG_output_test_dir) {
       if (!FLAGS_fuzz || FLAGS_fuzz_save_passing) {
 	DeepState_SavePassingTest();
@@ -572,7 +572,7 @@ static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
 
     /* The test passed. */
   } else {
-    DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
+    DeepState_LogFormat(DeepState_LogTrace, "Passed: %s", test->test_name);
     if (HAS_FLAG_output_test_dir) {
       DeepState_SavePassingTest();
     }
