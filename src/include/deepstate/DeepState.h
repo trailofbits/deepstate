@@ -159,6 +159,9 @@ extern int DeepState_ZeroSink(int);
 /* Symbolize the data in the exclusive range `[begin, end)`. */
 extern void DeepState_SymbolizeData(void *begin, void *end);
 
+/* Symbolize the data in the exclusive range `[begin, end)` with no nulls. */
+extern void DeepState_SymbolizeDataNoNull(void *begin, void *end);
+
 /* Concretize some data in exclusive the range `[begin, end)`. Returns a
  * concrete pointer to the beginning of the concretized data. */
 extern void *DeepState_ConcretizeData(void *begin, void *end);

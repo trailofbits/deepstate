@@ -170,6 +170,32 @@ void DeepState_SymbolizeData(void *begin, void *end) {
   }
 }
 
+/* Symbolize the data in the exclusive range `[begin, end)`. */
+void DeepState_SymbolizeDataNoNull(void *begin, void *end) {
+  uintptr_t begin_addr = (uintptr_t) begin;
+  uintptr_t end_addr = (uintptr_t) end;
+
+  if (begin_addr > end_addr) {
+    DeepState_Abandon("Invalid data bounds for DeepState_SymbolizeData");
+  } else if (begin_addr == end_addr) {
+    return;
+  } else {
+    uint8_t *bytes = (uint8_t *) begin;
+    for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
+      if (DeepState_InputIndex >= DeepState_InputSize) {
+        DeepState_Abandon("Read too many symbols");
+      }
+      if (FLAGS_verbose_reads) {
+        printf("Reading byte at %u\n", DeepState_InputIndex);
+      }
+      bytes[i] = DeepState_Input[DeepState_InputIndex++];
+      if (bytes[i] == 0) {
+	bytes[i] = 1;
+      }
+    }
+  }
+}
+
 /* Concretize some data in exclusive the range `[begin, end)`. */
 void *DeepState_ConcretizeData(void *begin, void *end) {
   return begin;
@@ -185,7 +211,7 @@ void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed) {
   }
   if (len) {
     if (!allowed) {
-      DeepState_SymbolizeData(str, &(str[len - 1]));
+      DeepState_SymbolizeDataNoNull(str, &(str[len]));
     } else {
       uint32_t allowed_size = strlen(allowed);
       for (int i = 0; i < len; i++) {
@@ -208,7 +234,7 @@ char *DeepState_CStr_C(size_t len, const char* allowed) {
   DeepState_GeneratedStrings[DeepState_GeneratedStringsIndex++] = str;  
   if (len) {
     if (!allowed) {
-      DeepState_SymbolizeData(str, &(str[len - 1]));
+      DeepState_SymbolizeDataNoNull(str, &(str[len]));
     } else {
       uint32_t allowed_size = strlen(allowed);
       for (int i = 0; i < len; i++) {
@@ -224,7 +250,7 @@ char *DeepState_CStr_C(size_t len, const char* allowed) {
 void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
   if (begin && begin[0]) {
     if (!allowed) {
-      DeepState_SymbolizeData(begin, begin + strlen(begin));
+      DeepState_SymbolizeDataNoNull(begin, begin + strlen(begin));
     } else {
       uint32_t allowed_size = strlen(allowed);      
       uint8_t *bytes = (uint8_t *) begin;
