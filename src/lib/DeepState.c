@@ -44,7 +44,7 @@ DEFINE_bool(fuzz, false, "Perform brute force unguided fuzzing.");
 DEFINE_bool(fuzz_save_passing, false, "Save passing tests during fuzzing.");
 DEFINE_bool(fork, true, "Fork when running a test.");
 
-DEFINE_int(log_level, 2, "Minimum level of logging to output.");
+DEFINE_int(log_level, 0, "Minimum level of logging to output.");
 DEFINE_int(seed, 0, "Seed for brute force fuzzing (uses time if not set).");
 DEFINE_int(timeout, 120, "Timeout for brute force fuzzing.");
 
