@@ -46,6 +46,7 @@ LOGGER = logging.getLogger("deepstate")
 LOGGER.setLevel(logging.DEBUG)
 
 LOGGER.trace = functools.partial(LOGGER.log, 15)
+logging.TRACE = 15
 
 LOG_LEVEL_TO_LOGGER = {
   LOG_LEVEL_DEBUG: LOGGER.debug,
