@@ -166,11 +166,11 @@ extern void DeepState_SymbolizeDataNoNull(void *begin, void *end);
  * concrete pointer to the beginning of the concretized data. */
 extern void *DeepState_ConcretizeData(void *begin, void *end);
 
-/* Assign a symbolic C string of length `len` with only chars in allowed,
- * if allowed is non-null */
+/* Assign a symbolic C string of _strlen_ `len` -- with only chars in allowed,
+ * if allowed is non-null; needs space for null + len bytes */
 extern void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed);
 
-/* Return a symbolic C string of length `len`. */
+/* Return a symbolic C string of strlen `len`. */
 extern char *DeepState_CStr_C(size_t len, const char* allowed);
 
 /* Symbolize a C string */
