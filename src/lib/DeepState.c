@@ -170,7 +170,8 @@ void DeepState_SymbolizeData(void *begin, void *end) {
   }
 }
 
-/* Symbolize the data in the exclusive range `[begin, end)`. */
+/* Symbolize the data in the exclusive range `[begin, end)` without null
+ * characters included.  Primarily useful for C strings. */
 void DeepState_SymbolizeDataNoNull(void *begin, void *end) {
   uintptr_t begin_addr = (uintptr_t) begin;
   uintptr_t end_addr = (uintptr_t) end;
@@ -201,7 +202,9 @@ void *DeepState_ConcretizeData(void *begin, void *end) {
   return begin;
 }
 
-/* Assign a symbolic C string of length `len`. */
+/* Assign a symbolic C string of strlen length `len`.  str should include
+ * storage for both `len` characters AND the null terminator.  Allowed
+ * is a set of chars that are allowed (ignored if null). */
 void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed) {
   if (SIZE_MAX == len) {
     DeepState_Abandon("Can't create an SIZE_MAX-length string.");
@@ -222,7 +225,7 @@ void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed) {
   str[len] = '\0';
 }
 
-/* Return a symbolic C string of length `len`. */
+/* Return a symbolic C string of strlen `len`. */
 char *DeepState_CStr_C(size_t len, const char* allowed) {
   if (SIZE_MAX == len) {
     DeepState_Abandon("Can't create an SIZE_MAX-length string.");
@@ -246,7 +249,7 @@ char *DeepState_CStr_C(size_t len, const char* allowed) {
   return str;
 }
 
-/* Symbolize a C string */
+/* Symbolize a C string; keeps the null terminator where it was. */
 void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
   if (begin && begin[0]) {
     if (!allowed) {

@@ -471,7 +471,7 @@ struct Comparer {
   }
 };
 
-/* Like DeepState_AssignCStr_C, but fills in a null allowed. */
+/* Like DeepState_AssignCStr_C, but fills in a null `allowed` value. */
 inline static void DeepState_AssignCStr(char* str, size_t len,
 					const char* allowed = 0) {
   DeepState_AssignCStr_C(str, len, allowed);  
@@ -484,7 +484,7 @@ inline static void DeepState_AssignCStrUpToLen(char* str, size_t max_len,
   DeepState_AssignCStr_C(str, Pump(len, max_len+1), allowed);  
 }
 
-/* Like DeepState_CStr_C, but fills in a null allowed. */
+/* Like DeepState_CStr_C, but fills in a null `allowed` value. */
 inline static char* DeepState_CStr(size_t len, const char* allowed = 0) {
   return DeepState_CStr_C(len, allowed);
 }
@@ -495,7 +495,8 @@ inline static char* DeepState_CStrUpToLen(size_t max_len, const char* allowed = 
   return DeepState_CStr_C(Pump(len, max_len+1), allowed);
 }
 
-inline static void DeepState_SymbolizeCStr_C(char *begin, const char* allowed = 0) {
+/* Like DeepState_Symbolize_CStr, but fills in null `allowed` value. */
+inline static void DeepState_SymbolizeCStr(char *begin, const char* allowed = 0) {
   DeepState_SymbolizeCStr_C(begin, allowed);
 }
 
