@@ -260,6 +260,17 @@ class DeepState(object):
 
     # Create the output directory for this test case.
     args = self.parse_args()
+
+    logging_levels = {
+      LOG_LEVEL_DEBUG: logging.DEBUG,
+      LOG_LEVEL_TRACE: logging.TRACE,
+      LOG_LEVEL_INFO: logging.INFO,
+      LOG_LEVEL_WARNING: logging.WARNING,
+      LOG_LEVEL_ERROR: logging.ERROR,
+      LOG_LEVEL_FATAL: logging.CRITICAL
+    }
+    LOGGER.setLevel(logging_levels[args.log_level])
+    
     if args.output_test_dir is not None:
       test_dir = os.path.join(args.output_test_dir,
                               os.path.basename(info.file_name),
