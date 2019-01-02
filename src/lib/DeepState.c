@@ -642,6 +642,10 @@ bool DeepState_CatchAbandoned(void) {
    Has to be defined here since we redefine rand in the header. */
 int DeepState_Fuzz(void){
   DeepState_LogFormat(DeepState_LogInfo, "Starting fuzzing");
+
+  if (!HAS_FLAG_log_level) {
+    FLAGS_log_level = 2;
+  }
   
   if (HAS_FLAG_seed) {
     srand(FLAGS_seed);
