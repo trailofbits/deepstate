@@ -49,7 +49,7 @@
 #define check DeepState_Check
 
 #ifdef DEEPSTATE_TAKEOVER_RAND
-#define rand DeepState_Int
+#define rand DeepState_RandInt
 #define srand DeepState_Warn_srand
 #endif
 
@@ -96,6 +96,7 @@ extern uint64_t DeepState_UInt64(void);
 extern int64_t DeepState_Int64(void);
 extern uint32_t DeepState_UInt(void);
 extern int32_t DeepState_Int(void);
+extern int32_t DeepState_RandInt(void);
 extern uint16_t DeepState_UShort(void);
 extern int16_t DeepState_Short(void);
 extern uint8_t DeepState_UChar(void);

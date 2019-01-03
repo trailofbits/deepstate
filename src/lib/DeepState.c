@@ -23,8 +23,10 @@
 #include <setjmp.h>
 #include <stdio.h>
 
+#ifdef DEEPSTATE_TAKEOVER_RAND
 #undef rand
 #undef srand
+#endif
 
 DEEPSTATE_BEGIN_EXTERN_C
 
@@ -288,6 +290,10 @@ int8_t DeepState_Char(void) {
 }
 
 #undef MAKE_SYMBOL_FUNC
+
+int32_t DeepState_RandInt() {
+  return DeepState_IntInRange(0, RAND_MAX);
+}
 
 /* Returns the minimum satisfiable value for a given symbolic value, given
  * the constraints present on that value. */
