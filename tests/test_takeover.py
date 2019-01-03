@@ -15,6 +15,6 @@ class TakeOverTest(deepstate_base.DeepStateTestCase):
 
     foundPassSave = False
     for line in output.split("\n"):
-      if ("Saving input to" in line) and (".pass" in line):
+      if ("Saved test case" in line) and (".pass" in line):
         foundPassSave = True
     self.assertTrue(foundPassSave)
