@@ -576,7 +576,7 @@ void makeFilename(char *name, size_t size) {
   }
 }
 
-void writeInputData(char* name) {
+void writeInputData(char* name, int important) {
   size_t path_len = 2 + sizeof(char) * (strlen(FLAGS_output_test_dir) + strlen(name));
   char *path = (char *) malloc(path_len);
   snprintf(path, path_len, "%s/%s", FLAGS_output_test_dir, name);
@@ -590,7 +590,11 @@ void writeInputData(char* name) {
   if (written != DeepState_InputSize) {
     DeepState_LogFormat(DeepState_LogError, "Failed to write to file `%s`", path);
   } else {
-    DeepState_LogFormat(DeepState_LogInfo, "Saved test case to file `%s`", path);
+    if (important) {
+      DeepState_LogFormat(DeepState_LogInfo, "Saved test case in file `%s`", path);
+    } else {
+      DeepState_LogFormat(DeepState_LogTrace, "Saved test case in file `%s`", path);      
+    }
   }
   free(path);  
   fclose(fp);  
@@ -602,7 +606,7 @@ void DeepState_SavePassingTest(void) {
   makeFilename(name, 40);
   name[40] = 0;
   strncat(name, ".pass", 48);
-  writeInputData(name);
+  writeInputData(name, 0);
 }
 
 /* Save a failing test to the output test directory. */
@@ -611,7 +615,7 @@ void DeepState_SaveFailingTest(void) {
   makeFilename(name, 40);
   name[40] = 0;
   strncat(name, ".fail", 48);
-  writeInputData(name);
+  writeInputData(name, 1);
 }
 
 /* Save a crashing test to the output test directory. */
@@ -620,7 +624,7 @@ void DeepState_SaveCrashingTest(void) {
   makeFilename(name, 40);
   name[40] = 0;
   strncat(name, ".crash", 48);
-  writeInputData(name);
+  writeInputData(name, 1);
 }
 
 /* Return the first test case to run. */

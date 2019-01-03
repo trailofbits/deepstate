@@ -359,20 +359,26 @@ class DeepState(object):
     test_dir = self.context['test_dir']
     test_name = md5.new(input_bytes).hexdigest()
 
+    passing = False
     if self.context['failed']:
       test_name += ".fail"
     elif self.context['crashed']:
       test_name += ".crash"
     else:
       test_name += ".pass"
+      passing = True
 
     test_file = os.path.join(test_dir, test_name)
-    LOGGER.info("Saving input to {}".format(test_file))
     try:
       with open(test_file, "wb") as f:
         f.write(input_bytes)
     except:
       LOGGER.critical("Error saving input to {}".format(test_file))
+
+    if not passing:
+      LOGGER.info("Saved test case in file {}".format(test_file))
+    else:
+      LOGGER.trace("Saved test case in file {}}".format(test_file))      
 
   def report(self):
     """Report on the pass/fail status of a test case, and dump its log."""
