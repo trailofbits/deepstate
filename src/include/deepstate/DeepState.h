@@ -724,7 +724,7 @@ static int DeepState_RunSingleSavedTestCase(void) {
 
   if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {    
     if (FLAGS_abort_on_fail) {
-      abort();
+      assert(0); // Terminate in a way AFL/etc. can see as a crash
     }
     num_failed_tests++;
   }
@@ -790,7 +790,7 @@ static int DeepState_RunSingleSavedTestDir(void) {
 
       if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
 	if (FLAGS_abort_on_fail) {
-	  abort();
+	  assert(0); // Terminate in a way AFL/etc. can see as a crash
 	}
 	
         num_failed_tests++;

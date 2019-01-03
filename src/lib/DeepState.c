@@ -741,7 +741,7 @@ enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo
 
   if (FLAGS_abort_on_fail && ((result == DeepState_TestRunCrash) ||
 			      (result == DeepState_TestRunFail))) {
-      abort();
+    assert(0); // Terminate the testing in a way AFL/etc. can see as a crash
   }  
 
   return result;
@@ -783,7 +783,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   const char* abort_check = getenv("LIBFUZZER_ABORT_ON_FAIL");
   if (abort_check != NULL) {
     if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
-      abort();
+      assert(0); // Terminate the testing more permanently      
     }
   }
 
