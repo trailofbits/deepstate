@@ -689,20 +689,15 @@ int DeepState_Fuzz(void){
                         FLAGS_input_which_test);
     return 0;
   }
+
+  unsigned int last_status = 0;
   
   while (diff < FLAGS_timeout) {
     i++;
-    if ((i > 1) && ((i & (i - 1)) == 0)) {
-      if (diff > 1) {
-	DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests in %u seconds. %d failed tests so far.",
-			    i, diff, num_failed_tests);
-      } else if (diff == 1) {
-	DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests in %u second. %d failed tests so far.",
-			    i, diff, num_failed_tests);	
-      } else {
-	DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests in < 1 second. %d failed tests so far.",
-			    i, diff, num_failed_tests);	
-      }
+    if ((diff != last_status) && ((diff % 30) == 0) ) {
+      DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests in %u seconds (%u tests/second). %d failed tests so far.",
+			  i, diff, i/diff, num_failed_tests);
+      last_status = diff;
     }
     num_failed_tests += DeepState_FuzzOneTestCase(test);    
     
@@ -710,8 +705,8 @@ int DeepState_Fuzz(void){
     diff = current-start;
   }
 
-  DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests. %d failed tests.",
-		      i, num_failed_tests);
+  DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests (%u tests/second). %d failed tests.",
+		      i, i/diff, num_failed_tests);
 
   return num_failed_tests;
 }
