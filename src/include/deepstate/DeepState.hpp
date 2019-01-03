@@ -301,7 +301,7 @@ static T Pump(T val, unsigned max=10) {
     return val;
   }
   if (!max) {
-    DeepState_Abandon("Must have a positive maximum number of values to pump.");
+    DeepState_Abandon("Must have a positive maximum number of values to Pump");
   }
   for (auto i = 0U; i < max - 1; ++i) {
     T min_val = Minimize(val);
@@ -341,7 +341,7 @@ inline static void OneOf(FuncTys&&... funcs) {
 
 inline static char OneOf(const char *str) {
   if (!str || !str[0]) {
-    DeepState_Abandon("NULL or empty string passed to OneOf.");
+    DeepState_Abandon("NULL or empty string passed to OneOf");
   }
   return str[DeepState_IntInRange(0, strlen(str) - 1)];
 }
@@ -349,7 +349,7 @@ inline static char OneOf(const char *str) {
 template <typename T>
 inline static const T &OneOf(const std::vector<T> &arr) {
   if (arr.empty()) {
-    DeepState_Abandon("Empty vector passed to OneOf.");
+    DeepState_Abandon("Empty vector passed to OneOf");
   }
   return arr[DeepState_IntInRange(0, arr.size() - 1)];
 }
@@ -358,7 +358,7 @@ inline static const T &OneOf(const std::vector<T> &arr) {
 template <typename T, int len>
 inline static const T &OneOf(T (&arr)[len]) {
   if (!len) {
-    DeepState_Abandon("Empty array passed to OneOf.");
+    DeepState_Abandon("Empty array passed to OneOf");
   }
   return arr[DeepState_IntInRange(0, len - 1)];
 }

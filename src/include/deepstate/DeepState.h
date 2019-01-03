@@ -773,7 +773,7 @@ static int DeepState_RunSingleSavedTestDir(void) {
   dir_fd = opendir(FLAGS_input_test_files_dir);
   if (dir_fd == NULL) {
     DeepState_LogFormat(DeepState_LogInfo,
-                        "No tests to run.");
+                        "No tests to run");
     return 0;
   }
 
@@ -825,7 +825,7 @@ static int DeepState_RunSavedTestCases(void) {
 /* Start DeepState and run the tests. Returns the number of failed tests. */
 static int DeepState_Run(void) {
   if (!DeepState_OptionsAreInitialized) {
-    DeepState_Abandon("Please call DeepState_InitOptions(argc, argv) in main.");
+    DeepState_Abandon("Please call DeepState_InitOptions(argc, argv) in main");
   }
 
   if (HAS_FLAG_input_test_dir) {

@@ -90,7 +90,7 @@ void DeepState_AllocCurrentTestRun(void) {
                           mem_vis, 0, 0);
 
   if (shared_mem == MAP_FAILED) {
-    DeepState_Log(DeepState_LogError, "Unable to map shared memory.");
+    DeepState_Log(DeepState_LogError, "Unable to map shared memory");
     exit(1);
   }
 
@@ -173,11 +173,11 @@ void *DeepState_ConcretizeData(void *begin, void *end) {
 /* Return a symbolic C string of length `len`. */
 char *DeepState_CStr(size_t len) {
   if (SIZE_MAX == len) {
-    DeepState_Abandon("Can't create an SIZE_MAX-length string.");
+    DeepState_Abandon("Can't create an SIZE_MAX-length string");
   }
   char *str = (char *) malloc(sizeof(char) * (len + 1));
   if (NULL == str) {
-    DeepState_Abandon("Can't allocate memory.");
+    DeepState_Abandon("Can't allocate memory");
   }
   if (len) {
     DeepState_SymbolizeData(str, &(str[len - 1]));
@@ -695,8 +695,10 @@ int DeepState_Fuzz(void){
   while (diff < FLAGS_timeout) {
     i++;
     if ((diff != last_status) && ((diff % 30) == 0) ) {
-      DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests in %u seconds (%u tests/second). %d failed tests so far.",
-			  i, diff, i/diff, num_failed_tests);
+      time_t t = time(NULL);
+      struct tm tm = *localtime(&t);
+      DeepState_LogFormat(DeepState_LogInfo, "%d-%02d-%02d %02d:%02d:%02d: %u tests/second / %d failed tests so far",
+			  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, i/diff, num_failed_tests);
       last_status = diff;
     }
     num_failed_tests += DeepState_FuzzOneTestCase(test);    
@@ -705,7 +707,7 @@ int DeepState_Fuzz(void){
     diff = current-start;
   }
 
-  DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests (%u tests/second). %d failed tests.",
+  DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests (%u tests/second) with %d failed tests",
 		      i, i/diff, num_failed_tests);
 
   return num_failed_tests;
@@ -804,7 +806,7 @@ void __assert_fail(const char * assertion, const char * file,
 }
 
 void __stack_chk_fail(void) {
-  DeepState_Log(DeepState_LogFatal, "Stack smash detected.");
+  DeepState_Log(DeepState_LogFatal, "Stack smash detected");
   __builtin_unreachable();
 }
 
