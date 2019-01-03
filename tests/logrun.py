@@ -9,7 +9,7 @@ def logrun(cmd, file, timeout):
   sys.stderr.write(" ".join(cmd) + "\n\n")
   sys.stderr.flush()
   with open(file, 'w') as outf:
-    p = subprocess.Popen(cmd, stdout=outf, stderr=outf)
+    p = subprocess.Popen(cmd + ["--log_level", "1"], stdout=outf, stderr=outf)
   start = time.time()
   oldContents = ""
   lastOutput = time.time()
