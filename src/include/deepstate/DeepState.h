@@ -48,8 +48,10 @@
 #define assume DeepState_Assume
 #define check DeepState_Check
 
+#ifdef DEEPSTATE_TAKEOVER_RAND
 #define rand DeepState_Int
 #define srand DeepState_Warn_srand
+#endif
 
 #define MAYBE(...) \
     if (DeepState_Bool()) { \
