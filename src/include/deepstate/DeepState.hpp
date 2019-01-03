@@ -584,11 +584,11 @@ struct Comparer {
 
 #define ASSUME(expr) \
     DeepState_Assume(expr), ::deepstate::Stream( \
-        DeepState_LogInfo, true, __FILE__, __LINE__)
+        DeepState_LogTrace, true, __FILE__, __LINE__)
 
 #define DEEPSTATE_ASSUME_BINOP(a, b, op) \
     DeepState_Assume((a op b)), ::deepstate::Stream( \
-        DeepState_LogInfo, true, __FILE__, __LINE__)
+        DeepState_LogTrace, true, __FILE__, __LINE__)
 
 #define ASSUME_EQ(a, b) DEEPSTATE_ASSUME_BINOP(a, b, ==)
 #define ASSUME_NE(a, b) DEEPSTATE_ASSUME_BINOP(a, b, !=)

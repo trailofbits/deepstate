@@ -486,7 +486,7 @@ static void DeepState_InitInputFromFile(const char *path) {
     DeepState_Abandon("Error reading file");
   }
 
-  DeepState_LogFormat(DeepState_LogInfo,
+  DeepState_LogFormat(DeepState_LogTrace,
                       "Initialized test input buffer with data from `%s`",
                       path);
 }
