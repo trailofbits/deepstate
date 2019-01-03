@@ -661,8 +661,8 @@ int DeepState_Fuzz(void){
 
   long start = (long)time(NULL);
   long current = (long)time(NULL);
-  long diff = 0;
-  unsigned i = 0;
+  unsigned diff = 0;
+  unsigned int i = 0;
 
   int num_failed_tests = 0;
 
@@ -676,8 +676,9 @@ int DeepState_Fuzz(void){
 	break;
       }
     } else {
-      DeepState_LogFormat(DeepState_LogInfo,
-			  "No test specified, defaulting to last test defined");
+      DeepState_LogFormat(DeepState_LogWarning,
+			  "No test specified, defaulting to last test defined (%s)",
+			  test->test_name);
       break;
     }
   }
@@ -691,13 +692,25 @@ int DeepState_Fuzz(void){
   
   while (diff < FLAGS_timeout) {
     i++;
+    if ((i > 1) && ((i & (i - 1)) == 0)) {
+      if (diff > 1) {
+	DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests in %u seconds. %d failed tests so far.",
+			    i, diff, num_failed_tests);
+      } else if (diff == 1) {
+	DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests in %u second. %d failed tests so far.",
+			    i, diff, num_failed_tests);	
+      } else {
+	DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests in < 1 second. %d failed tests so far.",
+			    i, diff, num_failed_tests);	
+      }
+    }
     num_failed_tests += DeepState_FuzzOneTestCase(test);    
     
     current = (long)time(NULL);
     diff = current-start;
   }
 
-  DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests.  %d failed tests.",
+  DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests. %d failed tests.",
 		      i, num_failed_tests);
 
   return num_failed_tests;

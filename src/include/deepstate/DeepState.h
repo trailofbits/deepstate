@@ -705,8 +705,9 @@ static int DeepState_RunSingleSavedTestCase(void) {
 	break;
       }
     } else {
-      DeepState_LogFormat(DeepState_LogInfo,
-			  "No test specified, defaulting to first test");
+      DeepState_LogFormat(DeepState_LogWarning,
+			  "No test specified, defaulting to last test defined (%s)",
+			  test->test_name);
       break;
     }
   }
@@ -749,8 +750,10 @@ static int DeepState_RunSingleSavedTestDir(void) {
 	break;
       }
     } else {
-      DeepState_LogFormat(DeepState_LogInfo,
-			  "No test specified, defaulting to last test defined");
+      DeepState_LogFormat(DeepState_LogWarning,
+			  "No test specified, defaulting to last test defined (%s)",
+			  test->test_name);
+	;
       break;
     }
   }
