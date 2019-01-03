@@ -701,7 +701,9 @@ int DeepState_Fuzz(void){
 			  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, i/diff, num_failed_tests);
       last_status = diff;
     }
-    num_failed_tests += DeepState_FuzzOneTestCase(test);    
+    if (DeepState_FuzzOneTestCase(test) != 0) {
+      num_failed_tests ++;
+    }
     
     current = (long)time(NULL);
     diff = current-start;

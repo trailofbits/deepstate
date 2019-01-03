@@ -860,8 +860,9 @@ static int DeepState_Run(void) {
     } else {
       DeepState_Begin(test);
     }
-
-    num_failed_tests += DeepState_ForkAndRunTest(test);
+    if (DeepState_ForkAndRunTest(test) != 0) {
+      num_failed_tests++;
+    }
   }
 
   if (use_drfuzz) {
