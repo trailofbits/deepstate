@@ -58,7 +58,7 @@ static const char *DeepState_LogLevelStr(enum DeepState_LogLevel level) {
     case DeepState_LogExternal:
       return "EXTERNAL";
     case DeepState_LogFatal:
-      return "FATAL";
+      return "CRITICAL";
     default:
       return "UNKNOWN";
   }
