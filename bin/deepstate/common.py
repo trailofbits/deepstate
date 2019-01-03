@@ -378,7 +378,7 @@ class DeepState(object):
     if not passing:
       LOGGER.info("Saved test case in file {}".format(test_file))
     else:
-      LOGGER.trace("Saved test case in file {}}".format(test_file))      
+      LOGGER.trace("Saved test case in file {}".format(test_file))      
 
   def report(self):
     """Report on the pass/fail status of a test case, and dump its log."""
