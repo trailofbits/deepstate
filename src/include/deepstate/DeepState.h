@@ -742,6 +742,10 @@ static int DeepState_RunSingleSavedTestDir(void) {
   int num_failed_tests = 0;
   struct DeepState_TestInfo *test = NULL;  
 
+  if (!HAS_FLAG_log_level) {
+    FLAGS_log_level = 2;
+  }
+    
   DeepState_Setup();
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
@@ -811,6 +815,10 @@ static int DeepState_RunSavedTestCases(void) {
   int num_failed_tests = 0;
   struct DeepState_TestInfo *test = NULL;
 
+  if (!HAS_FLAG_log_level) {
+    FLAGS_log_level = 2;
+  }
+    
   DeepState_Setup();
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
@@ -828,12 +836,12 @@ static int DeepState_Run(void) {
     DeepState_Abandon("Please call DeepState_InitOptions(argc, argv) in main");
   }
 
-  if (HAS_FLAG_input_test_dir) {
-    return DeepState_RunSavedTestCases();
-  }
-
   if (HAS_FLAG_input_test_file) {
     return DeepState_RunSingleSavedTestCase();
+  }
+
+  if (HAS_FLAG_input_test_dir) {
+    return DeepState_RunSavedTestCases();
   }
 
   if (HAS_FLAG_input_test_files_dir) {
