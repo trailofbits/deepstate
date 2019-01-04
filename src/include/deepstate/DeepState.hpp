@@ -314,7 +314,7 @@ static T Pump(T val, unsigned max=10) {
   }
   return Minimize(val);
 }
-
+  
 template <typename... Args>
 inline static void ForAll(void (*func)(Args...)) {
   func(Symbolic<Args>()...);
@@ -345,7 +345,7 @@ inline static char OneOf(const char *str) {
   }
   return str[DeepState_IntInRange(0, strlen(str) - 1)];
 }
-
+  
 template <typename T>
 inline static const T &OneOf(const std::vector<T> &arr) {
   if (arr.empty()) {
@@ -470,6 +470,35 @@ struct Comparer {
     return Do(a, b, cmp, tag());
   }
 };
+
+/* Like DeepState_AssignCStr_C, but fills in a null `allowed` value. */
+inline static void DeepState_AssignCStr(char* str, size_t len,
+					const char* allowed = 0) {
+  DeepState_AssignCStr_C(str, len, allowed);  
+}
+  
+/* Like DeepState_AssignCStr, but Pumps through possible string sizes. */
+inline static void DeepState_AssignCStrUpToLen(char* str, size_t max_len,
+					   const char* allowed = 0) {
+  uint32_t len = DeepState_UIntInRange(0, max_len);
+  DeepState_AssignCStr_C(str, Pump(len, max_len+1), allowed);  
+}
+
+/* Like DeepState_CStr_C, but fills in a null `allowed` value. */
+inline static char* DeepState_CStr(size_t len, const char* allowed = 0) {
+  return DeepState_CStr_C(len, allowed);
+}
+  
+/* Like DeepState_CStr, but Pumps through possible string sizes. */
+inline static char* DeepState_CStrUpToLen(size_t max_len, const char* allowed = 0) {
+  uint32_t len = DeepState_UIntInRange(0, max_len);
+  return DeepState_CStr_C(Pump(len, max_len+1), allowed);
+}
+
+/* Like DeepState_Symbolize_CStr, but fills in null `allowed` value. */
+inline static void DeepState_SymbolizeCStr(char *begin, const char* allowed = 0) {
+  DeepState_SymbolizeCStr_C(begin, allowed);
+}
 
 }  // namespace deepstate
 

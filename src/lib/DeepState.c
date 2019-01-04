@@ -56,6 +56,11 @@ int DeepState_UsingSymExec = 0;
 /* Set to 1 when we're using libFuzzer. */
 int DeepState_UsingLibFuzzer = 0;
 
+/* Array of DeepState generated strings.  Impossible for there to
+ * be more than there are input bytes.  Index stores where we are. */
+char* DeepState_GeneratedStrings[DeepState_InputSize];
+uint32_t DeepState_GeneratedStringsIndex = 0;
+
 /* Pointer to the last registers DeepState_TestInfo data structure */
 struct DeepState_TestInfo *DeepState_LastTestInfo = NULL;
 
@@ -167,13 +172,63 @@ void DeepState_SymbolizeData(void *begin, void *end) {
   }
 }
 
+/* Symbolize the data in the exclusive range `[begin, end)` without null
+ * characters included.  Primarily useful for C strings. */
+void DeepState_SymbolizeDataNoNull(void *begin, void *end) {
+  uintptr_t begin_addr = (uintptr_t) begin;
+  uintptr_t end_addr = (uintptr_t) end;
+
+  if (begin_addr > end_addr) {
+    DeepState_Abandon("Invalid data bounds for DeepState_SymbolizeData");
+  } else if (begin_addr == end_addr) {
+    return;
+  } else {
+    uint8_t *bytes = (uint8_t *) begin;
+    for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
+      if (DeepState_InputIndex >= DeepState_InputSize) {
+        DeepState_Abandon("Read too many symbols");
+      }
+      if (FLAGS_verbose_reads) {
+        printf("Reading byte at %u\n", DeepState_InputIndex);
+      }
+      bytes[i] = DeepState_Input[DeepState_InputIndex++];
+      if (bytes[i] == 0) {
+	bytes[i] = 1;
+      }
+    }
+  }
+}
+
 /* Concretize some data in exclusive the range `[begin, end)`. */
 void *DeepState_ConcretizeData(void *begin, void *end) {
   return begin;
 }
 
-/* Return a symbolic C string of length `len`. */
-char *DeepState_CStr(size_t len) {
+/* Assign a symbolic C string of strlen length `len`.  str should include
+ * storage for both `len` characters AND the null terminator.  Allowed
+ * is a set of chars that are allowed (ignored if null). */
+void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed) {
+  if (SIZE_MAX == len) {
+    DeepState_Abandon("Can't create an SIZE_MAX-length string.");
+  }
+  if (NULL == str) {
+    DeepState_Abandon("Attempted to populate null pointer.");
+  }
+  if (len) {
+    if (!allowed) {
+      DeepState_SymbolizeDataNoNull(str, &(str[len]));
+    } else {
+      uint32_t allowed_size = strlen(allowed);
+      for (int i = 0; i < len; i++) {
+	str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+      }
+    }
+  }
+  str[len] = '\0';
+}
+
+/* Return a symbolic C string of strlen `len`. */
+char *DeepState_CStr_C(size_t len, const char* allowed) {
   if (SIZE_MAX == len) {
     DeepState_Abandon("Can't create an SIZE_MAX-length string");
   }
@@ -181,17 +236,35 @@ char *DeepState_CStr(size_t len) {
   if (NULL == str) {
     DeepState_Abandon("Can't allocate memory");
   }
+  DeepState_GeneratedStrings[DeepState_GeneratedStringsIndex++] = str;  
   if (len) {
-    DeepState_SymbolizeData(str, &(str[len - 1]));
+    if (!allowed) {
+      DeepState_SymbolizeDataNoNull(str, &(str[len]));
+    } else {
+      uint32_t allowed_size = strlen(allowed);
+      for (int i = 0; i < len; i++) {
+	str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+      }
+    }
   }
   str[len] = '\0';
   return str;
 }
 
-/* Symbolize a C string */
-void DeepState_SymbolizeCStr(char *begin) {
+/* Symbolize a C string; keeps the null terminator where it was. */
+void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
   if (begin && begin[0]) {
-    DeepState_SymbolizeData(begin, begin + strlen(begin));
+    if (!allowed) {
+      DeepState_SymbolizeDataNoNull(begin, begin + strlen(begin));
+    } else {
+      uint32_t allowed_size = strlen(allowed);      
+      uint8_t *bytes = (uint8_t *) begin;
+      uintptr_t begin_addr = (uintptr_t) begin;
+      uintptr_t end_addr = (uintptr_t) (begin + strlen(begin));  
+      for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
+	bytes[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+      }      
+    }
   }
 }
 
@@ -317,6 +390,14 @@ int32_t DeepState_MaxInt(int32_t v) {
                     0x80000000U);
 }
 
+/* Function to clean up generated strings, and any other DeepState-managed data. */
+extern void DeepState_CleanUp() {
+  for (int i = 0; i < DeepState_GeneratedStringsIndex; i++) {
+    free(DeepState_GeneratedStrings[i]);
+  }
+  DeepState_GeneratedStringsIndex = 0;
+}
+
 void _DeepState_Assume(int expr, const char *expr_str, const char *file,
                        unsigned line) {
   if (!expr) {
@@ -435,6 +516,7 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
 #endif  /* __cplusplus */
 
     test->test_func();
+    DeepState_CleanUp();
     DeepState_Pass();
 
 #if defined(__cplusplus) && defined(__cpp_exceptions)
@@ -785,6 +867,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   DeepState_Begin(test);
 
   enum DeepState_TestRunResult result = DeepState_RunTestNoFork(test);
+  DeepState_CleanUp();
 
   const char* abort_check = getenv("LIBFUZZER_ABORT_ON_FAIL");
   if (abort_check != NULL) {

@@ -142,9 +142,12 @@ DEEPSTATE_INLINE static int8_t DeepState_MaxChar(int8_t v) {
   return (int8_t) DeepState_MaxInt(v);
 }
 
+/* Function to clean up generated strings, and any other DeepState-managed data. */
+extern void DeepState_CleanUp();
+
 /* Returns `1` if `expr` is true, and `0` otherwise. This is kind of an indirect
  * way to take a symbolic value, introduce a fork, and on each size, replace its
-* value with a concrete value. */
+ * value with a concrete value. */
 extern int DeepState_IsTrue(int expr);
 
 /* Always returns `1`. */
@@ -159,15 +162,22 @@ extern int DeepState_ZeroSink(int);
 /* Symbolize the data in the exclusive range `[begin, end)`. */
 extern void DeepState_SymbolizeData(void *begin, void *end);
 
+/* Symbolize the data in the exclusive range `[begin, end)` with no nulls. */
+extern void DeepState_SymbolizeDataNoNull(void *begin, void *end);
+
 /* Concretize some data in exclusive the range `[begin, end)`. Returns a
  * concrete pointer to the beginning of the concretized data. */
 extern void *DeepState_ConcretizeData(void *begin, void *end);
 
-/* Return a symbolic C string of length `len`. */
-extern char *DeepState_CStr(size_t len);
+/* Assign a symbolic C string of _strlen_ `len` -- with only chars in allowed,
+ * if `allowed` is non-null; needs space for null + len bytes */
+extern void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed);
+
+/* Return a symbolic C string of strlen `len`. */
+extern char *DeepState_CStr_C(size_t len, const char* allowed);
 
 /* Symbolize a C string */
-void DeepState_SymbolizeCStr(char *begin);
+void DeepState_SymbolizeCStr_C(char *begin, const char* allowed);
 
 /* Concretize a C string. Returns a pointer to the beginning of the
  * concretized C string. */
@@ -591,6 +601,7 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
     test_pid = fork();
     if (!test_pid) {
       DeepState_RunTest(test);
+      /* No need to clean up in a fork; exit() is the ultimate garbage collector */
     }
   }
   int wstatus = 0;
@@ -598,6 +609,7 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
     waitpid(test_pid, &wstatus, 0);
   } else {
     wstatus = DeepState_RunTestNoFork(test);
+    DeepState_CleanUp();
   }
   
   /* If we exited normally, the status code tells us if the test passed. */
