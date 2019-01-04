@@ -184,6 +184,12 @@ char* decode(const char* output) {
 // Can be (much) higher (e.g., > 1024) if we're using fuzzing, not symbolic execution
 #define MAX_STR_LEN 6
 
+TEST(Runlength, BoringUnitTest) {
+  ASSERT_EQ(strcmp(encode(""), ""), 0);
+  ASSERT_EQ(strcmp(encode("a"), "aA"), 0);
+  ASSERT_EQ(strcmp(encode("aaabbbbbc"), "aCbEcA"), 0);
+}
+
 TEST(Runlength, EncodeDecode) {
   char* original = DeepState_CStrUpToLen(MAX_STR_LEN, "abcdef0123456789");
   char* encoded = encode(original);
@@ -215,6 +221,32 @@ results
    - in the absence of any properties to check, DeepState can still
      look for memory safety violations, crashes, and other general
      categories of undesireable behavior, like any fuzzer
+
+DeepState will also run the "BoringUnitTest," but it (like a
+traditional hand-written unit test) is simply a test of fixed inputs
+devised by a programmer.  These inputs do not expose the bug in
+`encode`.  Using DeepState, however, it is easy to find the bug.  Just
+go into the `$DEEPSTATE/build/examples` directory and try:
+
+```shell
+deepstate-angr ./Runlen
+```
+
+or
+
+```shell
+./Runlen --fuzz --abort_on_fail
+```
+
+The fuzzer will output something like:
+
+```
+INFO: Starting fuzzing
+WARNING: No seed provided; using 1546631311
+WARNING: No test specified, defaulting to last test defined (Runlength_EncodeDecode)
+CRITICAL: /Users/alex/deepstate/examples/Runlen.cpp(60): ORIGINAL: '91c499', ENCODED: '9A1AcA4A9A', ROUNDTRIP: '91c49'
+ERROR: Failed: Runlength_EncodeDecode
+```
 
 ## Built-In Fuzzer
 

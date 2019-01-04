@@ -46,6 +46,12 @@ char* decode(const char* output) {
 // Can be (much) higher (e.g., > 1024) if we're using fuzzing, not symbolic execution
 #define MAX_STR_LEN 6
 
+TEST(Runlength, BoringUnitTest) {
+  ASSERT_EQ(strcmp(encode(""), ""), 0);
+  ASSERT_EQ(strcmp(encode("a"), "aA"), 0);
+  ASSERT_EQ(strcmp(encode("aaabbbbbc"), "aCbEcA"), 0);
+}
+
 TEST(Runlength, EncodeDecode) {
   char* original = DeepState_CStrUpToLen(MAX_STR_LEN, "abcdef0123456789");
   char* encoded = encode(original);
