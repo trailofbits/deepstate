@@ -120,9 +120,9 @@ DeepState consists of a static library, used to write test harnesses, and comman
 By default, DeepState is not very verbose about testing activity,
 other than failing tests.  The `--log-level` argument lowers the
 threshold for output, with 0 = `DEBUG`, 1 = `TRACE` (output from the
-tests, including `printf`s), and 2 = INFO (DeepState messages, the default), 3 = `WARNING`,
-4 = `ERROR`, and 5 = `EXTERNAL` (output from other programs such as
-libFuzzer), and 6 = `CRITICAL`/`FATAL` messages.
+tests, including from `printf`), 2 = INFO (DeepState messages, the default), 3 = `WARNING`,
+4 = `ERROR`, 5 = `EXTERNAL` (output from other programs such as
+libFuzzer), and 6 = `CRITICAL` messages.
 
 ## A Note on Mac OS and Forking
 
@@ -140,7 +140,7 @@ generates tests using completely random data.  Using this fuzzer is as
 simple as calling the native executable with the `--fuzz` argument.
 The fuzzer also takes a `seed` and `timeout` (default of two minutes)
 to control the fuzzing.  If you want to actually save the test cases
-generated, you need to add a `--output_test_dir` arument to tell
+generated, you need to add a `--output_test_dir` argument to tell
 DeepState where to put the generated tests.  By default fuzzing saves
 only failing and crashing tests and only when given an output directory.
 
