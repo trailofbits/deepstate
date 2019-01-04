@@ -194,6 +194,27 @@ TEST(Runlength, EncodeDecode) {
 }
 ```
 
+The code above (which can be found
+[here](https://github.com/trailofbits/deepstate/blob/master/examples/Runlen.cpp)
+shows an example of a DeepState test harness.  Most of the code is
+just the functions to be tested.  Using DeepState to test them requires:
+
+- including the DeepState C++ header and using the DeepState namespace
+
+- defining at least one TEST, with names
+
+- calling some DeepState APIs that produce data
+   - in this example, we see the `DeepState_CStrUpToLen` call tells
+     DeepState to produce a string that has up the `MAX_STR_LEN`
+     characters, chosen from those present in hex strings.
+
+- optionally making some assertions about the correctness of the
+results
+   - in this example, the `ASSERT_LE` and `ASSERT_EQ` checks
+   - in the absence of any properties to check, DeepState can still
+     look for memory safety violations, crashes, and other general
+     categories of undesireable behavior, like any fuzzer
+
 ## Built-In Fuzzer
 
 Every DeepState executable provides a simple built-in fuzzer that
