@@ -118,7 +118,7 @@ DeepState consists of a static library, used to write test harnesses, and comman
 ## Log Levels
 
 By default, DeepState is not very verbose about testing activity,
-other than failing tests.  The `--log-level` argument lowers the
+other than failing tests.  The `--log_level` argument lowers the
 threshold for output, with 0 = `DEBUG`, 1 = `TRACE` (output from the
 tests, including `printf`s), and 2 = INFO (DeepState messages, the default), 3 = `WARNING`,
 4 = `ERROR`, and 5 = `EXTERNAL` (output from other programs such as
