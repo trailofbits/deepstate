@@ -184,30 +184,40 @@ TEST(Runlength, EncodeDecode) {
 ```
 
 The code above (which can be found
-[here](https://github.com/trailofbits/deepstate/blob/master/examples/Runlen.cpp)
+[here](https://github.com/trailofbits/deepstate/blob/master/examples/Runlen.cpp))
 shows an example of a DeepState test harness.  Most of the code is
 just the functions to be tested.  Using DeepState to test them requires:
 
-- including the DeepState C++ header and using the DeepState namespace
+- Including the DeepState C++ header and using the DeepState namespace
 
-- defining at least one TEST, with names
+- Defining at least one TEST, with names
 
-- calling some DeepState APIs that produce data
-   - in this example, we see the `DeepState_CStrUpToLen` call tells
+- Calling some DeepState APIs that produce data
+   - In this example, we see the `DeepState_CStrUpToLen` call tells
      DeepState to produce a string that has up the `MAX_STR_LEN`
      characters, chosen from those present in hex strings.
 
-- optionally making some assertions about the correctness of the
+- Optionally making some assertions about the correctness of the
 results
-   - in this example, the `ASSERT_LE` and `ASSERT_EQ` checks
-   - in the absence of any properties to check, DeepState can still
+   - In `Runlen.cpp` this is the `ASSERT_LE` and `ASSERT_EQ` checks.
+   - In the absence of any properties to check, DeepState can still
      look for memory safety violations, crashes, and other general
-     categories of undesireable behavior, like any fuzzer
+     categories of undesireable behavior, like any fuzzer.
 
 DeepState will also run the "BoringUnitTest," but it (like a
 traditional hand-written unit test) is simply a test of fixed inputs
 devised by a programmer.  These inputs do not expose the bug in
-`encode`.  Using DeepState, however, it is easy to find the bug.  Just
+`encode`.  Nor do the default values for the DeepState test:
+
+```
+~/deepstate/build/examples$ ./Runlen
+TRACE: Running: Runlength_EncodeDecode from /Users/alex/deepstate/examples/Runlen.cpp(55)
+TRACE: Passed: Runlength_EncodeDecode
+TRACE: Running: Runlength_BoringUnitTest from /Users/alex/deepstate/examples/Runlen.cpp(49)
+TRACE: Passed: Runlength_BoringUnitTest
+```
+
+Using DeepState, however, it is easy to find the bug.  Just
 go into the `$DEEPSTATE/build/examples` directory and try:
 
 ```shell
@@ -248,10 +258,13 @@ Every DeepState executable provides a simple built-in fuzzer that
 generates tests using completely random data.  Using this fuzzer is as
 simple as calling the native executable with the `--fuzz` argument.
 The fuzzer also takes a `seed` and `timeout` (default of two minutes)
-to control the fuzzing.  If you want to actually save the test cases
-generated, you need to add a `--output_test_dir` arument to tell
-DeepState where to put the generated tests.  By default fuzzing saves
-only failing and crashing tests and only when given an output directory.
+to control the fuzzing.   By default fuzzing saves
+only failing and crashing tests, and these only when given an output
+directory.  If you want to actually save the test cases
+generated, you need to add a `--output_test_dir` argument to tell
+DeepState where to put the generated tests, and if you want the
+(totally random and unlikely to be high-quality) passing tests, you
+need to add `--fuzz_save_passing`.
 
 Note that while symbolic execution only works on Linux, without a 
 fairly complex cross-compliation process, the brute force fuzzer works 
@@ -261,10 +274,10 @@ on macOS or (as far as we know) any Unix-like system.
 
 Normally, when running a test for replay or fuzzing, DeepState forks
 in order to cleanly handle crashes of a test.  Unfortunately, `fork()`
-on mac OS is extremely slow.  When using the built-in fuzzer or
-replaying tests, it is highly recommended to add the `--no_fork`
+on mac OS is _extremely_ slow.  When using the built-in fuzzer or
+replaying more than a few tests, it is highly recommended to add the `--no_fork`
 option on mac OS, unless you need the added crash handling (that is,
-things aren't working without that option).
+only when things aren't working without that option).
 
 ## Fuzzing with libFuzzer
 
