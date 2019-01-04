@@ -3,7 +3,8 @@
 using namespace deepstate;
 
 /* Simple, buggy, run-length encoding that creates "human readable"
- * encodings by adding 'A'-1 to the count, and splitting at 26 */
+  * encodings by adding 'A'-1 to the count, and splitting at 26.
+  * e.g., encode("aaabbbbbc") = "aCbEcA" since C=3 and E=5 */
 
 char* encode(const char* input) {
   unsigned int len = strlen(input);
