@@ -202,7 +202,7 @@ results
    - In `Runlen.cpp` this is the `ASSERT_LE` and `ASSERT_EQ` checks.
    - In the absence of any properties to check, DeepState can still
      look for memory safety violations, crashes, and other general
-     categories of undesireable behavior, like any fuzzer.
+     categories of undesirable behavior, like any fuzzer.
 
 DeepState will also run the "BoringUnitTest," but it (like a
 traditional hand-written unit test) is simply a test of fixed inputs
@@ -245,11 +245,11 @@ ERROR: Failed: Runlength_EncodeDecode
 By default, DeepState is not very verbose about testing activity,
 other than failing tests.  The `--log_level` argument lowers the
 threshold for output, with 0 = `DEBUG`, 1 = `TRACE` (output from the
-tests, including `printf`s), and 2 = INFO (DeepState messages, the default), 3 = `WARNING`,
-4 = `ERROR`, and 5 = `EXTERNAL` (output from other programs such as
-libFuzzer), and 6 = `CRITICAL`/`FATAL` messages.  This can be very
-useful when understanding what a DeepState harness is actually doing;
-usually, setting `--log_level 1` in either fuzzing or symbolic
+tests, including `printf`), 2 = `INFO` (DeepState messages; this is the default), 3 = `WARNING`,
+4 = `ERROR`, 5 = `EXTERNAL` (output from other programs such as
+libFuzzer), and 6 = `CRITICAL`/`FATAL` messages.  Lowering the `log_level` can be very
+useful for understanding what a DeepState harness is actually doing;
+often, setting `--log_level 1` in either fuzzing or symbolic
 execution will give sufficient information to debug your test harness.
 
 ## Built-In Fuzzer
@@ -267,7 +267,7 @@ DeepState where to put the generated tests, and if you want the
 need to add `--fuzz_save_passing`.
 
 Note that while symbolic execution only works on Linux, without a 
-fairly complex cross-compliation process, the brute force fuzzer works 
+fairly complex cross-compilation process, the brute force fuzzer works 
 on macOS or (as far as we know) any Unix-like system.
 
 ## A Note on Mac OS and Forking
