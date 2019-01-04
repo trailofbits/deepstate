@@ -92,7 +92,7 @@ void DeepState_AllocCurrentTestRun(void) {
                           mem_vis, 0, 0);
 
   if (shared_mem == MAP_FAILED) {
-    DeepState_Log(DeepState_LogError, "Unable to map shared memory.");
+    DeepState_Log(DeepState_LogError, "Unable to map shared memory");
     exit(1);
   }
 
@@ -175,11 +175,11 @@ void *DeepState_ConcretizeData(void *begin, void *end) {
 /* Return a symbolic C string of length `len`. */
 char *DeepState_CStr(size_t len) {
   if (SIZE_MAX == len) {
-    DeepState_Abandon("Can't create an SIZE_MAX-length string.");
+    DeepState_Abandon("Can't create an SIZE_MAX-length string");
   }
   char *str = (char *) malloc(sizeof(char) * (len + 1));
   if (NULL == str) {
-    DeepState_Abandon("Can't allocate memory.");
+    DeepState_Abandon("Can't allocate memory");
   }
   if (len) {
     DeepState_SymbolizeData(str, &(str[len - 1]));
@@ -582,7 +582,7 @@ void makeFilename(char *name, size_t size) {
   }
 }
 
-void writeInputData(char* name) {
+void writeInputData(char* name, int important) {
   size_t path_len = 2 + sizeof(char) * (strlen(FLAGS_output_test_dir) + strlen(name));
   char *path = (char *) malloc(path_len);
   snprintf(path, path_len, "%s/%s", FLAGS_output_test_dir, name);
@@ -596,7 +596,11 @@ void writeInputData(char* name) {
   if (written != DeepState_InputSize) {
     DeepState_LogFormat(DeepState_LogError, "Failed to write to file `%s`", path);
   } else {
-    DeepState_LogFormat(DeepState_LogInfo, "Saved test case to file `%s`", path);
+    if (important) {
+      DeepState_LogFormat(DeepState_LogInfo, "Saved test case in file `%s`", path);
+    } else {
+      DeepState_LogFormat(DeepState_LogTrace, "Saved test case in file `%s`", path);      
+    }
   }
   free(path);  
   fclose(fp);  
@@ -608,7 +612,7 @@ void DeepState_SavePassingTest(void) {
   makeFilename(name, 40);
   name[40] = 0;
   strncat(name, ".pass", 48);
-  writeInputData(name);
+  writeInputData(name, 0);
 }
 
 /* Save a failing test to the output test directory. */
@@ -617,7 +621,7 @@ void DeepState_SaveFailingTest(void) {
   makeFilename(name, 40);
   name[40] = 0;
   strncat(name, ".fail", 48);
-  writeInputData(name);
+  writeInputData(name, 1);
 }
 
 /* Save a crashing test to the output test directory. */
@@ -626,7 +630,7 @@ void DeepState_SaveCrashingTest(void) {
   makeFilename(name, 40);
   name[40] = 0;
   strncat(name, ".crash", 48);
-  writeInputData(name);
+  writeInputData(name, 1);
 }
 
 /* Return the first test case to run. */
@@ -648,6 +652,10 @@ bool DeepState_CatchAbandoned(void) {
    Has to be defined here since we redefine rand in the header. */
 int DeepState_Fuzz(void){
   DeepState_LogFormat(DeepState_LogInfo, "Starting fuzzing");
+
+  if (!HAS_FLAG_log_level) {
+    FLAGS_log_level = 2;
+  }
   
   if (HAS_FLAG_seed) {
     srand(FLAGS_seed);
@@ -659,8 +667,8 @@ int DeepState_Fuzz(void){
 
   long start = (long)time(NULL);
   long current = (long)time(NULL);
-  long diff = 0;
-  unsigned i = 0;
+  unsigned diff = 0;
+  unsigned int i = 0;
 
   int num_failed_tests = 0;
 
@@ -674,8 +682,9 @@ int DeepState_Fuzz(void){
 	break;
       }
     } else {
-      DeepState_LogFormat(DeepState_LogInfo,
-			  "No test specified, defaulting to last test defined");
+      DeepState_LogFormat(DeepState_LogWarning,
+			  "No test specified, defaulting to last test defined (%s)",
+			  test->test_name);
       break;
     }
   }
@@ -686,17 +695,28 @@ int DeepState_Fuzz(void){
                         FLAGS_input_which_test);
     return 0;
   }
+
+  unsigned int last_status = 0;
   
   while (diff < FLAGS_timeout) {
     i++;
-    num_failed_tests += DeepState_FuzzOneTestCase(test);    
+    if ((diff != last_status) && ((diff % 30) == 0) ) {
+      time_t t = time(NULL);
+      struct tm tm = *localtime(&t);
+      DeepState_LogFormat(DeepState_LogInfo, "%d-%02d-%02d %02d:%02d:%02d: %u tests/second / %d failed tests so far",
+			  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, i/diff, num_failed_tests);
+      last_status = diff;
+    }
+    if (DeepState_FuzzOneTestCase(test) != 0) {
+      num_failed_tests ++;
+    }
     
     current = (long)time(NULL);
     diff = current-start;
   }
 
-  DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests.  %d failed tests.",
-		      i, num_failed_tests);
+  DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests (%u tests/second) with %d failed tests",
+		      i, i/diff, num_failed_tests);
 
   return num_failed_tests;
 }
@@ -727,7 +747,7 @@ enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo
 
   if (FLAGS_abort_on_fail && ((result == DeepState_TestRunCrash) ||
 			      (result == DeepState_TestRunFail))) {
-      abort();
+    assert(0); // Terminate the testing in a way AFL/etc. can see as a crash
   }  
 
   return result;
@@ -769,7 +789,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   const char* abort_check = getenv("LIBFUZZER_ABORT_ON_FAIL");
   if (abort_check != NULL) {
     if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
-      abort();
+      assert(0); // Terminate the testing more permanently      
     }
   }
 
@@ -794,7 +814,7 @@ void __assert_fail(const char * assertion, const char * file,
 }
 
 void __stack_chk_fail(void) {
-  DeepState_Log(DeepState_LogFatal, "Stack smash detected.");
+  DeepState_Log(DeepState_LogFatal, "Stack smash detected");
   __builtin_unreachable();
 }
 

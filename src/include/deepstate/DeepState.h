@@ -489,7 +489,7 @@ static void DeepState_InitInputFromFile(const char *path) {
     DeepState_Abandon("Error reading file");
   }
 
-  DeepState_LogFormat(DeepState_LogInfo,
+  DeepState_LogFormat(DeepState_LogTrace,
                       "Initialized test input buffer with data from `%s`",
                       path);
 }
@@ -677,9 +677,12 @@ static int DeepState_RunSavedCasesForTest(struct DeepState_TestInfo *test) {
     return 0;
   }
 
+  unsigned int i = 0;
+  
   /* Read generated test cases and run a test for each file found. */
   while ((dp = readdir(dir_fd)) != NULL) {
     if (DeepState_IsTestCaseFile(dp->d_name)) {
+      i++;
       enum DeepState_TestRunResult result =
         DeepState_RunSavedTestCase(test, test_case_dir, dp->d_name);
 
@@ -691,6 +694,9 @@ static int DeepState_RunSavedCasesForTest(struct DeepState_TestInfo *test) {
   closedir(dir_fd);
   free(test_case_dir);
 
+  DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests; %d tests failed",
+		      i, num_failed_tests);
+  
   return num_failed_tests;
 }
 
@@ -708,8 +714,9 @@ static int DeepState_RunSingleSavedTestCase(void) {
 	break;
       }
     } else {
-      DeepState_LogFormat(DeepState_LogInfo,
-			  "No test specified, defaulting to first test");
+      DeepState_LogFormat(DeepState_LogWarning,
+			  "No test specified, defaulting to last test defined (%s)",
+			  test->test_name);
       break;
     }
   }
@@ -726,7 +733,7 @@ static int DeepState_RunSingleSavedTestCase(void) {
 
   if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {    
     if (FLAGS_abort_on_fail) {
-      abort();
+      assert(0); // Terminate in a way AFL/etc. can see as a crash
     }
     num_failed_tests++;
   }
@@ -744,6 +751,10 @@ static int DeepState_RunSingleSavedTestDir(void) {
   int num_failed_tests = 0;
   struct DeepState_TestInfo *test = NULL;  
 
+  if (!HAS_FLAG_log_level) {
+    FLAGS_log_level = 2;
+  }
+    
   DeepState_Setup();
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
@@ -752,8 +763,10 @@ static int DeepState_RunSingleSavedTestDir(void) {
 	break;
       }
     } else {
-      DeepState_LogFormat(DeepState_LogInfo,
-			  "No test specified, defaulting to last test defined");
+      DeepState_LogFormat(DeepState_LogWarning,
+			  "No test specified, defaulting to last test defined (%s)",
+			  test->test_name);
+	;
       break;
     }
   }
@@ -773,10 +786,12 @@ static int DeepState_RunSingleSavedTestDir(void) {
   dir_fd = opendir(FLAGS_input_test_files_dir);
   if (dir_fd == NULL) {
     DeepState_LogFormat(DeepState_LogInfo,
-                        "No tests to run.");
+                        "No tests to run");
     return 0;
   }
 
+  unsigned int i = 0;
+  
   /* Read generated test cases and run a test for each file found. */
   while ((dp = readdir(dir_fd)) != NULL) {
     size_t path_len = 2 + sizeof(char) * (strlen(FLAGS_input_test_files_dir) + strlen(dp->d_name));
@@ -785,12 +800,13 @@ static int DeepState_RunSingleSavedTestDir(void) {
     stat(path, &path_stat);
     
     if (S_ISREG(path_stat.st_mode)) {
+      i++;      
       enum DeepState_TestRunResult result =
         DeepState_RunSavedTestCase(test, FLAGS_input_test_files_dir, dp->d_name);
 
       if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
 	if (FLAGS_abort_on_fail) {
-	  abort();
+	  assert(0); // Terminate in a way AFL/etc. can see as a crash
 	}
 	
         num_failed_tests++;
@@ -799,6 +815,9 @@ static int DeepState_RunSingleSavedTestDir(void) {
   }
   closedir(dir_fd);
 
+  DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests; %d tests failed",
+		      i, num_failed_tests);
+  
   return num_failed_tests;
 }
 
@@ -811,6 +830,10 @@ static int DeepState_RunSavedTestCases(void) {
   int num_failed_tests = 0;
   struct DeepState_TestInfo *test = NULL;
 
+  if (!HAS_FLAG_log_level) {
+    FLAGS_log_level = 2;
+  }
+    
   DeepState_Setup();
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
@@ -825,15 +848,15 @@ static int DeepState_RunSavedTestCases(void) {
 /* Start DeepState and run the tests. Returns the number of failed tests. */
 static int DeepState_Run(void) {
   if (!DeepState_OptionsAreInitialized) {
-    DeepState_Abandon("Please call DeepState_InitOptions(argc, argv) in main.");
-  }
-
-  if (HAS_FLAG_input_test_dir) {
-    return DeepState_RunSavedTestCases();
+    DeepState_Abandon("Please call DeepState_InitOptions(argc, argv) in main");
   }
 
   if (HAS_FLAG_input_test_file) {
     return DeepState_RunSingleSavedTestCase();
+  }
+
+  if (HAS_FLAG_input_test_dir) {
+    return DeepState_RunSavedTestCases();
   }
 
   if (HAS_FLAG_input_test_files_dir) {
@@ -860,8 +883,9 @@ static int DeepState_Run(void) {
     } else {
       DeepState_Begin(test);
     }
-
-    num_failed_tests += DeepState_ForkAndRunTest(test);
+    if (DeepState_ForkAndRunTest(test) != 0) {
+      num_failed_tests++;
+    }
   }
 
   if (use_drfuzz) {

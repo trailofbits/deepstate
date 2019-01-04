@@ -45,9 +45,12 @@ LOG_LEVEL_FATAL = 6
 LOGGER = logging.getLogger("deepstate")
 LOGGER.setLevel(logging.DEBUG)
 
+LOGGER.trace = functools.partial(LOGGER.log, 15)
+logging.TRACE = 15
+
 LOG_LEVEL_TO_LOGGER = {
   LOG_LEVEL_DEBUG: LOGGER.debug,
-  LOG_LEVEL_TRACE: functools.partial(LOGGER.log, 15), 
+  LOG_LEVEL_TRACE: LOGGER.trace, 
   LOG_LEVEL_INFO: LOGGER.info,
   LOG_LEVEL_WARNING: LOGGER.warning,
   LOG_LEVEL_ERROR: LOGGER.error,
@@ -137,8 +140,12 @@ class DeepState(object):
 
     parser.add_argument(
         "--verbosity", default=1, type=int,
-        help="Verbosity level.")
+        help="Verbosity level for symbolic execution tool.")
 
+    parser.add_argument(
+        "--log_level", default=2, type=int,
+        help="Log level (DeepState logging).")
+    
     parser.add_argument(
         "binary", type=str, help="Path to the test binary to run.")
 
@@ -240,7 +247,7 @@ class DeepState(object):
       self.context['stream_{}'.format(level)] = []
 
     self.context['info'] = info
-    self.log_message(LOG_LEVEL_INFO, "Running {} from {}({})".format(
+    self.log_message(LOG_LEVEL_TRACE, "Running {} from {}({})".format(
         info.name, info.file_name, info.line_number))
 
     apis = self.context['apis']
@@ -256,6 +263,17 @@ class DeepState(object):
 
     # Create the output directory for this test case.
     args = self.parse_args()
+
+    logging_levels = {
+      LOG_LEVEL_DEBUG: logging.DEBUG,
+      LOG_LEVEL_TRACE: logging.TRACE,
+      LOG_LEVEL_INFO: logging.INFO,
+      LOG_LEVEL_WARNING: logging.WARNING,
+      LOG_LEVEL_ERROR: logging.ERROR,
+      LOG_LEVEL_FATAL: logging.CRITICAL
+    }
+    LOGGER.setLevel(logging_levels[args.log_level])
+    
     if args.output_test_dir is not None:
       test_dir = os.path.join(args.output_test_dir,
                               os.path.basename(info.file_name),
@@ -341,20 +359,26 @@ class DeepState(object):
     test_dir = self.context['test_dir']
     test_name = md5.new(input_bytes).hexdigest()
 
+    passing = False
     if self.context['failed']:
       test_name += ".fail"
     elif self.context['crashed']:
       test_name += ".crash"
     else:
       test_name += ".pass"
+      passing = True
 
     test_file = os.path.join(test_dir, test_name)
-    LOGGER.info("Saving input to {}".format(test_file))
     try:
       with open(test_file, "wb") as f:
         f.write(input_bytes)
     except:
       LOGGER.critical("Error saving input to {}".format(test_file))
+
+    if not passing:
+      LOGGER.info("Saved test case in file {}".format(test_file))
+    else:
+      LOGGER.trace("Saved test case in file {}".format(test_file))      
 
   def report(self):
     """Report on the pass/fail status of a test case, and dump its log."""
@@ -385,7 +409,7 @@ class DeepState(object):
     # Print out the first few input bytes to be helpful.
     lots_of_bytes = len(input_bytes) > 20 and " ..." or ""
     bytes_to_show = min(20, len(input_bytes))
-    LOGGER.info("Input: {}{}".format(
+    LOGGER.trace("Input: {}{}".format(
         " ".join("{:02x}".format(b) for b in input_bytes[:bytes_to_show]),
         lots_of_bytes))
 
@@ -494,7 +518,7 @@ class DeepState(object):
       self.api_fail()
     else:
       info = self.context['info']
-      self.log_message(LOG_LEVEL_INFO, "Passed: {}".format(info.name))
+      self.log_message(LOG_LEVEL_TRACE, "Passed: {}".format(info.name))
       self.pass_test()
 
   def api_crash(self):
