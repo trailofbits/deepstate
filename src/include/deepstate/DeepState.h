@@ -706,8 +706,8 @@ static int DeepState_RunSavedCasesForTest(struct DeepState_TestInfo *test) {
   closedir(dir_fd);
   free(test_case_dir);
 
-  DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests; %d tests failed",
-		      i, num_failed_tests);
+  DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests for %s; %d tests failed",
+		      i, test->test_name, num_failed_tests);
   
   return num_failed_tests;
 }

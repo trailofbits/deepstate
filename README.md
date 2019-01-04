@@ -115,6 +115,15 @@ argument to see all DeepState options.
 
 DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation is in the [examples](/examples) and in our [paper](https://agroce.github.io/bar18.pdf).  A more extensive example, using DeepState and libFuzzer to test a user-mode file system, is available [here](https://github.com/agroce/testfs); in particular the [Tests.cpp](https://github.com/agroce/testfs/blob/master/Tests.cpp) file and CMakeLists.txt show DeepState usage.
 
+## Log Levels
+
+By default, DeepState is not very verbose about testing activity,
+other than failing tests.  The `--log-level` argument lowers the
+threshold for output, with 0 = `DEBUG`, 1 = `TRACE` (output from the
+tests, including `printf`s), and 2 = INFO (DeepState messages, the default), 3 = `WARNING`,
+4 = `ERROR`, and 5 = `EXTERNAL` (output from other programs such as
+libFuzzer), and 6 = `CRITICAL`/`FATAL` messages.
+
 ## A Note on Mac OS and Forking
 
 Normally, when running a test for replay or fuzzing, DeepState forks
@@ -133,12 +142,7 @@ The fuzzer also takes a `seed` and `timeout` (default of two minutes)
 to control the fuzzing.  If you want to actually save the test cases
 generated, you need to add a `--output_test_dir` arument to tell
 DeepState where to put the generated tests.  By default fuzzing saves
-only failing and crashing tests.  One more command line argument that
-is particularly useful for fuzzing is the `--log_level` argument,
-which controls how much output each test produces.  By default, this
-is set to show all the logging from your tests, which slows fuzzing,
-but setting it to 2 or higher will only show messages produced by
-tests failing or crashing.
+only failing and crashing tests and only when given an output directory.
 
 Note that while symbolic execution only works on Linux, without a 
 fairly complex cross-compliation process, the brute force fuzzer works 
