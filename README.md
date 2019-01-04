@@ -115,24 +115,6 @@ argument to see all DeepState options.
 
 DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation is in the [examples](/examples) and in our [paper](https://agroce.github.io/bar18.pdf).  A more extensive example, using DeepState and libFuzzer to test a user-mode file system, is available [here](https://github.com/agroce/testfs); in particular the [Tests.cpp](https://github.com/agroce/testfs/blob/master/Tests.cpp) file and CMakeLists.txt show DeepState usage.
 
-## Log Levels
-
-By default, DeepState is not very verbose about testing activity,
-other than failing tests.  The `--log_level` argument lowers the
-threshold for output, with 0 = `DEBUG`, 1 = `TRACE` (output from the
-tests, including `printf`s), and 2 = INFO (DeepState messages, the default), 3 = `WARNING`,
-4 = `ERROR`, and 5 = `EXTERNAL` (output from other programs such as
-libFuzzer), and 6 = `CRITICAL`/`FATAL` messages.
-
-## A Note on Mac OS and Forking
-
-Normally, when running a test for replay or fuzzing, DeepState forks
-in order to cleanly handle crashes of a test.  Unfortunately, `fork()`
-on mac OS is extremely slow.  When using the built-in fuzzer or
-replaying tests, it is highly recommended to add the `--no_fork`
-option on mac OS, unless you need the added crash handling (that is,
-things aren't working without that option).
-
 ## Example Code
 
 ```
@@ -248,6 +230,18 @@ CRITICAL: /Users/alex/deepstate/examples/Runlen.cpp(60): ORIGINAL: '91c499', ENC
 ERROR: Failed: Runlength_EncodeDecode
 ```
 
+## Log Levels
+
+By default, DeepState is not very verbose about testing activity,
+other than failing tests.  The `--log_level` argument lowers the
+threshold for output, with 0 = `DEBUG`, 1 = `TRACE` (output from the
+tests, including `printf`s), and 2 = INFO (DeepState messages, the default), 3 = `WARNING`,
+4 = `ERROR`, and 5 = `EXTERNAL` (output from other programs such as
+libFuzzer), and 6 = `CRITICAL`/`FATAL` messages.  This can be very
+useful when understanding what a DeepState harness is actually doing;
+usually, setting `--log_level 1` in either fuzzing or symbolic
+execution will give sufficient information to debug your test harness.
+
 ## Built-In Fuzzer
 
 Every DeepState executable provides a simple built-in fuzzer that
@@ -262,6 +256,15 @@ only failing and crashing tests and only when given an output directory.
 Note that while symbolic execution only works on Linux, without a 
 fairly complex cross-compliation process, the brute force fuzzer works 
 on macOS or (as far as we know) any Unix-like system.
+
+## A Note on Mac OS and Forking
+
+Normally, when running a test for replay or fuzzing, DeepState forks
+in order to cleanly handle crashes of a test.  Unfortunately, `fork()`
+on mac OS is extremely slow.  When using the built-in fuzzer or
+replaying tests, it is highly recommended to add the `--no_fork`
+option on mac OS, unless you need the added crash handling (that is,
+things aren't working without that option).
 
 ## Fuzzing with libFuzzer
 
