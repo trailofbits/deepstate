@@ -38,26 +38,15 @@ char* decode(const char* output) {
   return decoded;
 }
 
-void printBytes(const char* bytes) {
-  unsigned int len = strlen(bytes);
-  for (int i = 0; i < len; i++)
-    LOG(ERROR) << "[" << i << "] = " << (unsigned int)(unsigned char)bytes[i];
-}
-
 // Can be (much) higher (e.g., > 1024) if we're using fuzzing, not symbolic execution
 #define MAX_STR_LEN 6
 
 TEST(Runlength, EncodeDecode) {
-  char* original = DeepState_CStrUpToLen(MAX_STR_LEN);
+  char* original = DeepState_CStrUpToLen(MAX_STR_LEN, "abcdef0123456789");
   char* encoded = encode(original);
+  ASSERT_LE(strlen(encoded), strlen(original)*2) << "Encoding is > length*2!";
   char* roundtrip = decode(encoded);
-  if (!(strncmp(roundtrip, original, MAX_STR_LEN) == 0)) {
-    LOG(ERROR) << "ORIGINAL:";
-    printBytes(original);
-    LOG(ERROR) << "ENCODED:";
-    printBytes(encoded);
-    LOG(ERROR) << "ROUNDTRIP:";
-    printBytes(roundtrip);
-    ASSERT (0) << "Round trip check failed";
-  }
+  ASSERT_EQ(strncmp(roundtrip, original, MAX_STR_LEN), 0) <<
+    "ORIGINAL: '" << original << "', ENCODED: '" << encoded <<
+    "', ROUNDTRIP: '" << roundtrip << "'";
 }
