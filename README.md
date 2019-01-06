@@ -328,6 +328,10 @@ CC=/usr/local/opt/llvm\@6/bin/clang CXX=/usr/local/opt/llvm\@6/bin/clang++ BUILD
 make install
 ```
 
+On mac OS, libFuzzer's normal output is not visible.  On any platform,
+you can see more about what DeepState under libFuzzer is doing by
+setting the `LIBFUZZER_LOUD` environment variable.
+
 Other ways of getting an appropriate LLVM may also work.
 
 ## Test case reduction
