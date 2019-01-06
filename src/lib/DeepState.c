@@ -56,6 +56,9 @@ int DeepState_UsingSymExec = 0;
 /* Set to 1 when we're using libFuzzer. */
 int DeepState_UsingLibFuzzer = 0;
 
+/* To make libFuzzer louder on mac OS. */
+int DeepState_LibFuzzerLoud = 1;
+
 /* Array of DeepState generated strings.  Impossible for there to
  * be more than there are input bytes.  Index stores where we are. */
 char* DeepState_GeneratedStrings[DeepState_InputSize];
@@ -841,6 +844,12 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   }
 
   DeepState_UsingLibFuzzer = 1;
+
+  const char* loud = getenv("LIBFUZZER_LOUD");
+  if (loud != NULL) {
+    FLAGS_log_level = 0;
+    DeepState_LibFuzzerLoud = 1;
+  }
   
   struct DeepState_TestInfo *test = NULL;
 
