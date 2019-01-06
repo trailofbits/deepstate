@@ -57,7 +57,7 @@ int DeepState_UsingSymExec = 0;
 int DeepState_UsingLibFuzzer = 0;
 
 /* To make libFuzzer louder on mac OS. */
-int DeepState_LibFuzzerLoud = 1;
+int DeepState_LibFuzzerLoud = 0;
 
 /* Array of DeepState generated strings.  Impossible for there to
  * be more than there are input bytes.  Index stores where we are. */
