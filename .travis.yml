@@ -6,9 +6,11 @@ python:
 install:
 - sudo apt-get -y update
 - sudo apt-get -y install build-essential gcc-multilib cmake python3-pip python3-setuptools libffi-dev python3-nose
-- pip3 install pyflakes --user
-- pip3 install angr --user
-- pip3 install manticore --user
+- pip3 install pip --user
+- pip3.6 -V
+- pip3.6 install pyflakes --user
+- pip3.6 install angr --user
+- pip3.6 install manticore --user
 - mkdir build
 - cd build
 - cmake ..
