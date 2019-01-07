@@ -26,7 +26,6 @@ except Exception as e:
     sys.exit(255)
   else:
     raise
-import multiprocessing
 import traceback
 from .common import DeepState, TestInfo
 
