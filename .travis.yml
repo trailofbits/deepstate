@@ -1,14 +1,16 @@
-language: bash
 dist: xenial
 sudo: true
-#python:
-#- "2.7"
+language: python
+python:
+  - 3.6.5
 install:
 - sudo apt-get -y update
-- sudo apt-get -y install build-essential gcc-multilib cmake python3 python3-pip python3-setuptools libffi-dev python3-nose
-- pip3 install pyflakes --user
-- pip3 install angr --user
-- pip3 install manticore --user
+- sudo apt-get -y install build-essential gcc-multilib cmake python3-pip python3-setuptools libffi-dev python3-nose
+- pip3 install pip
+- pip3.6 -V
+- pip3.6 install pyflakes
+- pip3.6 install angr
+- pip3.6 install manticore
 - mkdir build
 - cd build
 - cmake ..
@@ -29,15 +31,15 @@ env:
 script:
 - pyflakes bin/deepstate/*.py
 - pyflakes tests/*.py
-- if [ $TASK = ARITHMETIC ]; then nosetests tests/test_arithmetic.py ; fi
-- if [ $TASK = CRASH ]; then nosetests tests/test_crash.py ; fi
-- if [ $TASK = FIXTURE ]; then nosetests tests/test_fixture.py ; fi
-- if [ $TASK = KLEE ]; then nosetests tests/test_klee.py ; fi
-- if [ $TASK = LISTS ]; then nosetests tests/test_lists.py ; fi
-- if [ $TASK = ONEOF ]; then nosetests tests/test_oneof.py ; fi
-- if [ $TASK = RUNLEN ]; then nosetests tests/test_runlen.py ; fi
-- if [ $TASK = OVERFLOW ]; then nosetests tests/test_overflow.py ; fi
-- if [ $TASK = PRIMES ]; then nosetests tests/test_primes.py ; fi
-- if [ $TASK = STREAMINGANDFORMATTING ]; then nosetests tests/test_streamingandformatting.py ; fi
-- if [ $TASK = TAKEOVER ]; then nosetests tests/test_takeover.py ; fi
+- if [ $TASK = ARITHMETIC ]; then nosetests3 tests/test_arithmetic.py ; fi
+- if [ $TASK = CRASH ]; then nosetests3 tests/test_crash.py ; fi
+- if [ $TASK = FIXTURE ]; then nosetests3 tests/test_fixture.py ; fi
+- if [ $TASK = KLEE ]; then nosetests3 tests/test_klee.py ; fi
+- if [ $TASK = LISTS ]; then nosetests3 tests/test_lists.py ; fi
+- if [ $TASK = ONEOF ]; then nosetests3 tests/test_oneof.py ; fi
+- if [ $TASK = RUNLEN ]; then nosetests3 tests/test_runlen.py ; fi
+- if [ $TASK = OVERFLOW ]; then nosetests3 tests/test_overflow.py ; fi
+- if [ $TASK = PRIMES ]; then nosetests3 tests/test_primes.py ; fi
+- if [ $TASK = STREAMINGANDFORMATTING ]; then nosetests3 tests/test_streamingandformatting.py ; fi
+- if [ $TASK = TAKEOVER ]; then nosetests3 tests/test_takeover.py ; fi
 
