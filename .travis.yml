@@ -1,8 +1,8 @@
-language: bash
 dist: xenial
 sudo: true
+language: python
 python:
-- "3.6.5"
+  - 3.6.5
 install:
 - sudo apt-get -y update
 - sudo apt-get -y install build-essential gcc-multilib cmake python3-pip python3-setuptools libffi-dev python3-nose
