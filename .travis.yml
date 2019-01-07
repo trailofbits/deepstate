@@ -1,11 +1,11 @@
 language: bash
-dist: xenial
+dist: bionic
 sudo: true
 #python:
 #- "2.7"
 install:
 - sudo apt-get -y update
-- sudo apt-get -y install build-essential gcc-multilib cmake python3 python3-pip python3-setuptools libffi-dev python3-nose
+- sudo apt-get -y install build-essential gcc-multilib cmake python3.6 python3-pip python3-setuptools libffi-dev python3-nose
 - pip3 install pyflakes --user
 - pip3 install angr --user
 - pip3 install manticore --user
