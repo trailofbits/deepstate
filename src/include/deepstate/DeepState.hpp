@@ -301,7 +301,7 @@ static T Pump(T val, unsigned max=10) {
     return val;
   }
   if (!max) {
-    DeepState_Abandon("Must have a positive maximum number of values to pump.");
+    DeepState_Abandon("Must have a positive maximum number of values to Pump");
   }
   for (auto i = 0U; i < max - 1; ++i) {
     T min_val = Minimize(val);
@@ -314,7 +314,7 @@ static T Pump(T val, unsigned max=10) {
   }
   return Minimize(val);
 }
-
+  
 template <typename... Args>
 inline static void ForAll(void (*func)(Args...)) {
   func(Symbolic<Args>()...);
@@ -327,32 +327,38 @@ inline static void ForAll(Closure func) {
 
 template <typename... FuncTys>
 inline static void OneOf(FuncTys&&... funcs) {
+  if (FLAGS_verbose_reads) {
+    printf("STARTING OneOf CALL\n");
+  }
   std::function<void(void)> func_arr[sizeof...(FuncTys)] = {funcs...};
   unsigned index = DeepState_UIntInRange(
       0U, static_cast<unsigned>(sizeof...(funcs))-1);
   func_arr[Pump(index, sizeof...(funcs))]();
+  if (FLAGS_verbose_reads) {  
+    printf("FINISHED OneOf CALL\n");
+  }
 }
 
 inline static char OneOf(const char *str) {
   if (!str || !str[0]) {
-    DeepState_Abandon("NULL or empty string passed to OneOf.");
+    DeepState_Abandon("NULL or empty string passed to OneOf");
   }
   return str[DeepState_IntInRange(0, strlen(str) - 1)];
 }
-
+  
 template <typename T>
 inline static const T &OneOf(const std::vector<T> &arr) {
   if (arr.empty()) {
-    DeepState_Abandon("Empty vector passed to OneOf.");
+    DeepState_Abandon("Empty vector passed to OneOf");
   }
-  return arr[DeepState_IntInRange(0, arr.size - 1)];
+  return arr[DeepState_IntInRange(0, arr.size() - 1)];
 }
 
 
 template <typename T, int len>
 inline static const T &OneOf(T (&arr)[len]) {
   if (!len) {
-    DeepState_Abandon("Empty array passed to OneOf.");
+    DeepState_Abandon("Empty array passed to OneOf");
   }
   return arr[DeepState_IntInRange(0, len - 1)];
 }
@@ -465,6 +471,35 @@ struct Comparer {
   }
 };
 
+/* Like DeepState_AssignCStr_C, but fills in a null `allowed` value. */
+inline static void DeepState_AssignCStr(char* str, size_t len,
+					const char* allowed = 0) {
+  DeepState_AssignCStr_C(str, len, allowed);  
+}
+  
+/* Like DeepState_AssignCStr, but Pumps through possible string sizes. */
+inline static void DeepState_AssignCStrUpToLen(char* str, size_t max_len,
+					   const char* allowed = 0) {
+  uint32_t len = DeepState_UIntInRange(0, max_len);
+  DeepState_AssignCStr_C(str, Pump(len, max_len+1), allowed);  
+}
+
+/* Like DeepState_CStr_C, but fills in a null `allowed` value. */
+inline static char* DeepState_CStr(size_t len, const char* allowed = 0) {
+  return DeepState_CStr_C(len, allowed);
+}
+  
+/* Like DeepState_CStr, but Pumps through possible string sizes. */
+inline static char* DeepState_CStrUpToLen(size_t max_len, const char* allowed = 0) {
+  uint32_t len = DeepState_UIntInRange(0, max_len);
+  return DeepState_CStr_C(Pump(len, max_len+1), allowed);
+}
+
+/* Like DeepState_Symbolize_CStr, but fills in null `allowed` value. */
+inline static void DeepState_SymbolizeCStr(char *begin, const char* allowed = 0) {
+  DeepState_SymbolizeCStr_C(begin, allowed);
+}
+
 }  // namespace deepstate
 
 #define ONE_OF ::deepstate::OneOf
@@ -514,6 +549,9 @@ struct Comparer {
 
 #define LOG_DEBUG(cond) \
     ::deepstate::Stream(DeepState_LogDebug, (cond), __FILE__, __LINE__)
+
+#define LOG_TRACE(cond) \
+    ::deepstate::Stream(DeepState_LogTrace, (cond), __FILE__, __LINE__)
 
 #define LOG_INFO(cond) \
     ::deepstate::Stream(DeepState_LogInfo, (cond), __FILE__, __LINE__)
@@ -575,11 +613,11 @@ struct Comparer {
 
 #define ASSUME(expr) \
     DeepState_Assume(expr), ::deepstate::Stream( \
-        DeepState_LogInfo, true, __FILE__, __LINE__)
+        DeepState_LogTrace, true, __FILE__, __LINE__)
 
 #define DEEPSTATE_ASSUME_BINOP(a, b, op) \
     DeepState_Assume((a op b)), ::deepstate::Stream( \
-        DeepState_LogInfo, true, __FILE__, __LINE__)
+        DeepState_LogTrace, true, __FILE__, __LINE__)
 
 #define ASSUME_EQ(a, b) DEEPSTATE_ASSUME_BINOP(a, b, ==)
 #define ASSUME_NE(a, b) DEEPSTATE_ASSUME_BINOP(a, b, !=)

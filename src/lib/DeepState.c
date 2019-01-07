@@ -23,6 +23,11 @@
 #include <setjmp.h>
 #include <stdio.h>
 
+#ifdef DEEPSTATE_TAKEOVER_RAND
+#undef rand
+#undef srand
+#endif
+
 DEEPSTATE_BEGIN_EXTERN_C
 
 DEFINE_uint(num_workers, 1,
@@ -36,6 +41,28 @@ DEFINE_string(output_test_dir, "", "Directory where tests will be saved.");
 
 DEFINE_bool(take_over, false, "Replay test cases in take-over mode.");
 DEFINE_bool(abort_on_fail, false, "Abort on file replay failure (useful in file fuzzing).");
+DEFINE_bool(verbose_reads, false, "Report on bytes being read during execution of test.");
+DEFINE_bool(fuzz, false, "Perform brute force unguided fuzzing.");
+DEFINE_bool(fuzz_save_passing, false, "Save passing tests during fuzzing.");
+DEFINE_bool(fork, true, "Fork when running a test.");
+
+DEFINE_int(log_level, 0, "Minimum level of logging to output.");
+DEFINE_int(seed, 0, "Seed for brute force fuzzing (uses time if not set).");
+DEFINE_int(timeout, 120, "Timeout for brute force fuzzing.");
+
+/* Set to 1 by Manticore/Angr/etc. when we're running symbolically. */
+int DeepState_UsingSymExec = 0;
+
+/* Set to 1 when we're using libFuzzer. */
+int DeepState_UsingLibFuzzer = 0;
+
+/* To make libFuzzer louder on mac OS. */
+int DeepState_LibFuzzerLoud = 0;
+
+/* Array of DeepState generated strings.  Impossible for there to
+ * be more than there are input bytes.  Index stores where we are. */
+char* DeepState_GeneratedStrings[DeepState_InputSize];
+uint32_t DeepState_GeneratedStringsIndex = 0;
 
 /* Pointer to the last registers DeepState_TestInfo data structure */
 struct DeepState_TestInfo *DeepState_LastTestInfo = NULL;
@@ -73,7 +100,7 @@ void DeepState_AllocCurrentTestRun(void) {
                           mem_vis, 0, 0);
 
   if (shared_mem == MAP_FAILED) {
-    DeepState_Log(DeepState_LogError, "Unable to map shared memory.");
+    DeepState_Log(DeepState_LogError, "Unable to map shared memory");
     exit(1);
   }
 
@@ -140,7 +167,37 @@ void DeepState_SymbolizeData(void *begin, void *end) {
       if (DeepState_InputIndex >= DeepState_InputSize) {
         DeepState_Abandon("Read too many symbols");
       }
+      if (FLAGS_verbose_reads) {
+        printf("Reading byte at %u\n", DeepState_InputIndex);
+      }
       bytes[i] = DeepState_Input[DeepState_InputIndex++];
+    }
+  }
+}
+
+/* Symbolize the data in the exclusive range `[begin, end)` without null
+ * characters included.  Primarily useful for C strings. */
+void DeepState_SymbolizeDataNoNull(void *begin, void *end) {
+  uintptr_t begin_addr = (uintptr_t) begin;
+  uintptr_t end_addr = (uintptr_t) end;
+
+  if (begin_addr > end_addr) {
+    DeepState_Abandon("Invalid data bounds for DeepState_SymbolizeData");
+  } else if (begin_addr == end_addr) {
+    return;
+  } else {
+    uint8_t *bytes = (uint8_t *) begin;
+    for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
+      if (DeepState_InputIndex >= DeepState_InputSize) {
+        DeepState_Abandon("Read too many symbols");
+      }
+      if (FLAGS_verbose_reads) {
+        printf("Reading byte at %u\n", DeepState_InputIndex);
+      }
+      bytes[i] = DeepState_Input[DeepState_InputIndex++];
+      if (bytes[i] == 0) {
+	bytes[i] = 1;
+      }
     }
   }
 }
@@ -150,26 +207,67 @@ void *DeepState_ConcretizeData(void *begin, void *end) {
   return begin;
 }
 
-/* Return a symbolic C string of length `len`. */
-char *DeepState_CStr(size_t len) {
+/* Assign a symbolic C string of strlen length `len`.  str should include
+ * storage for both `len` characters AND the null terminator.  Allowed
+ * is a set of chars that are allowed (ignored if null). */
+void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed) {
   if (SIZE_MAX == len) {
     DeepState_Abandon("Can't create an SIZE_MAX-length string.");
   }
-  char *str = (char *) malloc(sizeof(char) * (len + 1));
   if (NULL == str) {
-    DeepState_Abandon("Can't allocate memory.");
+    DeepState_Abandon("Attempted to populate null pointer.");
   }
   if (len) {
-    DeepState_SymbolizeData(str, &(str[len - 1]));
+    if (!allowed) {
+      DeepState_SymbolizeDataNoNull(str, &(str[len]));
+    } else {
+      uint32_t allowed_size = strlen(allowed);
+      for (int i = 0; i < len; i++) {
+	str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+      }
+    }
+  }
+  str[len] = '\0';
+}
+
+/* Return a symbolic C string of strlen `len`. */
+char *DeepState_CStr_C(size_t len, const char* allowed) {
+  if (SIZE_MAX == len) {
+    DeepState_Abandon("Can't create an SIZE_MAX-length string");
+  }
+  char *str = (char *) malloc(sizeof(char) * (len + 1));
+  if (NULL == str) {
+    DeepState_Abandon("Can't allocate memory");
+  }
+  DeepState_GeneratedStrings[DeepState_GeneratedStringsIndex++] = str;  
+  if (len) {
+    if (!allowed) {
+      DeepState_SymbolizeDataNoNull(str, &(str[len]));
+    } else {
+      uint32_t allowed_size = strlen(allowed);
+      for (int i = 0; i < len; i++) {
+	str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+      }
+    }
   }
   str[len] = '\0';
   return str;
 }
 
-/* Symbolize a C string */
-void DeepState_SymbolizeCStr(char *begin) {
+/* Symbolize a C string; keeps the null terminator where it was. */
+void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
   if (begin && begin[0]) {
-    DeepState_SymbolizeData(begin, begin + strlen(begin));
+    if (!allowed) {
+      DeepState_SymbolizeDataNoNull(begin, begin + strlen(begin));
+    } else {
+      uint32_t allowed_size = strlen(allowed);      
+      uint8_t *bytes = (uint8_t *) begin;
+      uintptr_t begin_addr = (uintptr_t) begin;
+      uintptr_t end_addr = (uintptr_t) (begin + strlen(begin));  
+      for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
+	bytes[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+      }      
+    }
   }
 }
 
@@ -216,6 +314,9 @@ int DeepState_Bool(void) {
   if (DeepState_InputIndex >= DeepState_InputSize) {
     DeepState_Abandon("Read too many symbols");
   }
+  if (FLAGS_verbose_reads) {
+    printf("Reading byte as boolean at %u\n", DeepState_InputIndex);
+  }  
   return DeepState_Input[DeepState_InputIndex++] & 1;
 }
 
@@ -225,9 +326,18 @@ int DeepState_Bool(void) {
         DeepState_Abandon("Read too many symbols"); \
       } \
       type val = 0; \
+      if (FLAGS_verbose_reads) { \
+        printf("STARTING MULTI-BYTE READ\n"); \
+      } \
       _Pragma("unroll") \
       for (size_t i = 0; i < sizeof(type); ++i) { \
+        if (FLAGS_verbose_reads) { \
+          printf("Reading byte at %u\n", DeepState_InputIndex); \
+        } \
         val = (val << 8) | ((type) DeepState_Input[DeepState_InputIndex++]); \
+      } \
+      if (FLAGS_verbose_reads) { \
+        printf("FINISHED MULTI-BYTE READ\n"); \
       } \
       return val; \
     }
@@ -257,6 +367,10 @@ int8_t DeepState_Char(void) {
 
 #undef MAKE_SYMBOL_FUNC
 
+int32_t DeepState_RandInt() {
+  return DeepState_IntInRange(0, RAND_MAX);
+}
+
 /* Returns the minimum satisfiable value for a given symbolic value, given
  * the constraints present on that value. */
 uint32_t DeepState_MinUInt(uint32_t v) {
@@ -279,9 +393,20 @@ int32_t DeepState_MaxInt(int32_t v) {
                     0x80000000U);
 }
 
+/* Function to clean up generated strings, and any other DeepState-managed data. */
+extern void DeepState_CleanUp() {
+  for (int i = 0; i < DeepState_GeneratedStringsIndex; i++) {
+    free(DeepState_GeneratedStrings[i]);
+  }
+  DeepState_GeneratedStringsIndex = 0;
+}
+
 void _DeepState_Assume(int expr, const char *expr_str, const char *file,
                        unsigned line) {
   if (!expr) {
+    DeepState_LogFormat(DeepState_LogError,
+                        "%s(%u): Assumption %s failed",
+                        file, line, expr_str);    
     DeepState_Abandon("Assumption failed");
   }
 }
@@ -347,12 +472,20 @@ const struct DeepState_IndexEntry DeepState_API[] = {
   {"StreamFloat",     (void *) _DeepState_StreamFloat},
   {"StreamString",    (void *) _DeepState_StreamString},
 
+  {"UsingLibFuzzer", (void *) &DeepState_UsingLibFuzzer},
+  {"UsingSymExec", (void *) &DeepState_UsingSymExec},
+
   {NULL, NULL},
 };
 
 /* Set up DeepState. */
+DEEPSTATE_NOINLINE
 void DeepState_Setup(void) {
-  DeepState_AllocCurrentTestRun();
+  static int was_setup = 0;
+  if (!was_setup) {
+    DeepState_AllocCurrentTestRun();
+    was_setup = 1;
+  }
 
   /* TODO(pag): Sort the test cases by file name and line number. */
 }
@@ -365,7 +498,7 @@ void DeepState_Teardown(void) {
 /* Notify that we're about to begin a test. */
 void DeepState_Begin(struct DeepState_TestInfo *test) {
   DeepState_InitCurrentTestRun(test);
-  DeepState_LogFormat(DeepState_LogInfo, "Running: %s from %s(%u)",
+  DeepState_LogFormat(DeepState_LogTrace, "Running: %s from %s(%u)",
                       test->test_name, test->file_name, test->line_number);
 }
 
@@ -376,7 +509,7 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
   struct DeepState_TestInfo *test = DeepState_DrFuzzTest;
   DeepState_InputIndex = 0;
   DeepState_InitCurrentTestRun(test);
-  DeepState_LogFormat(DeepState_LogInfo, "Running: %s from %s(%u)",
+  DeepState_LogFormat(DeepState_LogTrace, "Running: %s from %s(%u)",
                       test->test_name, test->file_name, test->line_number);
 
   if (!setjmp(DeepState_ReturnToRun)) {
@@ -386,6 +519,7 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
 #endif  /* __cplusplus */
 
     test->test_func();
+    DeepState_CleanUp();
     DeepState_Pass();
 
 #if defined(__cplusplus) && defined(__cpp_exceptions)
@@ -407,11 +541,16 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
 
   /* The test passed. */
   } else {
-    DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
+    DeepState_LogFormat(DeepState_LogTrace, "Passed: %s", test->test_name);
     if (HAS_FLAG_output_test_dir) {
       DeepState_SavePassingTest();
     }
   }
+}
+
+void DeepState_Warn_srand(unsigned int seed) {
+  DeepState_LogFormat(DeepState_LogWarning,
+		      "srand under DeepState has no effect: rand is re-defined as DeepState_Int");
 }
 
 void DeepState_RunSavedTakeOverCases(jmp_buf env,
@@ -458,7 +597,7 @@ void DeepState_RunSavedTakeOverCases(jmp_buf env,
       if (WIFEXITED(wstatus)) {
         switch (DeepState_CurrentTestRun->result) {
         case DeepState_TestRunPass:
-          DeepState_LogFormat(DeepState_LogInfo,
+          DeepState_LogFormat(DeepState_LogTrace,
                               "Passed: TakeOver test with data from `%s`",
                               dp->d_name);
           break;
@@ -520,14 +659,64 @@ void DeepState_BeginDrFuzz(struct DeepState_TestInfo *test) {
   DrMemFuzzFunc(DeepState_Input, DeepState_InputSize);
 }
 
+/* Right now "fake" a hexdigest by just using random bytes.  Not ideal. */
+void makeFilename(char *name, size_t size) {
+  const char *entities = "0123456789abcdef";
+  for (int i = 0; i < size; i++) {
+    name[i] = entities[rand()%16];
+  }
+}
+
+void writeInputData(char* name, int important) {
+  size_t path_len = 2 + sizeof(char) * (strlen(FLAGS_output_test_dir) + strlen(name));
+  char *path = (char *) malloc(path_len);
+  snprintf(path, path_len, "%s/%s", FLAGS_output_test_dir, name);
+  FILE *fp = fopen(path, "wb");
+  if (fp == NULL) {
+    DeepState_LogFormat(DeepState_LogError, "Failed to create file `%s`", path);
+    free(path);
+    return;
+  }
+  size_t written = fwrite((void *)DeepState_Input, 1, DeepState_InputSize, fp);
+  if (written != DeepState_InputSize) {
+    DeepState_LogFormat(DeepState_LogError, "Failed to write to file `%s`", path);
+  } else {
+    if (important) {
+      DeepState_LogFormat(DeepState_LogInfo, "Saved test case in file `%s`", path);
+    } else {
+      DeepState_LogFormat(DeepState_LogTrace, "Saved test case in file `%s`", path);      
+    }
+  }
+  free(path);  
+  fclose(fp);  
+}
+
 /* Save a passing test to the output test directory. */
-void DeepState_SavePassingTest(void) {}
+void DeepState_SavePassingTest(void) {
+  char name[48];
+  makeFilename(name, 40);
+  name[40] = 0;
+  strncat(name, ".pass", 48);
+  writeInputData(name, 0);
+}
 
 /* Save a failing test to the output test directory. */
-void DeepState_SaveFailingTest(void) {}
+void DeepState_SaveFailingTest(void) {
+  char name[48];
+  makeFilename(name, 40);
+  name[40] = 0;
+  strncat(name, ".fail", 48);
+  writeInputData(name, 1);
+}
 
 /* Save a crashing test to the output test directory. */
-void DeepState_SaveCrashingTest(void) {}
+void DeepState_SaveCrashingTest(void) {
+  char name[48];
+  makeFilename(name, 40);
+  name[40] = 0;
+  strncat(name, ".crash", 48);
+  writeInputData(name, 1);
+}
 
 /* Return the first test case to run. */
 struct DeepState_TestInfo *DeepState_FirstTest(void) {
@@ -544,12 +733,123 @@ bool DeepState_CatchAbandoned(void) {
   return DeepState_CurrentTestRun->result == DeepState_TestRunAbandon;
 }
 
+/* Fuzz test `FLAGS_input_which_test` or first test, if not defined.
+   Has to be defined here since we redefine rand in the header. */
+int DeepState_Fuzz(void){
+  DeepState_LogFormat(DeepState_LogInfo, "Starting fuzzing");
+
+  if (!HAS_FLAG_log_level) {
+    FLAGS_log_level = 2;
+  }
+  
+  if (HAS_FLAG_seed) {
+    srand(FLAGS_seed);
+  } else {
+    unsigned int seed = time(NULL);
+    DeepState_LogFormat(DeepState_LogWarning, "No seed provided; using %u", seed);
+    srand(seed);
+  }
+
+  long start = (long)time(NULL);
+  long current = (long)time(NULL);
+  unsigned diff = 0;
+  unsigned int i = 0;
+
+  int num_failed_tests = 0;
+
+  struct DeepState_TestInfo *test = NULL;  
+
+  DeepState_Setup();
+
+  for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
+    if (HAS_FLAG_input_which_test) {
+      if (strncmp(FLAGS_input_which_test, test->test_name, strlen(FLAGS_input_which_test)) == 0) {
+	break;
+      }
+    } else {
+      DeepState_LogFormat(DeepState_LogWarning,
+			  "No test specified, defaulting to last test defined (%s)",
+			  test->test_name);
+      break;
+    }
+  }
+
+  if (test == NULL) {
+    DeepState_LogFormat(DeepState_LogInfo,
+                        "Could not find matching test for %s",
+                        FLAGS_input_which_test);
+    return 0;
+  }
+
+  unsigned int last_status = 0;
+  
+  while (diff < FLAGS_timeout) {
+    i++;
+    if ((diff != last_status) && ((diff % 30) == 0) ) {
+      time_t t = time(NULL);
+      struct tm tm = *localtime(&t);
+      DeepState_LogFormat(DeepState_LogInfo, "%d-%02d-%02d %02d:%02d:%02d: %u tests/second / %d failed tests so far",
+			  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, i/diff, num_failed_tests);
+      last_status = diff;
+    }
+    if (DeepState_FuzzOneTestCase(test) != 0) {
+      num_failed_tests ++;
+    }
+    
+    current = (long)time(NULL);
+    diff = current-start;
+  }
+
+  DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests (%u tests/second) with %d failed tests",
+		      i, i/diff, num_failed_tests);
+
+  return num_failed_tests;
+}
+
+
+/* Run a test case with input initialized by fuzzing.
+   Has to be defined here since we redefine rand in the header. */
+enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test) {
+  DeepState_InputIndex = 0;
+  
+  for (int i = 0; i < DeepState_InputSize; i++) {
+    DeepState_Input[i] = (char)rand();
+  }
+
+  DeepState_Begin(test);
+
+  enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
+
+  if (result == DeepState_TestRunCrash) {
+    DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
+    
+    if (HAS_FLAG_output_test_dir) {
+      DeepState_SaveCrashingTest();
+    }
+
+    DeepState_Crash();
+  }
+
+  if (FLAGS_abort_on_fail && ((result == DeepState_TestRunCrash) ||
+			      (result == DeepState_TestRunFail))) {
+    assert(0); // Terminate the testing in a way AFL/etc. can see as a crash
+  }  
+
+  return result;
+}
+
 extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   if (Size > sizeof(DeepState_Input)) {
     return 0; // Just ignore any too-big inputs
   }
 
   DeepState_UsingLibFuzzer = 1;
+
+  const char* loud = getenv("LIBFUZZER_LOUD");
+  if (loud != NULL) {
+    FLAGS_log_level = 0;
+    DeepState_LibFuzzerLoud = 1;
+  }
   
   struct DeepState_TestInfo *test = NULL;
 
@@ -575,7 +875,15 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 
   DeepState_Begin(test);
 
-  enum DeepState_TestRunResult result = DeepState_RunTestLLVM(test);
+  enum DeepState_TestRunResult result = DeepState_RunTestNoFork(test);
+  DeepState_CleanUp();
+
+  const char* abort_check = getenv("LIBFUZZER_ABORT_ON_FAIL");
+  if (abort_check != NULL) {
+    if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
+      assert(0); // Terminate the testing more permanently      
+    }
+  }
 
   DeepState_Teardown();
   DeepState_CurrentTestRun = NULL;
@@ -598,8 +906,20 @@ void __assert_fail(const char * assertion, const char * file,
 }
 
 void __stack_chk_fail(void) {
-  DeepState_Log(DeepState_LogFatal, "Stack smash detected.");
+  DeepState_Log(DeepState_LogFatal, "Stack smash detected");
   __builtin_unreachable();
 }
+
+#ifndef LIBFUZZER
+__attribute__((weak))
+int main(int argc, char *argv[]) {
+  int ret = 0;
+  DeepState_Setup();
+  DeepState_InitOptions(argc, argv);
+  ret = DeepState_Run();
+  DeepState_Teardown();
+  return ret;
+}
+#endif
 
 DEEPSTATE_END_EXTERN_C

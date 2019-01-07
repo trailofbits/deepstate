@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <deepstate/Log.h>
@@ -46,6 +47,11 @@
 #define assert DeepState_Assert
 #define assume DeepState_Assume
 #define check DeepState_Check
+
+#ifdef DEEPSTATE_TAKEOVER_RAND
+#define rand DeepState_RandInt
+#define srand DeepState_Warn_srand
+#endif
 
 #define MAYBE(...) \
     if (DeepState_Bool()) { \
@@ -62,6 +68,14 @@ DECLARE_string(output_test_dir);
 
 DECLARE_bool(take_over);
 DECLARE_bool(abort_on_fail);
+DECLARE_bool(verbose_reads);
+DECLARE_bool(fuzz);
+DECLARE_bool(fuzz_save_passing);
+DECLARE_bool(fork);
+
+DECLARE_int(log_level);
+DECLARE_int(seed);
+DECLARE_int(timeout);
 
 enum {
   DeepState_InputSize = 8192
@@ -82,6 +96,7 @@ extern uint64_t DeepState_UInt64(void);
 extern int64_t DeepState_Int64(void);
 extern uint32_t DeepState_UInt(void);
 extern int32_t DeepState_Int(void);
+extern int32_t DeepState_RandInt(void);
 extern uint16_t DeepState_UShort(void);
 extern int16_t DeepState_Short(void);
 extern uint8_t DeepState_UChar(void);
@@ -127,9 +142,12 @@ DEEPSTATE_INLINE static int8_t DeepState_MaxChar(int8_t v) {
   return (int8_t) DeepState_MaxInt(v);
 }
 
+/* Function to clean up generated strings, and any other DeepState-managed data. */
+extern void DeepState_CleanUp();
+
 /* Returns `1` if `expr` is true, and `0` otherwise. This is kind of an indirect
  * way to take a symbolic value, introduce a fork, and on each size, replace its
-* value with a concrete value. */
+ * value with a concrete value. */
 extern int DeepState_IsTrue(int expr);
 
 /* Always returns `1`. */
@@ -144,15 +162,22 @@ extern int DeepState_ZeroSink(int);
 /* Symbolize the data in the exclusive range `[begin, end)`. */
 extern void DeepState_SymbolizeData(void *begin, void *end);
 
+/* Symbolize the data in the exclusive range `[begin, end)` with no nulls. */
+extern void DeepState_SymbolizeDataNoNull(void *begin, void *end);
+
 /* Concretize some data in exclusive the range `[begin, end)`. Returns a
  * concrete pointer to the beginning of the concretized data. */
 extern void *DeepState_ConcretizeData(void *begin, void *end);
 
-/* Return a symbolic C string of length `len`. */
-extern char *DeepState_CStr(size_t len);
+/* Assign a symbolic C string of _strlen_ `len` -- with only chars in allowed,
+ * if `allowed` is non-null; needs space for null + len bytes */
+extern void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed);
+
+/* Return a symbolic C string of strlen `len`. */
+extern char *DeepState_CStr_C(size_t len, const char* allowed);
 
 /* Symbolize a C string */
-void DeepState_SymbolizeCStr(char *begin);
+void DeepState_SymbolizeCStr_C(char *begin, const char* allowed);
 
 /* Concretize a C string. Returns a pointer to the beginning of the
  * concretized C string. */
@@ -230,11 +255,42 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
 }
 
 /* Return a symbolic value in a the range `[low_inc, high_inc]`. */
+/* Saturating version here is an alternative, but worse for fuzzing:
 #define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname) \
     DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
         tname low, tname high) { \
-      tname x = DeepState_ ## Tname(); \
-      (void) DeepState_Assume(low <= x && x <= high); \
+      if (low > high) { \
+        return DeepState_ ## Tname ## InRange(high, low); \
+      } \
+      const tname x = DeepState_ ## Tname(); \
+      if (DeepState_UsingSymExec) { \
+        (void) DeepState_Assume(low <= x && x <= high); \
+        return x; \
+      } \
+      if (x < low) { \
+        return low; \
+      } else if (x > high) { \
+        return high; \
+      } else { \
+        return x; \
+      } \
+    }
+*/
+#define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname) \
+    DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
+        tname low, tname high) { \
+      if (low > high) { \
+        return DeepState_ ## Tname ## InRange(high, low); \
+      } \
+      const tname x = DeepState_ ## Tname(); \
+      if (DeepState_UsingSymExec) { \
+        (void) DeepState_Assume(low <= x && x <= high); \
+	return x; \
+      } \
+      if ((x < low) || (x > high)) { \
+        const tname size = (high - low) + 1; \
+        return low + ((x % size + size) % size); \
+      } \
       return x; \
     }
 
@@ -405,6 +461,8 @@ static bool DeepState_IsTestCaseFile(const char *name) {
   return false;
 }
 
+extern void DeepState_Warn_srand(unsigned int seed);
+
 /* Resets the global `DeepState_Input` buffer, then fills it with the
  * data found in the file `path`. */
 static void DeepState_InitInputFromFile(const char *path) {
@@ -441,7 +499,7 @@ static void DeepState_InitInputFromFile(const char *path) {
     DeepState_Abandon("Error reading file");
   }
 
-  DeepState_LogFormat(DeepState_LogInfo,
+  DeepState_LogFormat(DeepState_LogTrace,
                       "Initialized test input buffer with data from `%s`",
                       path);
 }
@@ -483,16 +541,18 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
 
     /* The test passed. */
   } else {
-    DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
+    DeepState_LogFormat(DeepState_LogTrace, "Passed: %s", test->test_name);
     if (HAS_FLAG_output_test_dir) {
-      DeepState_SavePassingTest();
+      if (!FLAGS_fuzz || FLAGS_fuzz_save_passing) {
+	DeepState_SavePassingTest();
+      }
     }
     exit(DeepState_TestRunPass);
   }
 }
 
 /* Run a test case, but in libFuzzer, so not inside a fork. */
-static int DeepState_RunTestLLVM(struct DeepState_TestInfo *test) {
+static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
   /* Run the test. */
   if (!setjmp(DeepState_ReturnToRun)) {
     /* Convert uncaught C++ exceptions into a test failure. */
@@ -525,7 +585,7 @@ static int DeepState_RunTestLLVM(struct DeepState_TestInfo *test) {
 
     /* The test passed. */
   } else {
-    DeepState_LogFormat(DeepState_LogInfo, "Passed: %s", test->test_name);
+    DeepState_LogFormat(DeepState_LogTrace, "Passed: %s", test->test_name);
     if (HAS_FLAG_output_test_dir) {
       DeepState_SavePassingTest();
     }
@@ -536,13 +596,22 @@ static int DeepState_RunTestLLVM(struct DeepState_TestInfo *test) {
 /* Fork and run `test`. */
 static enum DeepState_TestRunResult
 DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
-  pid_t test_pid = fork();
-  if (!test_pid) {
-    DeepState_RunTest(test);
+  pid_t test_pid;
+  if (FLAGS_fork) {
+    test_pid = fork();
+    if (!test_pid) {
+      DeepState_RunTest(test);
+      /* No need to clean up in a fork; exit() is the ultimate garbage collector */
+    }
   }
-  int wstatus;
-  waitpid(test_pid, &wstatus, 0);
-
+  int wstatus = 0;
+  if (FLAGS_fork) {
+    waitpid(test_pid, &wstatus, 0);
+  } else {
+    wstatus = DeepState_RunTestNoFork(test);
+    DeepState_CleanUp();
+  }
+  
   /* If we exited normally, the status code tells us if the test passed. */
   if (WIFEXITED(wstatus)) {
     uint8_t status = WEXITSTATUS(wstatus);
@@ -553,6 +622,8 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
    * handler, and thus the test failed due to a crash. */
   return DeepState_TestRunCrash;
 }
+
+extern enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test);
 
 /* Run a single saved test case with input initialized from the file
  * `name` in directory `dir`. */
@@ -618,9 +689,12 @@ static int DeepState_RunSavedCasesForTest(struct DeepState_TestInfo *test) {
     return 0;
   }
 
+  unsigned int i = 0;
+  
   /* Read generated test cases and run a test for each file found. */
   while ((dp = readdir(dir_fd)) != NULL) {
     if (DeepState_IsTestCaseFile(dp->d_name)) {
+      i++;
       enum DeepState_TestRunResult result =
         DeepState_RunSavedTestCase(test, test_case_dir, dp->d_name);
 
@@ -632,6 +706,9 @@ static int DeepState_RunSavedCasesForTest(struct DeepState_TestInfo *test) {
   closedir(dir_fd);
   free(test_case_dir);
 
+  DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests for %s; %d tests failed",
+		      i, test->test_name, num_failed_tests);
+  
   return num_failed_tests;
 }
 
@@ -649,8 +726,9 @@ static int DeepState_RunSingleSavedTestCase(void) {
 	break;
       }
     } else {
-      DeepState_LogFormat(DeepState_LogInfo,
-			  "No test specified, defaulting to first test");
+      DeepState_LogFormat(DeepState_LogWarning,
+			  "No test specified, defaulting to last test defined (%s)",
+			  test->test_name);
       break;
     }
   }
@@ -667,7 +745,7 @@ static int DeepState_RunSingleSavedTestCase(void) {
 
   if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {    
     if (FLAGS_abort_on_fail) {
-      abort();
+      assert(0); // Terminate in a way AFL/etc. can see as a crash
     }
     num_failed_tests++;
   }
@@ -677,12 +755,18 @@ static int DeepState_RunSingleSavedTestCase(void) {
   return num_failed_tests;
 }
 
+extern int DeepState_Fuzz(void);
+
 /* Run tests from `FLAGS_input_test_files_dir`, under `FLAGS_input_which_test`
  * or first test, if not defined. */
 static int DeepState_RunSingleSavedTestDir(void) {
   int num_failed_tests = 0;
   struct DeepState_TestInfo *test = NULL;  
 
+  if (!HAS_FLAG_log_level) {
+    FLAGS_log_level = 2;
+  }
+    
   DeepState_Setup();
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
@@ -691,8 +775,10 @@ static int DeepState_RunSingleSavedTestDir(void) {
 	break;
       }
     } else {
-      DeepState_LogFormat(DeepState_LogInfo,
-			  "No test specified, defaulting to last test defined");
+      DeepState_LogFormat(DeepState_LogWarning,
+			  "No test specified, defaulting to last test defined (%s)",
+			  test->test_name);
+	;
       break;
     }
   }
@@ -712,10 +798,12 @@ static int DeepState_RunSingleSavedTestDir(void) {
   dir_fd = opendir(FLAGS_input_test_files_dir);
   if (dir_fd == NULL) {
     DeepState_LogFormat(DeepState_LogInfo,
-                        "No tests to run.");
+                        "No tests to run");
     return 0;
   }
 
+  unsigned int i = 0;
+  
   /* Read generated test cases and run a test for each file found. */
   while ((dp = readdir(dir_fd)) != NULL) {
     size_t path_len = 2 + sizeof(char) * (strlen(FLAGS_input_test_files_dir) + strlen(dp->d_name));
@@ -724,12 +812,13 @@ static int DeepState_RunSingleSavedTestDir(void) {
     stat(path, &path_stat);
     
     if (S_ISREG(path_stat.st_mode)) {
+      i++;      
       enum DeepState_TestRunResult result =
         DeepState_RunSavedTestCase(test, FLAGS_input_test_files_dir, dp->d_name);
 
       if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
 	if (FLAGS_abort_on_fail) {
-	  abort();
+	  assert(0); // Terminate in a way AFL/etc. can see as a crash
 	}
 	
         num_failed_tests++;
@@ -738,6 +827,9 @@ static int DeepState_RunSingleSavedTestDir(void) {
   }
   closedir(dir_fd);
 
+  DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests; %d tests failed",
+		      i, num_failed_tests);
+  
   return num_failed_tests;
 }
 
@@ -750,6 +842,10 @@ static int DeepState_RunSavedTestCases(void) {
   int num_failed_tests = 0;
   struct DeepState_TestInfo *test = NULL;
 
+  if (!HAS_FLAG_log_level) {
+    FLAGS_log_level = 2;
+  }
+    
   DeepState_Setup();
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
@@ -764,20 +860,24 @@ static int DeepState_RunSavedTestCases(void) {
 /* Start DeepState and run the tests. Returns the number of failed tests. */
 static int DeepState_Run(void) {
   if (!DeepState_OptionsAreInitialized) {
-    DeepState_Abandon("Please call DeepState_InitOptions(argc, argv) in main.");
-  }
-
-  if (HAS_FLAG_input_test_dir) {
-    return DeepState_RunSavedTestCases();
+    DeepState_Abandon("Please call DeepState_InitOptions(argc, argv) in main");
   }
 
   if (HAS_FLAG_input_test_file) {
     return DeepState_RunSingleSavedTestCase();
   }
 
+  if (HAS_FLAG_input_test_dir) {
+    return DeepState_RunSavedTestCases();
+  }
+
   if (HAS_FLAG_input_test_files_dir) {
     return DeepState_RunSingleSavedTestDir();
-  }  
+  }
+
+  if (FLAGS_fuzz) {
+    return DeepState_Fuzz();
+  }
 
   int num_failed_tests = 0;
   int use_drfuzz = getenv("DYNAMORIO_EXE_PATH") != NULL;
@@ -795,8 +895,9 @@ static int DeepState_Run(void) {
     } else {
       DeepState_Begin(test);
     }
-
-    num_failed_tests += DeepState_ForkAndRunTest(test);
+    if (DeepState_ForkAndRunTest(test) != 0) {
+      num_failed_tests++;
+    }
   }
 
   if (use_drfuzz) {

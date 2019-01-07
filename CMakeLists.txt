@@ -15,14 +15,30 @@
 project(deepstate)
 cmake_minimum_required(VERSION 2.8)
 
+if (NOT DEFINED BUILD_LIBFUZZER AND DEFINED ENV{BUILD_LIBFUZZER})
+  set(BUILD_LIBFUZZER "$ENV{BUILD_LIBFUZZER}")
+endif()
+
+if (BUILD_LIBFUZZER)
+  if(NOT DEFINED CMAKE_C_COMPILER)
+    set(CMAKE_C_COMPILER clang)
+  endif()
+
+  if(NOT DEFINED CMAKE_CXX_COMPILER)
+    set(CMAKE_CXX_COMPILER clang++)
+  endif()
+
+  if (NOT "${CMAKE_C_COMPILER_ID}" STREQUAL "Clang" AND NOT "${CMAKE_C_COMPILER_ID}" STREQUAL "AppleClang")
+    message(FATAL_ERROR "DeepState's libFuzzer mode requires the Clang C compiler.")
+  endif()
+
+  if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+    message(FATAL_ERROR "DeepState's libFuzzer mode requires the Clang C++ compiler.")
+  endif()
+endif()
+
 enable_language(C)
 enable_language(CXX)
-
-set(BUILD_LIBFUZZER "$ENV{BUILD_LIBFUZZER}")
-if (BUILD_LIBFUZZER)
-    SET(CMAKE_C_COMPILER clang)
-    SET(CMAKE_CXX_COMPILER clang++)
-endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -65,9 +81,10 @@ target_compile_options(${PROJECT_NAME} PUBLIC -mno-avx)
 
 target_compile_options(${PROJECT_NAME}32 PUBLIC -m32 -g3 -mno-avx)
 
-target_link_libraries(${PROJECT_NAME} -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
-
-target_link_libraries(${PROJECT_NAME}32 -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
+if (NOT APPLE)
+  target_link_libraries(${PROJECT_NAME} -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
+  target_link_libraries(${PROJECT_NAME}32 -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
+endif()
 
 target_include_directories(${PROJECT_NAME}
   PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
@@ -98,7 +115,7 @@ if (BUILD_LIBFUZZER)
        src/lib/Stream.c
     )
     
-    target_compile_options(${PROJECT_NAME}_LF PUBLIC -mno-avx -fsanitize=fuzzer-no-link)
+    target_compile_options(${PROJECT_NAME}_LF PUBLIC -DLIBFUZZER -mno-avx -fsanitize=fuzzer-no-link,undefined)
     
     target_include_directories(${PROJECT_NAME}_LF
        PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"

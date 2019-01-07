@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.6
 # Copyright (c) 2017 Trail of Bits, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -87,6 +87,10 @@ class DeepManticore(DeepState):
   def write_uint8_t(self, ea, val):
     self.state.cpu.write_int(ea, val, size=8)
     return ea + 1
+
+  def write_uint32_t(self, ea, val):
+    self.state.cpu.write_int(ea, val, size=32)
+    return ea + 4
 
   def concretize(self, val, constrain=False):
     if isinstance(val, (int)):
@@ -336,6 +340,10 @@ def do_run_test(state, apis, test, hook_test=False):
 
   state = m.initial_state
   mc = DeepManticore(state)
+
+  # Tell the system that we're using symbolic execution.
+  mc.write_uint32_t(apis["UsingSymExec"], 8589934591)
+
   mc.begin_test(test)
   del mc
 
@@ -423,6 +431,7 @@ def main_takeover(m, args, takeover_symbol):
 
   base = get_base(m)
   apis = mc.read_api_table(ea_of_api_table, base)
+
   del mc
 
   fake_test = TestInfo(takeover_ea, '_takeover_test', '_takeover_file', 0)

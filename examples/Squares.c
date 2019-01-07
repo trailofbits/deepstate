@@ -10,7 +10,7 @@ int square(int x) {
 DeepState_EntryPoint(test_main) {
   const char *new_args[2];
   new_args[0] = "deepstate";
-  new_args[1] = DeepState_CStr(8);
+  new_args[1] = DeepState_CStr_C(8, 0);
 
   DeepState_Assert(0 == old_main(2, new_args));
 }

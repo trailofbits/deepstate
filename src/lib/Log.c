@@ -47,6 +47,8 @@ static const char *DeepState_LogLevelStr(enum DeepState_LogLevel level) {
   switch (level) {
     case DeepState_LogDebug:
       return "DEBUG";
+    case DeepState_LogTrace:
+      return "TRACE";      
     case DeepState_LogInfo:
       return "INFO";
     case DeepState_LogWarning:
@@ -56,7 +58,7 @@ static const char *DeepState_LogLevelStr(enum DeepState_LogLevel level) {
     case DeepState_LogExternal:
       return "EXTERNAL";
     case DeepState_LogFatal:
-      return "FATAL";
+      return "CRITICAL";
     default:
       return "UNKNOWN";
   }
@@ -66,14 +68,16 @@ enum {
   DeepState_LogBufSize = 4096
 };
 
-int DeepState_UsingLibFuzzer = 0;
+extern int DeepState_UsingLibFuzzer;
+extern int DeepState_LibFuzzerLoud;
 
 char DeepState_LogBuf[DeepState_LogBufSize + 1] = {};
 
 /* Log a C string. */
 DEEPSTATE_NOINLINE
 void DeepState_Log(enum DeepState_LogLevel level, const char *str) {
-  if (DeepState_UsingLibFuzzer && (level < DeepState_LogExternal)) {
+  if ((DeepState_UsingLibFuzzer && !DeepState_LibFuzzerLoud && (level < DeepState_LogExternal)) ||
+      (level < FLAGS_log_level)) {
     return;
   }
   memset(DeepState_LogBuf, 0, DeepState_LogBufSize);
@@ -126,10 +130,16 @@ void DeepState_LogFormat(enum DeepState_LogLevel level,
   va_end(args);
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunknown-warning-option"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wbuiltin-declaration-mismatch"
+
 /* Override libc! */
 DEEPSTATE_NOINLINE
 int puts(const char *str) {
-  DeepState_Log(DeepState_LogInfo, str);
+  DeepState_Log(DeepState_LogTrace, str);
   return 0;
 }
 
@@ -137,7 +147,7 @@ DEEPSTATE_NOINLINE
 int printf(const char *format, ...) {
   va_list args;
   va_start(args, format);
-  DeepState_LogVFormat(DeepState_LogInfo, format, args);
+  DeepState_LogVFormat(DeepState_LogTrace, format, args);
   va_end(args);
   return 0;
 }
@@ -146,20 +156,20 @@ DEEPSTATE_NOINLINE
 int __printf_chk(int flag, const char *format, ...) {
   va_list args;
   va_start(args, format);
-  DeepState_LogVFormat(DeepState_LogInfo, format, args);
+  DeepState_LogVFormat(DeepState_LogTrace, format, args);
   va_end(args);
   return 0;
 }
 
 DEEPSTATE_NOINLINE
 int vprintf(const char *format, va_list args) {
-  DeepState_LogVFormat(DeepState_LogInfo, format, args);
+  DeepState_LogVFormat(DeepState_LogTrace, format, args);
   return 0;
 }
 
 DEEPSTATE_NOINLINE
 int __vprintf_chk(int flag, const char *format, va_list args) {
-  DeepState_LogVFormat(DeepState_LogInfo, format, args);
+  DeepState_LogVFormat(DeepState_LogTrace, format, args);
   return 0;
 }
 
@@ -168,7 +178,7 @@ int vfprintf(FILE *file, const char *format, va_list args) {
   if (stderr == file) {
     DeepState_LogVFormat(DeepState_LogDebug, format, args);
   } else if (stdout == file) {
-    DeepState_LogVFormat(DeepState_LogInfo, format, args);
+    DeepState_LogVFormat(DeepState_LogTrace, format, args);
   } else {
     DeepState_LogVFormat(DeepState_LogExternal, format, args);
   }
@@ -215,5 +225,8 @@ int __vfprintf_chk(int flag, FILE *file, const char *format, va_list args) {
   vfprintf(file, format, args);
   return 0;
 }
+
+#pragma clang diagnostic pop
+#pragma GCC diagnostic pop
 
 DEEPSTATE_END_EXTERN_C
