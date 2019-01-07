@@ -267,7 +267,7 @@ def _is_program_crash(reason):
   if not isinstance(reason, TerminateState):
     return False
 
-  return 'Invalid memory access' in reason.message
+  return 'Invalid memory access' in str(reason)
 
 
 def _is_program_exit(reason):
@@ -278,7 +278,7 @@ def _is_program_exit(reason):
   if not isinstance(reason, TerminateState):
     return False
 
-  return 'Program finished with exit status' in reason.message
+  return 'Program finished with exit status' in str(reason)
 
 
 def done_test(_, state, state_id, reason):
@@ -290,10 +290,8 @@ def done_test(_, state, state_id, reason):
   # DeepState API, so we can just report it as is. Otherwise, we check to see if
   # it was due to behavior that would typically crash the program being analyzed.
   # If so, we save it as a crash. If not, we abandon it.
-  if type(reason) is not str:
-      reason = str(reason)
   
-  if OUR_TERMINATION_REASON != reason:
+  if str(OUR_TERMINATION_REASON) != str(reason):
     if _is_program_crash(reason):
       L.info("State {} terminated due to crashing program behavior: {}".format(
         state_id, reason))
