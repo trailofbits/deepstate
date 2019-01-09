@@ -644,22 +644,27 @@ DeepState_RunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
 
   DeepState_InitInputFromFile(path);
 
-  free(path);
-
   DeepState_Begin(test);
 
   enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
 
-  if (result == DeepState_TestRunCrash) {
+  if (result == DeepState_TestRunFail) {
+    DeepState_LogFormat(DeepState_LogError, "Test case %s failed", path);
+    free(path);
+  }
+  else if (result == DeepState_TestRunCrash) {
     DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
-
+    DeepState_LogFormat(DeepState_LogError, "Test case %s crashed", path);    
+    free(path);
     if (HAS_FLAG_output_test_dir) {
       DeepState_SaveCrashingTest();
     }
 
     DeepState_Crash();
+  } else {
+    free(path);
   }
-
+  
   return result;
 }
 
