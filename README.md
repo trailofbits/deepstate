@@ -227,7 +227,7 @@ deepstate-angr ./Runlen
 or
 
 ```shell
-./Runlen --fuzz --abort_on_fail
+./Runlen --fuzz --exit_on_fail
 ```
 
 The fuzzer will output something like:

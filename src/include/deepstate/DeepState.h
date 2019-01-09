@@ -68,6 +68,7 @@ DECLARE_string(output_test_dir);
 
 DECLARE_bool(take_over);
 DECLARE_bool(abort_on_fail);
+DECLARE_bool(exit_on_fail);
 DECLARE_bool(verbose_reads);
 DECLARE_bool(fuzz);
 DECLARE_bool(fuzz_save_passing);
@@ -747,6 +748,9 @@ static int DeepState_RunSingleSavedTestCase(void) {
     if (FLAGS_abort_on_fail) {
       assert(0); // Terminate in a way AFL/etc. can see as a crash
     }
+    if (FLAGS_exit_on_fail) {
+      exit(255); // Terminate the testing
+    }    
     num_failed_tests++;
   }
 
@@ -820,6 +824,9 @@ static int DeepState_RunSingleSavedTestDir(void) {
 	if (FLAGS_abort_on_fail) {
 	  assert(0); // Terminate in a way AFL/etc. can see as a crash
 	}
+	if (FLAGS_exit_on_fail) {
+	  exit(255); // Terminate the testing
+	}	
 	
         num_failed_tests++;
       }

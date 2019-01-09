@@ -41,6 +41,7 @@ DEFINE_string(output_test_dir, "", "Directory where tests will be saved.");
 
 DEFINE_bool(take_over, false, "Replay test cases in take-over mode.");
 DEFINE_bool(abort_on_fail, false, "Abort on file replay failure (useful in file fuzzing).");
+DEFINE_bool(exit_on_fail, false, "Exit with status 255 on test failure.");
 DEFINE_bool(verbose_reads, false, "Report on bytes being read during execution of test.");
 DEFINE_bool(fuzz, false, "Perform brute force unguided fuzzing.");
 DEFINE_bool(fuzz_save_passing, false, "Save passing tests during fuzzing.");
@@ -833,7 +834,12 @@ enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo
   if (FLAGS_abort_on_fail && ((result == DeepState_TestRunCrash) ||
 			      (result == DeepState_TestRunFail))) {
     assert(0); // Terminate the testing in a way AFL/etc. can see as a crash
-  }  
+  }
+
+  if (FLAGS_exit_on_fail && ((result == DeepState_TestRunCrash) ||
+			      (result == DeepState_TestRunFail))) {
+    exit(255); // Terminate the testing
+  }
 
   return result;
 }
@@ -884,6 +890,13 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
       assert(0); // Terminate the testing more permanently      
     }
   }
+
+  const char* exit_check = getenv("LIBFUZZER_EXIT_ON_FAIL");
+  if (exit_check != NULL) {
+    if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
+      exit(255); // Terminate the testing     
+    }
+  }  
 
   DeepState_Teardown();
   DeepState_CurrentTestRun = NULL;
