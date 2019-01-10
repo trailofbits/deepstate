@@ -252,14 +252,6 @@ useful for understanding what a DeepState harness is actually doing;
 often, setting `--log_level 1` in either fuzzing or symbolic
 execution will give sufficient information to debug your test harness.
 
-## A Note on Mac OS and Forking
-
-Normally, when running a test for replay or fuzzing, DeepState forks
-in order to cleanly handle crashes of a test.  Unfortunately, `fork()`
-on mac OS is extremely slow.  When using the built-in fuzzer or
-replaying tests, it is highly recommended to add the `--no_fork`
-option on mac OS, unless you need the added crash handling (that is,
-things aren't working without that option).
 
 ## Built-In Fuzzer
 
@@ -279,13 +271,13 @@ Note that while symbolic execution only works on Linux, without a
 fairly complex cross-compilation process, the brute force fuzzer works 
 on macOS or (as far as we know) any Unix-like system.
 
-## A Note on Mac OS and Forking
+## A Note on MacOS and Forking
 
 Normally, when running a test for replay or fuzzing, DeepState forks
 in order to cleanly handle crashes of a test.  Unfortunately, `fork()`
-on mac OS is _extremely_ slow.  When using the built-in fuzzer or
+on macOS is _extremely_ slow.  When using the built-in fuzzer or
 replaying more than a few tests, it is highly recommended to add the `--no_fork`
-option on mac OS, unless you need the added crash handling (that is,
+option on macOS, unless you need the added crash handling (that is,
 only when things aren't working without that option).
 
 ## Fuzzing with libFuzzer
@@ -328,11 +320,16 @@ CC=/usr/local/opt/llvm\@6/bin/clang CXX=/usr/local/opt/llvm\@6/bin/clang++ BUILD
 make install
 ```
 
-On mac OS, libFuzzer's normal output is not visible.  On any platform,
-you can see more about what DeepState under libFuzzer is doing by
-setting the `LIBFUZZER_LOUD` environment variable.
+Other ways of getting an appropriate LLVM may also work. 
 
-Other ways of getting an appropriate LLVM may also work.
+On macOS, libFuzzer's normal output is not visible.  Because libFuzzer
+does not fork to execute tests, there is no issue with fork speed on
+macOS for this kind of fuzzing.
+
+On any platform,
+you can see more about what DeepState under libFuzzer is doing by
+setting the `LIBFUZZER_LOUD` environment variable, and tell libFuzzer
+to stop upon finding a failing test using `LIBFUZZER_EXIT_ON_FAIL`.
 
 ## Test case reduction
 
@@ -442,7 +439,11 @@ input file) in your `main`.
 
 Because AFL and other file-based fuzzers only rely on the DeepState
 native test executable, they should (like DeepState's built-in simple
-fuzzer) work fine on macOS and other Unix-like OSes.
+fuzzer) work fine on macOS and other Unix-like OSes.  On macOS, you
+will want to consider doing the work to use [persistent mode](http://lcamtuf.blogspot.com/2015/06/new-in-afl-persistent-mode.html), or even
+running inside a VM, due to AFL (unless in persistent mode) relying
+extensively on
+forks, which are very slow on macOS.
 
 ## Contributing
 
