@@ -122,7 +122,7 @@ system, is available [here](https://github.com/agroce/testfs); in
 particular the
 [Tests.cpp](https://github.com/agroce/testfs/blob/master/Tests.cpp)
 file and CMakeLists.txt show DeepState usage.  Another extensive
-example is a [differential tester that compare's Google's leveldb and
+example is a [differential tester that compares Google's leveldb and
 Facebook's rocksdb](https://github.com/agroce/testleveldb).
 
 ## Example Code
