@@ -398,15 +398,22 @@ Test case reduction should work on any OS.
 
 DeepState can also be used with a file-based fuzzer (e.g. AFL).  There
 are a few steps to this.  First, compile DeepState itself with any
-needed instrumentation.  E.g., to use it with AFL, you might want to add
-something like:
+needed instrumentation.  E.g., to use it with AFL, you will want to
+set the compilers to `afl-gcc` and `afl-g++` or `afl-clang` and
+`afl-clang++` when you `cmake` on your DeepState install:
+
+```
+CC=afl-clang CXX=afl-clang++ cmake ..
+```
+
+Alternatively, you can edit the `CMakeLists.txt` file and add:
 
 ```
 SET(CMAKE_C_COMPILER /usr/local/bin/afl-gcc)
 SET(CMAKE_CXX_COMPILER /usr/local/bin/afl-g++)
 ```
 
-to `deepstate/CMakeLists.txt`.  Second, do the same for your DeepState
+Do the same for your DeepState
 test harness and any code it links to you want instrumented.  Finally, run the fuzzing via the
 interface to replay test files.  For example, to fuzz the `OneOf`
 example, if we were in the `deepstate/build/examples` directory, you
