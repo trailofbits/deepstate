@@ -219,7 +219,7 @@ def main():
 
   if (s[1] + 1) > len(currentTest):
     print("PADDING TEST WITH", (s[1] + 1) - len(currentTest), "ZEROS")
-    padding = bytearray('\x00' * ((s[1] + 1) - len(currentTest)))
+    padding = bytearray('\x00' * ((s[1] + 1) - len(currentTest)), 'utf-8')
     currentTest = currentTest + padding
   
   print()
