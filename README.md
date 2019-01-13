@@ -111,6 +111,8 @@ In the absence of an `--input_which_test` argument, DeepState defaults
 to the last-defined test.  Run the native executable with the `--help`
 argument to see all DeepState options.
 
+If you want to use DeepState in C/C++ code, you will likely want to run `sudo make install` from the `$DEEPSTATE/build` directory as well.  The examples mentioned below (file system, databases) assume this has already been done.
+
 ## Usage
 
 DeepState consists of a static library, used to write test harnesses,
