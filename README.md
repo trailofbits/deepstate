@@ -27,6 +27,13 @@ The [2018 IEEE Cybersecurity Development Conference](https://secdev.ieee.org/201
   * Pumping (novel to DeepState) to pick concrete values when symbolic execution is too expensive
   * Automatic decomposition of integer compares to guide coverage-driven fuzzers
 
+To put it another way, DeepState sits at the intersection of
+*property-based testing*, *traditional unit testing*, *fuzzing*, and
+*symbolic execution*.  It lets you perform property-based unit testing
+using fuzzing or symbolic execution as a back end to generate data, and saves the
+results so that what DeepState finds can easily be used in
+deterministic settings such as regression testing or CI.
+
 ## Supported Platforms
 
 DeepState currently targets Linux, with macOS support in progress
