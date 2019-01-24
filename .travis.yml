@@ -10,7 +10,7 @@ install:
 - pip3.6 -V
 - pip3.6 install pyflakes
 - pip3.6 install angr
-- pip3.6 install manticore[native]
+- pip3.6 install https://github.com/trailofbits/manticore/archive/master.zip
 - mkdir build
 - cd build
 - cmake ..
