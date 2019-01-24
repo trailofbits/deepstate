@@ -6,7 +6,13 @@
 
 DeepState is a framework that provides C and C++ developers with a common interface to various symbolic execution and fuzzing engines. Users can write one test harness using a Google Test-like API, then execute it using multiple backends without having to learn the complexities of the underlying engines. It supports writing unit tests and API sequence tests, as well as automatic test generation. Read more about the goals and design of DeepState in our [paper](https://agroce.github.io/bar18.pdf).
 
-The [2018 IEEE Cybersecurity Development Conference](https://secdev.ieee.org/2018/home) included a [full tutorial](https://github.com/trailofbits/publications/tree/master/workshops/DeepState:%20Bringing%20vulnerability%20detection%20tools%20into%20the%20development%20lifecycle%20-%20SecDev%202018) on effective use of DeepState.
+The
+[2018 IEEE Cybersecurity Development Conference](https://secdev.ieee.org/2018/home)
+included a
+[full tutorial](https://github.com/trailofbits/publications/tree/master/workshops/DeepState:%20Bringing%20vulnerability%20detection%20tools%20into%20the%20development%20lifecycle%20-%20SecDev%202018)
+on effective use of DeepState.
+
+There are two blog posts on using DeepState: [Part 1](https://blog.trailofbits.com/2019/01/22/fuzzing-an-api-with-deepstate-part-1/) and [Part 2](https://blog.trailofbits.com/2019/01/23/fuzzing-an-api-with-deepstate-part-2/).
 
 ## Overview of Features
 
@@ -26,6 +32,13 @@ The [2018 IEEE Cybersecurity Development Conference](https://secdev.ieee.org/201
 * Provides high-level strategies for improving symbolic execution/fuzzing effectiveness
   * Pumping (novel to DeepState) to pick concrete values when symbolic execution is too expensive
   * Automatic decomposition of integer compares to guide coverage-driven fuzzers
+
+To put it another way, DeepState sits at the intersection of
+*property-based testing*, *traditional unit testing*, *fuzzing*, and
+*symbolic execution*.  It lets you perform property-based unit testing
+using fuzzing or symbolic execution as a back end to generate data, and saves the
+results so that what DeepState finds can easily be used in
+deterministic settings such as regression testing or CI.
 
 ## Supported Platforms
 
@@ -111,9 +124,21 @@ In the absence of an `--input_which_test` argument, DeepState defaults
 to the last-defined test.  Run the native executable with the `--help`
 argument to see all DeepState options.
 
+If you want to use DeepState in C/C++ code, you will likely want to run `sudo make install` from the `$DEEPSTATE/build` directory as well.  The examples mentioned below (file system, databases) assume this has already been done.
+
 ## Usage
 
-DeepState consists of a static library, used to write test harnesses, and command-line _executors_ written in Python. At this time, the best documentation is in the [examples](/examples) and in our [paper](https://agroce.github.io/bar18.pdf).  A more extensive example, using DeepState and libFuzzer to test a user-mode file system, is available [here](https://github.com/agroce/testfs); in particular the [Tests.cpp](https://github.com/agroce/testfs/blob/master/Tests.cpp) file and CMakeLists.txt show DeepState usage.
+DeepState consists of a static library, used to write test harnesses,
+and command-line _executors_ written in Python. At this time, the best
+documentation is in the [examples](/examples) and in our
+[paper](https://agroce.github.io/bar18.pdf).  A more extensive
+example, using DeepState and libFuzzer to test a user-mode file
+system, is available [here](https://github.com/agroce/testfs); in
+particular the
+[Tests.cpp](https://github.com/agroce/testfs/blob/master/Tests.cpp)
+file and CMakeLists.txt show DeepState usage.  Another extensive
+example is a [differential tester that compares Google's leveldb and
+Facebook's rocksdb](https://github.com/agroce/testleveldb).
 
 ## Example Code
 
@@ -194,7 +219,7 @@ just the functions to be tested.  Using DeepState to test them requires:
 
 - Calling some DeepState APIs that produce data
    - In this example, we see the `DeepState_CStrUpToLen` call tells
-     DeepState to produce a string that has up the `MAX_STR_LEN`
+     DeepState to produce a string that has up to `MAX_STR_LEN`
      characters, chosen from those present in hex strings.
 
 - Optionally making some assertions about the correctness of the
@@ -207,7 +232,7 @@ results
 DeepState will also run the "BoringUnitTest," but it (like a
 traditional hand-written unit test) is simply a test of fixed inputs
 devised by a programmer.  These inputs do not expose the bug in
-`encode`.  Nor do the default values for the DeepState test:
+`encode`.  Nor do the default values (all zero bytes) for the DeepState test:
 
 ```
 ~/deepstate/build/examples$ ./Runlen
@@ -227,7 +252,7 @@ deepstate-angr ./Runlen
 or
 
 ```shell
-./Runlen --fuzz --abort_on_fail
+./Runlen --fuzz --exit_on_fail
 ```
 
 The fuzzer will output something like:
@@ -252,14 +277,6 @@ useful for understanding what a DeepState harness is actually doing;
 often, setting `--log_level 1` in either fuzzing or symbolic
 execution will give sufficient information to debug your test harness.
 
-## A Note on Mac OS and Forking
-
-Normally, when running a test for replay or fuzzing, DeepState forks
-in order to cleanly handle crashes of a test.  Unfortunately, `fork()`
-on mac OS is extremely slow.  When using the built-in fuzzer or
-replaying tests, it is highly recommended to add the `--no_fork`
-option on mac OS, unless you need the added crash handling (that is,
-things aren't working without that option).
 
 ## Built-In Fuzzer
 
@@ -279,13 +296,13 @@ Note that while symbolic execution only works on Linux, without a
 fairly complex cross-compilation process, the brute force fuzzer works 
 on macOS or (as far as we know) any Unix-like system.
 
-## A Note on Mac OS and Forking
+## A Note on MacOS and Forking
 
 Normally, when running a test for replay or fuzzing, DeepState forks
 in order to cleanly handle crashes of a test.  Unfortunately, `fork()`
-on mac OS is _extremely_ slow.  When using the built-in fuzzer or
+on macOS is _extremely_ slow.  When using the built-in fuzzer or
 replaying more than a few tests, it is highly recommended to add the `--no_fork`
-option on mac OS, unless you need the added crash handling (that is,
+option on macOS, unless you need the added crash handling (that is,
 only when things aren't working without that option).
 
 ## Fuzzing with libFuzzer
@@ -328,11 +345,16 @@ CC=/usr/local/opt/llvm\@6/bin/clang CXX=/usr/local/opt/llvm\@6/bin/clang++ BUILD
 make install
 ```
 
-On mac OS, libFuzzer's normal output is not visible.  On any platform,
-you can see more about what DeepState under libFuzzer is doing by
-setting the `LIBFUZZER_LOUD` environment variable.
+Other ways of getting an appropriate LLVM may also work. 
 
-Other ways of getting an appropriate LLVM may also work.
+On macOS, libFuzzer's normal output is not visible.  Because libFuzzer
+does not fork to execute tests, there is no issue with fork speed on
+macOS for this kind of fuzzing.
+
+On any platform,
+you can see more about what DeepState under libFuzzer is doing by
+setting the `LIBFUZZER_LOUD` environment variable, and tell libFuzzer
+to stop upon finding a failing test using `LIBFUZZER_EXIT_ON_FAIL`.
 
 ## Test case reduction
 
@@ -391,15 +413,22 @@ Test case reduction should work on any OS.
 
 DeepState can also be used with a file-based fuzzer (e.g. AFL).  There
 are a few steps to this.  First, compile DeepState itself with any
-needed instrumentation.  E.g., to use it with AFL, you might want to add
-something like:
+needed instrumentation.  E.g., to use it with AFL, you will want to
+set the compilers to `afl-gcc` and `afl-g++` or `afl-clang` and
+`afl-clang++` when you `cmake` on your DeepState install:
+
+```
+CC=afl-clang CXX=afl-clang++ cmake ..
+```
+
+Alternatively, you can edit the `CMakeLists.txt` file and add:
 
 ```
 SET(CMAKE_C_COMPILER /usr/local/bin/afl-gcc)
 SET(CMAKE_CXX_COMPILER /usr/local/bin/afl-g++)
 ```
 
-to `deepstate/CMakeLists.txt`.  Second, do the same for your DeepState
+Do the same for your DeepState
 test harness and any code it links to you want instrumented.  Finally, run the fuzzing via the
 interface to replay test files.  For example, to fuzz the `OneOf`
 example, if we were in the `deepstate/build/examples` directory, you
@@ -442,7 +471,11 @@ input file) in your `main`.
 
 Because AFL and other file-based fuzzers only rely on the DeepState
 native test executable, they should (like DeepState's built-in simple
-fuzzer) work fine on macOS and other Unix-like OSes.
+fuzzer) work fine on macOS and other Unix-like OSes.  On macOS, you
+will want to consider doing the work to use [persistent mode](http://lcamtuf.blogspot.com/2015/06/new-in-afl-persistent-mode.html), or even
+running inside a VM, due to AFL (unless in persistent mode) relying
+extensively on
+forks, which are very slow on macOS.
 
 ## Contributing
 

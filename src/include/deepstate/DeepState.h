@@ -68,6 +68,7 @@ DECLARE_string(output_test_dir);
 
 DECLARE_bool(take_over);
 DECLARE_bool(abort_on_fail);
+DECLARE_bool(exit_on_fail);
 DECLARE_bool(verbose_reads);
 DECLARE_bool(fuzz);
 DECLARE_bool(fuzz_save_passing);
@@ -643,22 +644,27 @@ DeepState_RunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
 
   DeepState_InitInputFromFile(path);
 
-  free(path);
-
   DeepState_Begin(test);
 
   enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
 
-  if (result == DeepState_TestRunCrash) {
+  if (result == DeepState_TestRunFail) {
+    DeepState_LogFormat(DeepState_LogError, "Test case %s failed", path);
+    free(path);
+  }
+  else if (result == DeepState_TestRunCrash) {
     DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
-
+    DeepState_LogFormat(DeepState_LogError, "Test case %s crashed", path);    
+    free(path);
     if (HAS_FLAG_output_test_dir) {
       DeepState_SaveCrashingTest();
     }
 
     DeepState_Crash();
+  } else {
+    free(path);
   }
-
+  
   return result;
 }
 
@@ -747,6 +753,9 @@ static int DeepState_RunSingleSavedTestCase(void) {
     if (FLAGS_abort_on_fail) {
       assert(0); // Terminate in a way AFL/etc. can see as a crash
     }
+    if (FLAGS_exit_on_fail) {
+      exit(255); // Terminate the testing
+    }    
     num_failed_tests++;
   }
 
@@ -820,6 +829,9 @@ static int DeepState_RunSingleSavedTestDir(void) {
 	if (FLAGS_abort_on_fail) {
 	  assert(0); // Terminate in a way AFL/etc. can see as a crash
 	}
+	if (FLAGS_exit_on_fail) {
+	  exit(255); // Terminate the testing
+	}	
 	
         num_failed_tests++;
       }
