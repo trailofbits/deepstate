@@ -219,7 +219,7 @@ just the functions to be tested.  Using DeepState to test them requires:
 
 - Calling some DeepState APIs that produce data
    - In this example, we see the `DeepState_CStrUpToLen` call tells
-     DeepState to produce a string that has up the `MAX_STR_LEN`
+     DeepState to produce a string that has up to `MAX_STR_LEN`
      characters, chosen from those present in hex strings.
 
 - Optionally making some assertions about the correctness of the
@@ -232,7 +232,7 @@ results
 DeepState will also run the "BoringUnitTest," but it (like a
 traditional hand-written unit test) is simply a test of fixed inputs
 devised by a programmer.  These inputs do not expose the bug in
-`encode`.  Nor do the default values for the DeepState test:
+`encode`.  Nor do the default values (all zero bytes) for the DeepState test:
 
 ```
 ~/deepstate/build/examples$ ./Runlen
