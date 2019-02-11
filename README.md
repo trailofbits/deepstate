@@ -340,8 +340,8 @@ requires compiling DeepState and your program with a clang that
 supports libFuzzer (which the Apple built-in probably won't); this can be as simple as doing:
 
 ```shell
-brew install llvm@6
-CC=/usr/local/opt/llvm\@6/bin/clang CXX=/usr/local/opt/llvm\@6/bin/clang++ BUILD_LIBFUZZER=TRUE cmake ..
+brew install llvm@7
+CC=/usr/local/opt/llvm\@7/bin/clang CXX=/usr/local/opt/llvm\@7/bin/clang++ BUILD_LIBFUZZER=TRUE cmake ..
 make install
 ```
 
