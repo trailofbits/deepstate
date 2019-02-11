@@ -764,7 +764,7 @@ int DeepState_Fuzz(void){
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
     if (HAS_FLAG_input_which_test) {
-      if (strncmp(FLAGS_input_which_test, test->test_name, strlen(FLAGS_input_which_test)) == 0) {
+      if (strcmp(FLAGS_input_which_test, test->test_name) == 0) {
 	break;
       }
     } else {
