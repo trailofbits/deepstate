@@ -484,8 +484,9 @@ static void DeepState_InitInputFromFile(const char *path) {
   };
 
   if (stat_buf.st_size > sizeof(DeepState_Input)) {
-    /* TODO(joe): Add error log with more info. */
-    DeepState_Abandon("File too large");
+    DeepState_LogFormat(DeepState_LogInfo, "File too large; aborting");
+    exit(255); // Don't make AFL think this is a crash!
+    // DeepState_Abandon("File too large");
   }
 
   /* Reset the input buffer and reset the index. */
