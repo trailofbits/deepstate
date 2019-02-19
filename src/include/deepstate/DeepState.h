@@ -483,20 +483,21 @@ static void DeepState_InitInputFromFile(const char *path) {
     DeepState_Abandon("Unable to access input file");
   };
 
+  size_t to_read = stat_buf.st_size;
+
   if (stat_buf.st_size > sizeof(DeepState_Input)) {
-    DeepState_LogFormat(DeepState_LogInfo, "File too large; aborting");
-    exit(255); // Don't make AFL think this is a crash!
-    // DeepState_Abandon("File too large");
+    DeepState_LogFormat(DeepState_LogWarning, "File too large, truncating to max input size");
+    to_read = DeepState_InputSize;
   }
 
   /* Reset the input buffer and reset the index. */
   memset((void *) DeepState_Input, 0, sizeof(DeepState_Input));
   DeepState_InputIndex = 0;
 
-  size_t count = fread((void *) DeepState_Input, 1, stat_buf.st_size, fp);
+  size_t count = fread((void *) DeepState_Input, 1, to_read, fp);
   fclose(fp);
 
-  if (count != stat_buf.st_size) {
+  if (count != to_read) {
     /* TODO(joe): Add error log with more info. */
     DeepState_Abandon("Error reading file");
   }
