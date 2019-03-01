@@ -905,6 +905,11 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   return 0;  // Non-zero return values are reserved for future use.
 }
 
+extern int FuzzerEntrypoint(const uint8_t *data, size_t size) {
+  LLVMFuzzerTestOneInput(data, size);
+  return 0;
+}
+
 /* Overwrite libc's abort. */
 void abort(void) {
   DeepState_Fail();
@@ -924,6 +929,7 @@ void __stack_chk_fail(void) {
 }
 
 #ifndef LIBFUZZER
+#ifndef HEADLESS
 __attribute__((weak))
 int main(int argc, char *argv[]) {
   int ret = 0;
@@ -933,6 +939,7 @@ int main(int argc, char *argv[]) {
   DeepState_Teardown();
   return ret;
 }
+#endif
 #endif
 
 DEEPSTATE_END_EXTERN_C
