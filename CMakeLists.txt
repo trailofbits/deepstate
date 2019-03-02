@@ -133,7 +133,7 @@ install(
   DESTINATION include
 )
 
-if (not BUILD_NO32)
+if (NOT BUILD_NO32)
 # Install the library
 install(
   TARGETS ${PROJECT_NAME} ${PROJECT_NAME}32
