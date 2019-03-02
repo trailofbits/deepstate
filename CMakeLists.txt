@@ -67,25 +67,40 @@ if (NOT WIN32)
   set(CMAKE_CXX_STANDARD 11)
 endif()
 
-add_library(${PROJECT_NAME} STATIC
-  src/lib/DeepState.c
-  src/lib/Log.c
-  src/lib/Option.c
-  src/lib/Stream.c
-)
+if (NOT BUILD_NOSTATIC)
+   add_library(${PROJECT_NAME} STATIC
+      src/lib/DeepState.c
+      src/lib/Log.c
+      src/lib/Option.c
+      src/lib/Stream.c
+   )
+   add_library(${PROJECT_NAME}32 STATIC
+      src/lib/DeepState.c
+      src/lib/Log.c
+      src/lib/Option.c
+      src/lib/Stream.c
+   )
+else ()
+   add_library(${PROJECT_NAME} SHARED
+      src/lib/DeepState.c
+      src/lib/Log.c
+      src/lib/Option.c
+      src/lib/Stream.c
+   )
+   add_library(${PROJECT_NAME}32 SHARED
+      src/lib/DeepState.c
+      src/lib/Log.c
+      src/lib/Option.c
+      src/lib/Stream.c
+   )
+endif()
 
-add_library(${PROJECT_NAME}32 STATIC
-  src/lib/DeepState.c
-  src/lib/Log.c
-  src/lib/Option.c
-  src/lib/Stream.c
-)
 
 target_compile_options(${PROJECT_NAME} PUBLIC -mno-avx)
 
 target_compile_options(${PROJECT_NAME}32 PUBLIC -m32 -g3 -mno-avx)
 
-if (NOT APPLE OR BUILD_NOSTATIC)
+if ((NOT APPLE) AND (NOT BUILD_NOSTATIC))
   target_link_libraries(${PROJECT_NAME} -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
   target_link_libraries(${PROJECT_NAME}32 -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
 endif()
