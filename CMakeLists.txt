@@ -15,8 +15,12 @@
 project(deepstate)
 cmake_minimum_required(VERSION 2.8)
 
-if (NOT DEFINED BUILD_LIBFUZZER AND DEFINED ENV{BUILD_LIBFUZZER})
-  set(BUILD_LIBFUZZER "$ENV{BUILD_LIBFUZZER}")
+if (NOT DEFINED BUILD_LIBFUZZER AND DEFINED ENV{BUILD_LIBFUZZER}) 
+  set(BUILD_LIBFUZZER "$ENV{BUILD_LIBFUZZER}") 
+endif()
+
+if (NOT DEFINED BUILD_NOSTATIC AND DEFINED ENV{BUILD_NOSTATIC}) 
+  set(BUILD_NOSTATIC "$ENV{BUILD_NOSTATIC}") 
 endif()
 
 if (BUILD_LIBFUZZER)
@@ -81,7 +85,7 @@ target_compile_options(${PROJECT_NAME} PUBLIC -mno-avx)
 
 target_compile_options(${PROJECT_NAME}32 PUBLIC -m32 -g3 -mno-avx)
 
-if (NOT APPLE)
+if (NOT APPLE OR BUILD_NOSTATIC)
   target_link_libraries(${PROJECT_NAME} -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
   target_link_libraries(${PROJECT_NAME}32 -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
 endif()
