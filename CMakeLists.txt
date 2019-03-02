@@ -134,12 +134,19 @@ install(
 )
 
 if (NOT BUILD_NO32)
-# Install the library
-install(
-  TARGETS ${PROJECT_NAME} ${PROJECT_NAME}32
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib
-)
+# Install the library 
+  install(
+    TARGETS ${PROJECT_NAME} ${PROJECT_NAME}32 
+    LIBRARY DESTINATION lib 
+    ARCHIVE DESTINATION lib 
+  )
+else()
+# Install the library 
+  install(
+    TARGETS ${PROJECT_NAME}
+    LIBRARY DESTINATION lib 
+    ARCHIVE DESTINATION lib 
+  )
 endif()
 
 if (BUILD_LIBFUZZER)
