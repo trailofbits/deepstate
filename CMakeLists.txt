@@ -23,6 +23,10 @@ if (NOT DEFINED BUILD_NOSTATIC AND DEFINED ENV{BUILD_NOSTATIC})
   set(BUILD_NOSTATIC "$ENV{BUILD_NOSTATIC}") 
 endif()
 
+if (NOT DEFINED BUILD_NO32AND DEFINED ENV{BUILD_NO32}) 
+  set(BUILD_NO32 "$ENV{BUILD_NOSTATIC}") 
+endif()
+
 if (BUILD_LIBFUZZER)
   if(NOT DEFINED CMAKE_C_COMPILER)
     set(CMAKE_C_COMPILER clang)
@@ -74,12 +78,14 @@ if (NOT BUILD_NOSTATIC)
       src/lib/Option.c
       src/lib/Stream.c
    )
+   if (NOT BUILD_NO32)
    add_library(${PROJECT_NAME}32 STATIC
       src/lib/DeepState.c
       src/lib/Log.c
       src/lib/Option.c
       src/lib/Stream.c
    )
+   endif()
 else ()
    add_library(${PROJECT_NAME} SHARED
       src/lib/DeepState.c
@@ -87,31 +93,39 @@ else ()
       src/lib/Option.c
       src/lib/Stream.c
    )
+   if (NOT BUILD_NO32)
    add_library(${PROJECT_NAME}32 SHARED
       src/lib/DeepState.c
       src/lib/Log.c
       src/lib/Option.c
       src/lib/Stream.c
    )
+   endif()
 endif()
 
 
 target_compile_options(${PROJECT_NAME} PUBLIC -mno-avx)
 
-target_compile_options(${PROJECT_NAME}32 PUBLIC -m32 -g3 -mno-avx)
+if (NOT BUILD_NO32)
+   target_compile_options(${PROJECT_NAME}32 PUBLIC -m32 -g3 -mno-avx)
+endif()
 
 if ((NOT APPLE) AND (NOT BUILD_NOSTATIC))
   target_link_libraries(${PROJECT_NAME} -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
+  if (NOT BUILD_NO32)
   target_link_libraries(${PROJECT_NAME}32 -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
+  endif()
 endif()
 
 target_include_directories(${PROJECT_NAME}
   PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
 )
 
-target_include_directories(${PROJECT_NAME}32
-  PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
-)
+if (NOT BUILD_NO32)
+  target_include_directories(${PROJECT_NAME}32
+     PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
+  )
+endif()
 
 # Install the library
 install(
@@ -119,12 +133,14 @@ install(
   DESTINATION include
 )
 
+if (not BUILD_NO32)
 # Install the library
 install(
   TARGETS ${PROJECT_NAME} ${PROJECT_NAME}32
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
 )
+endif()
 
 if (BUILD_LIBFUZZER)
     add_library(${PROJECT_NAME}_LF STATIC
