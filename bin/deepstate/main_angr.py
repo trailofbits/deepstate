@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.6
 # Copyright (c) 2017 Trail of Bits, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,12 +41,12 @@ class DeepAngr(DeepState):
     return self.state.globals
 
   def is_symbolic(self, val):
-    if isinstance(val, (int, long)):
+    if isinstance(val, (int, int)):
       return False
-    return self.state.se.symbolic(val)
+    return self.state.solver.symbolic(val)
 
   def create_symbol(self, name, size_in_bits):
-    return self.state.se.Unconstrained('name', size_in_bits)
+    return self.state.solver.Unconstrained('name', size_in_bits)
 
   def read_uintptr_t(self, ea, concretize=True, constrain=False):
     addr_size_bytes = self.state.arch.bits // 8
@@ -89,7 +89,7 @@ class DeepAngr(DeepState):
     return ea + 4
 
   def concretize(self, val, constrain=False):
-    if isinstance(val, (int, long)):
+    if isinstance(val, (int, int)):
       return val
     elif isinstance(val, str):
       assert len(val) == 1
@@ -102,7 +102,7 @@ class DeepAngr(DeepState):
     return concrete_val
 
   def concretize_min(self, val, constrain=False):
-    if isinstance(val, (int, long)):
+    if isinstance(val, (int, int)):
       return val
     concrete_val = self.state.solver.min(val)
     if constrain:
@@ -110,7 +110,7 @@ class DeepAngr(DeepState):
     return concrete_val
 
   def concretize_max(self, val, constrain=False):
-    if isinstance(val, (int, long)):
+    if isinstance(val, (int, int)):
       return val
     concrete_val = self.state.solver.max(val)
     if constrain:
@@ -119,7 +119,7 @@ class DeepAngr(DeepState):
 
   def concretize_many(self, val, max_num):
     assert 0 < max_num
-    if isinstance(val, (int, long)):
+    if isinstance(val, (int, int)):
       return [val]
     return self.state.solver.eval_upto(val, max_num, cast_to=int)
 
