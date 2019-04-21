@@ -35,9 +35,9 @@ TEST(Streaming, BasicTypes) {
 }
 
 TEST(Formatting, OverridePrintf) {
-  printf("hello string=%s hex_lower=%x hex_upper=%X octal=%o /* char=%c */ dec=%d"
+  printf("hello string=%s hex_lower=%x hex_upper=%X octal=%o char=%c dec=%d"
          "double=%f sci=%e SCI=%E pointer=%p",
-         "world", 999, 999, 999, /* 'a',*/ 999, 999.0, 999.0, 999.0, "world");
+         "world", 999, 999, 999, 'a', 999, 999.0, 999.0, 999.0, "world");
   printf("hello again!");
 }
 
