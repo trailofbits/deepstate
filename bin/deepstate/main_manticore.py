@@ -314,14 +314,14 @@ def done_test(_, state, state_id, reason):
 
 def find_symbol_ea(m, name):
   try:
-    ea = m._get_symbol_address(name)
+    ea = m.resolve(name)
     if ea:
       return ea
   except:
     pass
 
   try:
-    return m._get_symbol_address("_{}".format(name))
+    return m.resolve("_{}".format(name))
   except:
     pass
 
