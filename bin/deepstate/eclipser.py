@@ -38,19 +38,20 @@ def main():
   args = parser.parse_args()
 
   deepstate = args.binary
-  out = args.output_test
+  out = args.output_test_dir
   whichTest = args.which_test
   try:
     os.mkdir(out)
   except BaseException:
     pass
-  cmd = ["dotnet", "$ECLISPER_HOME/build/Eclipser.dll", "fuzz", "-p", deepstate, "-v", "1"]
+  eclipser = os.getenv("ECLIPSER_HOME") + "/build/Eclipser.dll"
+  cmd = ["dotnet", eclipser, "fuzz", "-p", deepstate, "-v", "1"]
   cmd += [str(args.timeout), "-o", out + "/eclipser.run", "--src", "file"]
   cmd += ["--initarg"]
   cmd += ["--input_test_file " + out + "/" + "eclipser.input --abort_on_fail --input_which_test " + whichTest]
   cmd += ["--fixfilepath", out + "/" + "eclipser.input", "--maxfilelen", "8192"]
   subprocess.call(cmd)
-  decodeCmd = ["dotnet", "$ECLISPER_HOME/build/Eclipser.dll", "decode"]
+  decodeCmd = ["dotnet", eclipser, "decode"]
   decodeCmd += ["-i", out + "/eclipser.run", "-o", out + "/tests"]
   subprocess.call(decodeCmd)
   
