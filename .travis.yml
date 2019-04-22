@@ -26,7 +26,7 @@ env:
 - TASK=OVERFLOW
 - TASK=PRIMES
 - TASK=RUNLEN
-- TASK=STREAMINGANDFORMATTING
+#- TASK=STREAMINGANDFORMATTING
 - TASK=TAKEOVER
 script:
 - pyflakes bin/deepstate/*.py
@@ -40,6 +40,6 @@ script:
 - if [ $TASK = RUNLEN ]; then nosetests3 tests/test_runlen.py ; fi
 - if [ $TASK = OVERFLOW ]; then nosetests3 tests/test_overflow.py ; fi
 - if [ $TASK = PRIMES ]; then nosetests3 tests/test_primes.py ; fi
-- if [ $TASK = STREAMINGANDFORMATTING ]; then nosetests3 tests/test_streamingandformatting.py ; fi
+#- if [ $TASK = STREAMINGANDFORMATTING ]; then nosetests3 tests/test_streamingandformatting.py ; fi
 - if [ $TASK = TAKEOVER ]; then nosetests3 tests/test_takeover.py ; fi
 

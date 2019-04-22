@@ -56,7 +56,7 @@ set(CMAKE_C_FLAGS_RELEASE "-O3")
 set(CMAKE_CXX_FLAGS_DEBUG "-O3")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-find_program(PYTHON "python3.6")
+find_program(PYTHON "python3")
 
 # Enable the GNU extensions
 set(CMAKE_CXX_EXTENSIONS ON)
