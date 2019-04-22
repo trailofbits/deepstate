@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2018 Trail of Bits, Inc.
+# Copyright (c) 2019 Trail of Bits, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,11 +36,43 @@ def main():
     default=3600)
 
   parser.add_argument(
-    "--maxInputSize", type=int, help="Maximum input size.",
+    "--seeds", default=None, type=str, required=False,
+    help="Directory with seed inputs.")
+
+  parser.add_argument(
+    "--max_input_size", type=int, help="Maximum input size.",
       default=8192)
 
   parser.add_argument(
     "--which_test", type=str, help="Which test to run (equivalent to --input_which_test).", default=None)
+
+  parser.add_argument(
+    "--verbose", type=int, help="Verbosity level.",
+      default=1)
+
+  parser.add_argument(
+    "--exectimeout", type=int, help="Execution timeout (ms) for Eclipser fuzz runs.",
+    default=500)
+
+  parser.add_argument(
+    "--nsolve", type=int, help="Number of branches to flip in grey-box concolic testing.",
+    default=None)
+
+  parser.add_argument(
+    "--nspawn", type=int, help="Number of byte values to initially spawn in grey-box concolic testing.",
+    default=None)
+
+  parser.add_argument(
+    "--greyconcoliconly", action='store_true',
+    help="Perform grey-box concolic testing only.")
+
+  parser.add_argument(
+    "--randfuzzonly", action='store_true',
+    help="Perform random fuzzing only.")
+
+  parser.add_argument(
+    "--eclipser_help", action='store_true',
+    help="Show Eclipser fuzzer command line options.")
 
   args = parser.parse_args()
 
@@ -53,22 +85,41 @@ def main():
     print("Error: ECLIPSER_HOME not set!")
     sys.exit(1)
   eclipser = ehome + "/build/Eclipser.dll"
+
+  if args.eclipser_help:
+    subprocess.call(["dotnet", eclipser, "fuzz", "--help"])
+    sys.exit(0)
   
   cmd = ["dotnet", eclipser, "fuzz"]
-  cmd += ["-p", deepstate, "-v", "1"]
-  cmd += [str(args.timeout), "-o", out + ".eclipser.run", "--src", "file"]
+  cmd += ["-p", deepstate, "-v", str(args.verbose)]
+  cmd += ["-t", str(args.timeout), "-o", out + ".eclipser.run", "--src", "file"]
   deepargs = "--input_test_file eclipser.input --abort_on_fail"
   if whichTest is not None:
       deepargs += " --input_which_test " + whichTest
   cmd += ["--initarg", deepargs]
-  cmd += ["--fixfilepath", "eclipser.input", "--maxfilelen", str(args.maxInputSize)]
+  cmd += ["--fixfilepath", "eclipser.input", "--maxfilelen", str(args.max_input_size)]
+  cmd += ["--exectimeout", str(args.exectimeout)]
+  if args.nsolve is not None:
+    cmd += ["--nsolve", str(args.nsolve)]
+  if args.nspawn is not None:
+    cmd += ["--nspawn", str(args.nspawn)]
+  if args.greyconcoliconly:
+    cmd += ["--greyconcoliconly"]
+  if args.randfuzzonly:
+    cmd += ["--randfuzzonly"]
+  if args.seeds is not None:
+    cmd += ["-i", args.seeds]
   subprocess.call(cmd)
   
   decodeCmd = ["dotnet", eclipser, "decode"]
-  decodeCmd += ["-i", out + ".eclipser.run", "-o", out + ".eclipser.decoded"]
+  decodeCmd += ["-i", out + ".eclipser.run/testcase", "-o", out + ".eclipser.decoded"]
   subprocess.call(decodeCmd)
 
-  shutil.move(out + "eclipser.decoded/decoded_files", out)
+  decodeCmd = ["dotnet", eclipser, "decode"]
+  decodeCmd += ["-i", out + ".eclipser.run/crash", "-o", out + ".eclipser.decoded"]
+  subprocess.call(decodeCmd)
+
+  shutil.move(out + ".eclipser.decoded/decoded_files", out)
   
   return 0
 
