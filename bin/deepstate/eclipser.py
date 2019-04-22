@@ -15,6 +15,7 @@
 
 from __future__ import print_function
 import argparse
+import glob
 import os
 import shutil
 import subprocess
@@ -89,10 +90,18 @@ def main():
   if args.eclipser_help:
     subprocess.call(["dotnet", eclipser, "fuzz", "--help"])
     sys.exit(0)
-  
+
+  if not os.path.exists(out):
+    print("CREATING OUTPUT DIRECTORY...")
+    os.mkdir(out)
+
+  if not os.path.isdir(out):
+    print("Error:", out, "is not a directory!")
+    sys.exit(1)
+
   cmd = ["dotnet", eclipser, "fuzz"]
   cmd += ["-p", deepstate, "-v", str(args.verbose)]
-  cmd += ["-t", str(args.timeout), "-o", out + ".eclipser.run", "--src", "file"]
+  cmd += ["-t", str(args.timeout), "-o", out + "/eclipser.run", "--src", "file"]
   deepargs = "--input_test_file eclipser.input --abort_on_fail"
   if whichTest is not None:
       deepargs += " --input_which_test " + whichTest
@@ -112,15 +121,15 @@ def main():
   subprocess.call(cmd)
   
   decodeCmd = ["dotnet", eclipser, "decode"]
-  decodeCmd += ["-i", out + ".eclipser.run/testcase", "-o", out + ".eclipser.decoded"]
+  decodeCmd += ["-i", out + "/eclipser.run/testcase", "-o", out + "/eclipser.decoded"]
   subprocess.call(decodeCmd)
 
   decodeCmd = ["dotnet", eclipser, "decode"]
-  decodeCmd += ["-i", out + ".eclipser.run/crash", "-o", out + ".eclipser.decoded"]
+  decodeCmd += ["-i", out + "/eclipser.run/crash", "-o", out + "/eclipser.decoded"]
   subprocess.call(decodeCmd)
 
-  shutil.move(out + ".eclipser.decoded/decoded_files", out)
-  
+  for f in glob.glob(out + "/eclipser.decoded/decoded_files/*"):
+    shutil.copy(f, out)
   return 0
 
 if "__main__" == __name__:
