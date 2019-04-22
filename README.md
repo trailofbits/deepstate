@@ -52,18 +52,18 @@ Build:
 
 - CMake
 - GCC and G++ with multilib support
-- Python 2.7
+- Python 3.6 (or newer)
 - Setuptools
 
 Runtime:
 
-- Python 2.7
+- Python 3.6 (or newer)
 - Z3 (for the Manticore backend)
 
 ## Building on Ubuntu 16.04 (Xenial)
 
 ```shell
-sudo apt update && sudo apt-get install build-essential gcc-multilib g++-multilib cmake python python-setuptools libffi-dev z3
+sudo apt update && sudo apt-get install build-essential gcc-multilib g++-multilib cmake python python3-setuptools libffi-dev z3
 git clone https://github.com/trailofbits/deepstate deepstate
 mkdir deepstate/build && cd deepstate/build
 cmake ../
