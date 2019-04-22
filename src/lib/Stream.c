@@ -25,6 +25,10 @@
 #include "deepstate/DeepState.h"
 #include "deepstate/Log.h"
 
+#ifdef BUILD_S2E
+#include "s2e/s2e.h"
+#endif
+
 DEEPSTATE_BEGIN_EXTERN_C
 
 enum {
@@ -159,6 +163,19 @@ static void CheckCapacity(struct DeepState_Stream *stream,
 DEEPSTATE_NOINLINE
 void _DeepState_StreamInt(enum DeepState_LogLevel level, const char *format,
                        const char *unpack, uint64_t *val) {
+#ifdef BUILD_S2E
+  if (s2e_is_symbolic(&level, sizeof(level))) {
+    DeepState_Abandon("Log level must be concrete");
+  }
+  if (s2e_is_symbolic((void*) format, strlen(format))) {
+    DeepState_Abandon("Format string must be concrete");
+  }
+  if (s2e_is_symbolic((void*) unpack, strlen(unpack))) {
+    DeepState_Abandon("Unpack string must be concrete");
+  }
+
+  s2e_concretize((void*) val, sizeof(*val));
+#endif
   struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   int size = 0;
   int remaining_size = DeepState_StreamSize - stream->size;
@@ -177,6 +194,19 @@ void _DeepState_StreamInt(enum DeepState_LogLevel level, const char *format,
 DEEPSTATE_NOINLINE
 void _DeepState_StreamFloat(enum DeepState_LogLevel level, const char *format,
                          const char *unpack, double *val) {
+#ifdef BUILD_S2E
+  if (s2e_is_symbolic(&level, sizeof(level))) {
+    DeepState_Abandon("Log level must be concrete");
+  }
+  if (s2e_is_symbolic((void*) format, strlen(format))) {
+    DeepState_Abandon("Format string must be concrete");
+  }
+  if (s2e_is_symbolic((void*) unpack, strlen(unpack))) {
+    DeepState_Abandon("Unpack string must be concrete");
+  }
+
+  s2e_concretize((void*) val, sizeof(*val));
+#endif
   struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   int remaining_size = DeepState_StreamSize - stream->size;
   int size = snprintf(&(stream->message[stream->size]),
@@ -189,6 +219,16 @@ void _DeepState_StreamFloat(enum DeepState_LogLevel level, const char *format,
 DEEPSTATE_NOINLINE
 void _DeepState_StreamString(enum DeepState_LogLevel level, const char *format,
                           const char *str) {
+#ifdef BUILD_S2E
+  if (s2e_is_symbolic(&level, sizeof(level))) {
+    DeepState_Abandon("Log level must be concrete");
+  }
+  if (s2e_is_symbolic((void*) format, strlen(format))) {
+    DeepState_Abandon("Format string must be concrete");
+  }
+
+  s2e_concretize((void*) str, strlen(str));
+#endif
   struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   int remaining_size = DeepState_StreamSize - stream->size;
   int size = snprintf(&(stream->message[stream->size]),

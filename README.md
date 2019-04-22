@@ -18,7 +18,7 @@ There are two blog posts on using DeepState: [Part 1](https://blog.trailofbits.c
 
 * Tests look like Google Test, but can use symbolic execution/fuzzing to generate data (parameterized unit testing)
   * Easier to learn than binary analysis tools/fuzzers, but provides similar functionality
-* Already supports Manticore, Angr, libFuzzer, file-based fuzzing with e.g., AFL; more back-ends likely in future
+* Already supports Manticore, Angr, libFuzzer, S2E, file-based fuzzing with e.g., AFL; more back-ends likely in future
   * Switch test generation tool without re-writing test harness
     * Work around show-stopper bugs
     * Find out which tool works best for your code under test
@@ -476,6 +476,21 @@ will want to consider doing the work to use [persistent mode](http://lcamtuf.blo
 running inside a VM, due to AFL (unless in persistent mode) relying
 extensively on
 forks, which are very slow on macOS.
+
+## Test-case Generation with S2E
+
+To enable S2E support, run CMake with the following options:
+
+```shell
+cmake -DBUILD_S2E=On -DS2E_ENV_PATH=/path/to/s2e/environment ../
+```
+
+Where `S2E_ENV_PATH` is a path to an S2E environment created with [s2e-env](https://github.com/S2E/s2e-env).
+
+The `deepstate-s2e` command will create analysis projects in your S2E
+environment. You can then start the S2E analysis by running `launch-s2e.sh`.
+Once the analysis completes tests will be available in the `s2e-last/tests/`
+directory.
 
 ## Contributing
 

@@ -31,6 +31,10 @@
 #include "deepstate/DeepState.h"
 #include "deepstate/Log.h"
 
+#ifdef BUILD_S2E
+#include "s2e/s2e.h"
+#endif
+
 #undef printf
 #undef vprintf
 #undef fprintf
@@ -83,7 +87,11 @@ void DeepState_Log(enum DeepState_LogLevel level, const char *str) {
   memset(DeepState_LogBuf, 0, DeepState_LogBufSize);
   snprintf(DeepState_LogBuf, DeepState_LogBufSize, "%s: %s\n",
            DeepState_LogLevelStr(level), str);
+#ifdef BUILD_S2E
+  s2e_printf("[DeepState] %s", DeepState_LogBuf);
+#else
   fputs(DeepState_LogBuf, stderr);
+#endif
 
   if (DeepState_LogError == level) {
     DeepState_SoftFail();
