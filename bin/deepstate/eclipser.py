@@ -36,6 +36,10 @@ def main():
     default=3600)
 
   parser.add_argument(
+    "--maxInputSize", type=int, help="Maximum input size.",
+      default=8192)
+
+  parser.add_argument(
     "--which_test", type=str, help="Which test to run (equivalent to --input_which_test).", default=None)
 
   args = parser.parse_args()
@@ -53,9 +57,11 @@ def main():
   cmd = ["dotnet", eclipser, "fuzz"]
   cmd += ["-p", deepstate, "-v", "1"]
   cmd += [str(args.timeout), "-o", out + ".eclipser.run", "--src", "file"]
-  deepargs = "--input_test_file eclipser.input --abort_on_fail --input_which_test " + whichTest
+  deepargs = "--input_test_file eclipser.input --abort_on_fail"
+  if whichTest is not None:
+      deepargs += " --input_which_test " + whichTest
   cmd += ["--initarg", deepargs]
-  cmd += ["--fixfilepath", "eclipser.input", "--maxfilelen", "8192"]
+  cmd += ["--fixfilepath", "eclipser.input", "--maxfilelen", str(args.maxInputSize)]
   subprocess.call(cmd)
   
   decodeCmd = ["dotnet", eclipser, "decode"]
