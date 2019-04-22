@@ -16,7 +16,10 @@
 from __future__ import print_function
 import argparse
 import os
+import shutil
 import subprocess
+import sys
+
 
 def main():
   parser = argparse.ArgumentParser(description="Use Eclipser back-end")
@@ -40,20 +43,26 @@ def main():
   deepstate = args.binary
   out = args.output_test_dir
   whichTest = args.which_test
-  try:
-    os.mkdir(out)
-  except BaseException:
-    pass
-  eclipser = os.getenv("ECLIPSER_HOME") + "/build/Eclipser.dll"
-  cmd = ["dotnet", eclipser, "fuzz", "-p", deepstate, "-v", "1"]
-  cmd += [str(args.timeout), "-o", out + "/eclipser.run", "--src", "file"]
-  cmd += ["--initarg"]
-  cmd += ["--input_test_file " + out + "/" + "eclipser.input --abort_on_fail --input_which_test " + whichTest]
-  cmd += ["--fixfilepath", out + "/" + "eclipser.input", "--maxfilelen", "8192"]
+
+  ehome = os.getenv("ECLIPSER_HOME")
+  if ehome is None:
+    print("Error: ECLIPSER_HOME not set!")
+    sys.exit(1)
+  eclipser = ehome + "/build/Eclipser.dll"
+  
+  cmd = ["dotnet", eclipser, "fuzz"]
+  cmd += ["-p", deepstate, "-v", "1"]
+  cmd += [str(args.timeout), "-o", out + ".eclipser.run", "--src", "file"]
+  deepargs = "--input_test_file eclipser.input --abort_on_fail --input_which_test " + whichTest
+  cmd += ["--initarg", deepargs]
+  cmd += ["--fixfilepath", "eclipser.input", "--maxfilelen", "8192"]
   subprocess.call(cmd)
+  
   decodeCmd = ["dotnet", eclipser, "decode"]
-  decodeCmd += ["-i", out + "/eclipser.run", "-o", out + "/tests"]
+  decodeCmd += ["-i", out + ".eclipser.run", "-o", out + ".eclipser.decoded"]
   subprocess.call(decodeCmd)
+
+  shutil.move(out + "eclipser.decoded/decoded_files", out)
   
   return 0
 
