@@ -49,7 +49,7 @@ def main():
 
   parser.add_argument(
     "--verbose", type=int, help="Verbosity level.",
-      default=1)
+      default=None)
 
   parser.add_argument(
     "--exectimeout", type=int, help="Execution timeout (ms) for Eclipser fuzz runs.",
@@ -100,9 +100,11 @@ def main():
     sys.exit(1)
 
   cmd = ["dotnet", eclipser, "fuzz"]
-  cmd += ["-p", deepstate, "-v", str(args.verbose)]
+  cmd += ["-p", deepstate]
+  if args.verbose is not None:
+    cmd += ["-v", str(args.verbose)]
   cmd += ["-t", str(args.timeout), "-o", out + "/eclipser.run", "--src", "file"]
-  deepargs = "--input_test_file eclipser.input --abort_on_fail"
+  deepargs = "--input_test_file eclipser.input --abort_on_fail --no_fork"
   if whichTest is not None:
       deepargs += " --input_which_test " + whichTest
   cmd += ["--initarg", deepargs]
