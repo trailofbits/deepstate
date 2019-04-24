@@ -247,6 +247,12 @@ DEEPSTATE_INLINE static void DeepState_Assert(int expr) {
   }
 }
 
+/* Used to make DeepState really crash for fuzzers, on any platform. */
+DEEPSTATE_INLINE static void DeepState_HardCrash() {
+  char *p = 0;
+  (*p) = 0;
+}
+
 /* Asserts that `expr` must hold. If it does not, then the test fails, but
  * nonetheless continues on. */
 DEEPSTATE_INLINE static void DeepState_Check(int expr) {
@@ -578,6 +584,9 @@ static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
     if (HAS_FLAG_output_test_dir) {
       DeepState_SaveFailingTest();
     }
+    if (HAS_FLAG_abort_on_fail) {
+      DeepState_HardCrash();
+    }
     return(DeepState_TestRunFail);
 
     /* The test was abandoned. We may have gotten soft failures before
@@ -753,7 +762,7 @@ static int DeepState_RunSingleSavedTestCase(void) {
 
   if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {    
     if (FLAGS_abort_on_fail) {
-      assert(0); // Terminate in a way AFL/etc. can see as a crash
+      DeepState_HardCrash();
     }
     if (FLAGS_exit_on_fail) {
       exit(255); // Terminate the testing
@@ -829,7 +838,7 @@ static int DeepState_RunSingleSavedTestDir(void) {
 
       if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
 	if (FLAGS_abort_on_fail) {
-	  assert(0); // Terminate in a way AFL/etc. can see as a crash
+	  DeepState_HardCrash();
 	}
 	if (FLAGS_exit_on_fail) {
 	  exit(255); // Terminate the testing

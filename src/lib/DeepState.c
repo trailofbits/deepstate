@@ -833,7 +833,7 @@ enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo
 
   if (FLAGS_abort_on_fail && ((result == DeepState_TestRunCrash) ||
 			      (result == DeepState_TestRunFail))) {
-    assert(0); // Terminate the testing in a way AFL/etc. can see as a crash
+    DeepState_HardCrash();
   }
 
   if (FLAGS_exit_on_fail && ((result == DeepState_TestRunCrash) ||
@@ -920,6 +920,9 @@ void __assert_fail(const char * assertion, const char * file,
   DeepState_LogFormat(DeepState_LogFatal,
                       "%s(%u): Assertion %s failed in function %s",
                       file, line, assertion, function);
+  if (FLAGS_abort_on_fail) {
+    DeepState_HardCrash();
+  }
   __builtin_unreachable();
 }
 
