@@ -39,7 +39,7 @@ def main():
 
   parser.add_argument("--eclipser_help", action='store_true', help="Show Eclipser fuzzer command line options.")
 
-  parser.add_argument("eclipserargs", nargs=argparse.REMAINDER, help="Arguments to pass to eclipser.")
+  parser.add_argument("--args", nargs=argparse.REMAINDER, help="Other arguments to pass to eclipser.")
 
   args = parser.parse_args()
   out = args.output_test_dir
@@ -80,7 +80,7 @@ def main():
   subprocess.call(["dotnet", eclipser, "decode", "-i", out + "/run/crash", "-o", out + "/decoded"])
   for f in glob.glob(out + "/decoded/decoded_files/*"):
     shutil.copy(f, out)
-  os.rmtree(out + "/decoded")
+  shutil.rmtree(out + "/decoded")
 
   return 0
 
