@@ -68,6 +68,8 @@ def main():
   if args.which_test is not None:
       deepargs += " --input_which_test " + args.which_test
   cmd += ["--initarg", deepargs, "--maxfilelen", str(args.max_input_size)]
+  if args.seeds is not None:
+    cmd += ["-i", args.seeds]
   cmd += args.args
   try:
     r = subprocess.call(cmd)
