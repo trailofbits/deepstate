@@ -68,7 +68,7 @@ def main():
   if args.which_test is not None:
       deepargs += " --input_which_test " + args.which_test
   cmd += ["--initarg", deepargs, "--maxfilelen", str(args.max_input_size)]
-  cmd += args.eclipserargs
+  cmd += args.args
   try:
     r = subprocess.call(cmd)
     print ("Eclipser finished with exit code", r)
