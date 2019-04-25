@@ -23,63 +23,26 @@ import sys
 
 
 def main():
-  parser = argparse.ArgumentParser(description="Use Eclipser back-end")
+  parser = argparse.ArgumentParser(description="Use Eclipser as back-end for DeepState.")
 
-  parser.add_argument(
-    "binary", type=str, help="Path to the test binary to run.")
+  parser.add_argument("binary", type=str, help="Path to the test binary to run.")
   
-  parser.add_argument(
-    "--output_test_dir", default="out", type=str, required=False,
-    help="Directory where tests will be saved.")
+  parser.add_argument("--output_test_dir", type=str, default="out", help="Directory where tests will be saved.")
 
-  parser.add_argument(
-    "--timeout", type=int, help="How long to fuzz using Eclipser.",
-    default=3600)
+  parser.add_argument("--timeout", type=int, default=3600, help="How long to fuzz using Eclipser.")
 
-  parser.add_argument(
-    "--seeds", default=None, type=str, required=False,
-    help="Directory with seed inputs.")
+  parser.add_argument("--seeds", type=str, help="Directory with seed inputs.")
 
-  parser.add_argument(
-    "--max_input_size", type=int, help="Maximum input size.",
-      default=8192)
+  parser.add_argument("--which_test", type=str, help="Which test to run (equivalent to --input_which_test).")
 
-  parser.add_argument(
-    "--which_test", type=str, help="Which test to run (equivalent to --input_which_test).", default=None)
+  parser.add_argument("--max_input_size", type=int, default=8192, help="Maximum input size.")
 
-  parser.add_argument(
-    "--verbose", type=int, help="Verbosity level.",
-      default=None)
+  parser.add_argument("--eclipser_help", action='store_true', help="Show Eclipser fuzzer command line options.")
 
-  parser.add_argument(
-    "--exectimeout", type=int, help="Execution timeout (ms) for Eclipser fuzz runs.",
-    default=500)
-
-  parser.add_argument(
-    "--nsolve", type=int, help="Number of branches to flip in grey-box concolic testing.",
-    default=None)
-
-  parser.add_argument(
-    "--nspawn", type=int, help="Number of byte values to initially spawn in grey-box concolic testing.",
-    default=None)
-
-  parser.add_argument(
-    "--greyconcoliconly", action='store_true',
-    help="Perform grey-box concolic testing only.")
-
-  parser.add_argument(
-    "--randfuzzonly", action='store_true',
-    help="Perform random fuzzing only.")
-
-  parser.add_argument(
-    "--eclipser_help", action='store_true',
-    help="Show Eclipser fuzzer command line options.")
+  parser.add_argument("--args", default=[], nargs=argparse.REMAINDER, help="Other arguments to pass to eclipser.",)
 
   args = parser.parse_args()
-
-  deepstate = args.binary
   out = args.output_test_dir
-  whichTest = args.which_test
 
   ehome = os.getenv("ECLIPSER_HOME")
   if ehome is None:
@@ -99,39 +62,26 @@ def main():
     print("Error:", out, "is not a directory!")
     sys.exit(1)
 
-  cmd = ["dotnet", eclipser, "fuzz"]
-  cmd += ["-p", deepstate]
-  if args.verbose is not None:
-    cmd += ["-v", str(args.verbose)]
-  cmd += ["-t", str(args.timeout), "-o", out + "/eclipser.run", "--src", "file"]
+  cmd = ["dotnet", eclipser, "fuzz", "-p", args.binary, "-t", str(args.timeout)]
+  cmd += ["-o", out + "/run", "--src", "file", "--fixfilepath", "eclipser.input"]
   deepargs = "--input_test_file eclipser.input --abort_on_fail --no_fork"
-  if whichTest is not None:
-      deepargs += " --input_which_test " + whichTest
-  cmd += ["--initarg", deepargs]
-  cmd += ["--fixfilepath", "eclipser.input", "--maxfilelen", str(args.max_input_size)]
-  cmd += ["--exectimeout", str(args.exectimeout)]
-  if args.nsolve is not None:
-    cmd += ["--nsolve", str(args.nsolve)]
-  if args.nspawn is not None:
-    cmd += ["--nspawn", str(args.nspawn)]
-  if args.greyconcoliconly:
-    cmd += ["--greyconcoliconly"]
-  if args.randfuzzonly:
-    cmd += ["--randfuzzonly"]
-  if args.seeds is not None:
-    cmd += ["-i", args.seeds]
-  subprocess.call(cmd)
-  
-  decodeCmd = ["dotnet", eclipser, "decode"]
-  decodeCmd += ["-i", out + "/eclipser.run/testcase", "-o", out + "/eclipser.decoded"]
-  subprocess.call(decodeCmd)
+  if args.which_test is not None:
+      deepargs += " --input_which_test " + args.which_test
+  cmd += ["--initarg", deepargs, "--maxfilelen", str(args.max_input_size)]
+  cmd += args.args
+  try:
+    r = subprocess.call(cmd)
+    print ("Eclipser finished with exit code", r)
+  except BaseException as e: # catch any failure, and still put the tests we got into raw format
+    print("Eclipser run interrupted due to exception:", e)
 
-  decodeCmd = ["dotnet", eclipser, "decode"]
-  decodeCmd += ["-i", out + "/eclipser.run/crash", "-o", out + "/eclipser.decoded"]
-  subprocess.call(decodeCmd)
-
-  for f in glob.glob(out + "/eclipser.decoded/decoded_files/*"):
+  print("DECODING THE TESTS...")
+  subprocess.call(["dotnet", eclipser, "decode", "-i", out + "/run/testcase", "-o", out + "/decoded"])
+  subprocess.call(["dotnet", eclipser, "decode", "-i", out + "/run/crash", "-o", out + "/decoded"])
+  for f in glob.glob(out + "/decoded/decoded_files/*"):
     shutil.copy(f, out)
+  shutil.rmtree(out + "/decoded")
+
   return 0
 
 if "__main__" == __name__:

@@ -249,8 +249,7 @@ DEEPSTATE_INLINE static void DeepState_Assert(int expr) {
 
 /* Used to make DeepState really crash for fuzzers, on any platform. */
 DEEPSTATE_INLINE static void DeepState_HardCrash() {
-  char *p = 0;
-  (*p) = 0;
+  raise(SIGABRT);
 }
 
 /* Asserts that `expr` must hold. If it does not, then the test fails, but
@@ -625,7 +624,7 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
   }
   
   /* If we exited normally, the status code tells us if the test passed. */
-  if (WIFEXITED(wstatus)) {
+  if (!FLAGS_fork || WIFEXITED(wstatus)) {
     uint8_t status = WEXITSTATUS(wstatus);
     return (enum DeepState_TestRunResult) status;
   }
