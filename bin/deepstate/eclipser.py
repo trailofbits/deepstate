@@ -39,7 +39,7 @@ def main():
 
   parser.add_argument("--eclipser_help", action='store_true', help="Show Eclipser fuzzer command line options.")
 
-  parser.add_argument("--args", nargs=argparse.REMAINDER, help="Other arguments to pass to eclipser.")
+  parser.add_argument("--args", default=[], nargs=argparse.REMAINDER, help="Other arguments to pass to eclipser.",)
 
   args = parser.parse_args()
   out = args.output_test_dir
