@@ -249,8 +249,7 @@ DEEPSTATE_INLINE static void DeepState_Assert(int expr) {
 
 /* Used to make DeepState really crash for fuzzers, on any platform. */
 DEEPSTATE_INLINE static void DeepState_HardCrash() {
-  char *p = 0;
-  (*p) = 0;
+  raise(SIGABRT);
 }
 
 /* Asserts that `expr` must hold. If it does not, then the test fails, but
