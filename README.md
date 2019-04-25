@@ -411,6 +411,21 @@ run, as with the `--input_which_test` options to test replay.
 
 Test case reduction should work on any OS.
 
+## Fuzzing with Eclipser
+
+[Eclipser](https://github.com/SoftSec-KAIST/Eclipser) is a powerful new fuzzer/grey-box concolic tool
+with some of the advantages of symbolic execution, but with more scalability.  DeepState supports Eclipser out of the box.  To use it, you just need to
+
+- Install Eclipser as instructed at https://github.com/SoftSec-KAIST/Eclipser (you'll need to be on Linux)
+- Set the `ECLIPSER_HOME` environment variable to where-ever you installed Eclipser (the root, above `build`)
+- Make sure you compile your DeepState native without any sanitizers (QEMU, used by Eclipser, doesn't like them)
+
+After that, you can use Eclipser like this:
+
+`deepstate-eclisper <binary> --timeout <how long to test> --output_test_dir <where to put generated tests>`
+
+In our experience, Eclipser is quite effective, often better than libFuzzer, despite having a much slower test throughput.
+
 ## Fuzzing with AFL
 
 DeepState can also be used with a file-based fuzzer (e.g. AFL).  There
