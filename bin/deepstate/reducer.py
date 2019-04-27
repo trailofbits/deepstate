@@ -49,6 +49,10 @@ def main():
     "--fast", action='store_true',
     help="Faster, less complete, reduction (no range or byte pattern attempts).")
 
+  parser.add_argument(
+    "--verbose", action='store_true',
+    help="Verbose reduction.")
+
   class TimeoutException(Exception):
     pass
 
@@ -132,6 +136,8 @@ def main():
     while changed:
       changed = False
 
+      if args.verbose:
+        print("TRYING ONEOF REMOVALS...")
       cuts = s[0]
       for c in cuts:
         newTest = currentTest[:c[0]] + currentTest[c[1]+1:]
@@ -145,6 +151,8 @@ def main():
 
       if (not args.fast) and (not changed):
         for b in range(0, len(currentTest)):
+          if args.verbose:
+            print("TRYING BYTE RANGE REMOVAL FROM BYTE", str(b) + "...")
           for v in range(b+1, len(currentTest)):
             newTest = currentTest[:b] + currentTest[v:]
             r = writeAndRunCandidate(newTest)
@@ -156,6 +164,8 @@ def main():
             break
 
       if not changed:
+        if args.verbose:
+          print("TRYING BYTE REDUCTIONS...")
         for b in range(0, len(currentTest)):
           for v in range(0, currentTest[b]):
             newTest = bytearray(currentTest)
@@ -169,6 +179,8 @@ def main():
             break
 
       if not changed:
+        if args.verbose:
+          print("TRYING BYTE REDUCE AND DELETES...")
         for b in range(0, len(currentTest)):
           if currentTest[b] == 0:
             continue
@@ -183,6 +195,8 @@ def main():
 
       if (not args.fast) and (not changed):
         for b1 in range(0, len(currentTest)-4):
+          if args.verbose:
+            print("TRYING BYTE PATTERN SEARCH FROM BYTE", str(b) + "...")          
           for b2 in range(b1+2, len(currentTest)-4):
             v1 = (currentTest[b1], currentTest[b1+1])
             v2 = (currentTest[b2], currentTest[b2+1])
