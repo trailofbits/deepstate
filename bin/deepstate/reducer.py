@@ -229,6 +229,9 @@ def main():
 
       if changed:
         currentTest = newTest
+        print("WRITING REDUCED TEST WITH", len(currentTest), "BYTES TO", out)
+        with open(out, 'wb') as outf:
+          outf.write(currentTest)
         s = structure(r)
       else:
         print("NO (MORE) REDUCTIONS FOUND")
