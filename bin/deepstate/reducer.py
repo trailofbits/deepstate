@@ -45,6 +45,10 @@ def main():
     "--timeout", type=int, help="After this amount of time (in seconds), give up on reduction.",
     default=1200)
 
+  parser.add_argument(
+    "--fast", action='store_true',
+    help="Faster, less complete, reduction (no range or byte pattern attempts).")
+
   class TimeoutException(Exception):
     pass
 
@@ -139,7 +143,7 @@ def main():
           changed = True
           break
 
-      if not changed:
+      if (not args.fast) and (not changed):
         for b in range(0, len(currentTest)):
           for v in range(b+1, len(currentTest)):
             newTest = currentTest[:b] + currentTest[v:]
@@ -177,7 +181,7 @@ def main():
             changed = True
             break
 
-      if not changed:
+      if (not args.fast) and (not changed):
         for b1 in range(0, len(currentTest)-4):
           for b2 in range(b1+2, len(currentTest)-4):
             v1 = (currentTest[b1], currentTest[b1+1])
