@@ -18,7 +18,8 @@ There are two blog posts on using DeepState: [Part 1](https://blog.trailofbits.c
 
 * Tests look like Google Test, but can use symbolic execution/fuzzing to generate data (parameterized unit testing)
   * Easier to learn than binary analysis tools/fuzzers, but provides similar functionality
-* Already supports Manticore, Angr, libFuzzer, file-based fuzzing with e.g., AFL; more back-ends likely in future
+* Already supports Manticore, Angr, libFuzzer, file-based fuzzing with
+  e.g., AFL or Eclipser; more back-ends likely in future
   * Switch test generation tool without re-writing test harness
     * Work around show-stopper bugs
     * Find out which tool works best for your code under test
@@ -411,21 +412,6 @@ run, as with the `--input_which_test` options to test replay.
 
 Test case reduction should work on any OS.
 
-## Fuzzing with Eclipser
-
-[Eclipser](https://github.com/SoftSec-KAIST/Eclipser) is a powerful new fuzzer/grey-box concolic tool
-with some of the advantages of symbolic execution, but with more scalability.  DeepState supports Eclipser out of the box.  To use it, you just need to
-
-- Install Eclipser as instructed at https://github.com/SoftSec-KAIST/Eclipser (you'll need to be on Linux)
-- Set the `ECLIPSER_HOME` environment variable to where-ever you installed Eclipser (the root, above `build`)
-- Make sure you compile your DeepState native without any sanitizers (QEMU, used by Eclipser, doesn't like them)
-
-After that, you can use Eclipser like this:
-
-`deepstate-eclisper <binary> --timeout <how long to test> --output_test_dir <where to put generated tests>`
-
-In our experience, Eclipser is quite effective, often better than libFuzzer, despite having a much slower test throughput.
-
 ## Fuzzing with AFL
 
 DeepState can also be used with a file-based fuzzer (e.g. AFL).  There
@@ -438,28 +424,33 @@ set the compilers to `afl-gcc` and `afl-g++` or `afl-clang` and
 CC=afl-clang CXX=afl-clang++ cmake ..
 ```
 
-Alternatively, you can edit the `CMakeLists.txt` file and add:
+Since you may want to use other fuzzers, you might at this point want
+to do something like:
 
-```
-SET(CMAKE_C_COMPILER /usr/local/bin/afl-gcc)
-SET(CMAKE_CXX_COMPILER /usr/local/bin/afl-g++)
+```shell
+cp /usr/local/lib/libdeepstate.a /usr/local/lib/libdeepstate_AFL.a
 ```
 
-Do the same for your DeepState
-test harness and any code it links to you want instrumented.  Finally, run the fuzzing via the
+You can then recompile DeepState with a "normal" compiler and use `-ldeepstate_AFL` when working with AFL.
+
+In either case, compile the DeepState
+test harness and any code it links to you want instrumented with the
+same AFL compiler, and link to an AFL-generated version of DeepState.  Finally, run the fuzzing via the
 interface to replay test files.  For example, to fuzz the `OneOf`
 example, if we were in the `deepstate/build/examples` directory, you
 would do something like:
 
 ```shell
-afl-fuzz -d -i corpus -o afl_OneOf -- ./OneOf --input_test_file @@ --abort_on_fail
+afl-fuzz -d -i corpus -o afl_OneOf -- ./OneOf --input_test_file @@ --abort_on_fail--no_fork
 ```
 
 where `corpus` contains at least one file to start fuzzing from.  The
 file needs to be smaller than the DeepState input size limit, but has
 few other limitations (for AFL it should also not cause test
 failure).  The `abort_on_fail` flag makes DeepState crashes and failed
-tests appear as crashes to the fuzzer.
+tests appear as crashes to the fuzzer.  There's no reason to run AFL
+tests with a fork for better crash reporting, so `--no_fork` avoids an
+extra fork.
 
 To replay the tests from AFL:
 
@@ -474,18 +465,6 @@ with a fully qualified name (e.g.,
 using the `--input_which_test` flag to the binary.  By
 default, DeepState will run the last test defined.
 
-You can compile with `afl-clang-fast` and `afl-clang-fast++` for
-deferred instrumentation.  You'll need code like:
-
-```
-#ifdef __AFL_HAVE_MANUAL_CONTROL
-  __AFL_INIT();
-#endif
-```
-
-just before the call to `DeepState_Run()` (which reads the entire
-input file) in your `main`.
-
 Because AFL and other file-based fuzzers only rely on the DeepState
 native test executable, they should (like DeepState's built-in simple
 fuzzer) work fine on macOS and other Unix-like OSes.  On macOS, you
@@ -493,6 +472,36 @@ will want to consider doing the work to use [persistent mode](http://lcamtuf.blo
 running inside a VM, due to AFL (unless in persistent mode) relying
 extensively on
 forks, which are very slow on macOS.
+
+## Fuzzing with Eclipser
+
+[Eclipser](https://github.com/SoftSec-KAIST/Eclipser) is a powerful new fuzzer/grey-box concolic tool
+with some of the advantages of symbolic execution, but with more scalability.  DeepState supports Eclipser out of the box.  To use it, you just need to
+
+- Install Eclipser as instructed at https://github.com/SoftSec-KAIST/Eclipser (you'll need to be on Linux)
+- Set the `ECLIPSER_HOME` environment variable to where-ever you installed Eclipser (the root, above `build`)
+- Make sure you compile your DeepState native without any sanitizers (QEMU, used by Eclipser, doesn't like them)
+
+After that, you can use Eclipser like this:
+
+`deepstate-eclisper <binary> --timeout <how long to test> --output_test_dir <where to put generated tests>`
+
+In our experience, Eclipser is quite effective, often better than
+libFuzzer and sometimes better than AFL, despite having a much slower
+test throughput than either.
+
+## Which Fuzzer Should I Use?
+
+In fact, since DeepState supports libFuzzer, AFL, and Eclipser (and
+others), a natural question is "which is the best fuzzer?"  In
+general, it depends!  We suggest using them all, which DeepState makes
+easy.  libFuzzer is very fast, and sometimes the CMP breakdown it
+provides is very useful; however, it's often bad at finding longer
+paths where just covering nodes isn't helpful.  AFL is still an
+excellent general-purpose fuzzer, and often beats "improved" versions
+over a range of programs.  Finally, Eclipser has some tricks that let
+it get traction in some cases where you might think only symbolic
+execution (which wouldn't scale) could help.
 
 ## Contributing
 
