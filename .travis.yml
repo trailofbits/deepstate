@@ -6,7 +6,7 @@ python:
 install:
 
 - wget -O llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key 
-- sudo apt-key -y add llvm-snapshot.gpg.key
+- sudo apt-key add llvm-snapshot.gpg.key
 - sudo apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-6.0 main"
 - sudo apt-get -y update
 - sudo apt-get -y install build-essential gcc-multilib clang-6.0 cmake python3-pip python3-setuptools libffi-dev python3-nose
