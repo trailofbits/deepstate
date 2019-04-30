@@ -468,7 +468,7 @@ def main():
   args = DeepManticore.parse_args()
 
   try:
-    m = manticore.native.Manticore(args.binary)
+    m = manticore.native.Manticore(args.binary, policy='uncovered')
   except Exception as e:
     L.critical("Cannot create Manticore instance on binary {}: {}".format(
       args.binary, e))
