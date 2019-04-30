@@ -118,7 +118,7 @@ class DeepManticore(DeepState):
   def concretize_max(self, val, constrain=False):
     if isinstance(val, (int)):
       return val
-    concrete_val = self.state.concretize(val, policy='MAX'))
+    concrete_val = self.state.concretize(val, policy='MAX')
     if constrain:
       self.add_constraint(val == concrete_val)
     return concrete_val
