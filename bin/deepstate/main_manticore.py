@@ -132,7 +132,7 @@ class DeepManticore(DeepState):
   def add_constraint(self, expr):
     if self.is_symbolic(expr):
       self.state.constrain(expr)
-      # TODO(pag): How to check satisfiability?
+      return self.state.is_feasible()
     return True
 
   def pass_test(self):
