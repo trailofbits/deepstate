@@ -19,6 +19,8 @@ import subprocess
 import time
 
 def main():
+  global candidateRuns
+
   parser = argparse.ArgumentParser(description="Intelligently reduce test case")
 
   parser.add_argument(
@@ -53,6 +55,10 @@ def main():
     "--verbose", action='store_true',
     help="Verbose reduction.")
 
+  parser.add_argument(
+    "--fork", action='store_true',
+    help="Fork when running.")
+
   class TimeoutException(Exception):
     pass
 
@@ -65,8 +71,11 @@ def main():
   whichTest = args.which_test
 
   start = time.time()
+  candidateRuns = 0
 
   def runCandidate(candidate):
+    global candidateRuns
+    candidateRuns += 1
     if (time.time() - start) > args.timeout:
       raise TimeoutException
     with open(".reducer.out", 'w') as outf:
@@ -74,6 +83,8 @@ def main():
            candidate + " --verbose_reads"]
       if whichTest is not None:
         cmd += ["--input_which_test", whichTest]
+      if not args.fork:
+        cmd += ["--no_fork"]
       subprocess.call(cmd, shell=True, stdout=outf, stderr=outf)
     result = []
     with open(".reducer.out", 'r') as inf:
@@ -131,11 +142,19 @@ def main():
     print("SHRINKING TO IGNORE UNREAD BYTES")
     currentTest = currentTest[:s[1]+1]
 
+  initialSize = float(len(currentTest))
+  iteration = 0
   changed = True
+
   try:
     while changed:
       changed = False
 
+      iteration += 1
+      percent = 100.0 * ((initialSize - len(currentTest)) / initialSize)
+      print("=" * 80)
+      print("STARTING ITERATION #" + str(iteration), round(time.time()-start, 2), "SECONDS /",
+              candidateRuns, "EXECUTIONS /", str(round(percent, 2)) + "% REDUCTION")
       if args.verbose:
         print("TRYING ONEOF REMOVALS...")
       cuts = s[0]
@@ -160,6 +179,33 @@ def main():
               print("BYTE RANGE REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
               changed = True
               break
+          if changed:
+            break
+
+      if (not args.fast) and (not changed):
+        if args.verbose:
+          print("TRYING ONEOF SWAPPING...")
+        cuts = s[0]
+        for i in range(len(cuts)-1):
+          cuti = cuts[i]
+          bytesi = currentTest[cuti[0]:cuti[1] + 1]
+          if args.verbose:
+            print("TRYING ONEOF SWAPPING FROM BYTE", cuti[0], "[" + " ".join(map(str, bytesi)) + "]")
+          for j in range(i + 1, len(cuts)):
+            cutj = cuts[j]
+            if cutj[0] > cuti[1]:
+              bytesj = currentTest[cutj[0]:cutj[1] + 1]
+              if bytesi > bytesj:
+                newTest = currentTest[:cuti[0]] + bytesj + currentTest[cuti[1]+1:cutj[0]]
+                newTest += bytesi
+                newTest += currentTest[cutj[1]+1:]
+                newTest = bytearray(newTest)
+                r = writeAndRunCandidate(newTest)
+                if checks(r):
+                  print("ONEOF SWAP @ BYTE", cuti[0], "[" + " ".join(map(str, bytesi)) + "]", "WITH",
+                          cutj[0], "[" + " ".join(map(str, bytesj)) + "]")
+                  changed = True
+                  break
           if changed:
             break
 
@@ -234,8 +280,10 @@ def main():
           outf.write(currentTest)
         s = structure(r)
       else:
+        print("*" * 80)
         print("NO (MORE) REDUCTIONS FOUND")
   except TimeoutException:
+    print("*" * 80)
     print("REDUCTION TIMED OUT AFTER", args.timeout, "SECONDS")
 
   if (s[1] + 1) > len(currentTest):
@@ -243,7 +291,10 @@ def main():
     padding = bytearray('\x00' * ((s[1] + 1) - len(currentTest)), 'utf-8')
     currentTest = currentTest + padding
   
-  print()
+  print("=" * 80)
+  percent = 100.0 * ((initialSize - len(currentTest)) / initialSize)
+  print("COMPLETED AFTER", iteration, "ITERATIONS:", round(time.time()-start, 2), "SECONDS /",
+          candidateRuns, "EXECUTIONS /", str(round(percent, 2)) + "% REDUCTION")
   print("WRITING REDUCED TEST WITH", len(currentTest), "BYTES TO", out)
     
   with open(out, 'wb') as outf:
