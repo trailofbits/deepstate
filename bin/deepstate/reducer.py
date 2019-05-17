@@ -150,7 +150,7 @@ def main():
     for (pos, value) in conversions:
       if pos[1] >= len(test):
         break
-      if value < 255:
+      if (value < 255) and (value < test[pos[1]]):
         numConversions += 1
         for b in range(pos[0], pos[1]):
           test[b] = 0
