@@ -295,6 +295,11 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
       } \
       if ((x < low) || (x > high)) { \
         const tname size = (high - low) + 1; \
+	if (FLAGS_verbose_reads) { \
+	  if (x != (low + ((x % size + size) % size))) { \
+	    printf("Converting out-of-range value to %u\n", (unsigned int)(low + ((x % size + size) % size))); \
+	  } \
+	} \
         return low + ((x % size + size) % size); \
       } \
       return x; \
@@ -598,7 +603,9 @@ static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
   } else {
     DeepState_LogFormat(DeepState_LogTrace, "Passed: %s", test->test_name);
     if (HAS_FLAG_output_test_dir) {
-      DeepState_SavePassingTest();
+      if (!FLAGS_fuzz || FLAGS_fuzz_save_passing) {
+	DeepState_SavePassingTest();
+      }
     }
     return(DeepState_TestRunPass);
   }

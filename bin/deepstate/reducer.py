@@ -126,6 +126,38 @@ def main():
         currentOneOf = currentOneOf[:-1]
     return (OneOfs, lastRead)
 
+  def rangeConversions(result):
+    conversions = []
+    startedMulti = False
+    multiFirst = None
+    for line in result:
+      if "Reading byte at" in line:
+        lastRead = int(line.split()[-1])
+      if "STARTING MULTI-BYTE READ" in line:
+        startedMulti = True
+      if startedMulti and (multiFirst is None) and ("Reading byte at" in line):
+        multiFirst = lastRead
+      if "FINISHED MULTI-BYTE READ" in line:
+        currentMulti = (multiFirst, lastRead)
+        startedMulti = False
+        multiFirst = None
+      if "Converting out-of-range value" in line:
+        conversions.append((currentMulti, int(line.split()[-1])))
+    return conversions
+
+  def fixUp(test, conversions):
+    numConversions = 0
+    for (pos, value) in conversions:
+      if pos[1] >= len(test):
+        break
+      if value < 255:
+        numConversions += 1
+        for b in range(pos[0], pos[1]):
+          test[b] = 0
+        test[pos[1]] = value
+    if numConversions > 0:
+      print("APPLIED", numConversions, "RANGE CONVERSIONS")
+
   initial = runCandidate(test)
   if (not args.search) and (not checks(initial)):
     print("STARTING TEST DOES NOT SATISFY REDUCTION CRITERIA")
@@ -133,14 +165,24 @@ def main():
 
   with open(test, 'rb') as test:
     currentTest = bytearray(test.read())
+  original = bytearray(currentTest)
 
   print("ORIGINAL TEST HAS", len(currentTest), "BYTES")
+
+  fixUp(currentTest, rangeConversions(initial))
+  r = writeAndRunCandidate(currentTest)
+  assert(checks(r))
 
   s = structure(initial)
   if (s[1]+1) < len(currentTest):
     print("LAST BYTE READ IS", s[1])
     print("SHRINKING TO IGNORE UNREAD BYTES")
     currentTest = currentTest[:s[1]+1]
+
+  if currentTest != original:
+    print("WRITING REDUCED TEST WITH", len(currentTest), "BYTES TO", out)
+    with open(out, 'wb') as outf:
+      outf.write(currentTest)
 
   initialSize = float(len(currentTest))
   iteration = 0
@@ -242,7 +284,7 @@ def main():
       if (not args.fast) and (not changed):
         for b1 in range(0, len(currentTest)-4):
           if args.verbose:
-            print("TRYING BYTE PATTERN SEARCH FROM BYTE", str(b) + "...")          
+            print("TRYING BYTE PATTERN SEARCH FROM BYTE", str(b1) + "...")
           for b2 in range(b1+2, len(currentTest)-4):
             v1 = (currentTest[b1], currentTest[b1+1])
             v2 = (currentTest[b2], currentTest[b2+1])
@@ -279,6 +321,7 @@ def main():
         with open(out, 'wb') as outf:
           outf.write(currentTest)
         s = structure(r)
+        fixUp(currentTest, rangeConversions(r))
       else:
         print("*" * 80)
         print("NO (MORE) REDUCTIONS FOUND")
