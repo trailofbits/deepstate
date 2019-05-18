@@ -293,7 +293,9 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
         (void) DeepState_Assume(low <= x && x <= high); \
 	return x; \
       } \
-      printf("Range read low %lld high %lld\n", (long long)low, (long long)high); \
+      if (FLAGS_verbose_reads) { \
+        printf("Range read low %lld high %lld\n", (long long)low, (long long)high); \
+      } \
       if ((x < low) || (x > high)) { \
         const tname size = (high - low) + 1; \
 	if (FLAGS_verbose_reads) { \
