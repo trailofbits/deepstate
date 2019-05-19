@@ -213,6 +213,8 @@ def main():
         if checks(r):
           print("ONEOF REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
           changed = True
+          rangeRemovePos = 0
+          byteReducePos = 0
           break
 
       if (not args.fast) and (not changed):
@@ -225,6 +227,7 @@ def main():
             if checks(r):
               print("BYTE RANGE REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
               rangeRemovePos = b
+              byteReducePos = 0
               changed = True
               break
           if changed:
@@ -240,6 +243,7 @@ def main():
             if checks(r):
               print("BYTE RANGE REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
               rangeRemovePos = b
+              byteReducePos = 0
               changed = True
               break
           if changed:
@@ -270,6 +274,7 @@ def main():
                   print("ONEOF SWAP @ BYTE", cuti[0], "[" + " ".join(map(str, bytesi)) + "]", "WITH",
                           cutj[0], "[" + " ".join(map(str, bytesj)) + "]")
                   changed = True
+                  byteReducePos = 0
                   break
           if changed:
             break
