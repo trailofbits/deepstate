@@ -189,6 +189,9 @@ def main():
   initialSize = float(len(currentTest))
   iteration = 0
   changed = True
+  
+  rangeRemovePos = 0
+  byteReducePos = 0
 
   try:
     while changed:
@@ -213,7 +216,7 @@ def main():
           break
 
       if (not args.fast) and (not changed):
-        for b in range(0, len(currentTest)):
+        for b in range(rangeRemovePos, len(currentTest)):
           if args.verbose:
             print("TRYING BYTE RANGE REMOVAL FROM BYTE", str(b) + "...")
           for v in range(b+1, len(currentTest)):
@@ -221,6 +224,7 @@ def main():
             r = writeAndRunCandidate(newTest)
             if checks(r):
               print("BYTE RANGE REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
+              rangeRemovePos = b
               changed = True
               break
           if changed:
