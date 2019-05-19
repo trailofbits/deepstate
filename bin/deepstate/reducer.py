@@ -244,8 +244,8 @@ def main():
               break
           if changed:
             break
-
-      rangeRemovePos = 0
+        if not changed:
+          rangeRemovePos = 0
 
       if not changed:
         if args.verbose:
@@ -303,8 +303,8 @@ def main():
               break
           if changed:
             break
-
-      byteReducePos = 0
+        if not changed:
+          byteReducePos = 0
 
       if not changed:
         if args.verbose:
