@@ -224,7 +224,7 @@ def main():
           if changed:
             break
 
-      if (not args.fast) and (not changed):
+      if not changed:
         if args.verbose:
           print("TRYING ONEOF SWAPPING...")
         cuts = s[0]
