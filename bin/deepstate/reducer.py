@@ -16,7 +16,9 @@
 from __future__ import print_function
 import argparse
 import subprocess
+import os
 import time
+
 
 def main():
   global candidateRuns
@@ -78,7 +80,7 @@ def main():
     candidateRuns += 1
     if (time.time() - start) > args.timeout:
       raise TimeoutException
-    with open(".reducer.out", 'w') as outf:
+    with open(".reducer." + str(os.getpid()) + ".out", 'w') as outf:
       cmd = [deepstate + " --input_test_file " +
            candidate + " --verbose_reads"]
       if whichTest is not None:
@@ -87,7 +89,7 @@ def main():
         cmd += ["--no_fork"]
       subprocess.call(cmd, shell=True, stdout=outf, stderr=outf)
     result = []
-    with open(".reducer.out", 'r') as inf:
+    with open(".reducer." + str(os.getpid()) + ".out", 'r') as inf:
       for line in inf:
         result.append(line)
     return result
@@ -105,9 +107,9 @@ def main():
     return False
 
   def writeAndRunCandidate(test):
-    with open(".candidate.test", 'wb') as outf:
+    with open(".candidate." + str(os.getpid()) + ".test", 'wb') as outf:
       outf.write(test)
-    r = runCandidate(".candidate.test")
+    r = runCandidate(".candidate." + str(os.getpid()) + ".test")
     return r
 
   def structure(result):
