@@ -264,7 +264,7 @@ def main():
             cutj = cuts[j]
             if cutj[0] > cuti[1]:
               bytesj = currentTest[cutj[0]:cutj[1] + 1]
-              if bytesi > bytesj:
+              if (len(bytesj) > 0) and (bytesi > bytesj):
                 newTest = currentTest[:cuti[0]] + bytesj + currentTest[cuti[1]+1:cutj[0]]
                 newTest += bytesi
                 newTest += currentTest[cutj[1]+1:]
