@@ -190,6 +190,9 @@ def main():
   iteration = 0
   changed = True
 
+  rangeRemovePos = 0
+  byteReducePos = 0
+
   try:
     while changed:
       changed = False
@@ -210,10 +213,12 @@ def main():
         if checks(r):
           print("ONEOF REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
           changed = True
+          rangeRemovePos = 0
+          byteReducePos = 0
           break
 
       if (not args.fast) and (not changed):
-        for b in range(0, len(currentTest)):
+        for b in range(rangeRemovePos, len(currentTest)):
           if args.verbose:
             print("TRYING BYTE RANGE REMOVAL FROM BYTE", str(b) + "...")
           for v in range(b+1, len(currentTest)):
@@ -221,10 +226,30 @@ def main():
             r = writeAndRunCandidate(newTest)
             if checks(r):
               print("BYTE RANGE REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
+              rangeRemovePos = b
+              byteReducePos = 0
               changed = True
               break
           if changed:
             break
+
+      if (not args.fast) and (not changed):
+        for b in range(0, rangeRemovePos):
+          if args.verbose:
+            print("TRYING BYTE RANGE REMOVAL FROM BYTE", str(b) + "...")
+          for v in range(b+1, len(currentTest)):
+            newTest = currentTest[:b] + currentTest[v:]
+            r = writeAndRunCandidate(newTest)
+            if checks(r):
+              print("BYTE RANGE REMOVAL REDUCED TEST TO", len(newTest), "BYTES")
+              rangeRemovePos = b
+              byteReducePos = 0
+              changed = True
+              break
+          if changed:
+            break
+        if not changed:
+          rangeRemovePos = 0
 
       if not changed:
         if args.verbose:
@@ -239,7 +264,7 @@ def main():
             cutj = cuts[j]
             if cutj[0] > cuti[1]:
               bytesj = currentTest[cutj[0]:cutj[1] + 1]
-              if bytesi > bytesj:
+              if (len(bytesj) > 0) and (bytesi > bytesj):
                 newTest = currentTest[:cuti[0]] + bytesj + currentTest[cuti[1]+1:cutj[0]]
                 newTest += bytesi
                 newTest += currentTest[cutj[1]+1:]
@@ -249,6 +274,7 @@ def main():
                   print("ONEOF SWAP @ BYTE", cuti[0], "[" + " ".join(map(str, bytesi)) + "]", "WITH",
                           cutj[0], "[" + " ".join(map(str, bytesj)) + "]")
                   changed = True
+                  byteReducePos = 0
                   break
           if changed:
             break
@@ -256,7 +282,7 @@ def main():
       if not changed:
         if args.verbose:
           print("TRYING BYTE REDUCTIONS...")
-        for b in range(0, len(currentTest)):
+        for b in range(byteReducePos, len(currentTest)):
           for v in range(0, currentTest[b]):
             newTest = bytearray(currentTest)
             newTest[b] = v
@@ -264,14 +290,31 @@ def main():
             if checks(r):
               print("BYTE REDUCTION: BYTE", b, "FROM", currentTest[b], "TO", v)
               changed = True
+              byteReducePos = b+1
               break
           if changed:
             break
 
       if not changed:
+        for b in range(0, byteReducePos):
+          for v in range(0, currentTest[b]):
+            newTest = bytearray(currentTest)
+            newTest[b] = v
+            r = writeAndRunCandidate(newTest)
+            if checks(r):
+              print("BYTE REDUCTION: BYTE", b, "FROM", currentTest[b], "TO", v)
+              changed = True
+              byteReducePos = b+1
+              break
+          if changed:
+            break
+        if not changed:
+          byteReducePos = 0
+
+      if not changed:
         if args.verbose:
-          print("TRYING BYTE REDUCE AND DELETES...")
-        for b in range(0, len(currentTest)):
+          print("TRYING BYTE REDUCE AND DELETE...")
+        for b in range(0, len(currentTest)-1):
           if currentTest[b] == 0:
             continue
           newTest = bytearray(currentTest)
@@ -280,6 +323,36 @@ def main():
           r = writeAndRunCandidate(newTest)
           if checks(r):
             print("BYTE REDUCE AND DELETE AT BYTE", b)
+            changed = True
+            break
+
+      if not changed:
+        if args.verbose:
+          print("TRYING BYTE REDUCE AND DELETE 4...")
+        for b in range(0, len(currentTest)-5):
+          if currentTest[b] == 0:
+            continue
+          newTest = bytearray(currentTest)
+          newTest[b] = currentTest[b]-1
+          newTest = newTest[:b+1] + newTest[b+5:]
+          r = writeAndRunCandidate(newTest)
+          if checks(r):
+            print("BYTE REDUCE AND DELETE 4 AT BYTE", b)
+            changed = True
+            break
+
+      if not changed:
+        if args.verbose:
+          print("TRYING BYTE REDUCE AND DELETE 8...")
+        for b in range(0, len(currentTest)-9):
+          if currentTest[b] == 0:
+            continue
+          newTest = bytearray(currentTest)
+          newTest[b] = currentTest[b]-1
+          newTest = newTest[:b+1] + newTest[b+9:]
+          r = writeAndRunCandidate(newTest)
+          if checks(r):
+            print("BYTE REDUCE AND DELETE 8 AT BYTE", b)
             changed = True
             break
 
