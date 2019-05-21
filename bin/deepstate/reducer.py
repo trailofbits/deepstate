@@ -64,6 +64,9 @@ def main():
   parser.add_argument(
     "--noStructure", action='store_true',
     help="Don't use test structure.")
+  parser.add_argument(
+    "--noPad", action='store_true',
+    help="Don't pad test with zeros.")
 
   class TimeoutException(Exception):
     pass
@@ -494,10 +497,11 @@ def main():
   print("Completed", iteration, "iterations:", round(time.time()-start, 2), "secs /",
           candidateRuns, "execs /", str(round(percent, 2)) + "% reduction")
 
-  if (s[1] + 1) > len(currentTest):
-    print("Padding test with", (s[1] + 1) - len(currentTest), "zeroes")
-    padding = bytearray('\x00' * ((s[1] + 1) - len(currentTest)), 'utf-8')
-    currentTest = currentTest + padding
+  if not args.noPad:
+    if (s[1] + 1) > len(currentTest):
+      print("Padding test with", (s[1] + 1) - len(currentTest), "zeroes")
+      padding = bytearray('\x00' * ((s[1] + 1) - len(currentTest)), 'utf-8')
+      currentTest = currentTest + padding
   
   print("Writing reduced test with", len(currentTest), "bytes to", out)
     
