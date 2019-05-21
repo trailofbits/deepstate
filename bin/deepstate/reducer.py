@@ -61,6 +61,9 @@ def main():
   parser.add_argument(
     "--fork", action='store_true',
     help="Fork when running.")
+  parser.add_argument(
+    "--noStructure", action='store_true',
+    help="Don't use test structure.")
 
   class TimeoutException(Exception):
     pass
@@ -116,6 +119,8 @@ def main():
     return r
 
   def structure(result):
+    if args.noStructure:
+      return ([], len(currentTest))
     OneOfs = []
     currentOneOf = []
     for line in result:
@@ -151,6 +156,8 @@ def main():
     return conversions
 
   def fixRangeConversions(test, conversions):
+    if args.noStructure:
+      return
     numConversions = 0
     for (pos, value) in conversions:
       if pos[1] >= len(test):
