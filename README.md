@@ -2,7 +2,7 @@
 
 [![Slack Chat](http://empireslacking.herokuapp.com/badge.svg)](https://empireslacking.herokuapp.com/)
 
-[![Build Status](https://travis-ci.org/trailofbits/deepstate.svg?branch=master)](https://travis-ci.org/trailofbits/deepstate) 
+[![Build Status](https://travis-ci.org/trailofbits/deepstate.svg?branch=master)](https://travis-ci.org/trailofbits/deepstate)
 
 DeepState is a framework that provides C and C++ developers with a common interface to various symbolic execution and fuzzing engines. Users can write one test harness using a Google Test-like API, then execute it using multiple backends without having to learn the complexities of the underlying engines. It supports writing unit tests and API sequence tests, as well as automatic test generation. Read more about the goals and design of DeepState in our [paper](https://agroce.github.io/bar18.pdf).
 
@@ -130,6 +130,27 @@ to the last-defined test.  Run the native executable with the `--help`
 argument to see all DeepState options.
 
 If you want to use DeepState in C/C++ code, you will likely want to run `sudo make install` from the `$DEEPSTATE/build` directory as well.  The examples mentioned below (file system, databases) assume this has already been done.
+
+### Docker
+
+You can also try out Deepstate with Docker.
+
+```bash
+# Run container with a shared examples/ directory
+# Note that `--rm` will make the container be deleted if you exit it
+# (if you want to persist data from the container, use docker volumes)
+# (we need to increase maximum stack size, so we use ulimit for that)
+$ docker run --rm -it --ulimit stack=100000000:100000000 trailofbits/deepstate bash
+
+# Change to examples directory
+root@b7e7bffce292:/deepstate# cd build/examples
+
+# Fuzz the Runlen example
+root@b7e7bffce292:/deepstate/build/examples# deepstate-angr ./Runlen
+
+# Alternative Runlen example
+root@b7e7bffce292:/deepstate/build/examples# ./Runlen --fuzz --exit_on_fail
+```
 
 ## Usage
 
@@ -297,8 +318,8 @@ DeepState where to put the generated tests, and if you want the
 (totally random and unlikely to be high-quality) passing tests, you
 need to add `--fuzz_save_passing`.
 
-Note that while symbolic execution only works on Linux, without a 
-fairly complex cross-compilation process, the brute force fuzzer works 
+Note that while symbolic execution only works on Linux, without a
+fairly complex cross-compilation process, the brute force fuzzer works
 on macOS or (as far as we know) any Unix-like system.
 
 ## A Note on MacOS and Forking
@@ -350,7 +371,7 @@ CC=/usr/local/opt/llvm\@7/bin/clang CXX=/usr/local/opt/llvm\@7/bin/clang++ BUILD
 make install
 ```
 
-Other ways of getting an appropriate LLVM may also work. 
+Other ways of getting an appropriate LLVM may also work.
 
 On macOS, libFuzzer's normal output is not visible.  Because libFuzzer
 does not fork to execute tests, there is no issue with fork speed on
@@ -486,7 +507,7 @@ with some of the advantages of symbolic execution, but with more scalability.  D
 
 After that, you can use Eclipser like this:
 
-`deepstate-eclisper <binary> --timeout <how long to test> --output_test_dir <where to put generated tests>`
+`deepstate-eclipser <binary> --timeout <how long to test> --output_test_dir <where to put generated tests>`
 
 In our experience, Eclipser is quite effective, often better than
 libFuzzer and sometimes better than AFL, despite having a much slower
