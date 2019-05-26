@@ -40,7 +40,7 @@ if [ $? = 0 ]; then
   done
   export SCRIPTDIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
-  bash ${SCRIPTDIR}/build &&
+  bash ${SCRIPTDIR}/build_image &&
   bash ${SCRIPTDIR}/publish
 
 fi
