@@ -5,7 +5,7 @@ RUN apt-get update \
     &&  apt-get -y install sudo \
     && useradd -ms /bin/bash user && echo "user:user" | chpasswd && adduser user sudo
 
-ADD /sudoers.txt /etc/sudoers
+ADD /docker/sudoers.txt /etc/sudoers
 
 ENV ECLIPSER_HOME /home/user/Eclipser
 
@@ -41,7 +41,6 @@ RUN apt-get update \
 # Install DeepState/AFL/libFuzzer dependencies
 RUN apt-get update \
     && apt-get install -y build-essential \
-    && apt-get install -y wget \
     && apt-get install -y clang \
     gcc-multilib g++-multilib cmake \
     python3-setuptools libffi-dev z3 python3-pip \
@@ -58,7 +57,7 @@ RUN wget http://lcamtuf.coredump.cx/afl/releases/afl-latest.tgz \
     && make \
     && sudo make install
 
- Install Eclipser
+# Install Eclipser
 RUN git clone https://github.com/SoftSec-KAIST/Eclipser \
     && cd Eclipser \
     && make \
@@ -75,7 +74,7 @@ RUN cd deepstate \
     && cmake ../ \
     && sudo make install \
     && cd .. \
-    && sudo pip3 install 'z3-solver==4.5.1.0.post2' angr manticore \
+    && sudo pip3 install 'z3-solver==4.5.1.0.post2' angr 'manticore==0.2.5' \
     && sudo python3 ./build/setup.py install
 
 CMD ["/bin/bash"]
