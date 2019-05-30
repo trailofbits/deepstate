@@ -69,8 +69,10 @@ RUN cd deepstate \
     && cd build \
     && CXX=clang++ CC=clang BUILD_LIBFUZZER=TRUE cmake ../ \
     && sudo make install \
+    && rm -rf CMakeFiles CMakeCache.txt \
     && CXX=afl-clang++ CC=afl-clang BUILD_AFL=TRUE cmake ../ \
     && sudo make install \
+    && rm -rf CMakeFiles CMakeCache.txt \
     && cmake ../ \
     && sudo make install \
     && cd .. \
