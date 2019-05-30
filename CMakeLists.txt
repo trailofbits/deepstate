@@ -19,6 +19,10 @@ if (NOT DEFINED BUILD_LIBFUZZER AND DEFINED ENV{BUILD_LIBFUZZER})
   set(BUILD_LIBFUZZER "$ENV{BUILD_LIBFUZZER}") 
 endif()
 
+if (NOT DEFINED BUILD_AFL AND DEFINED ENV{BUILD_AFL})
+  set(BUILD_AFL "$ENV{BUILD_AFL}")
+endif()
+
 if (NOT DEFINED BUILD_NOSTATIC AND DEFINED ENV{BUILD_NOSTATIC}) 
   set(BUILD_NOSTATIC "$ENV{BUILD_NOSTATIC}") 
 endif()
@@ -132,6 +136,26 @@ if (BUILD_LIBFUZZER)
     )
 endif()
 
+if (BUILD_AFL)
+    add_library(${PROJECT_NAME}_AFL STATIC
+       src/lib/DeepState.c
+       src/lib/Log.c
+       src/lib/Option.c
+       src/lib/Stream.c
+    )
+
+    target_compile_options(${PROJECT_NAME}_AFL PUBLIC -mno-avx)
+
+    target_include_directories(${PROJECT_NAME}_AFL
+       PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
+    )
+
+    install(
+       TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_AFL
+       LIBRARY DESTINATION lib
+       ARCHIVE DESTINATION lib
+    )
+endif()
 
 set(SETUP_PY_IN "${CMAKE_SOURCE_DIR}/bin/setup.py.in")
 set(SETUP_PY "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
