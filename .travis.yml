@@ -19,7 +19,6 @@ install:
 - sudo make install
 - cd ..
 env:
-- TASK=ARITHMETIC
 - TASK=CRASH
 - TASK=FIXTURE
 - TASK=KLEE
@@ -33,7 +32,6 @@ env:
 script:
 - pyflakes bin/deepstate/*.py
 - pyflakes tests/*.py
-- if [ $TASK = ARITHMETIC ]; then nosetests3 tests/test_arithmetic.py ; fi
 - if [ $TASK = CRASH ]; then nosetests3 tests/test_crash.py ; fi
 - if [ $TASK = FIXTURE ]; then nosetests3 tests/test_fixture.py ; fi
 - if [ $TASK = KLEE ]; then nosetests3 tests/test_klee.py ; fi
