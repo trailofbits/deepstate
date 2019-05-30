@@ -1,0 +1,11 @@
+.dockerignore
+Dockerfile
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+*.log
+.git

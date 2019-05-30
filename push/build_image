@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -eu
+
+IMAGE_NAME="deepstate"
+echo "IMAGE_NAME $IMAGE_NAME"
+
+echo "Building Docker image..."
+docker build -t $IMAGE_NAME -f docker/Dockerfile . || exit $?

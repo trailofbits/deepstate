@@ -30,7 +30,7 @@ setuptools.setup(
     author_email="peter@trailofbits.com",
     license="Apache-2.0",
     keywords="tdd testing symbolic execution",
-    install_requires=[], #'claripy==7.8.6.16','angr==7.8.7.1', 'manticore'],
+    install_requires=['angr', 'manticore'],
     entry_points={
         'console_scripts': [
             'deepstate = deepstate.main_manticore:main',
