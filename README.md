@@ -139,10 +139,12 @@ to get all the fuzzers and tools up and running on any system.
 ```bash
 $ docker build -t deepstate . -f docker/Dockerfile
 $ docker run -it deepstate bash
-user@0f7cccd70f7b$ cd deepstate/build/examples
-user@0f7cccd70f7b$ deepstate-angr ./Runlen
-user@0f7cccd70f7b:$ deepstate-eclipser ./Runlen --timeout 30
-user@0f7cccd70f7b:$ ./Runlen_LF -max_total_time=30
+user@0f7cccd70f7b:~/deepstate/build/examples$ cd deepstate/build/examples
+user@0f7cccd70f7b:~/deepstate/build/examples$ deepstate-angr ./Runlen
+user@0f7cccd70f7b:~/deepstate/build/examples$ deepstate-eclipser ./Runlen --timeout 30
+user@0f7cccd70f7b:~/deepstate/build/examples$ ./Runlen_LF -max_total_time=30
+user@0f7cccd70f7b:~/deepstate/build/examples$ mkdir foo; echo foo > foo/foo
+user@0f7cccd70f7b:~/deepstate/build/examples$ afl-fuzz -i foo -o afl_Runlen -- ./Runlen_AFL --input_test_file @@ --no_fork --abort_on_fail
 ```
 
 ## Usage
