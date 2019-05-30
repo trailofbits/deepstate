@@ -133,23 +133,16 @@ If you want to use DeepState in C/C++ code, you will likely want to run `sudo ma
 
 ### Docker
 
-You can also try out Deepstate with Docker.
+You can also try out Deepstate with Docker, which is the easiest way
+to get all the fuzzers and tools up and running on any system.
 
 ```bash
-# Run container with a shared examples/ directory
-# Note that `--rm` will make the container be deleted if you exit it
-# (if you want to persist data from the container, use docker volumes)
-# (we need to increase maximum stack size, so we use ulimit for that)
-$ docker run --rm -it --ulimit stack=100000000:100000000 trailofbits/deepstate bash
-
-# Change to examples directory
-root@b7e7bffce292:/deepstate# cd build/examples
-
-# Fuzz the Runlen example
-root@b7e7bffce292:/deepstate/build/examples# deepstate-angr ./Runlen
-
-# Alternative Runlen example
-root@b7e7bffce292:/deepstate/build/examples# ./Runlen --fuzz --exit_on_fail
+$ docker build -t deepstate . -f docker/Dockerfile
+$ docker run -it deepstate bash
+user@0f7cccd70f7b$ cd deepstate/build/examples
+user@0f7cccd70f7b$ deepstate-angr ./Runlen
+user@0f7cccd70f7b:$ deepstate-eclipser ./Runlen --timeout 30
+user@0f7cccd70f7b:$ ./Runlen_LF -max_total_time=30
 ```
 
 ## Usage
