@@ -26,7 +26,7 @@ deb-src http://security.ubuntu.com/ubuntu/ bionic-security main restricted \n\
 deb-src http://security.ubuntu.com/ubuntu/ bionic-security universe \n\
 deb-src http://security.ubuntu.com/ubuntu/ bionic-security multiverse' >> /etc/apt/sources.list
 
-# # Install Eclipser dependencies
+# Install Eclipser dependencies
 RUN apt-get update \
     && apt-get -y build-dep qemu \
     && apt-get install -y libtool \
@@ -38,9 +38,11 @@ RUN apt-get update \
     && apt-get update \
     && apt-get install -y dotnet-sdk-2.2
 
-# Install DeepState dependencies
+# Install DeepState/AFL/libFuzzer dependencies
 RUN apt-get update \
     && apt-get install -y build-essential \
+    && apt-get install -y wget \
+    && apt-get install -y clang \
     gcc-multilib g++-multilib cmake \
     python3-setuptools libffi-dev z3 python3-pip \
     && rm -rf /var/lib/apt/lists/*
@@ -49,20 +51,31 @@ RUN chown -R user:user /home/user
 
 USER user
 
-# Install Eclipser
+# Install AFL
+RUN wget http://lcamtuf.coredump.cx/afl/releases/afl-latest.tgz \
+    && tar -xzvf afl-latest.tgz \
+    && cd afl-2.52b/ \
+    && make \
+    && sudo make install
+
+ Install Eclipser
 RUN git clone https://github.com/SoftSec-KAIST/Eclipser \
     && cd Eclipser \
     && make \
     && cd ../
 
-# Install DeepState
+# Install DeepState using a few different compilers for AFL/libFuzzer/Eclipser+normal
 RUN cd deepstate \
     && mkdir build \
     && cd build \
+    && CXX=clang++ CC=clang BUILD_LIBFUZZER=TRUE cmake ../ \
+    && sudo make install \
+    && CXX=afl-clang++ CC=afl-clang BUILD_AFL=TRUE cmake ../ \
+    && sudo make install \
     && cmake ../ \
-    && make \
+    && sudo make install \
     && cd .. \
-    && pip3 install 'z3-solver==4.5.1.0.post2' angr manticore \
+    && sudo pip3 install 'z3-solver==4.5.1.0.post2' angr manticore \
     && sudo python3 ./build/setup.py install
 
 CMD ["/bin/bash"]
