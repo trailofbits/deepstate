@@ -65,6 +65,8 @@ RUN git clone https://github.com/SoftSec-KAIST/Eclipser \
 
 # Install DeepState using a few different compilers for AFL/libFuzzer/Eclipser+normal
 RUN cd deepstate \
+    && rm -Rf CMakeFiles CMakeCache.txt \
+    && rm -Rf build \
     && mkdir -p build \
     && cd build \
     && rm -rf CMakeFiles CMakeCache.txt \
