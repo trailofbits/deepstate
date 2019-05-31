@@ -394,10 +394,11 @@ deepstate-reduce ./TestFileSystem rmdirfail.test minrmdirfail.test
 
 In many cases, this will result in finding a different failure or
 crash that allows smaller test cases, so you can also provide a string
-that controls the criteria for which test outputs are considered valid
+that controls the criterion for which test outputs are considered valid
 reductions (by default, the reducer looks for any test that fails or
-crashes).  Only outputs containing the `--criteria` are considered to
-be valid reductions:
+crashes).  Only outputs containing the `--criterion` are considered to
+be valid reductions (`--regexpCriterion` lets you use a Python regexp
+for more complex checks):
 
 ```shell
 deepstate-reduce ./TestFileSystem rmdirfail.test minrmdirfail.test --criteria "FATAL: /root/testfs/super.c(252)"

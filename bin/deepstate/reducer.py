@@ -17,6 +17,7 @@ from __future__ import print_function
 import argparse
 import subprocess
 import os
+import re
 import sys
 import time
 
@@ -35,10 +36,15 @@ def main():
   parser.add_argument(
     "--which_test", type=str, help="Which test to run (equivalent to --input_which_test).", default=None)
   parser.add_argument(
-    "--criteria", type=str, help="String to search for in valid reduction outputs.",
+    "--criterion", type=str, help="String to search for in valid reduction outputs.",
     default=None)
   parser.add_argument(
-    "--search", action="store_true", help="Allow initial test to not satisfy criteria (search for test).",
+    "--regexpCriterion", type=str, help="Regexp to search for in valid reduction outputs.",
+    default=None)
+  parser.add_argument(
+    "--cmdArgs", type=str, help="Command line to use in place of standard DeepState arguments, file replaces @@")
+  parser.add_argument(
+    "--search", action="store_true", help="Allow initial test to not satisfy criterion (search for test).",
     default=None)
   parser.add_argument(
     "--timeout", type=int, help="After this amount of time (in seconds), give up on reduction.",
@@ -77,7 +83,11 @@ def main():
   deepstate = args.binary
   test = args.input_test
   out = args.output_test
-  checkString = args.criteria
+  checkString = args.criterion
+  if args.regexpCriterion:
+    checkRegExp = re.compile(args.regexpCriterion)
+  else:
+    checkRegExp = None
   whichTest = args.which_test
 
   start = time.time()
@@ -90,12 +100,15 @@ def main():
     if (time.time() - start) > args.timeout:
       raise TimeoutException
     with open(".reducer." + str(os.getpid()) + ".out", 'w') as outf:
-      cmd = [deepstate + " --input_test_file " +
-           candidate + " --verbose_reads"]
-      if whichTest is not None:
-        cmd += ["--input_which_test", whichTest]
-      if not args.fork:
-        cmd += ["--no_fork"]
+      if args.cmdArgs is None:
+        cmd = [deepstate + " --input_test_file " +
+             candidate + " --verbose_reads"]
+        if whichTest is not None:
+          cmd += ["--input_which_test", whichTest]
+        if not args.fork:
+          cmd += ["--no_fork"]
+      else:
+        cmd = [deepstate + " " + args.cmdArgs.replace("@@", candidate)]
       subprocess.call(cmd, shell=True, stdout=outf, stderr=outf)
     result = []
     with open(".reducer." + str(os.getpid()) + ".out", 'r') as inf:
@@ -104,8 +117,10 @@ def main():
     return result
 
   def checks(result):
+    if checkRegExp is not None:
+      return re.search(checkRegExp, "\n".join(result)) is not None
     for line in result:
-      if checkString:
+      if checkString is not None:
         if checkString in line:
           return True
       else:
@@ -123,7 +138,7 @@ def main():
 
   def structure(result):
     if args.noStructure:
-      return ([], len(currentTest))
+      return ([], len(currentTest)-1)
     OneOfs = []
     currentOneOf = []
     for line in result:
@@ -175,7 +190,7 @@ def main():
 
   initial = runCandidate(test)
   if (not args.search) and (not checks(initial)):
-    print("STARTING TEST DOES NOT SATISFY REDUCTION CRITERIA!")
+    print("STARTING TEST DOES NOT SATISFY REDUCTION CRITERION!")
     return 1
 
   with open(test, 'rb') as test:
@@ -218,11 +233,11 @@ def main():
       print("="*80)
       sys.stdout.flush()
 
-  def passInfo():
+  def passInfo(passName):
       global passStart
       percent = 100.0 * ((initialSize - len(currentTest)) / initialSize)
-      print("PASS FINISHED IN", round(time.time() - passStart, 2), "SECONDS, RUN:", round(time.time()-start, 2),
-                "secs /", candidateRuns, "execs /", str(round(percent, 2)) + "% reduction")
+      print(passName + ":", "PASS FINISHED IN", round(time.time() - passStart, 2), "SECONDS, RUN:",
+                round(time.time()-start, 2), "secs /", candidateRuns, "execs /", str(round(percent, 2)) + "% reduction")
       passStart = time.time()
 
   oldTest = []
@@ -251,7 +266,7 @@ def main():
       print("Iteration #" + str(iteration), round(time.time()-start, 2), "secs /",
               candidateRuns, "execs /", str(round(percent, 2)) + "% reduction")
 
-      if currentTest != lastOneOfRemovalTest:
+      if not (args.noStructure) and (currentTest != lastOneOfRemovalTest):
         if args.verbose:
           print("*"*80+"\nPASS: removing OneOfs...")
         changed = True
@@ -269,7 +284,7 @@ def main():
               updateCurrent(newTest)
               break
         lastOneOfRemovalTest = bytearray(currentTest)
-        passInfo()
+        passInfo("OneOf removal")
 
       for k in [1, 4, 8]:
         if currentTest != lastChunkRemovalTest[k]:
@@ -299,7 +314,7 @@ def main():
                   startingPos = b
                   break
           lastChunkRemovalTest[k] = bytearray(currentTest)
-          passInfo()
+          passInfo(str(k) + "-byte chunk removal")
 
       for k in [1, 4, 8]:
         if currentTest != lastReduceAndDeleteTest[k]:
@@ -321,7 +336,7 @@ def main():
                 updateCurrent(newTest)
                 break
           lastReduceAndDeleteTest[k] = bytearray(currentTest)
-          passInfo()
+          passInfo(str(k) + "-byte reduce and delete")
 
       if not args.fast:
         if currentTest != lastAllRangeTest:
@@ -367,9 +382,9 @@ def main():
                 if changed:
                   break
           lastAllRangeTest = bytearray(currentTest)
-          passInfo()
+          passInfo("Byte range removal")
 
-      if currentTest != lastOneOfSwapTest:
+      if (not args.noStructure) and (currentTest != lastOneOfSwapTest):
         if args.verbose:
           print("*"*80+"\nPASS: swapping OneOfs...")
         changed = True
@@ -402,7 +417,7 @@ def main():
             if changed:
               break
         lastOneOfSwapTest = bytearray(currentTest)
-        passInfo()
+        passInfo("OneOf swap")
 
       if currentTest != lastByteReduceTest:
           if args.verbose:
@@ -440,7 +455,7 @@ def main():
               if changed:
                 break
           lastByteReduceTest = bytearray(currentTest)
-          passInfo()
+          passInfo("Byte reduce")
 
       if (args.slow or args.slowest) and (oldTest == currentTest):
         if currentTest != lastPatternSearchTest:
@@ -483,7 +498,7 @@ def main():
               if changed:
                 break
           lastPatternSearchTest = bytearray(currentTest)
-          passInfo()
+          passInfo("Byte pattern change")
 
         if oldTest == currentTest:
           print("*" * 80)
