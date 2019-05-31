@@ -71,13 +71,10 @@ RUN cd deepstate \
     && mkdir -p build \
     && cd build \
     && rm -rf CMakeFiles CMakeCache.txt \
-    && CXX=clang++ CC=clang BUILD_LIBFUZZER=TRUE cmake ../ \
-    && sudo make install \
-    && rm -rf CMakeFiles CMakeCache.txt \
     && CXX=afl-clang++ CC=afl-clang BUILD_AFL=TRUE cmake ../ \
     && sudo make install \
     && rm -rf CMakeFiles CMakeCache.txt \
-    && cmake ../ \
+    && CXX=clang++ CC=clang BUILD_LIBFUZZER=TRUE cmake ../ \
     && sudo make install \
     && cd .. \
     && sudo pip3 install 'z3-solver==4.5.1.0.post2' angr 'manticore==0.2.5' \
