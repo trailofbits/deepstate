@@ -80,4 +80,7 @@ RUN cd deepstate \
     && sudo pip3 install 'z3-solver==4.5.1.0.post2' angr 'manticore==0.2.5' \
     && sudo python3 ./build/setup.py install
 
+ENV CC=clang
+ENV CXX=clang++
+
 CMD ["/bin/bash"]
