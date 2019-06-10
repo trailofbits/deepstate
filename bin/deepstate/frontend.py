@@ -16,6 +16,7 @@
 import os
 import subprocess
 import argparse
+import functools
 
 class DeepStateFrontend(object):
     """
@@ -87,8 +88,8 @@ class DeepStateFrontend(object):
         """
 
         # turn arg mapping into viable cli args
-        cmd_args = [flag, value if value is not None else flag
-                                for flag, value in cmd_dict.items()]
+        cmd_args = list(functools.reduce(lambda key, val: key + val, cmd_dict.items()))
+        cmd_args = [arg for arg in cmd_args if arg is not None]
 
         # prepends compiler executable if specified
         if compiler is not None:
@@ -106,7 +107,6 @@ class DeepStateFrontend(object):
         """
         takes constructed cli command and executes fuzzer with subprocess.call
         """
-        print(self.cmd)
         try:
             r = subprocess.call(self.cmd)
             print(f"{self.name} finished with exit code", r)
