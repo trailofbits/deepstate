@@ -53,7 +53,7 @@ class DeepStateFrontend(object):
           raise RuntimeError(f"{compiler} does not exist as absolute path or in ${envvar}")
 
       # use first compiler executable if multiple exists
-      self.compiler = compiler_path[0]
+      self.compiler = compiler_paths[0]
 
 
     # in case name supplied as `bin/fuzzer`, strip executable name
@@ -66,6 +66,13 @@ class DeepStateFrontend(object):
     self.fuzzer = fuzzer_paths[0]
 
 
+  def print_help(self):
+    """
+    calls fuzzer to print executable help menu
+    """
+    subprocess.call([self.fuzzer, "--help"])
+
+
   def compile(self, flags):
     """
     provides an interface for calling a compiler to instrument a test harness for
@@ -76,7 +83,7 @@ class DeepStateFrontend(object):
 
     self.compile_cmd = [self.compiler, flags]
     try:
-      r = subprocess.call(self.compile_cmd)
+      subprocess.call(self.compile_cmd)
     except BaseException as e:
       raise RuntimeError(f"{self.compiler} interrupted due to exception:", e)
 
