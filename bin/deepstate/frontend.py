@@ -56,7 +56,7 @@ class DeepStateFrontend(object):
 
 
         # in case name supplied as `bin/fuzzer`, strip executable name
-        if name.contains('/'):
+        if '/' in name:
             self.name = name.split('/')[-1]
         else:
             self.name = name
@@ -80,29 +80,33 @@ class DeepStateFrontend(object):
             raise RuntimeError(f"{self.compiler} interrupted due to exception:", e)
 
 
-    def cli_command(self, cmd_dict, pre_cmd=None):
+    def cli_command(self, cmd_dict, compiler=None, cli_other=None):
         """
         provides an interface for constructing proper command to be passed
         to fuzzer cli executable.
         """
 
         # turn arg mapping into viable cli args
-        cmd_args = [f"{flag}={value}" if value is not None else flag
-                                      for flag, value in cmd_dict.items()]
+        cmd_args = [flag, value if value is not None else flag
+                                for flag, value in cmd_dict.items()]
 
-        # prepends another executable as command (i.e running a compiler like 'dotnet')
-        if pre_cmd is not None:
-            self.cmd = [pre_cmd, self.fuzzer]
+        # prepends compiler executable if specified
+        if compiler is not None:
+            self.cmd = [compiler, self.fuzzer]
         else:
             self.cmd = [self.fuzzer]
 
+        # create command to execute by fuzzer, append any other optional arguments
         self.cmd += cmd_args
+        if cli_other is not None:
+            self.cmd += cli_other
 
 
     def execute_fuzzer(self):
         """
         takes constructed cli command and executes fuzzer with subprocess.call
         """
+        print(self.cmd)
         try:
             r = subprocess.call(self.cmd)
             print(f"{self.name} finished with exit code", r)
@@ -119,6 +123,7 @@ class DeepStateFrontend(object):
 
     _ARGS = None
 
+    @classmethod
     def parse_args(cls):
         if cls._ARGS:
             return cls._ARGS
