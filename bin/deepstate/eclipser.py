@@ -13,45 +13,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function
-import argparse
 import glob
 import os
 import shutil
 import subprocess
 import sys
 
+from .frontend import DeepStateFrontend
+
+class Eclipser(DeepStateFrontend):
+  """
+  Eclipser front-end implemented with a base DeepStateFrontend object
+  in order to interface the executable DLL for greybox concolic testing
+  """
+
+  def print_help(self):
+    subprocess.call(["dotnet", self.fuzzer, "fuzz", "--help"])
+
+  def cli_command(self, cmd_dict, compiler="dotnet", cli_other=None):
+    super().cli_command(cmd_dict, compiler=compiler, cli_other=cli_other)
+
+  def post_processing(self, out):
+    subprocess.call(["dotnet", self.fuzzer, "decode", "-i", out + "/run/testcase", "-o", out + "/decoded"])
+    subprocess.call(["dotnet", self.fuzzer, "decode", "-i", out + "/run/crash", "-o", out + "/decoded"])
+    for f in glob.glob(out + "/decoded/decoded_files/*"):
+      shutil.copy(f, out)
+    shutil.rmtree(out + "/decoded")
+
+
 
 def main():
-  parser = argparse.ArgumentParser(description="Use Eclipser as back-end for DeepState.")
-
-  parser.add_argument("binary", type=str, help="Path to the test binary to run.")
-  
-  parser.add_argument("--output_test_dir", type=str, default="out", help="Directory where tests will be saved.")
-
-  parser.add_argument("--timeout", type=int, default=3600, help="How long to fuzz using Eclipser.")
-
-  parser.add_argument("--seeds", type=str, help="Directory with seed inputs.")
-
-  parser.add_argument("--which_test", type=str, help="Which test to run (equivalent to --input_which_test).")
-
-  parser.add_argument("--max_input_size", type=int, default=8192, help="Maximum input size.")
-
-  parser.add_argument("--eclipser_help", action='store_true', help="Show Eclipser fuzzer command line options.")
-
-  parser.add_argument("--args", default=[], nargs=argparse.REMAINDER, help="Other arguments to pass to eclipser.",)
-
-  args = parser.parse_args()
+  fuzzer = Eclipser("build/Eclipser.dll", envvar="ECLIPSER_HOME")
+  args = fuzzer.parse_args()
   out = args.output_test_dir
 
-  ehome = os.getenv("ECLIPSER_HOME")
-  if ehome is None:
-    print("Error: ECLIPSER_HOME not set!")
-    sys.exit(1)
-  eclipser = ehome + "/build/Eclipser.dll"
-
-  if args.eclipser_help:
-    subprocess.call(["dotnet", eclipser, "fuzz", "--help"])
+  if args.fuzzer_help:
+    fuzzer.print_help()
     sys.exit(0)
 
   if not os.path.exists(out):
@@ -62,29 +59,33 @@ def main():
     print("Error:", out, "is not a directory!")
     sys.exit(1)
 
-  cmd = ["dotnet", eclipser, "fuzz", "-p", args.binary, "-t", str(args.timeout)]
-  cmd += ["-o", out + "/run", "--src", "file", "--fixfilepath", "eclipser.input"]
   deepargs = "--input_test_file eclipser.input --abort_on_fail --no_fork"
   if args.which_test is not None:
-      deepargs += " --input_which_test " + args.which_test
-  cmd += ["--initarg", deepargs, "--maxfilelen", str(args.max_input_size)]
+    deepargs += " --input_which_test " + args.which_test
+
+  cmd_dict = {
+    "fuzz": None,
+    "-p": args.binary,
+    "-t": str(args.timeout),
+    "-o": out + "/run",
+    "--src": "file",
+    "--fixfilepath": "eclipser.input",
+    "--initarg": deepargs,
+    "--maxfilelen": str(args.max_input_size),
+  }
+
   if args.seeds is not None:
-    cmd += ["-i", args.seeds]
-  cmd += args.args
-  try:
-    r = subprocess.call(cmd)
-    print ("Eclipser finished with exit code", r)
-  except BaseException as e: # catch any failure, and still put the tests we got into raw format
-    print("Eclipser run interrupted due to exception:", e)
+    cmd_dict["-i"] = args.seeds
+
+  fuzzer.cli_command(cmd_dict, cli_other=args.args)
+
+  print("EXECUTING FUZZER...")
+  fuzzer.execute_fuzzer()
 
   print("DECODING THE TESTS...")
-  subprocess.call(["dotnet", eclipser, "decode", "-i", out + "/run/testcase", "-o", out + "/decoded"])
-  subprocess.call(["dotnet", eclipser, "decode", "-i", out + "/run/crash", "-o", out + "/decoded"])
-  for f in glob.glob(out + "/decoded/decoded_files/*"):
-    shutil.copy(f, out)
-  shutil.rmtree(out + "/decoded")
-
+  fuzzer.post_processing(out)
   return 0
+
 
 if "__main__" == __name__:
   exit(main())
