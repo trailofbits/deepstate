@@ -30,9 +30,10 @@ def main():
   def annotate(call, f):
     annotated = ""
     pos = 0
+    spaces = ""
     for c in call:
       if c.isspace():
-        annotated += c
+        spaces += c
         pos += 1
       else:
         break
@@ -40,7 +41,7 @@ def main():
     arguments = arguments.split(")")[0]
     theArgs = arguments.split(",")
     annotated += "LOG(TRACE) << "
-    annotated += '"/* START CODE: */  ' + call[pos:call.find("(") + 1] + '" << '
+    annotated += '"/* START STANDALONE CODE */' + spaces + call[pos:call.find("(") + 1] + '" << '
     if f != "assert":
       for arg in theArgs[:-1]:
         annotated += ("DeepState_Standalone_Wrap(" + arg + ') << "," << ')
@@ -52,7 +53,7 @@ def main():
           endPos = i
           break
       annotated += '"' + call[call.find("(")+1:-endPos] + '" << '
-    annotated += '"); // STANDALONE UNIT TEST CODE";\n'
+    annotated += '"); /* END STANDALONE CODE */";\n'
     return annotated
   
   with open(args.config, 'r') as cfile:
