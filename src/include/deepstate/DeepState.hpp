@@ -116,6 +116,25 @@ DEEPSTATE_INLINE static bool IsSymbolic(double x) {
   return DeepState_IsSymbolicDouble(x);
 }
 
+DEEPSTATE_INLINE static int DeepState_Standalone_Wrap(int x) {
+  return x;
+}
+
+DEEPSTATE_INLINE static unsigned int DeepState_Standalone_Wrap(unsigned int x) {
+  return x;
+}
+
+DEEPSTATE_INLINE static std::string DeepState_Standalone_Wrap(char* x) {
+  if (x == NULL) {
+    return std::string("NULL");
+  } else {
+    std::string s = "\"";
+    s += std::string(x);
+    s += "\"";
+    return s;
+  }
+}
+
 // A test fixture.
 class Test {
  public:
