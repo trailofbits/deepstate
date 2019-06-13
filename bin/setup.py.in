@@ -38,6 +38,7 @@ setuptools.setup(
             'deepstate-manticore = deepstate.main_manticore:main',
             'deepstate-reduce = deepstate.reducer:main',
             'deepstate-add-standalone = deepstate.standalone:main',
+            'deepstate-extract-standalone = deepstate.extract:main',
             'deepstate-eclipser = deepstate.eclipser:main',
         ]
     })
