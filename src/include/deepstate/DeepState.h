@@ -648,41 +648,46 @@ extern enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_T
 static enum DeepState_TestRunResult
 DeepState_RunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
                            const char *name) {
-  size_t path_len = 2 + sizeof(char) * (strlen(dir) + strlen(name));
-  char *path = (char *) malloc(path_len);
-  if (path == NULL) {
-    DeepState_Abandon("Error allocating memory");
-  }
-  if (strncmp(dir, "", strlen(dir)) != 0) {
-    snprintf(path, path_len, "%s/%s", dir, name);
-  } else {
-    snprintf(path, path_len, "%s", name);
-  }
-
-  DeepState_InitInputFromFile(path);
-
-  DeepState_Begin(test);
-
-  enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
-
-  if (result == DeepState_TestRunFail) {
-    DeepState_LogFormat(DeepState_LogError, "Test case %s failed", path);
-    free(path);
-  }
-  else if (result == DeepState_TestRunCrash) {
-    DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
-    DeepState_LogFormat(DeepState_LogError, "Test case %s crashed", path);    
-    free(path);
-    if (HAS_FLAG_output_test_dir) {
-      DeepState_SaveCrashingTest();
+  if (!setjmp(DeepState_ReturnToRun)) {
+    size_t path_len = 2 + sizeof(char) * (strlen(dir) + strlen(name));
+    char *path = (char *) malloc(path_len);
+    if (path == NULL) {
+      DeepState_Abandon("Error allocating memory");
+    }
+    if (strncmp(dir, "", strlen(dir)) != 0) {
+      snprintf(path, path_len, "%s/%s", dir, name);
+    } else {
+      snprintf(path, path_len, "%s", name);
     }
 
-    DeepState_Crash();
+    DeepState_InitInputFromFile(path);
+
+    DeepState_Begin(test);
+
+    enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
+
+    if (result == DeepState_TestRunFail) {
+      DeepState_LogFormat(DeepState_LogError, "Test case %s failed", path);
+      free(path);
+    }
+    else if (result == DeepState_TestRunCrash) {
+      DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
+      DeepState_LogFormat(DeepState_LogError, "Test case %s crashed", path);
+      free(path);
+      if (HAS_FLAG_output_test_dir) {
+	DeepState_SaveCrashingTest();
+      }
+
+      DeepState_Crash();
+    } else {
+      free(path);
+    }
+
+    return result;
   } else {
-    free(path);
+    DeepState_LogFormat(DeepState_LogError, "Something went wrong running the test case %s", name);
+    return DeepState_TestRunCrash;
   }
-  
-  return result;
 }
 
 /* Run a single test many times, initialized against each saved test case in
