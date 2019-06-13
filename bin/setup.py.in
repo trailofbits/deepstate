@@ -37,7 +37,7 @@ setuptools.setup(
             'deepstate-angr = deepstate.main_angr:main',
             'deepstate-manticore = deepstate.main_manticore:main',
             'deepstate-reduce = deepstate.reducer:main',
-            'deepstate-generate-standalone-output = deepstate.standalone:main',
+            'deepstate-add-standalone = deepstate.standalone:main',
             'deepstate-eclipser = deepstate.eclipser:main',
         ]
     })

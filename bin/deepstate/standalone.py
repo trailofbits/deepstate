@@ -14,7 +14,7 @@ import argparse
 def main():
   global candidateRuns, currentTest, s, passStart
 
-  parser = argparse.ArgumentParser(description="Intelligently reduce test case")
+  parser = argparse.ArgumentParser(description="Add code to a DeepState harness to dump code for standalone test cases")
 
   parser.add_argument(
     "source", type=str, help="Path to input harness file.")
@@ -44,7 +44,7 @@ def main():
     annotated += '"/* START STANDALONE CODE */' + spaces + call[pos:call.find("(") + 1] + '" << '
     if f != "assert":
       for arg in theArgs[:-1]:
-        annotated += ("DeepState_Standalone_Wrap(" + arg + ') << "," << ')
+        annotated += ("DeepState_Standalone_Wrap(" + arg + ') << ", " << ')
       if len(theArgs) >= 1:
         annotated += ("DeepState_Standalone_Wrap(" + theArgs[-1] + ') << ')
     else:
