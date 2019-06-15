@@ -12,7 +12,11 @@ included a
 [full tutorial](https://github.com/trailofbits/publications/tree/master/workshops/DeepState:%20Bringing%20vulnerability%20detection%20tools%20into%20the%20development%20lifecycle%20-%20SecDev%202018)
 on effective use of DeepState.
 
-There are two blog posts on using DeepState: [Part 1](https://blog.trailofbits.com/2019/01/22/fuzzing-an-api-with-deepstate-part-1/) and [Part 2](https://blog.trailofbits.com/2019/01/23/fuzzing-an-api-with-deepstate-part-2/).
+## Articles describing DeepState
+
+* [Fuzzing an API with DeepState (Part 1)](https://blog.trailofbits.com/2019/01/22/fuzzing-an-api-with-deepstate-part-1)
+* [Fuzzing an API with DeepState (Part 2)](https://blog.trailofbits.com/2019/01/23/fuzzing-an-api-with-deepstate-part-2)
+* [Fuzzing Unit Tests with DeepState and Eclipser](https://blog.trailofbits.com/2019/05/31/fuzzing-unit-tests-with-deepstate-and-eclipser)
 
 ## Overview of Features
 
