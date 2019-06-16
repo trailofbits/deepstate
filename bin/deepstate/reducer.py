@@ -36,14 +36,15 @@ def main():
   parser.add_argument(
     "--which_test", type=str, help="Which test to run (equivalent to --input_which_test).", default=None)
   parser.add_argument(
-    "--criterion", type=str, help="String to search for in valid reduction outputs (criteria are ORed).",
+    "--criterion", type=str, help="String to search for in valid reduction outputs (criteria are ORed by default).",
     default=None)
   parser.add_argument(
-    "--regexpCriterion", type=str, help="Regexp to search for in valid reduction outputs (criteria are ORed).",
+    "--regexpCriterion", type=str, help="Regexp to search for in valid reduction outputs (criteria are ORed by default).",
     default=None)
   parser.add_argument(
-    "--exitCriterion", type=int, help="Exit criteria for valid reductions (criteria are ORed).",
+    "--exitCriterion", type=int, help="Exit code for valid reductions (criteria are ORed by default).",
     default=None)
+  parser.add_argument("--andCriteria", action="store_true", help="AND criteria instead of ORing them")
   parser.add_argument(
     "--cmdArgs", type=str, help="Command line to use in place of standard DeepState arguments, file replaces @@")
   parser.add_argument(
@@ -125,15 +126,8 @@ def main():
         result.append(line)
     return (result, exitCode)
 
-  def checks((result, exitCode)):
-    if args.exitCriterion is not None:
-      if exitCode == args.exitCriterion:
-        return True
-    if checkRegExp is not None:
-      if re.search(checkRegExp, "\n".join(result)) is not None:
-        return True
-    if checkString is not None:
-      return checkString in "\n".join(result)
+  def checks(resultAndExitCode):
+    (result, exitCode) = resultAndExitCode
     if (args.exitCriterion is None) and (checkRegExp is None) and (checkString is None):
       # Only apply default DeepState failure check if no other criteria were defined
       for line in result:
@@ -141,7 +135,23 @@ def main():
           return True
         if "ERROR: Crashed" in line:
           return True
-    return False
+
+    if args.exitCriterion is not None:
+      exitHolds = exitCode == args.exitCriterion
+    else:
+      exitHolds = args.andCriteria
+    if checkRegExp is not None:
+      regexpHolds = re.search(checkRegExp, "\n".join(result)) is not None
+    else:
+      regexpHolds = args.andCriteria
+    if checkString is not None:
+      stringHolds = checkString in "\n".join(result)
+    else:
+      stringHolds = args.andCriteria
+    if args.andCriteria:
+      return exitHolds and regexpHolds and stringHolds
+    else:
+      return exitHolds or regexpHolds or stringHolds
 
   def writeAndRunCandidate(test):
     with open(candidateName, 'wb') as outf:
