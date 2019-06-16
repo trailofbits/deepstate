@@ -164,11 +164,17 @@ def main():
       ("{", "}"),
       ("(", ")"),
       ("[", "]"),
+      (";", ";"),
+      ("{", ";"),
+      (";", "}"),
       ("BEGIN", "\n"),
       ("\n", "END"),
       ("\n", "\n"),
       ("'", "'"),
       ('"', '"'),
+      ("/", "/"),
+      ("/", "*"),
+      ("/", "\n"),
       (",", ","),
       ("(", ","),
       (",", ")"),
@@ -305,6 +311,7 @@ def main():
 
   oldTest = []
   lastOneOfRemovalTest = []
+  lastEdgeRemovalTest = []
   lastChunkRemovalTest = {}
   lastChunkRemovalTest[1] = []
   lastChunkRemovalTest[4] = []
@@ -348,6 +355,26 @@ def main():
               break
         lastOneOfRemovalTest = bytearray(currentTest)
         passInfo("Structured deletion")
+
+      if not (args.noStructure) and (currentTest != lastEdgeRemovalTest) and (len(s[0]) != 0):
+        if args.verbose:
+          print("*" * 80 + "\nPASS: structure edge deletions...")
+        changed = True
+        while changed:
+          changed = False
+          cuts = s[0]
+          for c in cuts:
+            newTest = currentTest[:c[0]] + currentTest[c[0] + 1:c[1]] + currentTest[c[1] + 1:]
+            if len(newTest) == len(currentTest):
+              continue # Ignore non-shrinking reductions
+            r = writeAndRunCandidate(newTest)
+            if checks(r):
+              print("Structure edge deletion reduced test to", len(newTest), "bytes")
+              changed = True
+              updateCurrent(newTest)
+              break
+        lastEdgeRemovalTest = bytearray(currentTest)
+        passInfo("Structured edge deletion")
 
       for k in [1, 4, 8]:
         if currentTest != lastChunkRemovalTest[k]:
