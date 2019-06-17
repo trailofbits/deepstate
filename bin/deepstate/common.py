@@ -141,11 +141,11 @@ class DeepState(object):
 
     parser.add_argument(
         "--verbosity", default=1, type=int,
-        help="Verbosity level for symbolic execution tool.")
+        help="Verbosity level for symbolic execution tool (default: 1, lower means less output).")
 
     parser.add_argument(
         "--log_level", default=2, type=int,
-        help="Log level (DeepState logging).")
+        help="DeepState log level (default: 2), 0-6 (debug, trace, info, warning, error, external, critical).")
     
     parser.add_argument(
         "binary", type=str, help="Path to the test binary to run.")
