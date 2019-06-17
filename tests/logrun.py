@@ -10,7 +10,7 @@ def logrun(cmd, file, timeout):
   sys.stderr.flush()
   with open(file, 'w') as outf:
     # We need to set log_level so we see ALL messages, for testing
-    p = subprocess.Popen(cmd + ["--log_level", "0"], stdout=outf, stderr=outf)
+    p = subprocess.Popen(cmd + ["--min_log_level", "0"], stdout=outf, stderr=outf)
   start = time.time()
   oldContents = ""
   lastOutput = time.time()
