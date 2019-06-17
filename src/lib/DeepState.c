@@ -47,7 +47,7 @@ DEFINE_bool(fuzz, false, "Perform brute force unguided fuzzing.");
 DEFINE_bool(fuzz_save_passing, false, "Save passing tests during fuzzing.");
 DEFINE_bool(fork, true, "Fork when running a test.");
 
-DEFINE_int(log_level, 0, "Minimum level of logging to output.");
+DEFINE_int(min_log_level, 0, "Minimum level of logging to output (default 2, 0=debug, 1=trace, 2=info, ...).");
 DEFINE_int(seed, 0, "Seed for brute force fuzzing (uses time if not set).");
 DEFINE_int(timeout, 120, "Timeout for brute force fuzzing.");
 
@@ -739,8 +739,8 @@ bool DeepState_CatchAbandoned(void) {
 int DeepState_Fuzz(void){
   DeepState_LogFormat(DeepState_LogInfo, "Starting fuzzing");
 
-  if (!HAS_FLAG_log_level) {
-    FLAGS_log_level = 2;
+  if (!HAS_FLAG_min_log_level) {
+    FLAGS_min_log_level = 2;
   }
   
   if (HAS_FLAG_seed) {
@@ -853,7 +853,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 
   const char* loud = getenv("LIBFUZZER_LOUD");
   if (loud != NULL) {
-    FLAGS_log_level = 0;
+    FLAGS_min_log_level = 0;
     DeepState_LibFuzzerLoud = 1;
   }
   

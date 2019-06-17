@@ -74,7 +74,7 @@ DECLARE_bool(fuzz);
 DECLARE_bool(fuzz_save_passing);
 DECLARE_bool(fork);
 
-DECLARE_int(log_level);
+DECLARE_int(min_log_level);
 DECLARE_int(seed);
 DECLARE_int(timeout);
 
@@ -794,8 +794,8 @@ static int DeepState_RunSingleSavedTestDir(void) {
   int num_failed_tests = 0;
   struct DeepState_TestInfo *test = NULL;  
 
-  if (!HAS_FLAG_log_level) {
-    FLAGS_log_level = 2;
+  if (!HAS_FLAG_min_log_level) {
+    FLAGS_min_log_level = 2;
   }
     
   DeepState_Setup();
@@ -876,8 +876,8 @@ static int DeepState_RunSavedTestCases(void) {
   int num_failed_tests = 0;
   struct DeepState_TestInfo *test = NULL;
 
-  if (!HAS_FLAG_log_level) {
-    FLAGS_log_level = 2;
+  if (!HAS_FLAG_min_log_level) {
+    FLAGS_min_log_level = 2;
   }
     
   DeepState_Setup();
