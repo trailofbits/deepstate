@@ -144,8 +144,8 @@ class DeepState(object):
         help="Verbosity level for symbolic execution tool (default: 1, lower means less output).")
 
     parser.add_argument(
-        "--log_level", default=2, type=int,
-        help="DeepState log level (default: 2), 0-6 (debug, trace, info, warning, error, external, critical).")
+        "--min_log_level", default=2, type=int,
+        help="Minimum DeepState log level to print (default: 2), 0-6 (debug, trace, info, warning, error, external, critical).")
     
     parser.add_argument(
         "binary", type=str, help="Path to the test binary to run.")
@@ -273,7 +273,7 @@ class DeepState(object):
       LOG_LEVEL_ERROR: logging.ERROR,
       LOG_LEVEL_FATAL: logging.CRITICAL
     }
-    LOGGER.setLevel(logging_levels[args.log_level])
+    LOGGER.setLevel(logging_levels[args.min_log_level])
     
     if args.output_test_dir is not None:
       test_dir = os.path.join(args.output_test_dir,
