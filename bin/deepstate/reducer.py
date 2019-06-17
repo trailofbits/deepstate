@@ -36,18 +36,24 @@ def main():
   parser.add_argument(
     "--which_test", type=str, help="Which test to run (equivalent to --input_which_test).", default=None)
   parser.add_argument(
-    "--criterion", type=str, help="String to search for in valid reduction outputs.",
+    "--criterion", type=str, help="String to search for in valid reduction outputs (criteria are ORed by default).",
     default=None)
   parser.add_argument(
-    "--regexpCriterion", type=str, help="Regexp to search for in valid reduction outputs.",
+    "--regexpCriterion", type=str, help="Regexp to search for in valid reduction outputs (criteria are ORed by default).",
     default=None)
+  parser.add_argument(
+    "--exitCriterion", type=int, help="Exit code for valid reductions (criteria are ORed by default).",
+    default=None)
+  parser.add_argument("--andCriteria", action="store_true", help="AND criteria instead of ORing them")
   parser.add_argument(
     "--cmdArgs", type=str, help="Command line to use in place of standard DeepState arguments, file replaces @@")
+  parser.add_argument(
+    "--candidateName", type=str, help="Candidate name to use in place of default")
   parser.add_argument(
     "--search", action="store_true", help="Allow initial test to not satisfy criterion (search for test).",
     default=None)
   parser.add_argument(
-    "--timeout", type=int, help="After this amount of time (in seconds), give up on reduction.",
+    "--timeout", type=int, help="After this amount of time (in seconds), give up on reduction (default is 20 minutes (1200s)).",
     default=1200)
   parser.add_argument(
     "--maxByteRange", type=int, help="Maximum size of byte chunk to try in range removals.",
@@ -71,6 +77,9 @@ def main():
     "--noStructure", action='store_true',
     help="Don't use test structure.")
   parser.add_argument(
+    "--noStaticStructure", action='store_true',
+    help='''Don't use "static" test structure (e.g., parens/quotes/brackets).''')
+  parser.add_argument(
     "--noPad", action='store_true',
     help="Don't pad test with zeros.")
 
@@ -93,6 +102,10 @@ def main():
   start = time.time()
   candidateRuns = 0
 
+  candidateName = ".candidate." + str(os.getpid()) + ".test"
+  if args.candidateName is not None:
+    candidateName = args.candidateName
+
   def runCandidate(candidate):
     global candidateRuns
 
@@ -109,36 +122,98 @@ def main():
           cmd += ["--no_fork"]
       else:
         cmd = [deepstate + " " + args.cmdArgs.replace("@@", candidate)]
-      subprocess.call(cmd, shell=True, stdout=outf, stderr=outf)
+      exitCode = subprocess.call(cmd, shell=True, stdout=outf, stderr=outf)
     result = []
     with open(".reducer." + str(os.getpid()) + ".out", 'r') as inf:
       for line in inf:
         result.append(line)
-    return result
+    return (result, exitCode)
 
-  def checks(result):
-    if checkRegExp is not None:
-      return re.search(checkRegExp, "\n".join(result)) is not None
-    for line in result:
-      if checkString is not None:
-        if checkString in line:
-          return True
-      else:
+  def checks(resultAndExitCode):
+    (result, exitCode) = resultAndExitCode
+    if (args.exitCriterion is None) and (checkRegExp is None) and (checkString is None):
+      # Only apply default DeepState failure check if no other criteria were defined
+      for line in result:
         if "ERROR: Failed:" in line:
           return True
         if "ERROR: Crashed" in line:
           return True
-    return False
+
+    if args.exitCriterion is not None:
+      exitHolds = exitCode == args.exitCriterion
+    else:
+      exitHolds = args.andCriteria
+    if checkRegExp is not None:
+      regexpHolds = re.search(checkRegExp, "\n".join(result)) is not None
+    else:
+      regexpHolds = args.andCriteria
+    if checkString is not None:
+      stringHolds = checkString in "\n".join(result)
+    else:
+      stringHolds = args.andCriteria
+    if args.andCriteria:
+      return exitHolds and regexpHolds and stringHolds
+    else:
+      return exitHolds or regexpHolds or stringHolds
 
   def writeAndRunCandidate(test):
-    with open(".candidate." + str(os.getpid()) + ".test", 'wb') as outf:
+    with open(candidateName, 'wb') as outf:
       outf.write(test)
-    r = runCandidate(".candidate." + str(os.getpid()) + ".test")
+    r = runCandidate(candidateName)
     return r
 
-  def structure(result):
+  def augmentWithDelims(OneOfsAndLastRead, testBytes):
+    if args.noStaticStructure:
+      return OneOfsAndLastRead
+    (OneOfs, lastRead) = OneOfsAndLastRead
+    delimPairs = [
+      ("{", "}"),
+      ("(", ")"),
+      ("[", "]"),
+      (";", ";"),
+      ("{", ";"),
+      (";", "}"),
+      ("BEGIN", "\n"),
+      ("\n", "END"),
+      ("\n", "\n"),
+      ("'", "'"),
+      ('"', '"'),
+      ("/", "/"),
+      ("/", "*"),
+      ("/", "\n"),
+      (",", ","),
+      ("(", ","),
+      (",", ")"),
+      ("<", ">")]
+    delims = []
+    for (tstart, tstop) in delimPairs:
+      if tstart not in ["BEGIN", "END"]:
+        tstartBytes = bytearray(tstart)
+        start = tstartBytes[0]
+      if tstop not in ["BEGIN", "END"]:
+        tstopBytes = bytearray(tstop)
+        stop = tstopBytes[0]
+      for i in range(len(testBytes)):
+        for j in range(len(testBytes) - 1, i, -1):
+          if tstart not in ["BEGIN", "END"]:
+            imatch = testBytes[i] == start
+          else:
+            if tstart == "BEGIN":
+              imatch = (i == 0)
+          if tstop not in ["BEGIN", "END"]:
+            jmatch = testBytes[j] == stop
+          else:
+            jmatch = (j == len(testBytes) - 1)
+          if imatch and jmatch:
+            delims.append((i, j))
+            delims.append((i + 1, j - 1))
+    return (OneOfs + delims, lastRead)
+
+  def structure(resultAndExitCode):
+    (result, exitCode) = resultAndExitCode
+    lastRead = len(currentTest) - 1
     if args.noStructure:
-      return ([], len(currentTest)-1)
+      return ([], lastRead)
     OneOfs = []
     currentOneOf = []
     for line in result:
@@ -154,7 +229,8 @@ def main():
         currentOneOf = currentOneOf[:-1]
     return (OneOfs, lastRead)
 
-  def rangeConversions(result):
+  def rangeConversions(resultAndExitCode):
+    (result, exitCode) = resultAndExitCode
     conversions = []
     startedMulti = False
     multiFirst = None
@@ -205,11 +281,12 @@ def main():
   r = writeAndRunCandidate(currentTest)
   assert(checks(r))
 
-  s = structure(initial)
-  if (s[1]+1) < len(currentTest):
+  s = structure(r)
+  if (s[1] + 1) < len(currentTest):
     print("Last byte read:", s[1])
     print("Shrinking to ignore unread bytes")
-    currentTest = currentTest[:s[1]+1]
+    currentTest = currentTest[:s[1] + 1]
+  s = augmentWithDelims(s, currentTest)
 
   if currentTest != original:
     print("Writing reduced test with", len(currentTest), "bytes to", out)
@@ -226,7 +303,7 @@ def main():
       print("Writing reduced test with", len(currentTest), "bytes to", out)
       with open(out, 'wb') as outf:
         outf.write(currentTest)
-      s = structure(r)
+      s = augmentWithDelims(structure(r), currentTest)
       percent = 100.0 * ((initialSize - len(currentTest)) / initialSize)
       print(round(time.time()-start, 2), "secs /",
               candidateRuns, "execs /", str(round(percent, 2)) + "% reduction")
@@ -242,6 +319,7 @@ def main():
 
   oldTest = []
   lastOneOfRemovalTest = []
+  lastEdgeRemovalTest = []
   lastChunkRemovalTest = {}
   lastChunkRemovalTest[1] = []
   lastChunkRemovalTest[4] = []
@@ -266,36 +344,56 @@ def main():
       print("Iteration #" + str(iteration), round(time.time()-start, 2), "secs /",
               candidateRuns, "execs /", str(round(percent, 2)) + "% reduction")
 
-      if not (args.noStructure) and (currentTest != lastOneOfRemovalTest):
+      if not (args.noStructure) and (currentTest != lastOneOfRemovalTest) and (len(s[0]) != 0):
         if args.verbose:
-          print("*"*80+"\nPASS: removing OneOfs...")
+          print("*" * 80 + "\nPASS: structured deletions...")
         changed = True
         while changed:
           changed = False
           cuts = s[0]
           for c in cuts:
-            newTest = currentTest[:c[0]] + currentTest[c[1]+1:]
+            newTest = currentTest[:c[0]] + currentTest[c[1] + 1:]
             if len(newTest) == len(currentTest):
               continue # Ignore non-shrinking reductions
             r = writeAndRunCandidate(newTest)
             if checks(r):
-              print("OneOf removal reduced test to", len(newTest), "bytes")
+              print("Structured deletion reduced test to", len(newTest), "bytes")
               changed = True
               updateCurrent(newTest)
               break
         lastOneOfRemovalTest = bytearray(currentTest)
-        passInfo("OneOf removal")
+        passInfo("Structured deletion")
+
+      if not (args.noStructure) and (currentTest != lastEdgeRemovalTest) and (len(s[0]) != 0):
+        if args.verbose:
+          print("*" * 80 + "\nPASS: structure edge deletions...")
+        changed = True
+        while changed:
+          changed = False
+          cuts = s[0]
+          for c in cuts:
+            newTest = currentTest[:c[0]] + currentTest[c[0] + 1:c[1]] + currentTest[c[1] + 1:]
+            if len(newTest) == len(currentTest):
+              continue # Ignore non-shrinking reductions
+            r = writeAndRunCandidate(newTest)
+            if checks(r):
+              print("Structure edge deletion reduced test to", len(newTest), "bytes")
+              changed = True
+              updateCurrent(newTest)
+              break
+        lastEdgeRemovalTest = bytearray(currentTest)
+        passInfo("Structured edge deletion")
 
       for k in [1, 4, 8]:
         if currentTest != lastChunkRemovalTest[k]:
           if args.verbose:
-            print("*"*80+"\nPASS: trying", k, "byte chunk removals...")
+            print("*" * 80 + "\nPASS: trying", k, "byte chunk removals...")
           changed = True
           startingPos = 0
           while changed:
             changed = False
             for b in range(startingPos, len(currentTest)):
-              newTest = currentTest[:b] + currentTest[b+k:]
+              newTest = currentTest[:b] + currentTest[b + k:]
               r = writeAndRunCandidate(newTest)
               if checks(r):
                 print("Removed", k, "byte(s) @", str(b) + ": reduced test to", len(newTest), "bytes")
@@ -305,7 +403,7 @@ def main():
                 break
             if not changed:
               for b in range(0, startingPos):
-                newTest = currentTest[:b] + currentTest[b+k:]
+                newTest = currentTest[:b] + currentTest[b + k:]
                 r = writeAndRunCandidate(newTest)
                 if checks(r):
                   print("Removed", k, "byte(s) @", str(b) + ": reduced test to", len(newTest), "bytes")
@@ -319,16 +417,16 @@ def main():
       for k in [1, 4, 8]:
         if currentTest != lastReduceAndDeleteTest[k]:
           if args.verbose:
-            print("*"*80+"\nPASS: byte reduce and delete", str(k) + "...")
+            print("*" * 80 + "\nPASS: byte reduce and delete", str(k) + "...")
           changed = True
           while changed:
             changed = False
-            for b in range(0, len(currentTest)-k):
+            for b in range(0, len(currentTest) - k):
               if currentTest[b] == 0:
                 continue
               newTest = bytearray(currentTest)
-              newTest[b] = currentTest[b]-1
-              newTest = newTest[:b+1] + newTest[b+k+1:]
+              newTest[b] = currentTest[b] - 1
+              newTest = newTest[:b + 1] + newTest[b + k + 1:]
               r = writeAndRunCandidate(newTest)
               if checks(r):
                 print("Reduced byte", b, "by 1 and deleted", k, "bytes, reducing test to", len(newTest), "bytes")
@@ -341,7 +439,7 @@ def main():
       if not args.fast:
         if currentTest != lastAllRangeTest:
           if args.verbose:
-            print("*"*80+"\nPASS: trying all byte range removals...")
+            print("*" * 80 + "\nPASS: trying all byte range removals...")
           changed = True
           startingPos = 0
           while changed:
@@ -349,13 +447,13 @@ def main():
             for b in range(startingPos, len(currentTest)):
               if args.verbose:
                 print("Trying byte range removal from", str(b) + "...")
-              for v in range(b+2, min(len(currentTest), b+maxByteRange)):
+              for v in range(b + 2, min(len(currentTest), b + maxByteRange)):
                 if (v-b) in [4, 8]:
                   continue
                 newTest = currentTest[:b] + currentTest[v:]
                 r = writeAndRunCandidate(newTest)
                 if checks(r):
-                  print("Byte range removal of bytes", str(b) + "-" + str(v-1),
+                  print("Byte range removal of bytes", str(b) + "-" + str(v - 1),
                           "reduced test to", len(newTest), "bytes")
                   changed = True
                   updateCurrent(newTest)
@@ -367,13 +465,13 @@ def main():
               for b in range(0, startingPos):
                 if args.verbose:
                   print("Trying byte range removal from", str(b) + "...")
-                for v in range(b+2, min(len(currentTest), b+maxByteRange)):
+                for v in range(b + 2, min(len(currentTest), b + maxByteRange)):
                   if (v-b) in [4, 8]:
                     continue
                   newTest = currentTest[:b] + currentTest[v:]
                   r = writeAndRunCandidate(newTest)
                   if checks(r):
-                    print("Byte range removal of bytes", str(b) + "-" + str(v-1),
+                    print("Byte range removal of bytes", str(b) + "-" + str(v - 1),
                             "reduced test to", len(newTest), "bytes")
                     changed = True
                     updateCurrent(newTest)
@@ -384,30 +482,30 @@ def main():
           lastAllRangeTest = bytearray(currentTest)
           passInfo("Byte range removal")
 
-      if (not args.noStructure) and (currentTest != lastOneOfSwapTest):
+      if (not args.noStructure) and (currentTest != lastOneOfSwapTest) and (len(s[0]) != 0):
         if args.verbose:
-          print("*"*80+"\nPASS: swapping OneOfs...")
+          print("*" * 80 + "\nPASS: swapping structures...")
         changed = True
         while changed:
           changed = False
           cuts = s[0]
-          for i in range(len(cuts)-1):
+          for i in range(len(cuts) - 1):
             cuti = cuts[i]
             bytesi = currentTest[cuti[0]:cuti[1] + 1]
             if args.verbose:
-              print("Trying OneOf swaps from byte", cuti[0], "[" + " ".join(map(str, bytesi)) + "]")
+              print("Trying structured swap from byte", cuti[0], "[" + " ".join(map(str, bytesi)) + "]")
             for j in range(i + 1, len(cuts)):
               cutj = cuts[j]
               if cutj[0] > cuti[1]:
                 bytesj = currentTest[cutj[0]:cutj[1] + 1]
                 if (len(bytesj) > 0) and (bytesi > bytesj):
-                  newTest = currentTest[:cuti[0]] + bytesj + currentTest[cuti[1]+1:cutj[0]]
+                  newTest = currentTest[:cuti[0]] + bytesj + currentTest[cuti[1] + 1:cutj[0]]
                   newTest += bytesi
-                  newTest += currentTest[cutj[1]+1:]
+                  newTest += currentTest[cutj[1] + 1:]
                   newTest = bytearray(newTest)
                   r = writeAndRunCandidate(newTest)
                   if checks(r):
-                    print("OneOf swap @ byte", cuti[0], "[" + " ".join(map(str, bytesi)) + "]", "with",
+                    print("Structured swap @ byte", cuti[0], "[" + " ".join(map(str, bytesi)) + "]", "with",
                             cutj[0], "[" + " ".join(map(str, bytesj)) + "]")
                     changed = True
                     updateCurrent(newTest)
@@ -417,11 +515,11 @@ def main():
             if changed:
               break
         lastOneOfSwapTest = bytearray(currentTest)
-        passInfo("OneOf swap")
+        passInfo("Structured swap")
 
       if currentTest != lastByteReduceTest:
           if args.verbose:
-              print("*"*80+"\nPASS: byte reductions...")
+              print("*" * 80 + "\nPASS: byte reductions...")
           changed = True
           startingPos = 0
           while changed:
@@ -435,7 +533,7 @@ def main():
                   print("Reduced byte", b, "from", currentTest[b], "to", v)
                   changed = True
                   updateCurrent(newTest)
-                  startingPos = b+1
+                  startingPos = b + 1
                   break
               if changed:
                 break
@@ -450,7 +548,7 @@ def main():
                   print("Reduced byte", b, "from", currentTest[b], "to", v)
                   changed = True
                   updateCurrent(newTest)
-                  startingPos = b+1
+                  startingPos = b + 1
                   break
               if changed:
                 break
@@ -460,28 +558,28 @@ def main():
       if (args.slow or args.slowest) and (oldTest == currentTest):
         if currentTest != lastPatternSearchTest:
           if args.verbose:
-            print("*"*80+"\nPASS: byte pattern search...")
+            print("*" * 80 + "\nPASS: byte pattern search...")
           changed = True
           while changed:
             changed = False
             for b1 in range(0, len(currentTest)-4):
               if args.verbose:
                 print("Trying byte pattern search from byte", str(b1) + "...")
-              for b2 in range(b1+2, len(currentTest)-4):
-                v1 = (currentTest[b1], currentTest[b1+1])
-                v2 = (currentTest[b2], currentTest[b2+1])
+              for b2 in range(b1 + 2, len(currentTest) - 4):
+                v1 = (currentTest[b1], currentTest[b1 + 1])
+                v2 = (currentTest[b2], currentTest[b2 + 1])
                 if (v1 == v2):
                   ba = bytearray(v1)
                   part1 = currentTest[:b1]
-                  part2 = currentTest[b1+2:b2]
-                  part3 = currentTest[b2+2:]
+                  part2 = currentTest[b1 + 2:b2]
+                  part3 = currentTest[b2 + 2:]
                   banews = []
                   banews.append(ba[0:1])
                   banews.append(ba[1:2])
                   if ba[0] > 0:
                     for v in range(0, ba[0]):
                       banews.append(bytearray([v, ba[1]]))
-                    banews.append(bytearray([ba[0]-1]))
+                    banews.append(bytearray([ba[0] - 1]))
                   if ba[1] > 0:
                     for v in range(0, ba[1]):
                       banews.append(bytearray([ba[0], v]))
