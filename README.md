@@ -389,7 +389,7 @@ executable is named `TestFileSystem` and the test you want to reduce
 is named `rmdirfail.test` you would use it like this:
 
 ```shell
-deepstate-reduce ./TestFileSystem rmdirfail.test minrmdirfail.test
+deepstate-reduce ./TestFileSystem create.test mincreate.test
 ```
 
 In many cases, this will result in finding a different failure or
@@ -401,33 +401,54 @@ be valid reductions (`--regexpCriterion` lets you use a Python regexp
 for more complex checks):
 
 ```shell
-deepstate-reduce ./TestFileSystem rmdirfail.test minrmdirfail.test --criteria "FATAL: /root/testfs/super.c(252)"
+deepstate-reduce ./TestFileSystem create.test mincreate.test --criteria "Assertion failed: ((testfs_inode_get_type(in) == I_FILE)"
 ```
 
 The output will look something like:
 
 ```
-ORIGINAL TEST HAS 119 BYTES
-ONEOF REMOVAL REDUCED TEST TO 103 BYTES
-ONEOF REMOVAL REDUCED TEST TO 87 BYTES
-ONEOF REMOVAL REDUCED TEST TO 67 BYTES
-ONEOF REMOVAL REDUCED TEST TO 51 BYTES
-BYTE RANGE REMOVAL REDUCED TEST TO 50 BYTES
-BYTE RANGE REMOVAL REDUCED TEST TO 49 BYTES
-BYTE REDUCTION: BYTE 3 FROM 4 TO 0
-BYTE REDUCTION: BYTE 43 FROM 4 TO 0
-ONEOF REMOVAL REDUCED TEST TO 33 BYTES
-ONEOF REMOVAL REDUCED TEST TO 17 BYTES
-BYTE REDUCTION: BYTE 7 FROM 2 TO 1
-BYTE REDUCTION: BYTE 15 FROM 2 TO 1
-NO REDUCTIONS FOUND
-PADDING TEST WITH 3 ZEROS
+Original test has 8192 bytes
+Applied 128 range conversions
+Last byte read: 527
+Shrinking to ignore unread bytes
+Writing reduced test with 528 bytes to rnew
+================================================================================
+Iteration #1 0.39 secs / 2 execs / 0.0% reduction
+Structured deletion reduced test to 520 bytes
+Writing reduced test with 520 bytes to rnew
+0.77 secs / 3 execs / 1.52% reduction
 
-WRITING REDUCED TEST WITH 20 BYTES TO minrmdirfail.test
+...
+
+Structured swap: PASS FINISHED IN 0.01 SECONDS, RUN: 5.1 secs / 151 execs / 97.54% reduction
+Reduced byte 12 from 4 to 1
+Writing reduced test with 13 bytes to rnew
+5.35 secs / 169 execs / 97.54% reduction
+================================================================================
+Byte reduce: PASS FINISHED IN 0.5 SECONDS, RUN: 5.6 secs / 186 execs / 97.54% reduction
+================================================================================
+Iteration #2 5.6 secs / 186 execs / 97.54% reduction
+Structured deletion: PASS FINISHED IN 0.03 SECONDS, RUN: 5.62 secs / 188 execs / 97.54% reduction
+Structured edge deletion: PASS FINISHED IN 0.03 SECONDS, RUN: 5.65 secs / 190 execs / 97.54% reduction
+1-byte chunk removal: PASS FINISHED IN 0.19 SECONDS, RUN: 5.84 secs / 203 execs / 97.54% reduction
+4-byte chunk removal: PASS FINISHED IN 0.19 SECONDS, RUN: 6.03 secs / 216 execs / 97.54% reduction
+8-byte chunk removal: PASS FINISHED IN 0.19 SECONDS, RUN: 6.22 secs / 229 execs / 97.54% reduction
+1-byte reduce and delete: PASS FINISHED IN 0.04 SECONDS, RUN: 6.26 secs / 232 execs / 97.54% reduction
+4-byte reduce and delete: PASS FINISHED IN 0.03 SECONDS, RUN: 6.29 secs / 234 execs / 97.54% reduction
+8-byte reduce and delete: PASS FINISHED IN 0.01 SECONDS, RUN: 6.31 secs / 235 execs / 97.54% reduction
+Byte range removal: PASS FINISHED IN 0.76 SECONDS, RUN: 7.06 secs / 287 execs / 97.54% reduction
+Structured swap: PASS FINISHED IN 0.01 SECONDS, RUN: 7.08 secs / 288 execs / 97.54% reduction
+================================================================================
+Completed 2 iterations: 7.08 secs / 288 execs / 97.54% reduction
+Padding test with 23 zeroes
+Writing reduced test with 36 bytes to mincreate.test
 ```
 
 You can use `--which_test <testname>` to specify which test to
-run, as with the `--input_which_test` options to test replay.
+run, as with the `--input_which_test` options to test replay.  If you
+find that test reduction is taking too long, you can try the `--fast`
+option to get a quick-and-dirty reduction, and later use the default
+settings, or even `--slowest` setting to try to reduce it further.
 
 Test case reduction should work on any OS.
 

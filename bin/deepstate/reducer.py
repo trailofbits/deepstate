@@ -53,7 +53,7 @@ def main():
     "--search", action="store_true", help="Allow initial test to not satisfy criterion (search for test).",
     default=None)
   parser.add_argument(
-    "--timeout", type=int, help="After this amount of time (in seconds), give up on reduction.",
+    "--timeout", type=int, help="After this amount of time (in seconds), give up on reduction (default is 20 minutes (1200s)).",
     default=1200)
   parser.add_argument(
     "--maxByteRange", type=int, help="Maximum size of byte chunk to try in range removals.",
@@ -76,6 +76,9 @@ def main():
   parser.add_argument(
     "--noStructure", action='store_true',
     help="Don't use test structure.")
+  parser.add_argument(
+    "--noStaticStructure", action='store_true',
+    help='''Don't use "static" test structure (e.g., parens/quotes/brackets).''')
   parser.add_argument(
     "--noPad", action='store_true',
     help="Don't pad test with zeros.")
@@ -159,7 +162,10 @@ def main():
     r = runCandidate(candidateName)
     return r
 
-  def augmentWithDelims((OneOfs, lastRead), testBytes):
+  def augmentWithDelims(OneOfsAndLastRead, testBytes):
+    if args.noStaticStructure:
+      return OneOfsAndLastRead
+    (OneOfs, lastRead) = OneOfsAndLastRead
     delimPairs = [
       ("{", "}"),
       ("(", ")"),
@@ -203,7 +209,8 @@ def main():
             delims.append((i + 1, j - 1))
     return (OneOfs + delims, lastRead)
 
-  def structure((result, exitCode)):
+  def structure(resultAndExitCode):
+    (result, exitCode) = resultAndExitCode
     lastRead = len(currentTest) - 1
     if args.noStructure:
       return ([], lastRead)
@@ -222,7 +229,8 @@ def main():
         currentOneOf = currentOneOf[:-1]
     return (OneOfs, lastRead)
 
-  def rangeConversions((result, exitCode)):
+  def rangeConversions(resultAndExitCode):
+    (result, exitCode) = resultAndExitCode
     conversions = []
     startedMulti = False
     multiFirst = None
