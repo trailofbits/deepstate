@@ -167,7 +167,7 @@ Facebook's rocksdb](https://github.com/agroce/testleveldb).
 
 ## Example Code
 
-```
+```cpp
 #include <deepstate/DeepState.hpp>
 
 using namespace deepstate;
