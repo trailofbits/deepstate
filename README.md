@@ -335,6 +335,8 @@ ERROR: Test case libfuzzer_runlen//ca61c43b0e3ff0a8eccf3136996c9f1d9bfd627c fail
 INFO: Ran 16 tests; 10 tests failed
 ```
 
+Using AFL is similarly easy:
+
 ```shell
 mkdir afl_seeds
 echo "ok" >& seeds/seed
