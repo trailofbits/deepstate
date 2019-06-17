@@ -290,6 +290,60 @@ CRITICAL: /Users/alex/deepstate/examples/Runlen.cpp(60): ORIGINAL: '91c499', ENC
 ERROR: Failed: Runlength_EncodeDecode
 ```
 
+If you're using the DeepState docker, it's easy to also try libFuzzer
+and AFL on the Runlen example:
+
+```shell
+mkdir libfuzzer_runlen
+./Runlen_LF libfuzzer_runlen -max_total_time=30
+./Runlen --input_test_files_dir libfuzzer_runlen
+```
+
+And you'll see a number of failures, e.g.:
+```
+WARNING: No test specified, defaulting to last test defined (Runlength_EncodeDecode)
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: '4af4aa', ENCODED: '4AaAfA4AaA', ROUNDTRIP: '4af4a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//9e266f6cb627ce3bb7d717a6e569ade6b3633f23 failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: 'aaaaaa', ENCODED: 'aA', ROUNDTRIP: 'a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//d8fc60ccdd8f555c1858b9f0820f263e3d2b58ec failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: '4aaa', ENCODED: '4AaA', ROUNDTRIP: '4a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//3177c75208f2d35399842196dc8093243d5a8243 failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: 'aaa', ENCODED: 'aA', ROUNDTRIP: 'a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//9842926af7ca0a8cca12604f945414f07b01e13d failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: 'aaa', ENCODED: 'aA', ROUNDTRIP: 'a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//85e53271e14006f0265921d02d4d736cdc580b0b failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: 'aaaaa', ENCODED: 'aA', ROUNDTRIP: 'a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//241cbd6dfb6e53c43c73b62f9384359091dcbf56 failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: 'aa', ENCODED: 'aA', ROUNDTRIP: 'a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//05a79f06cf3f67f726dae68d18a2290f6c9a50c9 failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: '25aaaa', ENCODED: '2A5AaA', ROUNDTRIP: '25a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//419c3b754bacd6fc14ff9a932c5e2089d6dfcab5 failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: 'aaaa', ENCODED: 'aA', ROUNDTRIP: 'a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//bb589d0621e5472f470fa3425a234c74b1e202e8 failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: '97aa', ENCODED: '9A7AaA', ROUNDTRIP: '97a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//ca61c43b0e3ff0a8eccf3136996c9f1d9bfd627c failed
+INFO: Ran 16 tests; 10 tests failed
+```
+
+```shell
+mkdir afl_seeds
+echo "ok" >& seeds/seed
+afl-fuzz -i seeds -o afl_runlen -- ./Runlen_AFL --input_test_file @@ --no_fork --abort_on_fail
+```
+
+You'll have to stop this with Ctrl-C.  The `afl_runlen/crashes`
+directory will contain crashing inputs AFL found.
+
 ## Log Levels
 
 By default, DeepState is not very verbose about testing activity,
