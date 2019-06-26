@@ -38,6 +38,10 @@ RUN apt-get update \
     && apt-get update \
     && apt-get install -y dotnet-sdk-2.2
 
+# Install Angora dependencies
+RUN apt-get install -y rustc \
+    && apt-get install -y cargo
+
 # Install DeepState/AFL/libFuzzer dependencies
 RUN apt-get update \
     && apt-get install -y build-essential \
@@ -64,7 +68,15 @@ RUN git clone https://github.com/SoftSec-KAIST/Eclipser \
     && make \
     && cd ../
 
-# Install DeepState using a few different compilers for AFL/libFuzzer/Eclipser+normal
+# Install Angora
+RUN git clone https://github.com/AngoraFuzzer/Angora \
+    && cd Angora \
+    && ./build/build.sh \
+    && cd ../
+
+ENV ANGORA=/home/user/Angora
+
+# Install DeepState using a few different compilers for AFL/libFuzzer/Eclipser/Angora+normal
 RUN cd deepstate \
     && rm -Rf CMakeFiles CMakeCache.txt \
     && rm -Rf build \
@@ -76,6 +88,9 @@ RUN cd deepstate \
     && rm -rf CMakeFiles CMakeCache.txt \
     && CXX=clang++ CC=clang BUILD_LIBFUZZER=TRUE cmake ../ \
     && sudo make install \
+    && rm -rf CMakeFiles CMakeCache.txt \
+    && CXX=$ANGORA/bin/angora-clang++ CC=$ANGORA/bin/angora-clang cmake ../ \
+    && export USE_TRACK=1 && sudo -E bash -c 'make -i install' \
     && cd .. \
     && sudo pip3 install 'z3-solver==4.5.1.0.post2' angr 'manticore==0.2.5' \
     && sudo python3 ./build/setup.py install
