@@ -38,5 +38,6 @@ setuptools.setup(
             'deepstate-manticore = deepstate.main_manticore:main',
             'deepstate-reduce = deepstate.reducer:main',
             'deepstate-eclipser = deepstate.eclipser:main',
+            'deepstate-angora = deepstate.angora:main'
         ]
     })

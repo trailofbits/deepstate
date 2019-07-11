@@ -46,8 +46,8 @@ class DeepStateFrontend(object):
       compiler_paths = [f"{path}/{compiler}" for path in potential_paths if os.path.isfile(path + '/' + compiler)]
       if len(compiler_paths) == 0:
 
-        # check to see if user supplied absolute path
-        if os.path.is_file(compiler):
+        # check to see if user supplied absolute path or compiler resides in PATH
+        if os.path.isfile(compiler):
           self.compiler = compiler
         else:
           raise RuntimeError(f"{compiler} does not exist as absolute path or in ${envvar}")
@@ -73,19 +73,29 @@ class DeepStateFrontend(object):
     subprocess.call([self.fuzzer, "--help"])
 
 
-  def compile(self, flags):
+  def compile(self, compiler_args=None, custom_cmd=None, env=os.environ.copy()):
     """
-    provides an interface for calling a compiler to instrument a test harness for
+    provides a simple interface for calling a compiler to instrument a test harness for
     mutation-based fuzzers
     """
     if self.compiler is None:
       raise RuntimeError(f"No compiler specified for compile-time instrumentation.")
 
-    self.compile_cmd = [self.compiler, flags]
+    os.environ["CC"] = self.compiler
+    os.environ["CCX"] = self.compiler
+
     try:
-      subprocess.call(self.compile_cmd)
+      if custom_cmd is not None:
+        compile_cmd = custom_cmd
+      else:
+        compile_cmd = [self.compiler] + compiler_args
+
+      ps = subprocess.Popen(compile_cmd, env=env)
+      ps.communicate()
+
     except BaseException as e:
       raise RuntimeError(f"{self.compiler} interrupted due to exception:", e)
+
 
 
   def cli_command(self, cmd_dict, compiler=None, cli_other=None):
@@ -135,14 +145,19 @@ class DeepStateFrontend(object):
     if cls._ARGS:
       return cls._ARGS
 
-    parser = argparse.ArgumentParser(
-      description="Use fuzzer as back-end for DeepState.")
+    if hasattr(cls, "parser"):
+      parser = cls.parser
+    else:
+      parser = argparse.ArgumentParser(
+        description="Use fuzzer as back-end for DeepState.")
 
     parser.add_argument("binary", type=str, help="Path to the test binary to run.")
 
     parser.add_argument("--output_test_dir", type=str, default="out", help="Directory where tests will be saved.")
 
     parser.add_argument("--timeout", type=int, default=3600, help="How long to fuzz.")
+
+    parser.add_argument("--jobs", type=int, default=1, help="How many worker processes to spawn.")
 
     parser.add_argument("--seeds", type=str, help="Directory with seed inputs.")
 
@@ -154,5 +169,6 @@ class DeepStateFrontend(object):
 
     parser.add_argument("--args", default=[], nargs=argparse.REMAINDER, help="Other arguments to pass to fuzzer cli.")
 
-    cls._ARGS = parser.parse_args()
-    return cls._ARGS
+    cls._args = parser.parse_args()
+    cls.parser = parser
+    return cls._args
