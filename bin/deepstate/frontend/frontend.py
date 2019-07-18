@@ -119,7 +119,6 @@ class DeepStateFrontend(object):
     if cli_other is not None:
       self.cmd += cli_other
 
-
   def execute_fuzzer(self):
     """
     takes constructed cli command and executes fuzzer with subprocess.call
