@@ -92,7 +92,7 @@ RUN cd deepstate \
     && CXX=$ANGORA/bin/angora-clang++ CC=$ANGORA/bin/angora-clang cmake ../ \
     && export USE_TRACK=1 && sudo -E bash -c 'make -i install' \
     && cd .. \
-    && sudo pip3 install 'z3-solver==4.5.1.0.post2' angr 'manticore==0.2.5' \
+    && sudo pip3 install 'z3-solver==4.5.1.0.post2' angr git+git://github.com/trailofbits/manticore.git \
     && sudo python3 ./build/setup.py install
 
 ENV CC=clang
