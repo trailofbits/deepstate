@@ -15,19 +15,12 @@
 project(deepstate)
 cmake_minimum_required(VERSION 2.8)
 
-if (NOT DEFINED BUILD_LIBFUZZER AND DEFINED ENV{BUILD_LIBFUZZER}) 
-  set(BUILD_LIBFUZZER "$ENV{BUILD_LIBFUZZER}") 
-endif()
+option(DEEPSTATE_LIBFUZZER, OFF)
+option(DEEPSTATE_AFL, OFF)
+option(DEEPSTATE_ANGORA, OFF)
+option(DEEPSTATE_NOSTATIC, OFF)
 
-if (NOT DEFINED BUILD_AFL AND DEFINED ENV{BUILD_AFL})
-  set(BUILD_AFL "$ENV{BUILD_AFL}")
-endif()
-
-if (NOT DEFINED BUILD_NOSTATIC AND DEFINED ENV{BUILD_NOSTATIC}) 
-  set(BUILD_NOSTATIC "$ENV{BUILD_NOSTATIC}") 
-endif()
-
-if (BUILD_LIBFUZZER)
+if (DEEPSTATE_LIBFUZZER)
   if(NOT DEFINED CMAKE_C_COMPILER)
     set(CMAKE_C_COMPILER clang)
   endif()
@@ -42,6 +35,20 @@ if (BUILD_LIBFUZZER)
 
   if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
     message(FATAL_ERROR "DeepState's libFuzzer mode requires the Clang C++ compiler.")
+  endif()
+endif()
+
+if (DEEPSTATE_ANGORA)
+  if (NOT DEFINED ENV{ANGORA})
+    message(FATAL_ERROR "Compiling Angora requires setting $ANGORA to its project root.")
+  endif()
+
+  if (NOT DEFINED CMAKE_C_COMPILER)
+	set(CMAKE_C_COMPILER "$ENV{ANGORA}/bin/angora-clang")
+  endif()
+
+  if (NOT DEFINED CMAKE_CXX_COMPILER)
+	set(CMAKE_CXX_COMPILER "$ENV{ANGORA}/bin/angora-clang++")
   endif()
 endif()
 
@@ -89,7 +96,7 @@ target_compile_options(${PROJECT_NAME} PUBLIC -mno-avx)
 
 target_compile_options(${PROJECT_NAME}32 PUBLIC -m32 -g3 -mno-avx)
 
-if (NOT APPLE OR BUILD_NOSTATIC)
+if (NOT APPLE OR DEEPSTATE_NOSTATIC)
   target_link_libraries(${PROJECT_NAME} -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
   target_link_libraries(${PROJECT_NAME}32 -static "-Wl,--allow-multiple-definition,--no-export-dynamic")
 endif()
@@ -115,20 +122,20 @@ install(
   ARCHIVE DESTINATION lib
 )
 
-if (BUILD_LIBFUZZER)
+if (DEEPSTATE_LIBFUZZER)
     add_library(${PROJECT_NAME}_LF STATIC
        src/lib/DeepState.c
        src/lib/Log.c
        src/lib/Option.c
        src/lib/Stream.c
     )
-    
+
     target_compile_options(${PROJECT_NAME}_LF PUBLIC -DLIBFUZZER -mno-avx -fsanitize=fuzzer-no-link,undefined)
-    
+
     target_include_directories(${PROJECT_NAME}_LF
        PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
     )
-    
+
     install(
        TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_LF
        LIBRARY DESTINATION lib
@@ -136,7 +143,7 @@ if (BUILD_LIBFUZZER)
     )
 endif()
 
-if (BUILD_AFL)
+if (DEEPSTATE_AFL)
     add_library(${PROJECT_NAME}_AFL STATIC
        src/lib/DeepState.c
        src/lib/Log.c
@@ -152,6 +159,34 @@ if (BUILD_AFL)
 
     install(
        TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_AFL
+       LIBRARY DESTINATION lib
+       ARCHIVE DESTINATION lib
+    )
+endif()
+
+if (DEEPSTATE_ANGORA)
+
+	if(DEFINED ENV{USE_TRACK})
+		set(PROJECT_NAME ${PROJECT_NAME}_taint)
+	else()
+		set(PROJECT_NAME ${PROJECT_NAME}_fast)
+	endif()
+
+	add_library(${PROJECT_NAME} STATIC
+       src/lib/DeepState.c
+       src/lib/Log.c
+       src/lib/Option.c
+       src/lib/Stream.c
+    )
+
+    target_compile_options(${PROJECT_NAME} PUBLIC -mno-avx)
+
+    target_include_directories(${PROJECT_NAME}
+       PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
+    )
+
+    install(
+       TARGETS ${PROJECT_NAME}
        LIBRARY DESTINATION lib
        ARCHIVE DESTINATION lib
     )
