@@ -47,6 +47,13 @@ class Angora(DeepStateFrontend):
 
     env = os.environ.copy()
 
+    # check if static libraries exist
+    lib_path = "/usr/local/lib/"
+    if not os.path.isfile(lib_path + "libdeepstate_fast.a"):
+      raise RuntimeError("no Angora branch-instrumented DeepState static library found in {}".format(lib_path))
+    if not os.path.isfile(lib_path + "libdeepstate_taint.a"):
+      raise RuntimeError("no Angora taint-tracked DeepState static library found in {}".format(lib_path))
+
     # set envvar to file with ignored lib functions for taint tracking
     if no_taints:
       if os.path.isfile(no_taints):
@@ -54,7 +61,7 @@ class Angora(DeepStateFrontend):
 
     # generate instrumented binary
     fast_args = [args.compile_test] + args.compiler_args + \
-                ["-ldeepstate", "-o", args.out_test_name + ".fast"]
+                ["-ldeepstate_fast", "-o", args.out_test_name + ".fast"]
     super().compile(compiler_args=fast_args, env=env)
 
     # make a binary with taint tracking information
@@ -64,7 +71,7 @@ class Angora(DeepStateFrontend):
       env["USE_TRACK"] = "1"
 
     taint_args = [args.compile_test] + args.compiler_args + \
-                 ["-ldeepstate", "-o", args.out_test_name + ".taint"]
+                 ["-ldeepstate_taint", "-o", args.out_test_name + ".taint"]
     super().compile(compiler_args=taint_args, env=env)
     return 0
 
@@ -114,7 +121,13 @@ def main():
 
   cmd_dict['--'] = os.path.abspath(args.binary)
 
-  fuzzer.cli_command(cmd_dict, cli_other=args.args)
+  # default args if none provided
+  if len(args.args) == 0:
+    cli_other = ["--input_test_file", "@@"]
+  else:
+    cli_other = args.args
+
+  fuzzer.cli_command(cmd_dict, cli_other=cli_other)
 
   print("EXECUTING FUZZER...")
   fuzzer.execute_fuzzer()
