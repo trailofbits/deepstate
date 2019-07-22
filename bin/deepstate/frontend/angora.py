@@ -17,10 +17,12 @@ import os
 import sys
 import argparse
 
-from .frontend import DeepStateFrontend
+from .frontend import DeepStateFrontend, FrontendError
 
 class Angora(DeepStateFrontend):
 
+  FUZZER = "angora_fuzzer"
+  COMPILER = "bin/angora-clang++"
 
   @classmethod
   def parse_args(cls):
@@ -32,7 +34,7 @@ class Angora(DeepStateFrontend):
     compile_group.add_argument("--compiler_args", default=[], nargs='+', help="Compiler flags (excluding -o) to pass to compiler.")
     compile_group.add_argument("--out_test_name", type=str, default="test", help="Set name for generated *.taint and *.fast binaries.")
 
-    parser.add_argument("taint_binary", type=str, help="Path to binary compiled with taint tracking.")
+    parser.add_argument("taint_binary", nargs="?", type=str, help="Path to binary compiled with taint tracking.")
     parser.add_argument("--mode", type=str, default="llvm", help="Specifies binary instrumentation framework used (either llvm or pin).")
     parser.add_argument("--no_afl", action='store_true', help="Disables AFL mutation strategies being used.")
     parser.add_argument("--no_exploration", action='store_true', help="Disables context-sensitive input bytes mutation.")
@@ -42,7 +44,7 @@ class Angora(DeepStateFrontend):
 
 
   def compile(self):
-    args = self._args
+    args = self._ARGS
     no_taints = args.ignored_taints
 
     env = os.environ.copy()
@@ -76,61 +78,71 @@ class Angora(DeepStateFrontend):
     return 0
 
 
+  def pre_exec(self):
+    super().pre_exec()
+
+    args = self._ARGS
+
+    if args.compile_test:
+      print("COMPILING DEEPSTATE HARNESS FOR FUZZING...")
+      self.compile()
+      sys.exit(0)
+
+    # since base method checks for args.binary by default
+    if not args.taint_binary:
+      self.parser.print_help()
+      raise FrontendError("Must provide taint binary for Angora.")
+
+    if not args.input_seeds:
+      raise FrontendError("Must provide -i/--input_seeds option for Angora.")
+
+    seeds = os.path.abspath(args.input_seeds)
+
+    if not os.path.exists(seeds):
+      os.mkdir(seeds)
+      raise FrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
+
+    if len([name for name in os.listdir(seeds)]) == 0:
+      raise FrontendError(f"No seeds present in directory {seeds}")
+
+
+
+  @property
+  def cmd(self):
+    args = self._ARGS
+    cmd_dict = {
+      "--time_limit": str(args.timeout),
+      "--mode": args.mode,
+      "--input": args.input_seeds,
+      "--output": args.output_test_dir,
+      "--jobs": str(args.jobs),
+      "--track": os.path.abspath(args.taint_binary),
+    }
+
+    if args.no_afl:
+      cmd_dict["--disable_afl_mutation"] = None
+
+    if args.no_exploration:
+      cmd_dict["--disable_exploitation"] = None
+
+    cmd_dict["--"] = os.path.abspath(args.binary)
+
+    # if not specified, set DeepState flags to help Angora coverage
+    if len(args.args) == 0:
+      cmd_dict["--input_test_file"] = "@@"
+      cmd_dict["--abort_on_fail"] = None
+      cmd_dict["--no_fork"] = None
+
+    if args.which_test:
+      cmd_dict["--input_which_test"] = args.which_test
+
+    return cmd_dict
+
+
 def main():
-  fuzzer = Angora("angora_fuzzer", compiler="bin/angora-clang++", envvar="ANGORA")
+  fuzzer = Angora(envvar="ANGORA")
   args = fuzzer.parse_args()
-
-  if args.compile_test:
-    print("COMPILING DEEPSTATE HARNESS FOR FUZZING...")
-    fuzzer.compile()
-    sys.exit(0)
-
-  # we do not require for the sake of the compilation arg group
-  if not args.seeds or not args.output_test_dir:
-    print("Error: --seeds and/or --output_test_dir required for fuzzing.")
-    sys.exit(1)
-
-  seeds = os.path.abspath(args.seeds)
-
-  if args.fuzzer_help:
-    fuzzer.print_help()
-    sys.exit(0)
-
-  if not os.path.exists(seeds):
-    print("CREATING INPUT SEED DIRECTORY...")
-    os.mkdir(seeds)
-
-  if len([name for name in os.listdir(seeds)]) == 0:
-    print("Error: no seeds present in directory", args.seeds)
-    sys.exit(1)
-
-  cmd_dict = {
-    "--time_limit": str(args.timeout),
-    "--mode": args.mode,
-    "--input": seeds,
-    "--output": args.output_test_dir,
-    "--jobs": str(args.jobs),
-    "--track": os.path.abspath(args.taint_binary),
-  }
-
-  if args.no_afl:
-    cmd_dict['--disable_afl_mutation'] = None
-
-  if args.no_exploration:
-    cmd_dict['--disable_exploitation'] = None
-
-  cmd_dict['--'] = os.path.abspath(args.binary)
-
-  # default args if none provided
-  if len(args.args) == 0:
-    cli_other = ["--input_test_file", "@@"]
-  else:
-    cli_other = args.args
-
-  fuzzer.cli_command(cmd_dict, cli_other=cli_other)
-
-  print("EXECUTING FUZZER...")
-  fuzzer.execute_fuzzer()
+  fuzzer.run()
   return 0
 
 
