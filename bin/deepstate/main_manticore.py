@@ -39,6 +39,8 @@ L.setLevel(logging.INFO)
 
 OUR_TERMINATION_REASON = "I DeepState'd it"
 
+consts = config.get_group("core")
+
 class DeepManticore(DeepState):
   def __init__(self, state):
     super(DeepManticore, self).__init__()
@@ -309,7 +311,7 @@ def done_test(_, state, reason):
                                                                      reason))
 
       # Don't raise new `TerminateState` exception
-      super(DeepManticore, mc).abandon_test()
+      super(DeepManticore, mc).ubandon_test()
 
   mc.report()
 
@@ -371,7 +373,13 @@ def do_run_test(state, apis, test, workspace, hook_test=False):
     m.add_hook(test.ea, hook(hook_TakeOver))
 
   m.subscribe('will_terminate_state', done_test)
-  m.run()
+
+  # attempts to kill after consts.timeout
+  with m.kill_timeout(consts.timeout):
+    m.run()
+
+  # if Manticore is stuck, forcefully kill all workers
+  m.kill()
 
 
 def run_test(state, apis, test, workspace, hook_test=False):
@@ -436,7 +444,10 @@ def main_takeover(m, args, takeover_symbol):
   takeover_hook = lambda state: run_test(state, apis, fake_test, m._workspace.uri, hook_test)
   m.add_hook(takeover_ea, takeover_hook)
 
-  m.run()
+  with m.kill_timeout(consts.timeout):
+    m.run()
+
+  m.kill()
 
 
 def main_unit_test(m, args):
@@ -460,15 +471,19 @@ def main_unit_test(m, args):
   del mc
 
   m.add_hook(setup_ea, lambda state: run_tests(args, state, apis, m._workspace.uri))
-  m.run()
+
+  with m.kill_timeout(consts.timeout):
+    m.run()
+
+  m.kill()
 
 
 def main():
   args = DeepManticore.parse_args()
 
-  consts = config.get_group("core")
   consts.procs = args.num_workers
-  consts.mprocessing = consts.mprocessing.threading
+  consts.timeout = args.timeout
+  consts.mprocessing = consts.mprocessing.single
 
   try:
     m = manticore.native.Manticore(args.binary)
