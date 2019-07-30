@@ -15,107 +15,214 @@
 
 import os
 import sys
+import logging
 import argparse
 
-from .frontend import DeepStateFrontend
+from .frontend import DeepStateFrontend, FrontendError
+
+
+L = logging.getLogger("deepstate.frontend.afl")
+L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
 class AFL(DeepStateFrontend):
   """ Defines default AFL fuzzer frontend """
 
+  FUZZER = "afl-fuzz"
+  COMPILER = "afl-clang++"
+
   @classmethod
   def parse_args(cls):
     parser = argparse.ArgumentParser(description="Use AFL as a back-end for DeepState.")
 
+    # Compilation/instrumentation support
     compile_group = parser.add_argument_group("compilation and instrumentation arguments")
     compile_group.add_argument("--compile_test", type=str, help="Path to DeepState test harness for compilation.")
-    compile_group.add_argument("--compiler_args", default=[], nargs='+', help="Compiler flags (excluding -o) to pass to compiler.")
+    compile_group.add_argument("--compiler_args", type=str, help="Linker flags (space seperated) to include for external libraries.")
     compile_group.add_argument("--out_test_name", type=str, default="out", help="Set name of generated instrumented binary.")
 
+    # Execution options
     parser.add_argument("--dictionary", type=str, help="Optional fuzzer dictionary for AFL.")
     parser.add_argument("--mem_limit", type=int, default=50, help="Child process memory limit in MB (default is 50).")
     parser.add_argument("--file", type=str, help="Input file read by fuzzed program, if any.")
 
-    parser.add_argument("--dirty_mode", action='store_true', help="Fuzz without deterministic steps.")
-    parser.add_argument("--dumb_mode", action='store_true', help="Fuzz without instrumentation.")
-    parser.add_argument("--qemu_mode", action='store_true', help="Fuzz with QEMU mode.")
-    parser.add_argument("--crash_explore", action='store_true', help="Fuzz with crash exploration.")
+    # AFL execution modes
+    parser.add_argument("--dirty_mode", action="store_true", help="Fuzz without deterministic steps.")
+    parser.add_argument("--dumb_mode", action="store_true", help="Fuzz without instrumentation.")
+    parser.add_argument("--qemu_mode", action="store_true", help="Fuzz with QEMU mode.")
+    parser.add_argument("--crash_explore", action="store_true", help="Fuzz with crash exploration.")
+
+    # Misc. post-processing
+    parser.add_argument("--post_stats", action="store_true", help="Output post-fuzzing stats.")
 
     cls.parser = parser
     return super(AFL, cls).parse_args()
 
 
   def compile(self):
-    args = self._args
+    args = self._ARGS
 
-    lib_path = "/usr/local/lib/"
-    if not os.path.isfile(lib_path + "libdeepstate_AFL.a"):
+    lib_path = "/usr/local/lib/libdeepstate_AFL.a"
+    L.debug(f"Static library path: {lib_path}")
+
+    if not os.path.isfile(lib_path):
       raise RuntimeError("no AFL-instrumented DeepState static library found in {}".format(lib_path))
 
-    compiler_args = [args.compile_test, "-std=c++11"] + args.compiler_args + \
-                    ["-ldeepstate_AFL", "-o", args.out_test_name + ".afl"]
+    flags = ["-ldeepstate_AFL"]
+    if args.compiler_args:
+      flags += [arg for arg in args.compiler_args.split(" ")]
+
+    compiler_args = ["-std=c++11", args.compile_test] + flags + \
+                    ["-o", args.out_test_name + ".afl"]
     super().compile(compiler_args)
 
 
+  def pre_exec(self):
+    """
+    Perform argparse and environment-related sanity checks.
+    """
+
+    # check if core dump pattern is set as `core`
+    with open("/proc/sys/kernel/core_pattern") as f:
+      if not "core" in f.read():
+        raise FrontendError("No core dump pattern set. Execute 'echo core | sudo tee /proc/sys/kernel/core_pattern'")
+
+    super().pre_exec()
+
+    args = self._ARGS
+
+    # require input seeds if we aren't in dumb mode, or we are using crash mode
+    if not args.dumb_mode or args.crash_mode:
+      if not args.input_seeds:
+        raise FrontendError("Must provide -i/--input_seeds option for AFL.")
+
+      seeds = args.input_seeds
+
+      # check if seeds dir exists
+      if not os.path.exists(seeds):
+        os.mkdir(seeds)
+        raise FrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
+
+      # check if seeds dir is empty
+      if len([name for name in os.listdir(seeds)]) == 0:
+        raise FrontendError(f"No seeds present in directory {seeds}.")
+
+
+  @property
+  def cmd(self):
+    args = self._ARGS
+
+    cmd_dict = {
+      "-o": args.output_test_dir,
+      "-t": str(args.timeout),
+      "-m": str(args.mem_limit)
+    }
+
+    # since this is optional for AFL's dumb fuzzing
+    if args.input_seeds:
+      cmd_dict["-i"] = args.input_seeds
+
+    # check if we are using one of AFL's many "modes"
+    if args.dirty_mode:
+      cmd_dict["-d"] = None
+    if args.dumb_mode:
+      cmd_dict["-n"] = None
+    if args.qemu_mode:
+      cmd_dict["-Q"] = None
+    if args.crash_explore:
+      cmd_dict["-C"] = None
+
+    # other misc arguments
+    if args.dictionary:
+      cmd_dict["-x"] = args.dictionary
+    if args.file:
+      cmd_dict["-f"] = args.file
+
+    cmd_dict['--'] = args.binary
+
+    # if not specified, set DeepState flags to help AFL coverage
+    if len(args.args) == 0:
+      cmd_dict["--input_test_file"] = "@@"
+      cmd_dict["--abort_on_fail"] = None
+      cmd_dict["--no_fork"] = None
+
+    if args.which_test:
+      cmd_dict["--input_which_test"] = args.which_test
+
+    return cmd_dict
+
+
+  @property
+  def stats(self):
+    """
+    Retrieves and parses the stats file produced by AFL
+    """
+    args = self._ARGS
+    stat_file = args.output_test_dir + "/fuzzer_stats"
+    with open(stat_file, "r") as sf:
+      lines = sf.readlines()
+
+    stats = {
+      "last_update": None,
+      "start_time": None,
+      "fuzzer_pid": None,
+      "cycles_done": None,
+      "execs_done": None,
+      "execs_per_sec": None,
+      "paths_total": None,
+      "paths_favored": None,
+      "paths_found": None,
+      "paths_imported": None,
+      "max_depth": None,
+      "cur_path": None,
+      "pending_favs": None,
+      "pending_total": None,
+      "variable_paths": None,
+      "stability": None,
+      "bitmap_cvg": None,
+      "unique_crashes": None,
+      "unique_hangs": None,
+      "last_path": None,
+      "last_crash": None,
+      "last_hang": None,
+      "execs_since_crash": None,
+      "exec_timeout": None,
+      "afl_banner": None,
+      "afl_version": None,
+      "command_line": None
+    }
+
+    for l in lines:
+      for k in stats.keys():
+        if k in l:
+          stats[k] = l[19:].strip(": %\r\n")
+    return stats
+
+
+  def _sync_seeds(self, mode, src, dest, excludes=["orig", ".state"]):
+    super()._sync_seeds(mode, src, dest, excludes=excludes)
+
+
+  def post_exec(self):
+    """
+    AFL post_exec outputs last updated fuzzer stats,
+    and (TODO) performs crash triaging with seeds from
+    both sync_dir and local queue.
+    """
+    args = self._ARGS
+
+    if args.post_stats:
+      print("\nAFL RUN STATS:\n")
+      for stat, val in self.stats.items():
+        fstat = stat.replace("_", " ").upper()
+        print(f"{fstat}:\t\t\t{val}")
+
+
+
 def main():
-  fuzzer = AFL("afl-fuzz", compiler="afl-clang-fast++")
-  args = fuzzer.parse_args()
-
-  if args.fuzzer_help:
-    fuzzer.print_help()
-    sys.exit(0)
-
-  if args.compile_test:
-    print("COMPILING DEEPSTATE HARNESS FOR FUZZING...")
-    fuzzer.compile()
-    sys.exit(0)
-
-  if not args.seeds or not args.output_test_dir:
-    print("Error: --seeds and/or --output_test_dir required for fuzzing.")
-    sys.exit(1)
-
-  if not os.path.exists(args.seeds):
-    print("CREATING INPUT SEED DIRECTORY...")
-    os.mkdir(args.seeds)
-
-  if len([name for name in os.listdir(args.seeds)]) == 0:
-    print("Error: no seeds present in directory", args.seeds)
-    sys.exit(1)
-
-  cmd_dict = {
-    "-i": args.seeds,
-    "-o": args.output_test_dir,
-    "-t": str(args.timeout),
-    "-m": str(args.mem_limit)
-  }
-
-  # check if we are using one of AFL's many "modes"
-  if args.dirty_mode:
-    cmd_dict['-d'] = None
-  if args.dumb_mode:
-    cmd_dict['-n'] = None
-  if args.qemu_mode:
-    cmd_dict['-Q'] = None
-  if args.crash_explore:
-    cmd_dict['-C'] = None
-
-  # other misc arguments
-  if args.dictionary:
-    cmd_dict['-x'] = args.dictionary
-  if args.file:
-    cmd_dict['-f'] = args.file
-
-  cmd_dict['--'] = args.binary
-
-  # if not specified, set DeepState flags to help AFL coverage
-  if len(args.args) == 0:
-    args.args = ["--input_test_file", "@@", "--abort_on_fail", "--no_fork"]
-
-  fuzzer.cli_command(cmd_dict, cli_other=args.args)
-
-  print("EXECUTING FUZZER...")
-  fuzzer.execute_fuzzer()
-
+  fuzzer = AFL()
+  fuzzer.parse_args()
+  fuzzer.run()
   return 0
 
 
