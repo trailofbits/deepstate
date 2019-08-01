@@ -31,20 +31,18 @@ RUN apt-get update \
     && apt-get -y build-dep qemu \
     && apt-get install -y libtool \
     libtool-bin wget automake autoconf \
-    bison gdb git \
+    bison gdb git apt-transport-https \
     && wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb \
     && dpkg -i packages-microsoft-prod.deb \
-    && apt-get install -y apt-transport-https \
     && apt-get update \
     && apt-get install -y dotnet-sdk-2.2
 
 # Install Angora dependencies
 RUN apt-get install -y rustc \
-    && apt-get install -y cargo
+    cargo libstdc++-7-dev
 
 # Install DeepState/AFL/libFuzzer dependencies
-RUN apt-get update \
-    && apt-get install -y build-essential \
+RUN apt-get install -y build-essential \
     && apt-get install -y clang \
     gcc-multilib g++-multilib cmake \
     python3-setuptools libffi-dev z3 python3-pip \
@@ -91,7 +89,7 @@ RUN cd deepstate \
     && rm -rf CMakeFiles CMakeCache.txt \
     && USE_TRACK=1 CXX=$ANGORA/bin/angora-clang++ CC=$ANGORA/bin/angora-clang cmake -DDEEPSTATE_ANGORA=ON ../ \
     && export USE_TRACK=1 && sudo -E sh -c 'make -i install' \
-	&& make clean \
+    && make clean \
     && rm -rf CMakeFiles CMakeCache.txt \
     && CXX=$ANGORA/bin/angora-clang++ CC=$ANGORA/bin/angora-clang cmake -DDEEPSTATE_ANGORA=ON ../ \
     && export USE_FAST=1 && sudo -E sh -c 'make install' \
