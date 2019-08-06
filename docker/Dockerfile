@@ -38,8 +38,8 @@ RUN apt-get update \
     && apt-get install -y dotnet-sdk-2.2
 
 # Install Angora dependencies
-RUN apt-get install -y rustc \
-    cargo libstdc++-7-dev
+#RUN apt-get install -y rustc \
+#    cargo libstdc++-7-dev
 
 # Install DeepState/AFL/libFuzzer dependencies
 RUN apt-get install -y build-essential \
@@ -67,12 +67,12 @@ RUN git clone https://github.com/SoftSec-KAIST/Eclipser \
     && cd ../
 
 # Install Angora
-RUN git clone https://github.com/AngoraFuzzer/Angora \
-    && cd Angora \
-    && ./build/build.sh \
-    && cd ../
+#RUN git clone https://github.com/AngoraFuzzer/Angora \
+#    && cd Angora \
+#    && ./build/build.sh \
+#    && cd ../
 
-ENV ANGORA=/home/user/Angora
+#ENV ANGORA=/home/user/Angora
 
 # Install DeepState using a few different compilers for AFL/libFuzzer/Eclipser/Angora+normal
 RUN cd deepstate \
@@ -86,13 +86,13 @@ RUN cd deepstate \
     && rm -rf CMakeFiles CMakeCache.txt \
     && CXX=clang++ CC=clang cmake -DDEEPSTATE_LIBFUZZER=ON ../ \
     && sudo make install \
-    && rm -rf CMakeFiles CMakeCache.txt \
-    && USE_TRACK=1 CXX=$ANGORA/bin/angora-clang++ CC=$ANGORA/bin/angora-clang cmake -DDEEPSTATE_ANGORA=ON ../ \
-    && export USE_TRACK=1 && sudo -E sh -c 'make -i install' \
-    && make clean \
-    && rm -rf CMakeFiles CMakeCache.txt \
-    && CXX=$ANGORA/bin/angora-clang++ CC=$ANGORA/bin/angora-clang cmake -DDEEPSTATE_ANGORA=ON ../ \
-    && export USE_FAST=1 && sudo -E sh -c 'make install' \
+#    && rm -rf CMakeFiles CMakeCache.txt \
+#    && USE_TRACK=1 CXX=$ANGORA/bin/angora-clang++ CC=$ANGORA/bin/angora-clang cmake -DDEEPSTATE_ANGORA=ON ../ \
+#    && export USE_TRACK=1 && sudo -E sh -c 'make -i install' \
+#    && make clean \
+#    && rm -rf CMakeFiles CMakeCache.txt \
+#    && CXX=$ANGORA/bin/angora-clang++ CC=$ANGORA/bin/angora-clang cmake -DDEEPSTATE_ANGORA=ON ../ \
+#    && export USE_FAST=1 && sudo -E sh -c 'make install' \
     && cd .. \
     && sudo pip3 install 'z3-solver==4.5.1.0.post2' angr git+git://github.com/trailofbits/manticore.git \
     && sudo python3 ./build/setup.py install
