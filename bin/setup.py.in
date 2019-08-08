@@ -37,6 +37,7 @@ setuptools.setup(
             'deepstate-angr = deepstate.main_angr:main',
             'deepstate-manticore = deepstate.main_manticore:main',
             'deepstate-reduce = deepstate.reducer:main',
+            'deepstate-ensembler = deepstate.ensembler:main',
             'deepstate-afl = deepstate.frontend.afl:main',
             'deepstate-eclipser = deepstate.frontend.eclipser:main',
             'deepstate-angora = deepstate.frontend.angora:main'
