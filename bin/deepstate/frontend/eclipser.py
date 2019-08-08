@@ -34,10 +34,32 @@ class Eclipser(DeepStateFrontend):
   """
 
   FUZZER = "Eclipser.dll"
-
+  COMPILER = "clang++" 	 # for regular compilation
 
   def print_help(self):
     subprocess.call(["dotnet", self.fuzzer, "fuzz", "--help"])
+
+
+  def compile(self):
+    """
+    Eclipser actually doesn't need instrumentation, but we still implement
+    for consistency.
+    """
+    args = self._ARGS
+
+    lib_path = "/usr/local/lib/libdeepstate.a"
+    L.debug(f"Static library path: {lib_path}")
+
+    if not os.path.isfile(lib_path):
+      raise RuntimeError("no DeepState static library found in {}".format(lib_path))
+
+    flags = ["-ldeepstate"]
+    if args.compiler_args:
+      flags += [arg for arg in args.compiler_args.split(" ")]
+
+    compiler_args = ["-std=c++11", args.compile_test] + flags + \
+                    ["-o", args.out_test_name + ".eclipser"]
+    super().compile(compiler_args)
 
 
   def pre_exec(self):
@@ -100,6 +122,15 @@ class Eclipser(DeepStateFrontend):
       shutil.copy(f, out)
     shutil.rmtree(out + "/decoded")
 
+
+  def reporter(self):
+    args = self._ARGS
+    print("\nEcliper Status:")
+
+    num_crashes = len([crash for crash in os.listdir(args.output_test_dir + "/crash")
+                       if os.path.isfile(crash)])
+
+    print("\tUnique Crashes: {}".format(num_crashes))
 
 
 def main():

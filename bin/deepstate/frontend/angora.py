@@ -15,12 +15,14 @@
 
 import os
 import sys
+import json
 import pipes
 import logging
 import argparse
 import subprocess
 
 from .frontend import DeepStateFrontend, FrontendError
+
 
 L = logging.getLogger("deepstate.frontend.angora")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
@@ -33,13 +35,10 @@ class Angora(DeepStateFrontend):
 
   @classmethod
   def parse_args(cls):
-    parser = argparse.ArgumentParser(description="Use Angora as back-end for DeepState.")
+    parser = argparse.ArgumentParser(description="Use Angora as a backend for DeepState.")
 
     compile_group = parser.add_argument_group("compilation and instrumentation arguments")
-    compile_group.add_argument("--compile_test", type=str, help="Path to DeepState test harness for compilation.")
     compile_group.add_argument("--ignore_calls", type=str, help="Path to static/shared libraries (colon seperated) for functions to blackbox for taint analysis.")
-    compile_group.add_argument("--compiler_args", type=str, help="Linker flags (space seperated) to include for external libraries.")
-    compile_group.add_argument("--out_test_name", type=str, default="test", help="Set name for generated *.taint and *.fast binaries.")
 
     parser.add_argument("taint_binary", nargs="?", type=str, help="Path to binary compiled with taint tracking.")
     parser.add_argument("--mode", type=str, default="llvm", choices=["llvm", "pin"], help="Specifies binary instrumentation framework used (either llvm or pin).")
@@ -104,7 +103,7 @@ class Angora(DeepStateFrontend):
     fast_args = ["-std=c++11", args.compile_test] + fast_flags + \
                 ["-o", args.out_test_name + ".fast"]
 
-    L.info("Compiling {args.binary} for Angora with light instrumentation")
+    L.info(f"Compiling {args.compile_test} for Angora with light instrumentation")
     super().compile(compiler_args=fast_args, env=env)
 
 
@@ -121,7 +120,7 @@ class Angora(DeepStateFrontend):
     taint_args = ["-std=c++11", args.compile_test] + taint_flags + \
                  ["-o", args.out_test_name + ".taint"]
 
-    L.info("Compiling {args.binary} for Angora with taint tracking")
+    L.info(f"Compiling {args.compile_test} for Angora with taint tracking")
     super().compile(compiler_args=taint_args, env=env)
 
 
@@ -160,7 +159,6 @@ class Angora(DeepStateFrontend):
       "--mode": args.mode,
       "--input": args.input_seeds,
       "--output": args.output_test_dir,
-      "--jobs": str(args.jobs),
       "--track": os.path.abspath(args.taint_binary),
     }
 
@@ -182,6 +180,25 @@ class Angora(DeepStateFrontend):
       cmd_dict["--input_which_test"] = args.which_test
 
     return cmd_dict
+
+
+  @property
+  def stats(self):
+    """
+    Parses Angora output JSON config to dict for reporting.
+    """
+    args = self._ARGS
+    stat_file = args.output_test_dir + "/chart_stat.json"
+    with open(stat_file, "r") as handle:
+      stats = json.loads(handle.read())
+    return stats
+
+
+  def reporter(self):
+    print("\nAngora Stats:")
+    print("\tExecs Completed: {}".format(self.stats["num_exec"]))
+    print("\tUnique Crashes: {}".format(self.stats["num_crashes"]))
+    print("\tUnique Hangs: {}".format(self.stats["num_hangs"]))
 
 
 def main():

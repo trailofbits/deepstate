@@ -33,13 +33,7 @@ class AFL(DeepStateFrontend):
 
   @classmethod
   def parse_args(cls):
-    parser = argparse.ArgumentParser(description="Use AFL as a back-end for DeepState.")
-
-    # Compilation/instrumentation support
-    compile_group = parser.add_argument_group("compilation and instrumentation arguments")
-    compile_group.add_argument("--compile_test", type=str, help="Path to DeepState test harness for compilation.")
-    compile_group.add_argument("--compiler_args", type=str, help="Linker flags (space seperated) to include for external libraries.")
-    compile_group.add_argument("--out_test_name", type=str, default="out", help="Set name of generated instrumented binary.")
+    parser = argparse.ArgumentParser(description="Use AFL as a backend for DeepState")
 
     # Execution options
     parser.add_argument("--dictionary", type=str, help="Optional fuzzer dictionary for AFL.")
@@ -66,7 +60,7 @@ class AFL(DeepStateFrontend):
     L.debug(f"Static library path: {lib_path}")
 
     if not os.path.isfile(lib_path):
-      raise RuntimeError("no AFL-instrumented DeepState static library found in {}".format(lib_path))
+      raise FrontendError("no AFL-instrumented DeepState static library found in {}".format(lib_path))
 
     flags = ["-ldeepstate_AFL"]
     if args.compiler_args:
@@ -199,7 +193,15 @@ class AFL(DeepStateFrontend):
     return stats
 
 
-  def _sync_seeds(self, mode, src, dest, excludes=["orig", ".state"]):
+  def reporter(self):
+    print("\nAFL Status:")
+    print("\tExecs Completed: {}".format(self.stats["execs_done"]))
+    print("\tCycle Completed: {}".format(self.stats["cycles_done"]))
+    print("\tUnique Crashes: {}".format(self.stats["unique_crashes"]))
+    print("\tUnique Hangs: {}".format(self.stats["unique_hangs"]))
+
+
+  def _sync_seeds(self, mode, src, dest, excludes=["*.cur_input"]):
     super()._sync_seeds(mode, src, dest, excludes=excludes)
 
 
