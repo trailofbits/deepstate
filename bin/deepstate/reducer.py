@@ -188,10 +188,10 @@ def main():
     delims = []
     for (tstart, tstop) in delimPairs:
       if tstart not in ["BEGIN", "END"]:
-        tstartBytes = bytearray(tstart)
+        tstartBytes = bytearray(tstart, encoding="utf8")
         start = tstartBytes[0]
       if tstop not in ["BEGIN", "END"]:
-        tstopBytes = bytearray(tstop)
+        tstopBytes = bytearray(tstop, encoding="utf8")
         stop = tstopBytes[0]
       for i in range(len(testBytes)):
         for j in range(len(testBytes) - 1, i, -1):
