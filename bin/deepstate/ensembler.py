@@ -102,9 +102,9 @@ class Ensembler:
 
   def _init_fuzzers(self):
     """
-    Instantiates a "call map" with all fuzzer frontends.
+    Retrieves a list of all fuzzer subclasses.
 
-    TODO: feature for overriding functionality based on human interaction
+    TODO(alan): allow human interaction to specify manual fuzzers to use
     """
     return [subclass() for subclass in DeepStateFrontend.__subclasses__()]
 
@@ -118,7 +118,7 @@ class Ensembler:
     :param tests: list of paths to workspace with already-compiled target binaries
     """
 
-    def get_fuzzer(test):
+    def _get_fuzzer(test):
       ext = test.split(".")[-1]
       if ext in ["fast", "taint"]:
         return "angora"
@@ -128,14 +128,32 @@ class Ensembler:
     fuzz_map = defaultdict(list)
     for test in tests:
       for fuzzer in self.fuzzers:
-        if str(fuzzer).lower() == get_fuzzer(test):
+        if str(fuzzer).lower() == _get_fuzzer(test):
           fuzz_map[fuzzer].append(test)
 
     L.debug(f"Fuzzer and corresponding test cases: {fuzz_map}")
     return fuzz_map
 
 
-  def run(self, which_test=None, exit_crash=False):
+  def report(self):
+    """
+    Global status reporter for ensemble fuzzing
+    """
+    while True:
+
+      global_stats = dict()
+      for fuzzer in self.fuzzers:
+        time.sleep(fuzzer._ARGS.sync_cycle)
+
+        stats = fuzzer.reporter()
+        global_stats.update(stats)
+
+      print("\n\n[\tEnsemble Fuzzer Status\t\t]\n")
+      for head, stat in global_stats.items():
+        print(f"Total {head}\t:\t{stat}")
+
+
+  def run(self, which_test=None, exit_crash=False, global_reporter=True):
     """
     Bootstraps all fuzzers for ensembling with appropriate arguments,
     and run fuzzers in parallel.
@@ -161,6 +179,11 @@ class Ensembler:
         "which_test": which_test,
       }
 
+      if global_reporter:
+        fuzzer_args.update({
+          "sync_out": False
+        })
+
       if type(fuzzer) is Angora:
         fuzzer_args.update({
           "binary": next((self.workspace + "/" + b for b in binary if ".fast" in b), None),
@@ -181,7 +204,9 @@ class Ensembler:
           "file": None
         })
 
+
       fuzzer.set_args(fuzzer_args)
+
 
       # sets compiler and no_exec params before execution
       if type(fuzzer) is Eclipser:
@@ -191,8 +216,17 @@ class Ensembler:
 
       # initialize concurrent process and add to process pool
       p = Process(target=fuzzer.run, args=args)
-      p.start()
       procs.append(p)
+
+    for p in procs:
+      p.start()
+
+    time.sleep(10)
+
+    if global_reporter:
+      report_proc = Process(target=self.report, args=())
+      report_proc.start()
+      procs.append(report_proc)
 
     for p in procs:
       p.join()
@@ -261,7 +295,7 @@ def main():
 
   args = parser.parse_args()
 
-
+  # ignore compiler-related arguments if not necessary
   if args.test_dir and (args.ignore_calls or args.compiler_args):
     L.info("Ignoring --ignore_calls and/or --compiler_args arguments passed")
 
@@ -292,9 +326,11 @@ def main():
     print("Sync directory exists and is not empty. Exiting.")
     sys.exit(1)
 
+
   # initialize ensembler
   ensembler = Ensembler(test, args.input_seeds, args.out_dir, args.sync_dir,
-                        args.num_cores, args.timeout, args.workspace, args.compiler_args, args.ignore_calls)
+                        args.num_cores, args.timeout, args.workspace,
+                        args.compiler_args, args.ignore_calls)
 
   ensembler.run(which_test, args.abort_on_crash)
   ensembler.post_process()

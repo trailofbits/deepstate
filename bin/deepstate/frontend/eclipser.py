@@ -125,12 +125,11 @@ class Eclipser(DeepStateFrontend):
 
   def reporter(self):
     args = self._ARGS
-    print("\nEcliper Status:")
-
     num_crashes = len([crash for crash in os.listdir(args.output_test_dir + "/crash")
                        if os.path.isfile(crash)])
-
-    print("\tUnique Crashes: {}".format(num_crashes))
+    return dict({
+        "Unique Crashes": num_crashes
+    })
 
 
 def main():

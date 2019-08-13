@@ -189,16 +189,26 @@ class Angora(DeepStateFrontend):
     """
     args = self._ARGS
     stat_file = args.output_test_dir + "/chart_stat.json"
-    with open(stat_file, "r") as handle:
-      stats = json.loads(handle.read())
+
+    if not hasattr(self, "prev_stats"):
+      self.prev_stats = None
+
+    try:
+      with open(stat_file, "r") as handle:
+        stats = json.loads(handle.read())
+        self.prev_stats = stats
+    except json.decoder.JSONDecodeError:
+      stats = self.prev_stats
+
     return stats
 
 
   def reporter(self):
-    print("\nAngora Stats:")
-    print("\tExecs Completed: {}".format(self.stats["num_exec"]))
-    print("\tUnique Crashes: {}".format(self.stats["num_crashes"]))
-    print("\tUnique Hangs: {}".format(self.stats["num_hangs"]))
+    return dict({
+      "Execs Done": self.stats["num_exec"],
+      "Unique Crashes": self.stats["num_crashes"],
+      "Unique Hangs": self.stats["num_hangs"],
+    })
 
 
 def main():

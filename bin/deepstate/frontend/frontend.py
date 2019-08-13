@@ -272,8 +272,7 @@ class DeepStateFrontend(object):
     self._on = True
 
 
-    # if we are syncing seeds, we background the AFL process but still process output
-    # to the foreground
+    # if we are syncing seeds, we background the process and all of the output generated
     if args.enable_sync:
       self.proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
       L.info(f"Starting fuzzer with seed synchronization with PID `{self.proc.pid}`")
@@ -283,40 +282,48 @@ class DeepStateFrontend(object):
 
 
     try:
-
       if args.enable_sync:
 
         # do not ensemble as fuzzer initializes
         time.sleep(5)
         self.sync_count = 0
 
+        # ensemble "event" loop
         while self._is_alive():
+
           L.debug(f"{self.name} - Performing sync cycle {self.sync_count}")
+
+          # sleep for execution cycle
           time.sleep(args.sync_cycle)
+
+          # call ensemble to perform seed synchronization
           self.ensemble()
-          self.reporter()
+
+          # call subclass reporter method to output useful stats
+          if args.sync_out:
+            print(f"\n{self.name} Fuzzer Stats\n")
+            for head, stat in self.reporter().items():
+              print(f"{head}\t:\t{stat}")
+
           self.sync_count += 1
 
-      # if not syncing, start regular foreground child process
+
+      # run single fuzzer in foreground if not ensembling
       else:
         self.proc.communicate()
-
 
     except OSError as e:
       raise FrontendError(f"{self.fuzzer} run interrupted due to exception {e}.")
 
     except KeyboardInterrupt:
+      print(f"Exiting and killing fuzzer {self.name} with PID {self.proc.pid}")
       self._kill()
+      sys.exit(0)
 
     finally:
       self._kill()
 
-    if not args.enable_sync:
-      self.exec_time = round(time.time() - self._start_time, 2)
-
-    # five second delay due to ensemble wait, subtract from time
-    else:
-      self.exec_time = round(time.time() - self._start_time, 2) - 5
+    self.exec_time = round(time.time() - self._start_time, 2)
 
     L.info(f"Fuzzer exec time: {self.exec_time}s")
 
@@ -508,6 +515,7 @@ class DeepStateFrontend(object):
 
     # Parallel / Ensemble Fuzzing
     parser.add_argument("--enable_sync", action="store_true", help="Enable seed synchronization.")
+    parser.add_argument("--sync_out", action="store_true", help="When set, output individual fuzzer stat summary, instead of a global summary from the ensembler")
     parser.add_argument("--sync_dir", type=str, default="out_sync", help="Directory for seed synchronization.")
     parser.add_argument("--sync_cycle", type=int, default=5, help="Time between sync cycle.")
     parser.add_argument("--sync_crashes", action="store_true", help="Sync crashes between local and global queue.")

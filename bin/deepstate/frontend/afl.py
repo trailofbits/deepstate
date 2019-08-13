@@ -194,11 +194,12 @@ class AFL(DeepStateFrontend):
 
 
   def reporter(self):
-    print("\nAFL Status:")
-    print("\tExecs Completed: {}".format(self.stats["execs_done"]))
-    print("\tCycle Completed: {}".format(self.stats["cycles_done"]))
-    print("\tUnique Crashes: {}".format(self.stats["unique_crashes"]))
-    print("\tUnique Hangs: {}".format(self.stats["unique_hangs"]))
+    return dict({
+        "Execs Done": self.stats["execs_done"],
+        "Cycle Completed": self.stats["cycles_done"],
+        "Unique Crashes": self.stats["unique_crashes"],
+        "Unique Hangs": self.stats["unique_hangs"],
+    })
 
 
   def _sync_seeds(self, mode, src, dest, excludes=["*.cur_input"]):
