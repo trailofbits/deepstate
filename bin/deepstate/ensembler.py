@@ -26,14 +26,17 @@ from multiprocessing import Process
 from collections import defaultdict
 
 from .frontend import DeepStateFrontend
+from .frontend.afl import AFL
+from .frontend.angora import Angora
+from .frontend.eclipser import Eclipser
 
-
-# dynamically imports any known subclass of DeepStateFrontend
-# TODO(alan): refactor with any safe sanity checks?
+"""
+TODO: safer support for dynamic subclass importing
 for subclass in DeepStateFrontend.__subclasses__():
   __import__(subclass.__module__, globals(), locals(), [subclass.__name__])
   globals().update({subclass.__name__:
                     getattr(sys.modules[subclass.__module__], subclass.__name__)})
+"""
 
 
 L = logging.getLogger("deepstate.ensembler")
