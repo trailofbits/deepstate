@@ -19,12 +19,11 @@ logging.basicConfig()
 import os
 import sys
 import time
-import importlib
 import argparse
 import multiprocessing
 
-from collections import defaultdict
 from multiprocessing import Process
+from collections import defaultdict
 
 from .frontend import DeepStateFrontend
 
@@ -42,6 +41,12 @@ L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
 class Ensembler:
+  """
+  Ensembler is the ensemble-based fuzzer that orchestrates and invokes fuzzer frontends, while also
+  supporting seed synchronization between those frontends. It initializes a set of global input args
+  for each frontend, performs an "ensemble compile", and spawns fuzzers in parallel while maintaining
+  seed synchronization between them.
+  """
 
   def __init__(self, target, seeds, out_dir, out_sync, num_cores, timeout, workspace, \
                compiler_args=None, ignore_list=None):
@@ -58,11 +63,11 @@ class Ensembler:
     L.debug(f"Fuzzers for ensembling: {self.fuzzers}")
 
     # given a path to a DeepState harness, provision/compile, and retrieve test bins
-    if type(target) is str:
-      self.targets = self.get_tests(self._provision(target, compiler_args))
+    if isinstance(target, str):
+      self.targets = self.get_tests(self._provision(target, compiler_args, ignore_list))
 
     # given a list of paths from a workspace, instantiate normally
-    elif type(target) is list:
+    elif isinstance(target, list):
       self.targets = self.get_tests(target)
 
 
@@ -90,7 +95,7 @@ class Ensembler:
         "compiler_args": compiler_args
       }
 
-      if type(fuzzer) is Angora:
+      if isinstance(fuzzer, Angora):
         cmd_map["mode"] = "llvm"
         cmd_map["ignore_calls"] = ignore_list
 
@@ -100,7 +105,8 @@ class Ensembler:
     return [test for test in os.listdir(self.workspace)]
 
 
-  def _init_fuzzers(self):
+  @staticmethod
+  def _init_fuzzers():
     """
     Retrieves a list of all fuzzer subclasses.
 
@@ -122,8 +128,7 @@ class Ensembler:
       ext = test.split(".")[-1]
       if ext in ["fast", "taint"]:
         return "angora"
-      else:
-        return ext.lower()
+      return ext.lower()
 
     fuzz_map = defaultdict(list)
     for test in tests:
@@ -137,7 +142,8 @@ class Ensembler:
 
   def report(self):
     """
-    Global status reporter for ensemble fuzzing
+    Global status reporter for ensemble fuzzing. We store and parse each individual
+    fuzzers reporter and provide a global output during fuzzer execution.
     """
     while True:
 
@@ -153,22 +159,26 @@ class Ensembler:
         print(f"Total {head}\t:\t{stat}")
 
 
-  def run(self, which_test=None, exit_crash=False, global_reporter=True):
+  def run(self, which_test=None, global_reporter=True):
     """
     Bootstraps all fuzzers for ensembling with appropriate arguments,
     and run fuzzers in parallel.
 
+    TODO(alan): exit_crash arg to kill fuzzer and report when one crash is found
+
     :param which_test: specifies which test from suite to analyze
-    :param exit_crash: if set, kills fuzzers once a singular crash is discovered
+
     """
 
     procs = []
 
+    # for each fuzzer, instantiate fuzzer arguments manually using set_args() rather than
+    # the parse_args() interface in each frontend. Specific fuzzers need specific options, so
+    # we also set those
     for fuzzer, binary in self.targets.items():
       fuzzer_args = {
-        "enable_sync": True,
-        "sync_cycle": 3,
-        "sync_dir": self.sync_dir,
+
+        # default fuzzer execution related options
         "timeout": self.timeout,
         "binary": self.workspace + "/" + binary[0],
         "input_seeds": self.seeds,
@@ -177,14 +187,17 @@ class Ensembler:
         "max_input_size": 8192,
         "mem_limit": 50,
         "which_test": which_test,
+
+        # set sync options for all fuzzers (TODO): configurable exec cycle
+        # set sync_out to output global fuzzer stats, set as default
+        "enable_sync": True,
+        "sync_cycle": 3,
+        "sync_dir": self.sync_dir,
+        "sync_out": not global_reporter
       }
 
-      if global_reporter:
-        fuzzer_args.update({
-          "sync_out": False
-        })
-
-      if type(fuzzer) is Angora:
+      # manually set and override options for Angora, due to the requirement of two binaries
+      if isinstance(fuzzer, Angora):
         fuzzer_args.update({
           "binary": next((self.workspace + "/" + b for b in binary if ".fast" in b), None),
           "taint_binary": next((self.workspace + "/" + b for b in binary if ".taint" in b), None),
@@ -193,7 +206,8 @@ class Ensembler:
           "no_exploration": False
         })
 
-      elif type(fuzzer) is AFL:
+      # manually set and override "AFL modes" that configured during execution
+      elif isinstance(fuzzer, AFL):
         fuzzer_args.update({
           "parallel_mode": False,
           "dirty_mode": False,
@@ -204,37 +218,40 @@ class Ensembler:
           "file": None
         })
 
-
       fuzzer.set_args(fuzzer_args)
 
-
       # sets compiler and no_exec params before execution
-      if type(fuzzer) is Eclipser:
+      # Eclipser requires `dotnet` to be invoked before fuzzer executable.
+      if isinstance(fuzzer, Eclipser):
         args = ("dotnet", True)
       else:
         args = (None, True)
 
       # initialize concurrent process and add to process pool
-      p = Process(target=fuzzer.run, args=args)
-      procs.append(p)
+      proc = Process(target=fuzzer.run, args=args)
+      procs.append(proc)
 
-    for p in procs:
-      p.start()
+    for proc in procs:
+      proc.start()
 
-    time.sleep(10)
+    # sleep until fuzzers finalize initialization, approx 5 seconds
+    time.sleep(5)
 
+    # initialize another child process that invokes the global reporter
     if global_reporter:
       report_proc = Process(target=self.report, args=())
       report_proc.start()
       procs.append(report_proc)
 
-    for p in procs:
-      p.join()
+    for proc in procs:
+      proc.join()
 
 
   def post_process(self, global_stats=False):
     """
     Perform post-processing for each ensembled fuzzer.
+
+    :param global_stats: optionally performs post-processing for all frontends
 
     TODO: global coverage map generation / visualization
     """
@@ -260,8 +277,9 @@ def main():
   # Compilation options
   parser.add_argument("-a", "--compiler_args", type=str, \
     help="Compiler linker arguments for test harness, if provided as argument")
+
   parser.add_argument("--ignore_calls", type=str, \
-    help="Path to static/shared libraries (colon seperated) for functions to blackbox for taint analysis.")
+    help="Path to static/shared libraries (colon seperated) to blackbox for taint analysis.")
 
 
   # Fuzzer-related in/output paths
@@ -277,6 +295,9 @@ def main():
   parser.add_argument("-w", "--workspace", type=str, default="ensemble_bins", \
     help="Path to workspace to store compiled and instrumented binaries (default is `ensemble_bins`).")
 
+  parser.add_argument("-t", "--timeout", type=int, default=360, \
+    help="Timeout for ensemble fuzzer in seconds (default: 360).")
+
   # TODO(alan): allow user to manually specify base fuzzers to implement
 
 
@@ -284,14 +305,15 @@ def main():
   parser.add_argument("-n", "--num_cores", type=int, default=multiprocessing.cpu_count(), \
     help="Override number of cores to use.")
 
+  parser.add_argument("--no_global", action="store_false", \
+    help="If set, disable global ensembler output, and instead report individual fuzzer stats.")
+
   parser.add_argument("--which_test", type=str, \
     help="Which test to run (equivalent to --input_which_test).")
 
-  parser.add_argument("-t", "--timeout", type=int, default=360, \
-    help="Timeout for ensemble fuzzer in seconds (default: 360).")
-
-  parser.add_argument("--abort_on_crash", action="store_true", \
-    help="Stop ensembler when any base fuzzer returns a crash")
+  # TODO(alan)
+  #parser.add_argument("--abort_on_crash", action="store_true", \
+  #  help="Stop ensembler when any base fuzzer returns a crash")
 
   args = parser.parse_args()
 
@@ -332,7 +354,7 @@ def main():
                         args.num_cores, args.timeout, args.workspace,
                         args.compiler_args, args.ignore_calls)
 
-  ensembler.run(which_test, args.abort_on_crash)
+  ensembler.run(which_test, args.no_global)
   ensembler.post_process()
   return 0
 

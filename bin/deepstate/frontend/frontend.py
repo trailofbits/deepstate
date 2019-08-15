@@ -299,7 +299,8 @@ class DeepStateFrontend(object):
           # call ensemble to perform seed synchronization
           self.ensemble()
 
-          # call subclass reporter method to output useful stats
+          # if sync_out argument set, output individual fuzzer statistics
+          # rather than have our ensembler report global stats
           if args.sync_out:
             print(f"\n{self.name} Fuzzer Stats\n")
             for head, stat in self.reporter().items():

@@ -194,6 +194,9 @@ class AFL(DeepStateFrontend):
 
 
   def reporter(self):
+    """
+    Report a summarized version of statistics, ideal for ensembler output.
+    """
     return dict({
         "Execs Done": self.stats["execs_done"],
         "Cycle Completed": self.stats["cycles_done"],
