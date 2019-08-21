@@ -77,12 +77,9 @@ class Eclipser(DeepStateFrontend):
   def cmd(self):
     args = self._ARGS
 
-    # initialize DeepState flags if none
-    if len(args.args) == 0:
-      deepargs = ["--input_test_file", "eclipser.input",
-   		  "--no_fork", "--abort_on_fail"]
-    else:
-      deepargs = args.args
+    # initialize DeepState flags
+    deepargs = ["--input_test_file", "eclipser.input",
+   		"--no_fork", "--abort_on_fail"]
 
     if args.which_test is not None:
       deepargs += ["--input_which_test", args.which_test]

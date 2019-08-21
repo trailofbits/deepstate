@@ -124,12 +124,12 @@ class Honggfuzz(DeepStateFrontend):
     if args.perf_branch:
       cmd_dict["--linux_perf_branch"] = None
 
-    cmd_dict["--"] = args.binary
-
-    if len(args.args) == 0:
-      cmd_dict["--input_test_file"] = "___FILE___"
-      cmd_dict["--abort_on_fail"] = None
-      cmd_dict["--no_fork"] = None
+    cmd_dict.update({
+      "--": args.binary,
+      "--input_test_file": "___FILE___",
+      "--abort_on_fail": None,
+      "--no_fork": None
+    })
 
     if args.which_test:
       cmd_dict["--input_which_test"] = args.which_test
@@ -145,7 +145,7 @@ class Honggfuzz(DeepStateFrontend):
     args = self._ARGS
     stat_file = args.output_test_dir + "/HONGGFUZZ.REPORT.TXT"
     with open(stat_file, "r") as sf:
-      _lines = sf.readlines()
+      lines = sf.readlines()
 
     stats = {
       "mutationsPerRun": None,
@@ -168,12 +168,12 @@ class Honggfuzz(DeepStateFrontend):
     }
 
     # strip first 4 and last 5 lines to make a parseable file
-    lines = _lines[4:][:5]
+    lines = lines[4:][:-5]
 
     for l in lines:
       for k in stats.keys():
         if k in l:
-          stats[k] = l.strip(": %\r\n")
+          stats[k] = l.strip(":")
     return stats
 
 
@@ -182,8 +182,8 @@ class Honggfuzz(DeepStateFrontend):
     Report a summarized version of statistics, ideal for ensembler output.
     """
     return dict({
-        "Execs Done": self.stats["execs_done"],
-        "Unique Crashes": self.stats["crashes"]
+      "Execs Done": self.stats["execs_done"],
+      "Unique Crashes": self.stats["crashes"]
     })
 
 

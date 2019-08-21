@@ -132,13 +132,13 @@ class AFL(DeepStateFrontend):
     if args.file:
       cmd_dict["-f"] = args.file
 
-    cmd_dict['--'] = args.binary
-
-    # if not specified, set DeepState flags to help AFL coverage
-    if len(args.args) == 0:
-      cmd_dict["--input_test_file"] = "@@"
-      cmd_dict["--abort_on_fail"] = None
-      cmd_dict["--no_fork"] = None
+    # initialize binary and args
+    cmd_dict.update({
+      "--": args.binary,
+      "--input_test_file": "@@",
+      "--abort_on_fail": None,
+      "--no_fork": None
+    })
 
     if args.which_test:
       cmd_dict["--input_which_test"] = args.which_test

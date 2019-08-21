@@ -162,19 +162,19 @@ class Angora(DeepStateFrontend):
       "--track": os.path.abspath(args.taint_binary),
     }
 
+    # execution options
     if args.no_afl:
       cmd_dict["--disable_afl_mutation"] = None
-
     if args.no_exploration:
       cmd_dict["--disable_exploitation"] = None
 
-    cmd_dict["--"] = os.path.abspath(args.binary)
-
-    # if not specified, set DeepState flags to help Angora coverage
-    if len(args.args) == 0:
-      cmd_dict["--input_test_file"] = "@@"
-      cmd_dict["--abort_on_fail"] = None
-      cmd_dict["--no_fork"] = None
+    # binary and arguments
+    cmd_dict.update({
+      "--": os.path.abspath(args.binary),
+      "--input_test_file": "@@",
+      "--abort_on_fail": None,
+      "--no_fork": None
+    })
 
     if args.which_test:
       cmd_dict["--input_which_test"] = args.which_test

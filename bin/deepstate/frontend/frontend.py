@@ -525,7 +525,7 @@ class DeepStateFrontend(object):
     # Miscellaneous options
     parser.add_argument("--fuzzer_help", action="store_true", help="Show fuzzer command line options.")
     parser.add_argument("--which_test", type=str, help="Which test to run (equivalent to --input_which_test).")
-    parser.add_argument("--args", default=[], nargs=argparse.REMAINDER, help="Overrides DeepState arguments to pass to test(s).")
+    parser.add_argument("--args", default=[], nargs=argparse.REMAINDER, help="Other fuzzer-related flags to pass to fuzzer before execution.")
 
     cls._ARGS = parser.parse_args()
     cls.parser = parser
