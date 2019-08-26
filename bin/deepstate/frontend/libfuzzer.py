@@ -33,10 +33,18 @@ class LibFuzzer(DeepStateFrontend):
 
   @classmethod
   def parse_args(cls):
+    parser = argparse.ArgumentParser(description="Use libFuzzer as a backend for DeepState")
 
     # Execution options
+    parser.add_argument("--mem_limit", type=int, default=50, help="Child process memory limit in MB (default is 50).")
+    parser.add_argument("--runtime", type=int, default=0, help="Total time to run fuzzer for (default is 0 for indefinite).")
+    parser.add_argument("--dictionary", type=str, help="Optional fuzzer dictionary for libFuzzer.")
+    parser.add_argument("--use_counters", action="store_true", help="Use perf counters.")
+    parser.add_argument("--use_ascii", action="store_true", help="Use only ASCII characters for generated input seeds.")
+    parser.add_argument("--print_pcs", action="store_true", help="Print program counters during fuzzer execution.")
 
     # Misc. post-processing
+    parser.add_argument("--minimize_crash", action="store_true", help="Automatically minimize crashing testcases after fuzzer execution.")
     parser.add_argument("--post_stats", action="store_true", help="Output post-fuzzing stats.")
 
     cls.parser = parser
@@ -88,18 +96,18 @@ class LibFuzzer(DeepStateFrontend):
       "-max_len": str(args.max_input_size),
       "-timeout": str(args.timeout),
       "-rss_limit_mb": str(args.mem_limit),
-      "-max_total_time": str(args.runtime) if args.runtime is not None else "0",
+      "-max_total_time": str(args.runtime),
       "-artifact_prefix": "deepstate_"
     }
 
-    if args.dictonary is not None:
+    if args.dictionary is not None:
       cmd_dict["-dict"] = args.dictionary
     if args.use_counters:
       cmd_dict["-use_counters"] = args.use_counters
     if args.use_ascii:
       cmd_dict["-only_ascii"] = "1"
     if args.print_pcs:
-      cmd_dict["-print_pcs"] - "1"
+      cmd_dict["-print_pcs"] = "1"
     if args.post_stats:
       cmd_dict["-print_final_stats"] = "1"
     if args.minimize_crash:

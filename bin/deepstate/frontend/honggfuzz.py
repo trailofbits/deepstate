@@ -50,6 +50,9 @@ class Honggfuzz(DeepStateFrontend):
     parser.add_argument("--perf_instr", action="store_true", help="Allow PERF_COUNT_HW_INSTRUCTIONS.")
     parser.add_argument("--perf_branch", action="store_true", help="Allow PERF_COUNT_BRANCH_INSTRUCTIONS.")
 
+    # Misc. options
+    parser.add_argument("--post_stats", action="store_true", help="Output post-fuzzing stats.")
+
     cls.parser = parser
     return super(Honggfuzz, cls).parse_args()
 
@@ -77,15 +80,16 @@ class Honggfuzz(DeepStateFrontend):
     super().pre_exec()
     args = self._ARGS
 
-    if not args.input_seeds:
-      raise FrontendError("No -i/--input_seeds provided.")
+    if not args.no_inst:
+      if not args.input_seeds:
+        raise FrontendError("No -i/--input_seeds provided.")
 
-    if not os.path.exists(args.input_seeds):
-      os.mkdir(args.input_seeds)
-      raise FrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
+      if not os.path.exists(args.input_seeds):
+        os.mkdir(args.input_seeds)
+        raise FrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
 
-    if len([name for name in os.listdir(args.input_seeds)]) == 0:
-      raise FrontendError(f"No seeds present in directory {args.input_seeds}.")
+      if len([name for name in os.listdir(args.input_seeds)]) == 0:
+        raise FrontendError(f"No seeds present in directory {args.input_seeds}.")
 
 
   @property
@@ -136,14 +140,16 @@ class Honggfuzz(DeepStateFrontend):
 
     return cmd_dict
 
-
   @property
   def stats(self):
     """
     Retrieves and parses the stats file produced by Honggfuzz
     """
     args = self._ARGS
-    stat_file = args.output_test_dir + "/HONGGFUZZ.REPORT.TXT"
+    out_dir = os.path.abspath(args.output_test_dir) + "/"
+    report_f = "HONGGFUZZ.REPORT.TXT"
+
+    stat_file = out_dir + report_f
     with open(stat_file, "r") as sf:
       lines = sf.readlines()
 
@@ -173,7 +179,14 @@ class Honggfuzz(DeepStateFrontend):
     for l in lines:
       for k in stats.keys():
         if k in l:
-          stats[k] = l.strip(":")
+          stats[k] = l.split(":")[1].strip()
+
+    # add crash metrics
+    crashes = len([name for name in os.listdir(out_dir) if name != report_f])
+    stats.update({
+      "CRASHES": crashes
+    })
+
     return stats
 
 
@@ -182,10 +195,15 @@ class Honggfuzz(DeepStateFrontend):
     Report a summarized version of statistics, ideal for ensembler output.
     """
     return dict({
-      "Execs Done": self.stats["execs_done"],
-      "Unique Crashes": self.stats["crashes"]
+      "Unique Crashes": self.stats["CRASHES"]
     })
 
+
+  def post_exec(self):
+    if self._ARGS.post_stats:
+      print("\n")
+      for k, v in self.stats.items():
+        print(f"{k} : {v}")
 
 
 def main():

@@ -319,7 +319,6 @@ class DeepStateFrontend(object):
     except KeyboardInterrupt:
       print(f"Exiting and killing fuzzer {self.name} with PID {self.proc.pid}")
       self._kill()
-      sys.exit(0)
 
     finally:
       self._kill()
