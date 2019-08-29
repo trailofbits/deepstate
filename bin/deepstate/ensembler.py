@@ -27,6 +27,8 @@ from collections import defaultdict
 
 from .frontend import DeepStateFrontend
 from .frontend.afl import AFL
+from .frontend.libfuzzer import LibFuzzer
+from .frontend.honggfuzz import Honggfuzz
 from .frontend.angora import Angora
 from .frontend.eclipser import Eclipser
 
@@ -51,7 +53,7 @@ class Ensembler:
   seed synchronization between them.
   """
 
-  def __init__(self, target, seeds, out_dir, out_sync, num_cores, timeout, workspace, \
+  def __init__(self, target, seeds, out_dir, out_sync, num_cores, sync_cycle, timeout, workspace, \
                compiler_args=None, ignore_list=None):
 
     self.seeds = os.path.abspath(seeds)
@@ -60,6 +62,7 @@ class Ensembler:
     self.workspace = os.path.abspath(workspace)
 
     self.num_cores = num_cores
+    self.sync_cycle = sync_cycle
     self.timeout = timeout
 
     self.fuzzers = list(self._init_fuzzers())
@@ -109,13 +112,19 @@ class Ensembler:
 
 
   @staticmethod
-  def _init_fuzzers():
+  def _init_fuzzers(ret_all=False):
     """
-    Retrieves a list of all fuzzer subclasses.
+    Initialize a pre-defined ensemble of fuzzer objects. Return all subcasses if
+    param is set.
 
-    TODO(alan): allow human interaction to specify manual fuzzers to use
+    Default fuzzer ensemble (four cores):
+        afl,honggfuzz,angora,eclipser
+
     """
-    return [subclass() for subclass in DeepStateFrontend.__subclasses__()]
+    if ret_all:
+      return [subclass() for subclass in DeepStateFrontend.__subclasses__()]
+    else:
+      return [AFL(), Honggfuzz(), Angora(), Eclipser()]
 
 
   def get_tests(self, tests):
@@ -131,6 +140,8 @@ class Ensembler:
       ext = test.split(".")[-1]
       if ext in ["fast", "taint"]:
         return "angora"
+      elif ext == "hfuzz":
+        return "honggfuzz"
       return ext.lower()
 
     fuzz_map = defaultdict(list)
@@ -152,7 +163,7 @@ class Ensembler:
 
       global_stats = dict()
       for fuzzer in self.fuzzers:
-        time.sleep(fuzzer._ARGS.sync_cycle)
+        time.sleep(self.sync_cycle)
 
         stats = fuzzer.reporter()
         global_stats.update(stats)
@@ -173,6 +184,7 @@ class Ensembler:
 
     """
 
+    #pool = multiprocessing.Pool(processes=self.num_cores)
     procs = []
 
     # for each fuzzer, instantiate fuzzer arguments manually using set_args() rather than
@@ -194,7 +206,7 @@ class Ensembler:
         # set sync options for all fuzzers (TODO): configurable exec cycle
         # set sync_out to output global fuzzer stats, set as default
         "enable_sync": True,
-        "sync_cycle": 3,
+        "sync_cycle": self.sync_cycle,
         "sync_dir": self.sync_dir,
         "sync_out": not global_reporter
       }
@@ -285,23 +297,26 @@ def main():
     help="Path to static/shared libraries (colon seperated) to blackbox for taint analysis.")
 
 
-  # Fuzzer-related in/output paths
+  # Fuzzer-related paths
   parser.add_argument("-i", "--input_seeds", type=str, required=True, \
     help="Path to directory with initial seed inputs for all fuzzer instances.")
 
   parser.add_argument("-o", "--out_dir", type=str, default="out", \
     help="Path to output directory for generated fuzzer logs and local queue (default is `out`).")
 
-  parser.add_argument("-s", "--sync_dir", type=str, default="out_sync", \
-    help="Path to shared seed synchronization directory (default is `out_sync`).")
-
   parser.add_argument("-w", "--workspace", type=str, default="ensemble_bins", \
     help="Path to workspace to store compiled and instrumented binaries (default is `ensemble_bins`).")
 
   parser.add_argument("-t", "--timeout", type=int, default=360, \
-    help="Timeout for ensemble fuzzer in seconds (default: 360).")
+    help="Timeout for base fuzzers in seconds (default: 360).")
 
-  # TODO(alan): allow user to manually specify base fuzzers to implement
+
+  # Seed Synchronization options
+  parser.add_argument("-s", "--sync_dir", type=str, default="out_sync", \
+    help="Path to shared seed synchronization directory (default is `out_sync`).")
+
+  parser.add_argument("-c", "--sync_cycle", type=int, default=5, \
+    help="Time between sync cycle for each instantiated base fuzzer.")
 
 
   # Ensembler execution options
@@ -334,7 +349,7 @@ def main():
   test = args.test if not args.test_dir else list([f for f in os.listdir(args.test_dir)])
 
   # initialize test case to run from harness, if specified
-  which_test = args.which_test if args.which_test else None
+  which_test = args.which_test
 
   if not os.path.isdir(args.input_seeds):
     print(f"Input seeds directory `{args.input_seeds}` does not exist. Exiting.")
@@ -354,7 +369,7 @@ def main():
 
   # initialize ensembler
   ensembler = Ensembler(test, args.input_seeds, args.out_dir, args.sync_dir,
-                        args.num_cores, args.timeout, args.workspace,
+                        args.num_cores, args.sync_cycle, args.timeout, args.workspace,
                         args.compiler_args, args.ignore_calls)
 
   ensembler.run(which_test, args.no_global)

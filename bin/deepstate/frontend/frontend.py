@@ -518,8 +518,6 @@ class DeepStateFrontend(object):
     parser.add_argument("--sync_out", action="store_true", help="When set, output individual fuzzer stat summary, instead of a global summary from the ensembler")
     parser.add_argument("--sync_dir", type=str, default="out_sync", help="Directory for seed synchronization.")
     parser.add_argument("--sync_cycle", type=int, default=5, help="Time between sync cycle.")
-    parser.add_argument("--sync_crashes", action="store_true", help="Sync crashes between local and global queue.")
-    parser.add_argument("--sync_hangs", action="store_true", help="Sync hanging inputs between local and global queue.")
 
     # Miscellaneous options
     parser.add_argument("--fuzzer_help", action="store_true", help="Show fuzzer command line options.")
