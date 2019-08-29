@@ -42,6 +42,9 @@ class AttrDict(dict):
 
 
 class FrontendError(Exception):
+  """
+  Defines our custom exception class for DeepStateFrontend
+  """
   pass
 
 
@@ -147,10 +150,13 @@ class DeepStateFrontend(object):
     inherited method that constructs the arguments necessary, and then pass it to the
     base object.
 
+    `compile()` also supports compiling arbitrary harnesses without instrumentation if a compiler
+    isn't set.
+
     :param compiler_args: list of arguments for compiler (excluding compiler executable)
     :param env: optional envvars to set during compilation
-
     """
+
     if self.compiler is None:
       raise FrontendError(f"No compiler specified for compile-time instrumentation.")
 
@@ -280,8 +286,9 @@ class DeepStateFrontend(object):
       self.proc = subprocess.Popen(command)
       L.info(f"Starting fuzzer normally with PID `{self.proc.pid}`")
 
-
     try:
+
+      # invoke ensemble if seed synchronization option is set
       if args.enable_sync:
 
         # do not ensemble as fuzzer initializes
@@ -317,14 +324,14 @@ class DeepStateFrontend(object):
       raise FrontendError(f"{self.fuzzer} run interrupted due to exception {e}.")
 
     except KeyboardInterrupt:
-      print(f"Exiting and killing fuzzer {self.name} with PID {self.proc.pid}")
+      print(f"Killing fuzzer {self.name} with PID {self.proc.pid}")
       self._kill()
 
     finally:
       self._kill()
 
+    # calculate total execution time
     self.exec_time = round(time.time() - self._start_time, 2)
-
     L.info(f"Fuzzer exec time: {self.exec_time}s")
 
     # do post-fuzz operations
@@ -400,8 +407,6 @@ class DeepStateFrontend(object):
     if len(excludes) > 0:
       rsync_cmd += [f"--exclude={e}" for e in excludes]
 
-    # TODO: determine other necessary arguments
-
     if mode == "GET":
       rsync_cmd += [dest, src]
     elif mode == "PUSH":
@@ -467,6 +472,7 @@ class DeepStateFrontend(object):
     attribute accessibility. Optimal when accessing frontends without parse_args instantiation.
     """
 
+    # can't manually add entries when parse_args is called in a CLI context
     if type(self._ARGS) is argparse.ArgumentParser:
       raise FrontendError("Arguments already parsed with parse_args.")
 
@@ -484,6 +490,7 @@ class DeepStateFrontend(object):
     frontends must implement to maintain consistency in executables. Users can inherit this
     method to extend and add own arguments or override for outstanding deviations in fuzzer CLIs.
     """
+
     if cls._ARGS:
       return cls._ARGS
 
