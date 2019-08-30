@@ -42,6 +42,9 @@ class AttrDict(dict):
 
 
 class FrontendError(Exception):
+  """
+  Defines our custom exception class for DeepStateFrontend
+  """
   pass
 
 
@@ -125,7 +128,6 @@ class DeepStateFrontend(object):
 
     L.debug(f"Initialized fuzzer path: {self.fuzzer}")
 
-    self._start_time = int(time.time())
     self._on = False
 
 
@@ -147,10 +149,13 @@ class DeepStateFrontend(object):
     inherited method that constructs the arguments necessary, and then pass it to the
     base object.
 
+    `compile()` also supports compiling arbitrary harnesses without instrumentation if a compiler
+    isn't set.
+
     :param compiler_args: list of arguments for compiler (excluding compiler executable)
     :param env: optional envvars to set during compilation
-
     """
+
     if self.compiler is None:
       raise FrontendError(f"No compiler specified for compile-time instrumentation.")
 
@@ -267,21 +272,29 @@ class DeepStateFrontend(object):
 
     L.info(f"Executing command `{str(command)}`")
 
-    # exec fuzzer
-    L.info(f"Fuzzer start time: {self._start_time}")
     self._on = True
-
-
-    # if we are syncing seeds, we background the process and all of the output generated
-    if args.enable_sync:
-      self.proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-      L.info(f"Starting fuzzer with seed synchronization with PID `{self.proc.pid}`")
-    else:
-      self.proc = subprocess.Popen(command)
-      L.info(f"Starting fuzzer normally with PID `{self.proc.pid}`")
-
+    self._start_time = int(time.time())
 
     try:
+
+      # if we are syncing seeds, we background the process and all of the output generated
+      if args.enable_sync:
+        self.proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        L.info(f"Starting fuzzer with seed synchronization with PID `{self.proc.pid}`")
+      else:
+        self.proc = subprocess.Popen(command)
+        L.info(f"Starting fuzzer  with PID `{self.proc.pid}`")
+
+      L.info(f"Fuzzer start time: {self._start_time}")
+
+      # check status if fuzzer exited early, and return error
+      stdout, stderr = self.proc.communicate()
+      if self.proc.returncode != 0:
+        self._kill()
+        err = stdout if stderr is None else stderr
+        raise FrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Error: {err.decode('utf-8')}")
+
+      # invoke ensemble if seed synchronization option is set
       if args.enable_sync:
 
         # do not ensemble as fuzzer initializes
@@ -309,22 +322,21 @@ class DeepStateFrontend(object):
           self.sync_count += 1
 
 
-      # run single fuzzer in foreground if not ensembling
-      else:
-        self.proc.communicate()
-
+    # any OS-specific errors encountered
     except OSError as e:
+      self._kill()
       raise FrontendError(f"{self.fuzzer} run interrupted due to exception {e}.")
 
+    # SIGINT stops fuzzer, but continues execution
     except KeyboardInterrupt:
-      print(f"Exiting and killing fuzzer {self.name} with PID {self.proc.pid}")
+      print(f"Killing fuzzer {self.name} with PID {self.proc.pid}")
       self._kill()
 
     finally:
       self._kill()
 
+    # calculate total execution time
     self.exec_time = round(time.time() - self._start_time, 2)
-
     L.info(f"Fuzzer exec time: {self.exec_time}s")
 
     # do post-fuzz operations
@@ -400,8 +412,6 @@ class DeepStateFrontend(object):
     if len(excludes) > 0:
       rsync_cmd += [f"--exclude={e}" for e in excludes]
 
-    # TODO: determine other necessary arguments
-
     if mode == "GET":
       rsync_cmd += [dest, src]
     elif mode == "PUSH":
@@ -467,6 +477,7 @@ class DeepStateFrontend(object):
     attribute accessibility. Optimal when accessing frontends without parse_args instantiation.
     """
 
+    # can't manually add entries when parse_args is called in a CLI context
     if type(self._ARGS) is argparse.ArgumentParser:
       raise FrontendError("Arguments already parsed with parse_args.")
 
@@ -484,6 +495,7 @@ class DeepStateFrontend(object):
     frontends must implement to maintain consistency in executables. Users can inherit this
     method to extend and add own arguments or override for outstanding deviations in fuzzer CLIs.
     """
+
     if cls._ARGS:
       return cls._ARGS
 
@@ -518,8 +530,6 @@ class DeepStateFrontend(object):
     parser.add_argument("--sync_out", action="store_true", help="When set, output individual fuzzer stat summary, instead of a global summary from the ensembler")
     parser.add_argument("--sync_dir", type=str, default="out_sync", help="Directory for seed synchronization.")
     parser.add_argument("--sync_cycle", type=int, default=5, help="Time between sync cycle.")
-    parser.add_argument("--sync_crashes", action="store_true", help="Sync crashes between local and global queue.")
-    parser.add_argument("--sync_hangs", action="store_true", help="Sync hanging inputs between local and global queue.")
 
     # Miscellaneous options
     parser.add_argument("--fuzzer_help", action="store_true", help="Show fuzzer command line options.")
