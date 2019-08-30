@@ -27,7 +27,6 @@ from collections import defaultdict
 
 from .frontend import DeepStateFrontend
 from .frontend.afl import AFL
-from .frontend.libfuzzer import LibFuzzer
 from .frontend.honggfuzz import Honggfuzz
 from .frontend.angora import Angora
 from .frontend.eclipser import Eclipser
@@ -199,6 +198,7 @@ class Ensembler:
         "input_seeds": self.seeds,
         "output_test_dir": "{}/{}_out".format(self.out_dir, str(fuzzer)),
         "args": [],
+        "dictionary": None,
         "max_input_size": 8192,
         "mem_limit": 50,
         "which_test": which_test,
@@ -229,8 +229,22 @@ class Ensembler:
           "dumb_mode": False,
           "qemu_mode": False,
           "crash_explore": False,
-          "dictionary": None,
           "file": None
+        })
+
+      # manually set Honggfuzz options
+      elif isinstance(fuzzer, Honggfuzz):
+        fuzzer_args.update({
+          "iterations": None,
+          "persistent": False,
+          "no_inst": False,
+          "keep_output": False,
+          "sanitizers": False,
+          "clear_env": False,
+          "save_all": True,
+          "keep_aslr": False,
+          "perf_instr": False,
+          "perf_branch": False
         })
 
       fuzzer.set_args(fuzzer_args)
@@ -246,34 +260,22 @@ class Ensembler:
       proc = Process(target=fuzzer.run, args=args)
       procs.append(proc)
 
+
+    # initialize another child process that invokes the global reporter
+    if global_reporter:
+      report_proc = Process(target=self.report, args=())
+      procs.append(report_proc)
+
+
     for proc in procs:
       proc.start()
 
     # sleep until fuzzers finalize initialization, approx 5 seconds
     time.sleep(5)
 
-    # initialize another child process that invokes the global reporter
-    if global_reporter:
-      report_proc = Process(target=self.report, args=())
-      report_proc.start()
-      procs.append(report_proc)
-
     for proc in procs:
       proc.join()
 
-
-  def post_process(self, global_stats=False):
-    """
-    Perform post-processing for each ensembled fuzzer.
-
-    :param global_stats: optionally performs post-processing for all frontends
-
-    TODO: global coverage map generation / visualization
-    """
-    for fuzzer in self.fuzzers:
-      if not global_stats:
-        if hasattr(fuzzer, "post_exec"):
-          fuzzer.post_exec()
 
 
 
@@ -359,21 +361,21 @@ def main():
     print("Output directory does not exist. Creating.")
     os.mkdir(args.out_dir)
 
-  if not os.path.isdir(args.sync_dir):
+  sync_dir = args.out_dir + "/" + args.sync_dir
+  if not os.path.isdir(sync_dir):
     print("Sync directory does not exist. Creating.")
-    os.mkdir(args.sync_dir)
-  elif os.path.isdir(args.sync_dir) and len([f for f in os.listdir(args.sync_dir)]) != 0:
+    os.mkdir(sync_dir)
+  elif os.path.isdir(sync_dir) and len([f for f in os.listdir(sync_dir)]) != 0:
     print("Sync directory exists and is not empty. Exiting.")
     sys.exit(1)
 
 
   # initialize ensembler
-  ensembler = Ensembler(test, args.input_seeds, args.out_dir, args.sync_dir,
+  ensembler = Ensembler(test, args.input_seeds, args.out_dir, sync_dir,
                         args.num_cores, args.sync_cycle, args.timeout, args.workspace,
                         args.compiler_args, args.ignore_calls)
 
   ensembler.run(which_test, args.no_global)
-  ensembler.post_process()
   return 0
 
 

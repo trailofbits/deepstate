@@ -128,7 +128,6 @@ class DeepStateFrontend(object):
 
     L.debug(f"Initialized fuzzer path: {self.fuzzer}")
 
-    self._start_time = int(time.time())
     self._on = False
 
 
@@ -273,20 +272,27 @@ class DeepStateFrontend(object):
 
     L.info(f"Executing command `{str(command)}`")
 
-    # exec fuzzer
-    L.info(f"Fuzzer start time: {self._start_time}")
     self._on = True
-
-
-    # if we are syncing seeds, we background the process and all of the output generated
-    if args.enable_sync:
-      self.proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-      L.info(f"Starting fuzzer with seed synchronization with PID `{self.proc.pid}`")
-    else:
-      self.proc = subprocess.Popen(command)
-      L.info(f"Starting fuzzer normally with PID `{self.proc.pid}`")
+    self._start_time = int(time.time())
 
     try:
+
+      # if we are syncing seeds, we background the process and all of the output generated
+      if args.enable_sync:
+        self.proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        L.info(f"Starting fuzzer with seed synchronization with PID `{self.proc.pid}`")
+      else:
+        self.proc = subprocess.Popen(command)
+        L.info(f"Starting fuzzer  with PID `{self.proc.pid}`")
+
+      L.info(f"Fuzzer start time: {self._start_time}")
+
+      # check status if fuzzer exited early, and return error
+      stdout, stderr = self.proc.communicate()
+      if self.proc.returncode != 0:
+        self._kill()
+        err = stdout if stderr is None else stderr
+        raise FrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Error: {err.decode('utf-8')}")
 
       # invoke ensemble if seed synchronization option is set
       if args.enable_sync:
@@ -316,13 +322,12 @@ class DeepStateFrontend(object):
           self.sync_count += 1
 
 
-      # run single fuzzer in foreground if not ensembling
-      else:
-        self.proc.communicate()
-
+    # any OS-specific errors encountered
     except OSError as e:
+      self._kill()
       raise FrontendError(f"{self.fuzzer} run interrupted due to exception {e}.")
 
+    # SIGINT stops fuzzer, but continues execution
     except KeyboardInterrupt:
       print(f"Killing fuzzer {self.name} with PID {self.proc.pid}")
       self._kill()
