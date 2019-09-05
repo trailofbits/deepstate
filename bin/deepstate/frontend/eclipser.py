@@ -72,6 +72,12 @@ class Eclipser(DeepStateFrontend):
       print("Creating output directory.")
       os.mkdir(out)
 
+    seeds = args.input_seeds
+    if seeds:
+      if os.path.exists(seeds):
+        if len([name for name in os.listdir(seeds)]) == 0:
+          raise FrontendError(f"Seeds path specified but none present in directory.")
+
 
   @property
   def cmd(self):
