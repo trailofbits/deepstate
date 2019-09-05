@@ -79,9 +79,10 @@ class LibFuzzer(DeepStateFrontend):
     seeds = args.input_seeds
 
     # check if seeds are present if specified
-    if os.path.exists(seeds):
-      if len([name for name in os.listdir(seeds)]) == 0:
-        raise FrontendError(f"Seeds path specified but none present in directory.")
+    if seeds:
+      if os.path.exists(seeds):
+        if len([name for name in os.listdir(seeds)]) == 0:
+          raise FrontendError(f"Seeds path specified but none present in directory.")
 
 
   @property
