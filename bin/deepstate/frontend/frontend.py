@@ -522,7 +522,7 @@ class DeepStateFrontend(object):
     parser.add_argument("-o", "--output_test_dir", type=str, default="{}_out".format(str(cls())), help="Directory where tests will be saved.")
 
     # Fuzzer execution options
-    parser.add_argument("-t", "--timeout", type=int, default=3600, help="How long to fuzz.")
+    parser.add_argument("-t", "--timeout", type=str, default="3600", help="How long to fuzz.")
     parser.add_argument("-s", "--max_input_size", type=int, default=8192, help="Maximum input size.")
 
     # Parallel / Ensemble Fuzzing
