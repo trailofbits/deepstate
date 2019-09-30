@@ -30,26 +30,33 @@
 
 DEEPSTATE_BEGIN_EXTERN_C
 
-DEFINE_uint(num_workers, 1,
-            "Number of workers to spawn for testing and test generation.");
+/* Basic input and output options, specifies files for read/write before and after test analysis */
+DEFINE_string(input_test_dir, InputOutputGroup, "", "Directory of saved tests to run.");
+DEFINE_string(input_test_file, InputOutputGroup, "", "Saved test to run.");
+DEFINE_string(input_test_files_dir, InputOutputGroup, "", "Directory of saved test files to run (flat structure).");
+DEFINE_string(output_test_dir, InputOutputGroup, "", "Directory where tests will be saved.");
 
-DEFINE_string(input_test_dir, "", "Directory of saved tests to run.");
-DEFINE_string(input_which_test, "", "Test to use with --input_test_file or --input_test_files_dir.");
-DEFINE_string(input_test_file, "", "Saved test to run.");
-DEFINE_string(input_test_files_dir, "", "Directory of saved test files to run (flat structure).");
-DEFINE_string(output_test_dir, "", "Directory where tests will be saved.");
+/* Test execution-related options, configures how an execution run is carried out */
+DEFINE_bool(take_over, ExecutionGroup, false, "Replay test cases in take-over mode.");
+DEFINE_bool(abort_on_fail, ExecutionGroup, false, "Abort on file replay failure (useful in file fuzzing).");
+DEFINE_bool(exit_on_fail, ExecutionGroup, false, "Exit with status 255 on test failure.");
+DEFINE_bool(verbose_reads, ExecutionGroup, false, "Report on bytes being read during execution of test.");
+DEFINE_int(min_log_level, ExecutionGroup, 0, "Minimum level of logging to output (default 2, 0=debug, 1=trace, 2=info, ...).");
+DEFINE_int(timeout, ExecutionGroup, 120, "Timeout for brute force fuzzing.");
+DEFINE_uint(num_workers, ExecutionGroup, 1, "Number of workers to spawn for testing and test generation.");
 
-DEFINE_bool(take_over, false, "Replay test cases in take-over mode.");
-DEFINE_bool(abort_on_fail, false, "Abort on file replay failure (useful in file fuzzing).");
-DEFINE_bool(exit_on_fail, false, "Exit with status 255 on test failure.");
-DEFINE_bool(verbose_reads, false, "Report on bytes being read during execution of test.");
-DEFINE_bool(fuzz, false, "Perform brute force unguided fuzzing.");
-DEFINE_bool(fuzz_save_passing, false, "Save passing tests during fuzzing.");
-DEFINE_bool(fork, true, "Fork when running a test.");
+/* Fuzzing and symex related options, baked in to perform analysis-related tasks without auxiliary tools */
+DEFINE_bool(fuzz, AnalysisGroup, false, "Perform brute force unguided fuzzing.");
+DEFINE_bool(fuzz_save_passing, AnalysisGroup, false, "Save passing tests during fuzzing.");
+DEFINE_bool(fork, AnalysisGroup, true, "Fork when running a test.");
+DEFINE_int(seed, AnalysisGroup, 0, "Seed for brute force fuzzing (uses time if not set).");
 
-DEFINE_int(min_log_level, 0, "Minimum level of logging to output (default 2, 0=debug, 1=trace, 2=info, ...).");
-DEFINE_int(seed, 0, "Seed for brute force fuzzing (uses time if not set).");
-DEFINE_int(timeout, 120, "Timeout for brute force fuzzing.");
+/* Test selection options to configure what test or tests should be executed during a run */
+DEFINE_string(input_which_test, TestSelectionGroup, "", "Test to use with --input_test_file or --input_test_files_dir.");
+DEFINE_string(test_filter, TestSelectionGroup, "", "Run all tests matched with a specific pattern.");
+DEFINE_bool(list_tests, TestSelectionGroup, false, "List all available tests instead of running tests.");
+DEFINE_bool(boring_only, TestSelectionGroup, false, "Run Boring concrete tests only.");
+DEFINE_bool(run_disabled, TestSelectionGroup, false, "Run Disabled tests alongside other tests.");
 
 /* Set to 1 by Manticore/Angr/etc. when we're running symbolically. */
 int DeepState_UsingSymExec = 0;
@@ -240,7 +247,7 @@ char *DeepState_CStr_C(size_t len, const char* allowed) {
   if (NULL == str) {
     DeepState_Abandon("Can't allocate memory");
   }
-  DeepState_GeneratedStrings[DeepState_GeneratedStringsIndex++] = str;  
+  DeepState_GeneratedStrings[DeepState_GeneratedStringsIndex++] = str;
   if (len) {
     if (!allowed) {
       DeepState_SymbolizeDataNoNull(str, &(str[len]));
@@ -261,13 +268,13 @@ void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
     if (!allowed) {
       DeepState_SymbolizeDataNoNull(begin, begin + strlen(begin));
     } else {
-      uint32_t allowed_size = strlen(allowed);      
+      uint32_t allowed_size = strlen(allowed);
       uint8_t *bytes = (uint8_t *) begin;
       uintptr_t begin_addr = (uintptr_t) begin;
-      uintptr_t end_addr = (uintptr_t) (begin + strlen(begin));  
+      uintptr_t end_addr = (uintptr_t) (begin + strlen(begin));
       for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
 	bytes[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
-      }      
+      }
     }
   }
 }
@@ -317,7 +324,7 @@ int DeepState_Bool(void) {
   }
   if (FLAGS_verbose_reads) {
     printf("Reading byte as boolean at %u\n", DeepState_InputIndex);
-  }  
+  }
   return DeepState_Input[DeepState_InputIndex++] & 1;
 }
 
@@ -407,7 +414,7 @@ void _DeepState_Assume(int expr, const char *expr_str, const char *file,
   if (!expr) {
     DeepState_LogFormat(DeepState_LogError,
                         "%s(%u): Assumption %s failed",
-                        file, line, expr_str);    
+                        file, line, expr_str);
     DeepState_Abandon("Assumption failed");
   }
 }
@@ -685,11 +692,11 @@ void writeInputData(char* name, int important) {
     if (important) {
       DeepState_LogFormat(DeepState_LogInfo, "Saved test case in file `%s`", path);
     } else {
-      DeepState_LogFormat(DeepState_LogTrace, "Saved test case in file `%s`", path);      
+      DeepState_LogFormat(DeepState_LogTrace, "Saved test case in file `%s`", path);
     }
   }
-  free(path);  
-  fclose(fp);  
+  free(path);
+  fclose(fp);
 }
 
 /* Save a passing test to the output test directory. */
@@ -742,7 +749,7 @@ int DeepState_Fuzz(void){
   if (!HAS_FLAG_min_log_level) {
     FLAGS_min_log_level = 2;
   }
-  
+
   if (HAS_FLAG_seed) {
     srand(FLAGS_seed);
   } else {
@@ -758,7 +765,7 @@ int DeepState_Fuzz(void){
 
   int num_failed_tests = 0;
 
-  struct DeepState_TestInfo *test = NULL;  
+  struct DeepState_TestInfo *test = NULL;
 
   DeepState_Setup();
 
@@ -783,7 +790,7 @@ int DeepState_Fuzz(void){
   }
 
   unsigned int last_status = 0;
-  
+
   while (diff < FLAGS_timeout) {
     i++;
     if ((diff != last_status) && ((diff % 30) == 0) ) {
@@ -796,7 +803,7 @@ int DeepState_Fuzz(void){
     if (DeepState_FuzzOneTestCase(test) != 0) {
       num_failed_tests ++;
     }
-    
+
     current = (long)time(NULL);
     diff = current-start;
   }
@@ -812,7 +819,7 @@ int DeepState_Fuzz(void){
    Has to be defined here since we redefine rand in the header. */
 enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test) {
   DeepState_InputIndex = 0;
-  
+
   for (int i = 0; i < DeepState_InputSize; i++) {
     DeepState_Input[i] = (char)rand();
   }
@@ -823,7 +830,7 @@ enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo
 
   if (result == DeepState_TestRunCrash) {
     DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
-    
+
     if (HAS_FLAG_output_test_dir) {
       DeepState_SaveCrashingTest();
     }
@@ -856,10 +863,10 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     FLAGS_min_log_level = 0;
     DeepState_LibFuzzerLoud = 1;
   }
-  
+
   struct DeepState_TestInfo *test = NULL;
 
-  DeepState_InitOptions(0, "");  
+  DeepState_InitOptions(0, "");
   //DeepState_Setup(); we want to do our own, simpler, memory management
   void *mem = malloc(sizeof(struct DeepState_TestRunInfo));
   DeepState_CurrentTestRun = (struct DeepState_TestRunInfo *) mem;
@@ -887,21 +894,21 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   const char* abort_check = getenv("LIBFUZZER_ABORT_ON_FAIL");
   if (abort_check != NULL) {
     if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
-      assert(0); // Terminate the testing more permanently      
+      assert(0); // Terminate the testing more permanently
     }
   }
 
   const char* exit_check = getenv("LIBFUZZER_EXIT_ON_FAIL");
   if (exit_check != NULL) {
     if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
-      exit(255); // Terminate the testing     
+      exit(255); // Terminate the testing
     }
-  }  
+  }
 
   DeepState_Teardown();
   DeepState_CurrentTestRun = NULL;
   free(mem);
-  
+
   return 0;  // Non-zero return values are reserved for future use.
 }
 

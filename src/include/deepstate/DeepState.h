@@ -65,6 +65,7 @@ DECLARE_string(input_test_file);
 DECLARE_string(input_test_files_dir);
 DECLARE_string(input_which_test);
 DECLARE_string(output_test_dir);
+DECLARE_string(test_filter);
 
 DECLARE_bool(take_over);
 DECLARE_bool(abort_on_fail);
@@ -73,6 +74,9 @@ DECLARE_bool(verbose_reads);
 DECLARE_bool(fuzz);
 DECLARE_bool(fuzz_save_passing);
 DECLARE_bool(fork);
+DECLARE_bool(list_tests);
+DECLARE_bool(boring_only);
+DECLARE_bool(run_disabled);
 
 DECLARE_int(min_log_level);
 DECLARE_int(seed);
@@ -629,7 +633,7 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
     wstatus = DeepState_RunTestNoFork(test);
     DeepState_CleanUp();
   }
-  
+
   /* If we exited normally, the status code tells us if the test passed. */
   if (!FLAGS_fork || WIFEXITED(wstatus)) {
     uint8_t status = WEXITSTATUS(wstatus);
@@ -718,7 +722,7 @@ static int DeepState_RunSavedCasesForTest(struct DeepState_TestInfo *test) {
   }
 
   unsigned int i = 0;
-  
+
   /* Read generated test cases and run a test for each file found. */
   while ((dp = readdir(dir_fd)) != NULL) {
     if (DeepState_IsTestCaseFile(dp->d_name)) {
@@ -736,7 +740,7 @@ static int DeepState_RunSavedCasesForTest(struct DeepState_TestInfo *test) {
 
   DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests for %s; %d tests failed",
 		      i, test->test_name, num_failed_tests);
-  
+
   return num_failed_tests;
 }
 
@@ -771,13 +775,13 @@ static int DeepState_RunSingleSavedTestCase(void) {
   enum DeepState_TestRunResult result =
     DeepState_RunSavedTestCase(test, "", FLAGS_input_test_file);
 
-  if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {    
+  if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
     if (FLAGS_abort_on_fail) {
       DeepState_HardCrash();
     }
     if (FLAGS_exit_on_fail) {
       exit(255); // Terminate the testing
-    }    
+    }
     num_failed_tests++;
   }
 
@@ -792,12 +796,12 @@ extern int DeepState_Fuzz(void);
  * or first test, if not defined. */
 static int DeepState_RunSingleSavedTestDir(void) {
   int num_failed_tests = 0;
-  struct DeepState_TestInfo *test = NULL;  
+  struct DeepState_TestInfo *test = NULL;
 
   if (!HAS_FLAG_min_log_level) {
     FLAGS_min_log_level = 2;
   }
-    
+
   DeepState_Setup();
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
@@ -834,16 +838,16 @@ static int DeepState_RunSingleSavedTestDir(void) {
   }
 
   unsigned int i = 0;
-  
+
   /* Read generated test cases and run a test for each file found. */
   while ((dp = readdir(dir_fd)) != NULL) {
     size_t path_len = 2 + sizeof(char) * (strlen(FLAGS_input_test_files_dir) + strlen(dp->d_name));
     char *path = (char *) malloc(path_len);
-    snprintf(path, path_len, "%s/%s", FLAGS_input_test_files_dir, dp->d_name);    
+    snprintf(path, path_len, "%s/%s", FLAGS_input_test_files_dir, dp->d_name);
     stat(path, &path_stat);
-    
+
     if (S_ISREG(path_stat.st_mode)) {
-      i++;      
+      i++;
       enum DeepState_TestRunResult result =
         DeepState_RunSavedTestCase(test, FLAGS_input_test_files_dir, dp->d_name);
 
@@ -853,8 +857,8 @@ static int DeepState_RunSingleSavedTestDir(void) {
 	}
 	if (FLAGS_exit_on_fail) {
 	  exit(255); // Terminate the testing
-	}	
-	
+	}
+
         num_failed_tests++;
       }
     }
@@ -863,7 +867,7 @@ static int DeepState_RunSingleSavedTestDir(void) {
 
   DeepState_LogFormat(DeepState_LogInfo, "Ran %u tests; %d tests failed",
 		      i, num_failed_tests);
-  
+
   return num_failed_tests;
 }
 
@@ -879,7 +883,7 @@ static int DeepState_RunSavedTestCases(void) {
   if (!HAS_FLAG_min_log_level) {
     FLAGS_min_log_level = 2;
   }
-    
+
   DeepState_Setup();
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
