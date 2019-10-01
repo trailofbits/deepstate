@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 
-DEFINE_bool(help, ExecutionGroup, false, "Show the usage message.");
+DEFINE_bool(help, MiscGroup, false, "Show the usage message.");
 
 enum {
   kMaxNumOptions = 32,
@@ -267,16 +267,16 @@ void DeepState_PrintAllOptions(const char *prog_name) {
   sprintf(buff, "Usage: %s <options>\n\n", prog_name);
   write_len = write(STDERR_FILENO, buff, strlen(buff));
 
-  /* first print group display string, then each option that corresponds */
-  /* TODO(alan): fix up how we iterate over enums, limited since this is C */
-  for (int opt = 0; opt <= MiscGroup; opt++) {
+  /* First, print group display string, then each option that corresponds */
+  for (int group = 0; group != MiscGroup; group++) {
+
+    sprintf(buff, "\033[4m%s\033[24m\n\n", ProcessGroupString(group));
+    write_len = write(STDERR_FILENO, buff, strlen(buff));
+
     for (; option != NULL; option = next_option) {
 
-      sprintf(buff, "\033[4m%s\033[24m\n\n", ProcessGroupString(opt));
-      write_len = write(STDERR_FILENO, buff, strlen(buff));
-
-      if (opt == (int) option->group) {
-        next_option = option->next;
+      next_option = option->next;
+      if (group == option->group) {
 
         sprintf(buff, "--%s", option->name);
         write_len = write(STDERR_FILENO, buff, strlen(buff));
@@ -284,12 +284,16 @@ void DeepState_PrintAllOptions(const char *prog_name) {
         const char *docstring = option->docstring;
         do {
           docstring = BufferDocString(line_buff, docstring);
-          sprintf(buff, "\n        %s", line_buff);
+          sprintf(buff, "\n\t%s", line_buff);
           write_len = write(STDERR_FILENO, buff, strlen(buff));
         } while (*docstring);
         write_len = write(STDERR_FILENO, "\n\n", 2);
       }
     }
+
+	/* Reiterate over linked list again with each group */
+	option = DeepState_Options;
+	next_option = NULL;
   }
   (void) write_len;  /* Deal with -Wunused-result. */
 }

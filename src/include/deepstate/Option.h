@@ -82,7 +82,7 @@ DEEPSTATE_BEGIN_EXTERN_C
 
 /* Enum for defining command-line groups that options can reside under */
 typedef enum {
-  InputOutputGroup = 0, /* sets as starting index when iterating */
+  InputOutputGroup,
   AnalysisGroup,
   ExecutionGroup,
   TestSelectionGroup,
