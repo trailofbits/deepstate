@@ -767,7 +767,6 @@ int DeepState_Fuzz(void){
 
   struct DeepState_TestInfo *test = NULL;
 
-  DeepState_Setup();
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
     if (HAS_FLAG_input_which_test) {

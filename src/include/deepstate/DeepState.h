@@ -744,13 +744,50 @@ static int DeepState_RunSavedCasesForTest(struct DeepState_TestInfo *test) {
   return num_failed_tests;
 }
 
+/* Returns a sorted list of all available tests to run, and exits after */
+static int DeepState_RunListTests(void) {
+  char buff[4096];
+  ssize_t write_len = 0;
+
+  int total_test_count = 0;
+  int boring_count = 0;
+  int disabled_count = 0;
+
+  struct DeepState_TestInfo *current_test = DeepState_LastTestInfo;
+
+  sprintf(buff, "Available Tests:\n\n");
+  write_len = write(STDERR_FILENO, buff, strlen(buff));
+
+  /* Print each test and increment counter from linked list */
+  for (; current_test != NULL; current_test = current_test->prev) {
+
+	const char * curr_test = current_test->test_name;
+
+	/* Classify tests */
+	if (strstr(curr_test, "Boring") || strstr(curr_test, "BORING")) {
+	  boring_count++;
+	} else if (strstr(curr_test, "Disabled") || strstr(curr_test, "DISABLED")) {
+	  disabled_count++;
+	}
+
+    sprintf(buff, " *  %s (line %d)\n", curr_test, current_test->line_number);
+	write_len = write(STDERR_FILENO, buff, strlen(buff));
+    total_test_count++;
+  }
+
+  sprintf(buff, "\nBoring Tests: %d\nDisabled Tests: %d\n", boring_count, disabled_count);
+  write_len = write(STDERR_FILENO, buff, strlen(buff));
+
+  sprintf(buff, "\nTotal Number of Tests: %d\n", total_test_count);
+  write_len = write(STDERR_FILENO, buff, strlen(buff));
+  return 0;
+}
+
 /* Run test from `FLAGS_input_test_file`, under `FLAGS_input_which_test`
  * or first test, if not defined. */
 static int DeepState_RunSingleSavedTestCase(void) {
   int num_failed_tests = 0;
   struct DeepState_TestInfo *test = NULL;
-
-  DeepState_Setup();
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
     if (HAS_FLAG_input_which_test) {
@@ -801,8 +838,6 @@ static int DeepState_RunSingleSavedTestDir(void) {
   if (!HAS_FLAG_min_log_level) {
     FLAGS_min_log_level = 2;
   }
-
-  DeepState_Setup();
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
     if (HAS_FLAG_input_which_test) {
@@ -884,8 +919,6 @@ static int DeepState_RunSavedTestCases(void) {
     FLAGS_min_log_level = 2;
   }
 
-  DeepState_Setup();
-
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
     num_failed_tests += DeepState_RunSavedCasesForTest(test);
   }
@@ -899,6 +932,10 @@ static int DeepState_RunSavedTestCases(void) {
 static int DeepState_Run(void) {
   if (!DeepState_OptionsAreInitialized) {
     DeepState_Abandon("Please call DeepState_InitOptions(argc, argv) in main");
+  }
+
+  if (HAS_FLAG_list_tests) {
+	return DeepState_RunListTests();
   }
 
   if (HAS_FLAG_input_test_file) {
@@ -921,21 +958,42 @@ static int DeepState_Run(void) {
   int use_drfuzz = getenv("DYNAMORIO_EXE_PATH") != NULL;
   struct DeepState_TestInfo *test = NULL;
 
-  DeepState_Setup();
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
-    if (use_drfuzz) {
+
+	/* Run only the Boring* tests */
+	if (HAS_FLAG_boring_only) {
+	  if (strstr(test->test_name, "Boring") || strstr(test->test_name, "BORING")) {
+        DeepState_Begin(test);
+		if (DeepState_ForkAndRunTest(test) != 0) {
+		  num_failed_tests++;
+		}
+	  } else {
+		continue;
+	  }
+	}
+
+	/* Run with Dr. Fuzz */
+	if (use_drfuzz) {
       if (!fork()) {
         DeepState_BeginDrFuzz(test);
       } else {
         continue;
       }
-    } else {
-      DeepState_Begin(test);
     }
+
+	/* Run all tests, excluding the Disabled* tests unless configured otherwise */
+	if (!HAS_FLAG_run_disabled) {
+	  if (strstr(test->test_name, "Disabled") || strstr(test->test_name, "DISABLED")) {
+		continue;
+	  }
+	}
+
+	DeepState_Begin(test);
     if (DeepState_ForkAndRunTest(test) != 0) {
       num_failed_tests++;
     }
+
   }
 
   if (use_drfuzz) {
