@@ -34,6 +34,7 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include <fnmatch.h>
 
 #include <deepstate/Log.h>
 #include <deepstate/Compiler.h>
@@ -393,6 +394,9 @@ struct DeepState_TestRunInfo {
 /* Pointer to the last registered `TestInfo` structure. */
 extern struct DeepState_TestInfo *DeepState_LastTestInfo;
 
+/* Pointer to first structure of ordered `TestInfo` list (reverse of LastTestInfo). */
+extern struct DeepState_TestInfo *DeepState_FirstTestInfo;
+
 extern int DeepState_TakeOver(void);
 
 /* Defines the entrypoint of a test case. This creates a data structure that
@@ -679,7 +683,7 @@ DeepState_RunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
       DeepState_LogFormat(DeepState_LogError, "Test case %s crashed", path);
       free(path);
       if (HAS_FLAG_output_test_dir) {
-	DeepState_SaveCrashingTest();
+        DeepState_SaveCrashingTest();
       }
 
       DeepState_Crash();
@@ -753,7 +757,7 @@ static int DeepState_RunListTests(void) {
   int boring_count = 0;
   int disabled_count = 0;
 
-  struct DeepState_TestInfo *current_test = DeepState_LastTestInfo;
+  struct DeepState_TestInfo *current_test = DeepState_FirstTestInfo;
 
   sprintf(buff, "Available Tests:\n\n");
   write_len = write(STDERR_FILENO, buff, strlen(buff));
@@ -770,6 +774,7 @@ static int DeepState_RunListTests(void) {
 	  disabled_count++;
 	}
 
+    /* TODO(alan): also output file name, luckily its sorted :) */
     sprintf(buff, " *  %s (line %d)\n", curr_test, current_test->line_number);
 	write_len = write(STDERR_FILENO, buff, strlen(buff));
     total_test_count++;
@@ -792,7 +797,7 @@ static int DeepState_RunSingleSavedTestCase(void) {
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
     if (HAS_FLAG_input_which_test) {
       if (strcmp(FLAGS_input_which_test, test->test_name) == 0) {
-	break;
+        break;
       }
     } else {
       DeepState_LogFormat(DeepState_LogWarning,
@@ -842,7 +847,7 @@ static int DeepState_RunSingleSavedTestDir(void) {
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
     if (HAS_FLAG_input_which_test) {
       if (strcmp(FLAGS_input_which_test, test->test_name) == 0) {
-	break;
+        break;
       }
     } else {
       DeepState_LogFormat(DeepState_LogWarning,
@@ -961,9 +966,11 @@ static int DeepState_Run(void) {
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
 
+	const char * curr_test = test->test_name;
+
 	/* Run only the Boring* tests */
 	if (HAS_FLAG_boring_only) {
-	  if (strstr(test->test_name, "Boring") || strstr(test->test_name, "BORING")) {
+	  if (strstr(curr_test, "Boring") || strstr(curr_test, "BORING")) {
         DeepState_Begin(test);
 		if (DeepState_ForkAndRunTest(test) != 0) {
 		  num_failed_tests++;
@@ -973,27 +980,32 @@ static int DeepState_Run(void) {
 	  }
 	}
 
-	/* Run with Dr. Fuzz */
+	/* Check if pattern match exists in test, skip if not */
+	if (HAS_FLAG_test_filter) {
+	  if (!fnmatch(FLAGS_test_filter, curr_test, FNM_NOESCAPE))
+	    continue;
+	}
+
+	/* Check if --run_disabled is set, and if not, skip Disabled* tests */
+	if (!HAS_FLAG_run_disabled) {
+	  if (strstr(curr_test, "Disabled") || strstr(test->test_name, "DISABLED")) {
+		continue;
+	  }
+	}
+
+	/* Check if we should use Dr.Fuzz or run regularly */
 	if (use_drfuzz) {
       if (!fork()) {
         DeepState_BeginDrFuzz(test);
       } else {
         continue;
       }
-    }
-
-	/* Run all tests, excluding the Disabled* tests unless configured otherwise */
-	if (!HAS_FLAG_run_disabled) {
-	  if (strstr(test->test_name, "Disabled") || strstr(test->test_name, "DISABLED")) {
-		continue;
-	  }
+    } else {
+	  DeepState_Begin(test);
+      if (DeepState_ForkAndRunTest(test) != 0) {
+        num_failed_tests++;
+      }
 	}
-
-	DeepState_Begin(test);
-    if (DeepState_ForkAndRunTest(test) != 0) {
-      num_failed_tests++;
-    }
-
   }
 
   if (use_drfuzz) {

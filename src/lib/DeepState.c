@@ -75,6 +75,9 @@ uint32_t DeepState_GeneratedStringsIndex = 0;
 /* Pointer to the last registers DeepState_TestInfo data structure */
 struct DeepState_TestInfo *DeepState_LastTestInfo = NULL;
 
+/* Pointer to structure for ordered DeepState_TestInfo */
+struct DeepState_TestInfo *DeepState_FirstTestInfo = NULL;
+
 /* Pointer to the test being run in this process by Dr. Fuzz. */
 static struct DeepState_TestInfo *DeepState_DrFuzzTest = NULL;
 
@@ -204,7 +207,7 @@ void DeepState_SymbolizeDataNoNull(void *begin, void *end) {
       }
       bytes[i] = DeepState_Input[DeepState_InputIndex++];
       if (bytes[i] == 0) {
-	bytes[i] = 1;
+		bytes[i] = 1;
       }
     }
   }
@@ -231,7 +234,7 @@ void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed) {
     } else {
       uint32_t allowed_size = strlen(allowed);
       for (int i = 0; i < len; i++) {
-	str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+	    str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
       }
     }
   }
@@ -254,7 +257,7 @@ char *DeepState_CStr_C(size_t len, const char* allowed) {
     } else {
       uint32_t allowed_size = strlen(allowed);
       for (int i = 0; i < len; i++) {
-	str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+	    str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
       }
     }
   }
@@ -273,7 +276,7 @@ void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
       uintptr_t begin_addr = (uintptr_t) begin;
       uintptr_t end_addr = (uintptr_t) (begin + strlen(begin));
       for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
-	bytes[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+	    bytes[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
       }
     }
   }
@@ -495,7 +498,19 @@ void DeepState_Setup(void) {
     was_setup = 1;
   }
 
-  /* TODO(pag): Sort the test cases by file name and line number. */
+  /* Sort the test cases by line number. */
+  struct DeepState_TestInfo *current = DeepState_LastTestInfo;
+  struct DeepState_TestInfo *min_node = current->prev;
+  current->prev = NULL;
+
+  while (min_node != NULL) {
+    struct DeepState_TestInfo *temp = min_node;
+
+	min_node = min_node->prev;
+	temp->prev = current;
+	current = temp;
+  }
+  DeepState_FirstTestInfo = current;
 }
 
 /* Tear down DeepState. */
@@ -728,7 +743,7 @@ void DeepState_SaveCrashingTest(void) {
 
 /* Return the first test case to run. */
 struct DeepState_TestInfo *DeepState_FirstTest(void) {
-  return DeepState_LastTestInfo;
+  return DeepState_FirstTestInfo;
 }
 
 /* Returns `true` if a failure was caught for the current test case. */
