@@ -53,7 +53,7 @@ DEFINE_int(seed, AnalysisGroup, 0, "Seed for brute force fuzzing (uses time if n
 
 /* Test selection options to configure what test or tests should be executed during a run */
 DEFINE_string(input_which_test, TestSelectionGroup, "", "Test to use with --input_test_file or --input_test_files_dir.");
-DEFINE_string(test_filter, TestSelectionGroup, "", "Run all tests matched with a specific pattern.");
+DEFINE_string(test_filter, TestSelectionGroup, "", "Run all tests matched with wildcard pattern.");
 DEFINE_bool(list_tests, TestSelectionGroup, false, "List all available tests instead of running tests.");
 DEFINE_bool(boring_only, TestSelectionGroup, false, "Run Boring concrete tests only.");
 DEFINE_bool(run_disabled, TestSelectionGroup, false, "Run Disabled tests alongside other tests.");

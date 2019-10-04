@@ -982,8 +982,9 @@ static int DeepState_Run(void) {
 
 	/* Check if pattern match exists in test, skip if not */
 	if (HAS_FLAG_test_filter) {
-	  if (!fnmatch(FLAGS_test_filter, curr_test, FNM_NOESCAPE))
+	  if (fnmatch(FLAGS_test_filter, curr_test, FNM_NOESCAPE)) {
 	    continue;
+	  }
 	}
 
 	/* Check if --run_disabled is set, and if not, skip Disabled* tests */
