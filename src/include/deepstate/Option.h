@@ -24,11 +24,12 @@
 #define DEEPSTATE_FLAG_NAME(name) FLAGS_ ## name
 #define DEEPSTATE_HAS_DEEPSTATE_FLAG_NAME(name) HAS_FLAG_ ## name
 
-#define DEEPSTATE_REGISTER_OPTION(name, parser, docstring) \
+#define DEEPSTATE_REGISTER_OPTION(name, group, parser, docstring) \
   static struct DeepState_Option DeepState_Option_ ## name = { \
       NULL, \
       DEEPSTATE_TO_STR(name), \
       DEEPSTATE_TO_STR(no_ ## name), \
+      group, \
       &parser, \
       (void *) &DEEPSTATE_FLAG_NAME(name), \
       &DEEPSTATE_HAS_DEEPSTATE_FLAG_NAME(name), \
@@ -38,9 +39,9 @@
     DeepState_AddOption(&(DeepState_Option_ ## name)); \
   }
 
-#define DEFINE_string(name, default_value, docstring) \
+#define DEFINE_string(name, group, default_value, docstring) \
   DECLARE_string(name); \
-  DEEPSTATE_REGISTER_OPTION(name, DeepState_ParseStringOption, docstring) \
+  DEEPSTATE_REGISTER_OPTION(name, group, DeepState_ParseStringOption, docstring) \
   int DEEPSTATE_HAS_DEEPSTATE_FLAG_NAME(name) = 0; \
   const char *DEEPSTATE_FLAG_NAME(name) = default_value
 
@@ -48,9 +49,9 @@
   extern int DEEPSTATE_HAS_DEEPSTATE_FLAG_NAME(name); \
   extern const char *DEEPSTATE_FLAG_NAME(name)
 
-#define DEFINE_bool(name, default_value, docstring) \
+#define DEFINE_bool(name, group, default_value, docstring) \
   DECLARE_bool(name); \
-  DEEPSTATE_REGISTER_OPTION(name, DeepState_ParseBoolOption, docstring) \
+  DEEPSTATE_REGISTER_OPTION(name, group, DeepState_ParseBoolOption, docstring) \
   int DEEPSTATE_HAS_DEEPSTATE_FLAG_NAME(name) = 0; \
   int DEEPSTATE_FLAG_NAME(name) = default_value
 
@@ -58,9 +59,9 @@
   extern int DEEPSTATE_HAS_DEEPSTATE_FLAG_NAME(name); \
   extern int DEEPSTATE_FLAG_NAME(name)
 
-#define DEFINE_int(name, default_value, docstring) \
+#define DEFINE_int(name, group, default_value, docstring) \
   DECLARE_int(name); \
-  DEEPSTATE_REGISTER_OPTION(name, DeepState_ParseIntOption, docstring) \
+  DEEPSTATE_REGISTER_OPTION(name, group, DeepState_ParseIntOption, docstring) \
   int DEEPSTATE_HAS_DEEPSTATE_FLAG_NAME(name) = 0; \
   int DEEPSTATE_FLAG_NAME(name) = default_value
 
@@ -68,23 +69,32 @@
   extern int DEEPSTATE_HAS_DEEPSTATE_FLAG_NAME(name); \
   extern int DEEPSTATE_FLAG_NAME(name)
 
-#define DECLARE_uint(name) \
-  extern int DEEPSTATE_HAS_DEEPSTATE_FLAG_NAME(name); \
-  extern unsigned DEEPSTATE_FLAG_NAME(name)
-
-#define DEFINE_uint(name, default_value, docstring) \
+#define DEFINE_uint(name, group, default_value, docstring) \
   DECLARE_uint(name); \
-  DEEPSTATE_REGISTER_OPTION(name, DeepState_ParseUIntOption, docstring) \
+  DEEPSTATE_REGISTER_OPTION(name, group, DeepState_ParseUIntOption, docstring) \
   int DEEPSTATE_HAS_DEEPSTATE_FLAG_NAME(name) = 0; \
   unsigned DEEPSTATE_FLAG_NAME(name) = default_value
 
+#define DECLARE_uint(name) \
+  extern int DEEPSTATE_HAS_DEEPSTATE_FLAG_NAME(name); \
+  extern unsigned DEEPSTATE_FLAG_NAME(name)
 DEEPSTATE_BEGIN_EXTERN_C
+
+/* Enum for defining command-line groups that options can reside under */
+typedef enum {
+  InputOutputGroup,
+  AnalysisGroup,
+  ExecutionGroup,
+  TestSelectionGroup,
+  MiscGroup,
+} DeepState_OptGroup;
 
 /* Backing structure for describing command-line options to DeepState. */
 struct DeepState_Option {
   struct DeepState_Option *next;
   const char * const name;
   const char * const alt_name;  /* Only used for booleans. */
+  DeepState_OptGroup group;
   void (* const parse)(struct DeepState_Option *);
   void * const value;
   int * const has_value;
