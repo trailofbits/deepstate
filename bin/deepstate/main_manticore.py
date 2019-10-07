@@ -42,6 +42,9 @@ OUR_TERMINATION_REASON = "I DeepState'd it"
 consts = config.get_group("core")
 
 class DeepManticore(DeepState):
+
+  NAME = "Manticore"
+
   def __init__(self, state):
     super(DeepManticore, self).__init__()
     self.state = state

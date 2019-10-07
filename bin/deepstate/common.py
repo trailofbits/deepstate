@@ -121,7 +121,7 @@ class DeepState(object):
       return cls._ARGS
 
     parser = argparse.ArgumentParser(
-        description="Symbolically execute unit tests with Angr")
+        description="Symbolically execute unit tests with {}".format(cls.NAME))
 
     parser.add_argument(
         "--num_workers", default=1, type=int,
