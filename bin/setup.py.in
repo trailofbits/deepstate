@@ -39,7 +39,6 @@ setuptools.setup(
             'deepstate-reduce = deepstate.reducer:main',
             'deepstate-ensembler = deepstate.ensembler:main',
             'deepstate-afl = deepstate.frontend.afl:main',
-            'deepstate-libfuzzer = deepstate.frontend.libfuzzer:main',
             'deepstate-eclipser = deepstate.frontend.eclipser:main',
             'deepstate-angora = deepstate.frontend.angora:main',
             'deepstate-honggfuzz = deepstate.frontend.honggfuzz:main'
