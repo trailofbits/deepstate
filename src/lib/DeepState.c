@@ -881,7 +881,9 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   struct DeepState_TestInfo *test = NULL;
 
   DeepState_InitOptions(0, "");
-  //DeepState_Setup(); we want to do our own, simpler, memory management
+  DeepState_Setup();
+
+  /* we also want to manually allocate CurrentTestRun */
   void *mem = malloc(sizeof(struct DeepState_TestRunInfo));
   DeepState_CurrentTestRun = (struct DeepState_TestRunInfo *) mem;
 
