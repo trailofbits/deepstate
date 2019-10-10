@@ -176,7 +176,7 @@ void DeepState_SymbolizeData(void *begin, void *end) {
     uint8_t *bytes = (uint8_t *) begin;
     for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
       if (DeepState_InputIndex >= DeepState_InputSize) {
-        DeepState_Abandon("Read too many symbols");
+        DeepState_Abandon("Exceeded set input limit. Set or expand DEEPSTATE_SIZE to write more bytes.");
       }
       if (FLAGS_verbose_reads) {
         printf("Reading byte at %u\n", DeepState_InputIndex);
@@ -200,7 +200,7 @@ void DeepState_SymbolizeDataNoNull(void *begin, void *end) {
     uint8_t *bytes = (uint8_t *) begin;
     for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
       if (DeepState_InputIndex >= DeepState_InputSize) {
-        DeepState_Abandon("Read too many symbols");
+        DeepState_Abandon("Exceeded set input limit. Set or expand DEEPSTATE_SIZE to write more bytes.");
       }
       if (FLAGS_verbose_reads) {
         printf("Reading byte at %u\n", DeepState_InputIndex);
@@ -323,7 +323,7 @@ int DeepState_IsTrue(int expr) {
 /* Return a symbolic value of a given type. */
 int DeepState_Bool(void) {
   if (DeepState_InputIndex >= DeepState_InputSize) {
-    DeepState_Abandon("Read too many symbols");
+    DeepState_Abandon("Exceeded set input limit. Set or expand DEEPSTATE_SIZE to write more bytes.");
   }
   if (FLAGS_verbose_reads) {
     printf("Reading byte as boolean at %u\n", DeepState_InputIndex);
@@ -334,7 +334,7 @@ int DeepState_Bool(void) {
 #define MAKE_SYMBOL_FUNC(Type, type) \
     type DeepState_ ## Type(void) { \
       if ((DeepState_InputIndex + sizeof(type)) > DeepState_InputSize) { \
-        DeepState_Abandon("Read too many symbols"); \
+        DeepState_Abandon("Exceeded set input limit. Set or expand DEEPSTATE_SIZE to write more bytes."); \
       } \
       type val = 0; \
       if (FLAGS_verbose_reads) { \

@@ -54,6 +54,10 @@
 #define srand DeepState_Warn_srand
 #endif
 
+#ifndef DEEPSTATE_SIZE
+#define DEEPSTATE_SIZE 8192
+#endif
+
 #define MAYBE(...) \
     if (DeepState_Bool()) { \
       __VA_ARGS__ ; \
@@ -84,8 +88,9 @@ DECLARE_int(seed);
 DECLARE_int(timeout);
 
 enum {
-  DeepState_InputSize = 8192
+  DeepState_InputSize = DEEPSTATE_SIZE
 };
+
 
 /* Byte buffer that will contain symbolic data that is used to supply requests
  * for symbolic values (e.g. `int`s). */
