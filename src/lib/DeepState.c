@@ -897,7 +897,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     }
   }
 
-  explicit_bzero((void *) DeepState_Input, sizeof(DeepState_Input));
+  memset((void *) DeepState_Input, 0, sizeof(DeepState_Input));
   DeepState_InputIndex = 0;
 
   memcpy((void *) DeepState_Input, (void *) Data, Size);
