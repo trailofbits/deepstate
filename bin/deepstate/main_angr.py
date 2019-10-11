@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.6
-# Copyright (c) 2017 Trail of Bits, Inc.
+# Copyright (c) 2019 Trail of Bits, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,6 +24,9 @@ L.setLevel(logging.INFO)
 
 
 class DeepAngr(DeepState):
+
+  NAME = "Angr"
+
   def __init__(self, state=None, procedure=None):
     super(DeepAngr, self).__init__()
     if procedure:
@@ -284,7 +287,7 @@ def do_run_test(project, test, apis, run_state, should_call_state):
 
   # Tell the system that we're using symbolic execution.
   mc.write_uint32_t(apis["UsingSymExec"], 8589934591)
-  
+
   mc.begin_test(test)
   del mc
 

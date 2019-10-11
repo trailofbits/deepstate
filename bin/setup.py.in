@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2017 Trail of Bits, Inc.
+# Copyright (c) 2019 Trail of Bits, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,7 +39,6 @@ setuptools.setup(
             'deepstate-reduce = deepstate.reducer:main',
             'deepstate-ensembler = deepstate.ensembler:main',
             'deepstate-afl = deepstate.frontend.afl:main',
-            'deepstate-libfuzzer = deepstate.frontend.libfuzzer:main',
             'deepstate-eclipser = deepstate.frontend.eclipser:main',
             'deepstate-angora = deepstate.frontend.angora:main',
             'deepstate-honggfuzz = deepstate.frontend.honggfuzz:main'

@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Trail of Bits, Inc.
+# Copyright (c) 2019 Trail of Bits, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -121,7 +121,7 @@ class DeepState(object):
       return cls._ARGS
 
     parser = argparse.ArgumentParser(
-        description="Symbolically execute unit tests with Angr")
+        description="Symbolically execute unit tests with {}".format(cls.NAME))
 
     parser.add_argument(
         "--num_workers", default=1, type=int,

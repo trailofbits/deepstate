@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.6
-# Copyright (c) 2017 Trail of Bits, Inc.
+# Copyright (c) 2019 Trail of Bits, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -42,6 +42,9 @@ OUR_TERMINATION_REASON = "I DeepState'd it"
 consts = config.get_group("core")
 
 class DeepManticore(DeepState):
+
+  NAME = "Manticore"
+
   def __init__(self, state):
     super(DeepManticore, self).__init__()
     self.state = state

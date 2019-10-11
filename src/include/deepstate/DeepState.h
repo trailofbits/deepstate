@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Trail of Bits, Inc.
+ * Copyright (c) 2019 Trail of Bits, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,6 +54,10 @@
 #define srand DeepState_Warn_srand
 #endif
 
+#ifndef DEEPSTATE_SIZE
+#define DEEPSTATE_SIZE 8192
+#endif
+
 #define MAYBE(...) \
     if (DeepState_Bool()) { \
       __VA_ARGS__ ; \
@@ -84,8 +88,9 @@ DECLARE_int(seed);
 DECLARE_int(timeout);
 
 enum {
-  DeepState_InputSize = 8192
+  DeepState_InputSize = DEEPSTATE_SIZE
 };
+
 
 /* Byte buffer that will contain symbolic data that is used to supply requests
  * for symbolic values (e.g. `int`s). */
@@ -804,7 +809,7 @@ static int DeepState_RunSingleSavedTestCase(void) {
       }
     } else {
       DeepState_LogFormat(DeepState_LogWarning,
-			  "No test specified, defaulting to last test defined (%s)",
+			  "No test specified, defaulting to first test defined (%s)",
 			  test->test_name);
       break;
     }
@@ -854,7 +859,7 @@ static int DeepState_RunSingleSavedTestDir(void) {
       }
     } else {
       DeepState_LogFormat(DeepState_LogWarning,
-			  "No test specified, defaulting to last test defined (%s)",
+			  "No test specified, defaulting to first test defined (%s)",
 			  test->test_name);
 	;
       break;

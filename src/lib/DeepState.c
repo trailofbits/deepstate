@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Trail of Bits, Inc.
+ * Copyright (c) 2019 Trail of Bits, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -176,7 +176,7 @@ void DeepState_SymbolizeData(void *begin, void *end) {
     uint8_t *bytes = (uint8_t *) begin;
     for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
       if (DeepState_InputIndex >= DeepState_InputSize) {
-        DeepState_Abandon("Read too many symbols");
+        DeepState_Abandon("Exceeded set input limit. Set or expand DEEPSTATE_SIZE to write more bytes.");
       }
       if (FLAGS_verbose_reads) {
         printf("Reading byte at %u\n", DeepState_InputIndex);
@@ -200,7 +200,7 @@ void DeepState_SymbolizeDataNoNull(void *begin, void *end) {
     uint8_t *bytes = (uint8_t *) begin;
     for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
       if (DeepState_InputIndex >= DeepState_InputSize) {
-        DeepState_Abandon("Read too many symbols");
+        DeepState_Abandon("Exceeded set input limit. Set or expand DEEPSTATE_SIZE to write more bytes.");
       }
       if (FLAGS_verbose_reads) {
         printf("Reading byte at %u\n", DeepState_InputIndex);
@@ -323,7 +323,7 @@ int DeepState_IsTrue(int expr) {
 /* Return a symbolic value of a given type. */
 int DeepState_Bool(void) {
   if (DeepState_InputIndex >= DeepState_InputSize) {
-    DeepState_Abandon("Read too many symbols");
+    DeepState_Abandon("Exceeded set input limit. Set or expand DEEPSTATE_SIZE to write more bytes.");
   }
   if (FLAGS_verbose_reads) {
     printf("Reading byte as boolean at %u\n", DeepState_InputIndex);
@@ -334,7 +334,7 @@ int DeepState_Bool(void) {
 #define MAKE_SYMBOL_FUNC(Type, type) \
     type DeepState_ ## Type(void) { \
       if ((DeepState_InputIndex + sizeof(type)) > DeepState_InputSize) { \
-        DeepState_Abandon("Read too many symbols"); \
+        DeepState_Abandon("Exceeded set input limit. Set or expand DEEPSTATE_SIZE to write more bytes."); \
       } \
       type val = 0; \
       if (FLAGS_verbose_reads) { \
@@ -790,7 +790,7 @@ int DeepState_Fuzz(void){
       }
     } else {
       DeepState_LogFormat(DeepState_LogWarning,
-			  "No test specified, defaulting to last test defined (%s)",
+			  "No test specified, defaulting to first test defined (%s)",
 			  test->test_name);
       break;
     }
@@ -881,7 +881,9 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   struct DeepState_TestInfo *test = NULL;
 
   DeepState_InitOptions(0, "");
-  //DeepState_Setup(); we want to do our own, simpler, memory management
+  DeepState_Setup();
+
+  /* we also want to manually allocate CurrentTestRun */
   void *mem = malloc(sizeof(struct DeepState_TestRunInfo));
   DeepState_CurrentTestRun = (struct DeepState_TestRunInfo *) mem;
 
