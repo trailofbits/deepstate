@@ -654,7 +654,9 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
   }
 
   /* If we exited normally, the status code tells us if the test passed. */
-  if (!FLAGS_fork || WIFEXITED(wstatus)) {
+  if (!FLAGS_fork) {
+    return (enum DeepState_TestRunResult) wstatus;
+  } else if (WIFEXITED(wstatus)) {
     uint8_t status = WEXITSTATUS(wstatus);
     return (enum DeepState_TestRunResult) status;
   }
