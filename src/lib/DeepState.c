@@ -858,8 +858,8 @@ int DeepState_Fuzz(void){
     diff = current-start;
   }
 
-  DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests (%u tests/second) with %d failed tests",
-		      i, i/diff, num_failed_tests);
+  DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests (%u tests/second) with %d failed/%d passed/%d abandoned tests",
+		      i, i/diff, num_failed_tests, num_passed_tests, num_abandoned_tests);
 
   return num_failed_tests;
 }
