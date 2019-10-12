@@ -393,17 +393,13 @@ int8_t DeepState_Char(void) {
 #undef MAKE_SYMBOL_FUNC
 
 float DeepState_FloatInRange(float low, float high) {
-  float float_v = DeepState_Float();
-  DeepState_Assume (float_v >= low);
-  DeepState_Assume (float_v <= high);
-  return float_v;
+  int32_t int_v = DeepState_IntInRange(*(int32_t *)&low, *(int32_t *)&high);
+  return *(float*)&int_v;
 }
 
 double DeepState_DoubleInRange(double low, double high) {
-  double double_v = DeepState_Double();
-  DeepState_Assume (double_v >= low);
-  DeepState_Assume (double_v <= high);
-  return double_v;  
+  int64_t int_v = DeepState_Int64InRange(*(int64_t *)&low, *(int64_t *)&high);
+  return *(double*)&int_v;
 }
 
 int32_t DeepState_RandInt() {
