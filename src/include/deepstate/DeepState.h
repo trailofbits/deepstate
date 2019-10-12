@@ -103,6 +103,9 @@ extern uint32_t DeepState_InputIndex;
 /* Return a symbolic value of a given type. */
 extern int DeepState_Bool(void);
 extern size_t DeepState_Size(void);
+extern long DeepState_Long(void);
+extern float DeepState_Float(void);
+extern double DeepState_Double(void);
 extern uint64_t DeepState_UInt64(void);
 extern int64_t DeepState_Int64(void);
 extern uint32_t DeepState_UInt(void);
@@ -319,6 +322,7 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
     }
 
 DEEPSTATE_MAKE_SYMBOLIC_RANGE(Size, size_t)
+DEEPSTATE_MAKE_SYMBOLIC_RANGE(Long, long)
 DEEPSTATE_MAKE_SYMBOLIC_RANGE(Int64, int64_t)
 DEEPSTATE_MAKE_SYMBOLIC_RANGE(UInt64, uint64_t)
 DEEPSTATE_MAKE_SYMBOLIC_RANGE(Int, int)
@@ -329,6 +333,9 @@ DEEPSTATE_MAKE_SYMBOLIC_RANGE(Char, char)
 DEEPSTATE_MAKE_SYMBOLIC_RANGE(UChar, unsigned char)
 
 #undef DEEPSTATE_MAKE_SYMBOLIC_RANGE
+
+extern float DeepState_FloatInRange(float low, float high);
+extern double DeepState_DoubleInRange(double low, double high);
 
 /* Predicates to check whether or not a particular value is symbolic */
 extern int DeepState_IsSymbolicUInt(uint32_t x);

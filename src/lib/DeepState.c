@@ -356,6 +356,20 @@ int DeepState_Bool(void) {
 
 MAKE_SYMBOL_FUNC(Size, size_t)
 
+MAKE_SYMBOL_FUNC(Long, long)
+
+float DeepState_Float(void) {
+  float float_v;
+  DeepState_SymbolizeData(&float_v, &float_v + (sizeof(float_v)-1));
+  return float_v;
+}
+
+double DeepState_Double(void) {
+  double double_v;
+  DeepState_SymbolizeData(&double_v, &double_v + (sizeof(double_v)-1));  
+  return double_v;
+}
+
 MAKE_SYMBOL_FUNC(UInt64, uint64_t)
 int64_t DeepState_Int64(void) {
   return (int64_t) DeepState_UInt64();
@@ -377,6 +391,20 @@ int8_t DeepState_Char(void) {
 }
 
 #undef MAKE_SYMBOL_FUNC
+
+float DeepState_FloatInRange(float low, float high) {
+  float float_v = DeepState_Float();
+  DeepState_Assume (float_v >= low);
+  DeepState_Assume (float_v <= high);
+  return float_v;
+}
+
+double DeepState_DoubleInRange(double low, double high) {
+  double double_v = DeepState_Double();
+  DeepState_Assume (double_v >= low);
+  DeepState_Assume (double_v <= high);
+  return double_v;  
+}
 
 int32_t DeepState_RandInt() {
   return DeepState_IntInRange(0, RAND_MAX);
@@ -815,7 +843,7 @@ int DeepState_Fuzz(void){
       last_status = diff;
     }
     if (DeepState_FuzzOneTestCase(test) != 0) {
-      num_failed_tests ++;
+      num_failed_tests++;
     }
 
     current = (long)time(NULL);
