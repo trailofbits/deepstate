@@ -360,13 +360,13 @@ MAKE_SYMBOL_FUNC(Long, long)
 
 float DeepState_Float(void) {
   float float_v;
-  DeepState_SymbolizeData(&float_v, &float_v + (sizeof(float_v)-1));
+  DeepState_SymbolizeData(&float_v, &float_v + 1);
   return float_v;
 }
 
 double DeepState_Double(void) {
   double double_v;
-  DeepState_SymbolizeData(&double_v, &double_v + (sizeof(double_v)-1));  
+  DeepState_SymbolizeData(&double_v, &double_v + 1);
   return double_v;
 }
 
