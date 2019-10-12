@@ -356,6 +356,20 @@ int DeepState_Bool(void) {
 
 MAKE_SYMBOL_FUNC(Size, size_t)
 
+MAKE_SYMBOL_FUNC(Long, long)
+
+float DeepState_Float(void) {
+  float float_v;
+  DeepState_SymbolizeData(&float_v, &float_v + 1);
+  return float_v;
+}
+
+double DeepState_Double(void) {
+  double double_v;
+  DeepState_SymbolizeData(&double_v, &double_v + 1);
+  return double_v;
+}
+
 MAKE_SYMBOL_FUNC(UInt64, uint64_t)
 int64_t DeepState_Int64(void) {
   return (int64_t) DeepState_UInt64();
@@ -377,6 +391,36 @@ int8_t DeepState_Char(void) {
 }
 
 #undef MAKE_SYMBOL_FUNC
+
+float DeepState_FloatInRange(float low, float high) {
+  if (low > high) {
+    return DeepState_FloatInRange(high, low);
+  }
+  if ((low < 0.0) && (high > 0.0)) { // Trick below doesn't work across sign change
+    if (DeepState_Bool()) {
+      return DeepState_FloatInRange(low, -0.0);
+    } else {
+      return DeepState_FloatInRange(0.0, high);
+    }
+  }
+  int32_t int_v = DeepState_IntInRange(*(int32_t *)&low, *(int32_t *)&high);
+  return *(float*)&int_v;
+}
+
+double DeepState_DoubleInRange(double low, double high) {
+  if (low > high) {
+    return DeepState_DoubleInRange(high, low);
+  }
+  if ((low < 0.0) && (high > 0.0)) { // Trick below doesn't work across sign change
+    if (DeepState_Bool()) {
+      return DeepState_DoubleInRange(low, -0.0);
+    } else {
+      return DeepState_DoubleInRange(0.0, high);
+    }
+  }
+  int64_t int_v = DeepState_Int64InRange(*(int64_t *)&low, *(int64_t *)&high);
+  return *(double*)&int_v;
+}
 
 int32_t DeepState_RandInt() {
   return DeepState_IntInRange(0, RAND_MAX);
@@ -779,6 +823,8 @@ int DeepState_Fuzz(void){
   unsigned int i = 0;
 
   int num_failed_tests = 0;
+  int num_passed_tests = 0;
+  int num_abandoned_tests = 0;
 
   struct DeepState_TestInfo *test = NULL;
 
@@ -810,20 +856,26 @@ int DeepState_Fuzz(void){
     if ((diff != last_status) && ((diff % 30) == 0) ) {
       time_t t = time(NULL);
       struct tm tm = *localtime(&t);
-      DeepState_LogFormat(DeepState_LogInfo, "%d-%02d-%02d %02d:%02d:%02d: %u tests/second / %d failed tests so far",
-			  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, i/diff, num_failed_tests);
+      DeepState_LogFormat(DeepState_LogInfo, "%d-%02d-%02d %02d:%02d:%02d: %u tests/second: %d failed/%d passed/%d abandoned",
+			  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, i/diff,
+			  num_failed_tests, num_passed_tests, num_abandoned_tests);
       last_status = diff;
     }
-    if (DeepState_FuzzOneTestCase(test) != 0) {
-      num_failed_tests ++;
+    enum DeepState_TestRunResult result = DeepState_FuzzOneTestCase(test);
+    if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
+      num_failed_tests++;
+    } else if (result == DeepState_TestRunPass) {
+      num_passed_tests++;
+    } else if (result == DeepState_TestRunAbandon) {
+      num_abandoned_tests++;
     }
 
     current = (long)time(NULL);
     diff = current-start;
   }
 
-  DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests (%u tests/second) with %d failed tests",
-		      i, i/diff, num_failed_tests);
+  DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests (%u tests/second) with %d failed/%d passed/%d abandoned tests",
+		      i, i/diff, num_failed_tests, num_passed_tests, num_abandoned_tests);
 
   return num_failed_tests;
 }
