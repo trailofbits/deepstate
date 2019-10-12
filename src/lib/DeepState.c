@@ -807,6 +807,8 @@ int DeepState_Fuzz(void){
   unsigned int i = 0;
 
   int num_failed_tests = 0;
+  int num_passed_tests = 0;
+  int num_abandoned_tests = 0;
 
   struct DeepState_TestInfo *test = NULL;
 
@@ -838,12 +840,18 @@ int DeepState_Fuzz(void){
     if ((diff != last_status) && ((diff % 30) == 0) ) {
       time_t t = time(NULL);
       struct tm tm = *localtime(&t);
-      DeepState_LogFormat(DeepState_LogInfo, "%d-%02d-%02d %02d:%02d:%02d: %u tests/second / %d failed tests so far",
-			  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, i/diff, num_failed_tests);
+      DeepState_LogFormat(DeepState_LogInfo, "%d-%02d-%02d %02d:%02d:%02d: %u tests/second: %d failed/%d passed/%d abandoned",
+			  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, i/diff,
+			  num_failed_tests, num_passed_tests, num_abandoned_tests);
       last_status = diff;
     }
-    if (DeepState_FuzzOneTestCase(test) != 0) {
+    enum DeepState_TestRunResult result = DeepState_FuzzOneTestCase(test);
+    if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
       num_failed_tests++;
+    } else if (result == DeepState_TestRunPass) {
+      num_passed_tests++;
+    } else if (result == DeepState_TestRunAbandon) {
+      num_abandoned_tests++;
     }
 
     current = (long)time(NULL);
