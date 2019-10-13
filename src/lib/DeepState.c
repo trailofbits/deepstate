@@ -396,11 +396,15 @@ float DeepState_FloatInRange(float low, float high) {
   if (low > high) {
     return DeepState_FloatInRange(high, low);
   }
-  if ((low < 0.0) && (high > 0.0)) { // Trick below doesn't work across sign change
-    if (DeepState_Bool()) {
-      return DeepState_FloatInRange(low, -0.0);
+  if (low < 0.0) { // Handle negatives differently
+    if (high > 0.0) {
+      if (DeepState_Bool()) {
+	return -(DeepState_FloatInRange(0.0, -low));
+      } else {
+	return DeepState_FloatInRange(0.0, high);
+      }
     } else {
-      return DeepState_FloatInRange(0.0, high);
+      return -(DeepState_FloatInRange(-high, -low));
     }
   }
   int32_t int_v = DeepState_IntInRange(*(int32_t *)&low, *(int32_t *)&high);
@@ -411,11 +415,15 @@ double DeepState_DoubleInRange(double low, double high) {
   if (low > high) {
     return DeepState_DoubleInRange(high, low);
   }
-  if ((low < 0.0) && (high > 0.0)) { // Trick below doesn't work across sign change
-    if (DeepState_Bool()) {
-      return DeepState_DoubleInRange(low, -0.0);
+  if (low < 0.0) { // Handle negatives differently
+    if (high > 0.0) {
+      if (DeepState_Bool()) {
+	return -(DeepState_DoubleInRange(0.0, -low));
+      } else {
+	return DeepState_DoubleInRange(0.0, high);
+      }
     } else {
-      return DeepState_DoubleInRange(0.0, high);
+      return -(DeepState_DoubleInRange(-high, -low));
     }
   }
   int64_t int_v = DeepState_Int64InRange(*(int64_t *)&low, *(int64_t *)&high);
