@@ -333,7 +333,7 @@ class DeepState(object):
         val = "".join(chr(b) for b in val_bytes)
       elif val_type == float:
         data = struct.pack('BBBBBBBB', *val_bytes)
-        val = struct.unpack(unpack_str, data)[0]
+        val = struct.unpack("d", data)
       else:
         assert val_type == int
 
