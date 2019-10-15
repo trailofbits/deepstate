@@ -22,6 +22,7 @@
 #include <limits.h>
 #include <setjmp.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifdef DEEPSTATE_TAKEOVER_RAND
 #undef rand
@@ -207,7 +208,7 @@ void DeepState_SymbolizeDataNoNull(void *begin, void *end) {
       }
       bytes[i] = DeepState_Input[DeepState_InputIndex++];
       if (bytes[i] == 0) {
-		bytes[i] = 1;
+        bytes[i] = 1;
       }
     }
   }
@@ -234,7 +235,7 @@ void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed) {
     } else {
       uint32_t allowed_size = strlen(allowed);
       for (int i = 0; i < len; i++) {
-	    str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+        str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
       }
     }
   }
@@ -257,7 +258,7 @@ char *DeepState_CStr_C(size_t len, const char* allowed) {
     } else {
       uint32_t allowed_size = strlen(allowed);
       for (int i = 0; i < len; i++) {
-	    str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+        str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
       }
     }
   }
@@ -276,7 +277,7 @@ void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
       uintptr_t begin_addr = (uintptr_t) begin;
       uintptr_t end_addr = (uintptr_t) (begin + strlen(begin));
       for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
-	    bytes[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+        bytes[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
       }
     }
   }
@@ -330,6 +331,45 @@ int DeepState_Bool(void) {
   }
   return DeepState_Input[DeepState_InputIndex++] & 1;
 }
+
+/* Return a string path to an input file or directory without parsing it to a type. This is
+ * useful method in the case where a tested function only takes a path input in order
+ * to generate some specialized structured type. */
+const char * DeepState_InputPath(char *testcase_path) {
+
+  struct stat statbuf;
+  char *abspath;
+
+  /* Use specified path if no --input_test* flag specified. Override if --input_* args specified. */
+  if (testcase_path) {
+    if (!HAS_FLAG_input_test_file && !HAS_FLAG_input_test_files_dir) {
+      abspath = realpath(testcase_path, NULL);
+    }
+  }
+
+  /* Prioritize using CLI-specified input paths, for the sake of fuzzing */
+  if (HAS_FLAG_input_test_file) {
+    abspath = realpath(FLAGS_input_test_file, NULL);
+  } else if (HAS_FLAG_input_test_files_dir) {
+    abspath = realpath(FLAGS_input_test_files_dir, NULL);
+  } else {
+    DeepState_Abandon("No usable path specified for DeepState_InputPath.");
+  }
+
+  if (stat(abspath, &statbuf) != 0) {
+    DeepState_Abandon("Specified input path does not exist.");
+  }
+
+  if (HAS_FLAG_input_test_files_dir) {
+    if (!S_ISDIR(statbuf.st_mode)) {
+      DeepState_Abandon("Specified input directory is not a directory.");
+    }
+  }
+
+  DeepState_LogFormat(DeepState_LogInfo, "Using `%s` as input path.", abspath);
+  return abspath;
+}
+
 
 #define MAKE_SYMBOL_FUNC(Type, type) \
     type DeepState_ ## Type(void) { \
@@ -558,9 +598,9 @@ void DeepState_Setup(void) {
   while (min_node != NULL) {
     struct DeepState_TestInfo *temp = min_node;
 
-	min_node = min_node->prev;
-	temp->prev = current;
-	current = temp;
+    min_node = min_node->prev;
+    temp->prev = current;
+    current = temp;
   }
   DeepState_FirstTestInfo = current;
 }
@@ -625,7 +665,7 @@ void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
 
 void DeepState_Warn_srand(unsigned int seed) {
   DeepState_LogFormat(DeepState_LogWarning,
-		      "srand under DeepState has no effect: rand is re-defined as DeepState_Int");
+              "srand under DeepState has no effect: rand is re-defined as DeepState_Int");
 }
 
 void DeepState_RunSavedTakeOverCases(jmp_buf env,
@@ -840,7 +880,7 @@ int DeepState_Fuzz(void){
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
     if (HAS_FLAG_input_which_test) {
       if (strcmp(FLAGS_input_which_test, test->test_name) == 0) {
-	break;
+        break;
       }
     } else {
       DeepState_LogFormat(DeepState_LogWarning,
@@ -884,7 +924,6 @@ int DeepState_Fuzz(void){
 
   DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests (%u tests/second) with %d failed/%d passed/%d abandoned tests",
 		      i, i/diff, num_failed_tests, num_passed_tests, num_abandoned_tests);
-
   return num_failed_tests;
 }
 
@@ -913,12 +952,12 @@ enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo
   }
 
   if (FLAGS_abort_on_fail && ((result == DeepState_TestRunCrash) ||
-			      (result == DeepState_TestRunFail))) {
+                  (result == DeepState_TestRunFail))) {
     DeepState_HardCrash();
   }
 
   if (FLAGS_exit_on_fail && ((result == DeepState_TestRunCrash) ||
-			      (result == DeepState_TestRunFail))) {
+                  (result == DeepState_TestRunFail))) {
     exit(255); // Terminate the testing
   }
 
@@ -952,7 +991,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   if (which_test != NULL) {
     for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
       if (strncmp(which_test, test->test_name, strnlen(which_test, 1024)) == 0) {
-	break;
+        break;
       }
     }
   }
