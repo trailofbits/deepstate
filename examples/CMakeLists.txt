@@ -192,6 +192,21 @@ if (BUILD_AFL)
    target_link_libraries(BoringDisabled_AFL deepstate_AFL)
 endif()
 
+add_executable(InputPath InputPath.cpp)
+target_link_libraries(InputPath deepstate)
+
+if (BUILD_LIBFUZZER)
+   add_executable(InputPath_LF InputPath.cpp)
+   target_link_libraries(InputPath_LF deepstate_LF)
+   target_link_libraries (InputPath_LF "-fsanitize=fuzzer,undefined")
+   set_target_properties(InputPath_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
+endif()
+
+if (BUILD_AFL)
+   add_executable(InputPath_AFL InputPath.cpp)
+   target_link_libraries(InputPath_AFL deepstate_AFL)
+endif()
+
 if (NOT APPLE)
   add_executable(Squares Squares.c)
   target_link_libraries(Squares deepstate)
