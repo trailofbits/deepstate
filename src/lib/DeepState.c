@@ -408,7 +408,10 @@ float DeepState_FloatInRange(float low, float high) {
     }
   }
   int32_t int_v = DeepState_IntInRange(*(int32_t *)&low, *(int32_t *)&high);
-  return *(float*)&int_v;
+  float float_v = *(float*)&int_v;
+  assume (float_v >= low);
+  assume (float_v <= high);
+  return float_v;
 }
 
 double DeepState_DoubleInRange(double low, double high) {
@@ -427,7 +430,10 @@ double DeepState_DoubleInRange(double low, double high) {
     }
   }
   int64_t int_v = DeepState_Int64InRange(*(int64_t *)&low, *(int64_t *)&high);
-  return *(double*)&int_v;
+  double double_v = *(double*)&int_v;
+  assume (double_v >= low);
+  assume (double_v <= high);
+  return double_v;
 }
 
 int32_t DeepState_RandInt() {
