@@ -316,8 +316,10 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
 	    printf("Converting out-of-range value to %lld\n", (long long)(low + ((x % size + size) % size))); \
 	  } \
 	} \
+	(void) DeepState_Assume(low <= (low + ((x % size + size) % size)) && (low + ((x % size + size) % size)) <= high); \
         return low + ((x % size + size) % size); \
       } \
+      (void) DeepState_Assume(low <= x && x <= high); \
       return x; \
     }
 
