@@ -104,6 +104,7 @@ class Eclipser(DeepStateFrontend):
     if args.input_seeds is not None:
       cmd_dict["--initseedsdir"] = args.input_seeds
 
+    # no call to helper build_cmd
     return cmd_dict
 
 

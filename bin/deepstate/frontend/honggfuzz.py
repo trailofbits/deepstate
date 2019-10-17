@@ -128,17 +128,8 @@ class Honggfuzz(DeepStateFrontend):
     if args.perf_branch:
       cmd_dict["--linux_perf_branch"] = None
 
-    cmd_dict.update({
-      "--": args.binary,
-      "--input_test_file": "___FILE___",
-      "--abort_on_fail": None,
-      "--no_fork": None
-    })
+    return self.build_cmd(cmd_dict)
 
-    if args.which_test:
-      cmd_dict["--input_which_test"] = args.which_test
-
-    return cmd_dict
 
   @property
   def stats(self):

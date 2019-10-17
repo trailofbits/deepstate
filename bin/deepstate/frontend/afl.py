@@ -60,7 +60,7 @@ class AFL(DeepStateFrontend):
     L.debug(f"Static library path: {lib_path}")
 
     if not os.path.isfile(lib_path):
-      raise FrontendError("no AFL-instrumented DeepState static library found in {}".format(lib_path))
+      raise FrontendError("No AFL-instrumented DeepState static library found in {}".format(lib_path))
 
     flags = ["-ldeepstate_AFL"]
     if args.compiler_args:
@@ -91,6 +91,7 @@ class AFL(DeepStateFrontend):
         raise FrontendError("Must provide -i/--input_seeds option for AFL.")
 
       seeds = args.input_seeds
+      L.debug(f"Fuzzing with seed directory: {seeds}.")
 
       # check if seeds dir exists
       if not os.path.exists(seeds):
@@ -132,18 +133,7 @@ class AFL(DeepStateFrontend):
     if args.file:
       cmd_dict["-f"] = args.file
 
-    # initialize binary and args
-    cmd_dict.update({
-      "--": args.binary,
-      "--input_test_file": "@@",
-      "--abort_on_fail": None,
-      "--no_fork": None
-    })
-
-    if args.which_test:
-      cmd_dict["--input_which_test"] = args.which_test
-
-    return cmd_dict
+    return self.build_cmd(cmd_dict)
 
 
   @property

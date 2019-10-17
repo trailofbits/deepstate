@@ -168,18 +168,7 @@ class Angora(DeepStateFrontend):
     if args.no_exploration:
       cmd_dict["--disable_exploitation"] = None
 
-    # binary and arguments
-    cmd_dict.update({
-      "--": os.path.abspath(args.binary),
-      "--input_test_file": "@@",
-      "--abort_on_fail": None,
-      "--no_fork": None
-    })
-
-    if args.which_test:
-      cmd_dict["--input_which_test"] = args.which_test
-
-    return cmd_dict
+    return self.build_cmd(cmd_dict)
 
 
   @property

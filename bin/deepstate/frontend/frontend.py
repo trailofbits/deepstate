@@ -236,6 +236,42 @@ class DeepStateFrontend(object):
     return cmd_args
 
 
+  def build_cmd(self, cmd_dict, test_file="@@"):
+    """
+    Helper method to be invoked by child fuzzer class's cmd() property method in order
+    to finalize command called by the fuzzer executable with appropriate arguments for the
+    test harness. Should NOT be called if a fuzzer gets invoked differently (ie arguments necessary
+    that deviate from how standard fuzzers invoke binaries).
+
+    :param cmd_dict: incomplete dict to complete with harness argument information
+    :param test_file: symbol recognized by fuzzer to replace when conducting file-based fuzzing
+    """
+    args = self._ARGS
+
+    # initialize command with
+    cmd_dict.update({
+      "--": args.binary,
+      "--input_test_file": test_file,
+      "--abort_on_fail": None,
+      "--no_fork": None
+    })
+
+    # append any other DeepState flags
+    if args.prog_args:
+      for arg in args.prog_args:
+        vals = arg.split("=")
+        if len(vals) == 1:
+          cmd_dict.update({ vals[0] : None })
+        else:
+          cmd_dict.update({ vals[0] : vals[1] })
+
+    # test selection
+    if args.which_test:
+      cmd_dict["--input_which_test"] = args.which_test
+
+    return cmd_dict
+
+
   def reporter(self):
     """
     Provides an interface for fuzzers to output important statistics during an ensemble
@@ -534,7 +570,7 @@ class DeepStateFrontend(object):
     # Miscellaneous options
     parser.add_argument("--fuzzer_help", action="store_true", help="Show fuzzer command line options.")
     parser.add_argument("--which_test", type=str, help="Which test to run (equivalent to --input_which_test).")
-    parser.add_argument("--args", default=[], nargs=argparse.REMAINDER, help="Other fuzzer-related flags to pass to fuzzer before execution.")
+    parser.add_argument("--prog_args", default=[], nargs=argparse.REMAINDER, help="Other DeepState flags to pass to harness before execution, in format `--arg=val`.")
 
     cls._ARGS = parser.parse_args()
     cls.parser = parser
