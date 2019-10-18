@@ -194,23 +194,26 @@ void DeepState_SymbolizeDataNoNull(void *begin, void *end) {
 
   if (begin_addr > end_addr) {
     DeepState_Abandon("Invalid data bounds for DeepState_SymbolizeData");
-  } else if (begin_addr == end_addr) {
-    return;
-  } else {
-    uint8_t *bytes = (uint8_t *) begin;
-    for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
-      if (DeepState_InputIndex >= DeepState_InputSize) {
-        DeepState_Abandon("Exceeded set input limit. Set or expand DEEPSTATE_SIZE to write more bytes.");
-      }
-      if (FLAGS_verbose_reads) {
-        printf("Reading byte at %u\n", DeepState_InputIndex);
-      }
-      bytes[i] = DeepState_Input[DeepState_InputIndex++];
-      if (bytes[i] == 0) {
-		bytes[i] = 1;
+  }
+  else
+    if (begin_addr == end_addr) {
+      return;
+    } 
+    else {
+      uint8_t *bytes = (uint8_t *) begin;
+      for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
+        if (DeepState_InputIndex >= DeepState_InputSize) {
+          DeepState_Abandon("Exceeded set input limit. Set or expand DEEPSTATE_SIZE to write more bytes.");
+        }
+        if (FLAGS_verbose_reads) {
+          printf("Reading byte at %u\n", DeepState_InputIndex);
+        }
+        bytes[i] = DeepState_Input[DeepState_InputIndex++];
+        if (bytes[i] == 0) {
+		      bytes[i] = 1;
+        }
       }
     }
-  }
 }
 
 /* Concretize some data in exclusive the range `[begin, end)`. */
@@ -231,10 +234,11 @@ void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed) {
   if (len) {
     if (!allowed) {
       DeepState_SymbolizeDataNoNull(str, &(str[len]));
-    } else {
+    }
+    else {
       uint32_t allowed_size = strlen(allowed);
       for (int i = 0; i < len; i++) {
-	    str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+	      str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
       }
     }
   }
@@ -254,10 +258,11 @@ char *DeepState_CStr_C(size_t len, const char* allowed) {
   if (len) {
     if (!allowed) {
       DeepState_SymbolizeDataNoNull(str, &(str[len]));
-    } else {
+    }
+    else {
       uint32_t allowed_size = strlen(allowed);
       for (int i = 0; i < len; i++) {
-	    str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+	      str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
       }
     }
   }
@@ -270,13 +275,14 @@ void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
   if (begin && begin[0]) {
     if (!allowed) {
       DeepState_SymbolizeDataNoNull(begin, begin + strlen(begin));
-    } else {
+    }
+    else {
       uint32_t allowed_size = strlen(allowed);
       uint8_t *bytes = (uint8_t *) begin;
       uintptr_t begin_addr = (uintptr_t) begin;
       uintptr_t end_addr = (uintptr_t) (begin + strlen(begin));
       for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
-	    bytes[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+	      bytes[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
       }
     }
   }
@@ -315,7 +321,8 @@ int DeepState_ZeroSink(int sink) {
 int DeepState_IsTrue(int expr) {
   if (expr == DeepState_Zero()) {
     return DeepState_Zero();
-  } else {
+  }
+  else {
     return DeepState_One();
   }
 }
@@ -399,11 +406,13 @@ float DeepState_FloatInRange(float low, float high) {
   if (low < 0.0) { // Handle negatives differently
     if (high > 0.0) {
       if (DeepState_Bool()) {
-	return -(DeepState_FloatInRange(0.0, -low));
-      } else {
-	return DeepState_FloatInRange(0.0, high);
+	      return -(DeepState_FloatInRange(0.0, -low));
       }
-    } else {
+      else {
+	      return DeepState_FloatInRange(0.0, high);
+      }
+    } 
+    else {
       return -(DeepState_FloatInRange(-high, -low));
     }
   }
@@ -421,11 +430,13 @@ double DeepState_DoubleInRange(double low, double high) {
   if (low < 0.0) { // Handle negatives differently
     if (high > 0.0) {
       if (DeepState_Bool()) {
-	return -(DeepState_DoubleInRange(0.0, -low));
-      } else {
-	return DeepState_DoubleInRange(0.0, high);
+	      return -(DeepState_DoubleInRange(0.0, -low));
+      } 
+      else {
+	      return DeepState_DoubleInRange(0.0, high);
       }
-    } else {
+    } 
+    else {
       return -(DeepState_DoubleInRange(-high, -low));
     }
   }
@@ -761,10 +772,12 @@ void writeInputData(char* name, int important) {
   size_t written = fwrite((void *)DeepState_Input, 1, DeepState_InputSize, fp);
   if (written != DeepState_InputSize) {
     DeepState_LogFormat(DeepState_LogError, "Failed to write to file `%s`", path);
-  } else {
+  }
+  else {
     if (important) {
       DeepState_LogFormat(DeepState_LogInfo, "Saved test case in file `%s`", path);
-    } else {
+    }
+    else {
       DeepState_LogFormat(DeepState_LogTrace, "Saved test case in file `%s`", path);
     }
   }
@@ -825,7 +838,8 @@ int DeepState_Fuzz(void){
 
   if (HAS_FLAG_seed) {
     srand(FLAGS_seed);
-  } else {
+  }
+  else {
     unsigned int seed = time(NULL);
     DeepState_LogFormat(DeepState_LogWarning, "No seed provided; using %u", seed);
     srand(seed);
