@@ -29,18 +29,6 @@ L = logging.getLogger("deepstate.frontend")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
-class AttrDict(dict):
-  """
-  Since the argparser dictates most of the attributes the frontend
-  uses to orchestrate a fuzzer, we can create a custom AttrDict that
-  enables us to access keys as attributes.
-  """
-
-  def __init__(self, *args, **kwargs):
-    super(AttrDict, self).__init__(*args, **kwargs)
-    self.__dict__ = self
-
-
 class FrontendError(Exception):
   """
   Defines our custom exception class for DeepStateFrontend
@@ -52,6 +40,9 @@ class DeepStateFrontend(object):
   """
   Defines a base front-end object for using DeepState to interact with fuzzers.
   """
+
+  # temporary attribute for argparsing, and should be used to build up object attributes
+  _ARGS = None
 
   def __init__(self, envvar="PATH"):
     """
@@ -81,7 +72,7 @@ class DeepStateFrontend(object):
     potential_paths = [var for var in os.environ.get(envvar).split(":")]
     fuzzer_paths = [f"{path}/{fuzzer_name}" for path in potential_paths if os.path.isfile(path + '/' + fuzzer_name)]
     if len(fuzzer_paths) == 0:
-      raise FrontendError(f"${envvar} does not contain supplied fuzzer executable.")
+      raise FrontendError(f"${envvar} does not contain supplied fuzzer executable for `{self.FUZZER}`.")
 
     L.debug(fuzzer_paths)
 
@@ -135,6 +126,71 @@ class DeepStateFrontend(object):
     return "{}".format(self.__class__.__name__)
 
 
+  def init_fuzzer(self, _args=None):
+    """
+    Builder-like initialization routine used to instantiate the attributes of the frontend object, either from the stored
+    _ARGS namespace, or manual arguments passed in (not ideal, but useful for ensembler orchestration).
+
+    :param _self. optional dictionary with parsed arguments to set as attributes.
+    """
+    args = vars(self._ARGS) if not _args else _args
+    for key, value in args.items():
+      setattr(self, key, value)
+
+
+  @classmethod
+  def parse_args(cls):
+    """
+    Default base argument parser for DeepState frontends. Comprises of default arguments all
+    frontends must implement to maintain consistency in executables. Users can inherit this
+    method to extend and add own arguments or override for outstanding deviations in fuzzer CLIs.
+    """
+
+    if cls._ARGS:
+      return cls._ARGS
+
+    # use existing argparser if defined in fuzzer object, or initialize new one, both with default arguments
+    if hasattr(cls, "parser"):
+      L.debug("Using previously initialized parser")
+      parser = cls.parser
+    else:
+      parser = argparse.ArgumentParser(description="Use {} fuzzer as a backend for DeepState".format(str(cls)))
+
+    # Compilation/instrumentation support, only if COMPILER is set
+    if cls.COMPILER:
+      compile_group = parser.add_argument_group("compilation and instrumentation arguments")
+      compile_group.add_argument("--compile_test", type=str, help="Path to DeepState test harness for compilation.")
+      compile_group.add_argument("--compiler_args", type=str, help="Linker flags (space seperated) to include for external libraries.")
+      compile_group.add_argument("--out_test_name", type=str, default="out", help="Set name of generated instrumented binary.")
+
+    # Target binary (not required, as we enforce manual checks in pre_exec)
+    parser.add_argument("binary", nargs="?", type=str, help="Path to the test binary to run.")
+
+    # Input/output workdirs
+    parser.add_argument("-i", "--input_seeds", type=str, help="Directory with seed inputs.")
+    parser.add_argument("-o", "--output_test_dir", type=str, default="{}_out".format(str(cls())), help="Directory where tests will be saved.")
+
+    # Fuzzer execution options
+    parser.add_argument("-t", "--timeout", type=str, default="3600", help="How long to fuzz.")
+    parser.add_argument("-s", "--max_input_size", type=int, default=8192, help="Maximum input size.")
+
+    # Parallel / Ensemble Fuzzing
+    parser.add_argument("--enable_sync", action="store_true", help="Enable seed synchronization.")
+    parser.add_argument("--sync_out", action="store_true", help="When set, output individual fuzzer stat summary, instead of a global summary from the ensembler")
+    parser.add_argument("--sync_dir", type=str, default="out_sync", help="Directory for seed synchronization.")
+    parser.add_argument("--sync_cycle", type=int, default=5, help="Time between sync cycle.")
+
+    # Miscellaneous options
+    parser.add_argument("--fuzzer_help", action="store_true", help="Show fuzzer command line options.")
+    parser.add_argument("--which_test", type=str, help="Which test to run (equivalent to --input_which_test).")
+    parser.add_argument("--prog_args", default=[], nargs=argparse.REMAINDER, help="Other DeepState flags to pass to harness before execution, in format `--arg=val`.")
+
+
+    # NOTE(alan): we don't use namespace param so we "build up" object with `init_fuzzer()`
+    cls._ARGS = parser.parse_args()
+    cls.parser = parser
+
+
   def print_help(self):
     """
     Calls fuzzer to print executable help menu.
@@ -168,7 +224,7 @@ class DeepStateFrontend(object):
     compile_cmd = [self.compiler] + compiler_args
     L.debug(f"Compilation command: {str(compile_cmd)}")
 
-    L.info(f"Compiling test harness `{self._ARGS.compile_test}` with {self.compiler}")
+    L.info(f"Compiling test harness `{self.compile_test}` with {self.compiler}")
     try:
       ps = subprocess.Popen(compile_cmd, env=env)
       ps.communicate()
@@ -183,40 +239,38 @@ class DeepStateFrontend(object):
     checks or initializations before execution.
     """
 
-    args = self._ARGS
-    if args is None:
-      raise FrontendError("No arguments parsed yet. Call parse_args before pre_exec.")
+    if self._ARGS is None:
+      raise FrontendError("No arguments parsed yet. Call parse_self.before pre_exec.")
 
-    if args.fuzzer_help:
+    if self.fuzzer_help:
       self.print_help()
       sys.exit(0)
 
     # if compile_test is an existing argument, call compile for user
-    if hasattr(args, "compile_test"):
-      if args.compile_test:
-        self.compile()
-        sys.exit(0)
+    if self.compile_test:
+      self.compile()
+      sys.exit(0)
 
     # manually check if binary positional argument was passed
-    if args.binary is None:
+    if self.binary is None:
       self.parser.print_help()
       print("\nError: Target binary not specified.")
       sys.exit(1)
 
-    L.debug(f"Target binary: {args.binary}")
+    L.debug(f"Target binary: {self.binary}")
 
     # no sanity check, since some fuzzers require optional input seeds
-    if args.input_seeds:
-      L.debug(f"Input seeds directory: {args.input_seeds}")
+    if self.input_seeds:
+      L.debug(f"Input seeds directory: {self.input_seeds}")
 
-    L.debug(f"Output directory: {args.output_test_dir}")
+    L.debug(f"Output directory: {self.output_test_dir}")
 
     # check if we in ensemble mode, and initialize directory
-    if args.enable_sync:
-      if not os.path.isdir(args.sync_dir):
+    if self.enable_sync:
+      if not os.path.isdir(self.sync_dir):
         L.info("Initializing sync directory for ensembling")
-        os.mkdir(args.sync_dir)
-      L.debug(f"Sync directory: {args.sync_dir}")
+        os.mkdir(self.sync_dir)
+      L.debug(f"Sync directory: {self.sync_dir}")
 
 
   @staticmethod
@@ -236,7 +290,7 @@ class DeepStateFrontend(object):
     return cmd_args
 
 
-  def build_cmd(self, cmd_dict, test_file="@@"):
+  def build_cmd(self, cmd_dict, input_symbol="@@"):
     """
     Helper method to be invoked by child fuzzer class's cmd() property method in order
     to finalize command called by the fuzzer executable with appropriate arguments for the
@@ -244,21 +298,20 @@ class DeepStateFrontend(object):
     that deviate from how standard fuzzers invoke binaries).
 
     :param cmd_dict: incomplete dict to complete with harness argument information
-    :param test_file: symbol recognized by fuzzer to replace when conducting file-based fuzzing
+    :param input_symbol: symbol recognized by fuzzer to replace when conducting file-based fuzzing
     """
-    args = self._ARGS
 
-    # initialize command with
+    # initialize command with harness binary and DeepState flags to pass to it
     cmd_dict.update({
-      "--": args.binary,
-      "--input_test_file": test_file,
+      "--": self.binary,
+      "--input_test_file": input_symbol,
       "--abort_on_fail": None,
       "--no_fork": None
     })
 
     # append any other DeepState flags
-    if args.prog_args:
-      for arg in args.prog_args:
+    if self.prog_args:
+      for arg in self.prog_args:
         vals = arg.split("=")
         if len(vals) == 1:
           cmd_dict.update({ vals[0] : None })
@@ -266,8 +319,8 @@ class DeepStateFrontend(object):
           cmd_dict.update({ vals[0] : vals[1] })
 
     # test selection
-    if args.which_test:
-      cmd_dict["--input_which_test"] = args.which_test
+    if self.which_test:
+      cmd_dict["--input_which_test"] = self.which_test
 
     return cmd_dict
 
@@ -289,7 +342,6 @@ class DeepStateFrontend(object):
     :param compiler: if necessary, a compiler that is invoked before fuzzer executable (ie `dotnet`)
     :param no_exec: skips pre- and post-processing steps during execution
     """
-    args = self._ARGS
 
     # call pre_exec for any checks/inits before execution.
     if not no_exec:
@@ -314,7 +366,7 @@ class DeepStateFrontend(object):
     try:
 
       # if we are syncing seeds, we background the process and all of the output generated
-      if args.enable_sync:
+      if self.enable_sync:
         self.proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         L.info(f"Starting fuzzer with seed synchronization with PID `{self.proc.pid}`")
       else:
@@ -328,10 +380,10 @@ class DeepStateFrontend(object):
       if self.proc.returncode != 0:
         self._kill()
         err = stdout if stderr is None else stderr
-        raise FrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Error: {err.decode('utf-8')}")
+        raise FrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Error: {err}")
 
       # invoke ensemble if seed synchronization option is set
-      if args.enable_sync:
+      if self.enable_sync:
 
         # do not ensemble as fuzzer initializes
         time.sleep(5)
@@ -343,14 +395,14 @@ class DeepStateFrontend(object):
           L.debug(f"{self.name} - Performing sync cycle {self.sync_count}")
 
           # sleep for execution cycle
-          time.sleep(args.sync_cycle)
+          time.sleep(self.sync_cycle)
 
           # call ensemble to perform seed synchronization
           self.ensemble()
 
           # if sync_out argument set, output individual fuzzer statistics
           # rather than have our ensembler report global stats
-          if args.sync_out:
+          if self.sync_out:
             print(f"\n{self.name} Fuzzer Stats\n")
             for head, stat in self.reporter().items():
               print(f"{head}\t:\t{stat}")
@@ -478,16 +530,15 @@ class DeepStateFrontend(object):
     Base method for implementing ensemble fuzzing with seed synchronization. User should
     implement any additional logic for determining whether to sync/get seeds as if in event loop.
     """
-    args = self._ARGS
 
     if global_queue is None:
-      global_queue = args.sync_dir + "/"
+      global_queue = self.sync_dir + "/"
 
     global_len = DeepStateFrontend._queue_len(global_queue)
     L.debug(f"Global seed queue: {global_queue} with {global_len} files")
 
     if local_queue is None:
-      local_queue = args.output_test_dir + "/queue/"
+      local_queue = self.output_test_dir + "/queue/"
 
     local_len = DeepStateFrontend._queue_len(local_queue)
     L.debug(f"Fuzzer local seed queue: {local_queue} with {local_len} files")
@@ -503,74 +554,3 @@ class DeepStateFrontend(object):
 
     # push seeds from global queue to local, rsync will deal with duplicates
     self._sync_seeds("PUSH", global_queue, local_queue)
-
-
-  _ARGS = None
-
-  def set_args(self, target_dict):
-    """
-    Helper method that allows a user to manually instantiate _ARGS as an AttrDict for
-    attribute accessibility. Optimal when accessing frontends without parse_args instantiation.
-    """
-
-    # can't manually add entries when parse_args is called in a CLI context
-    if type(self._ARGS) is argparse.ArgumentParser:
-      raise FrontendError("Arguments already parsed with parse_args.")
-
-    if self._ARGS is None:
-      self._ARGS = AttrDict()
-
-    for key, value in target_dict.items():
-      self._ARGS.update({key: value})
-
-
-  @classmethod
-  def parse_args(cls):
-    """
-    Default base argument parser for DeepState frontends. Comprises of default arguments all
-    frontends must implement to maintain consistency in executables. Users can inherit this
-    method to extend and add own arguments or override for outstanding deviations in fuzzer CLIs.
-    """
-
-    if cls._ARGS:
-      return cls._ARGS
-
-    # use existing argparser if defined in fuzzer object,
-    # or initialize new one, both with default arguments
-    if hasattr(cls, "parser"):
-      L.debug("Using previously initialized parser")
-      parser = cls.parser
-    else:
-      parser = argparse.ArgumentParser(description="Use {} fuzzer as a backend for DeepState".format(str(cls)))
-
-    # Compilation/instrumentation support, only if COMPILER is set
-    if cls.COMPILER:
-      compile_group = parser.add_argument_group("compilation and instrumentation arguments")
-      compile_group.add_argument("--compile_test", type=str, help="Path to DeepState test harness for compilation.")
-      compile_group.add_argument("--compiler_args", type=str, help="Linker flags (space seperated) to include for external libraries.")
-      compile_group.add_argument("--out_test_name", type=str, default="out", help="Set name of generated instrumented binary.")
-
-    # Target binary (not required, as we enforce manual checks in pre_exec)
-    parser.add_argument("binary", nargs="?", type=str, help="Path to the test binary to run.")
-
-    # Input/output workdirs
-    parser.add_argument("-i", "--input_seeds", type=str, help="Directory with seed inputs.")
-    parser.add_argument("-o", "--output_test_dir", type=str, default="{}_out".format(str(cls())), help="Directory where tests will be saved.")
-
-    # Fuzzer execution options
-    parser.add_argument("-t", "--timeout", type=str, default="3600", help="How long to fuzz.")
-    parser.add_argument("-s", "--max_input_size", type=int, default=8192, help="Maximum input size.")
-
-    # Parallel / Ensemble Fuzzing
-    parser.add_argument("--enable_sync", action="store_true", help="Enable seed synchronization.")
-    parser.add_argument("--sync_out", action="store_true", help="When set, output individual fuzzer stat summary, instead of a global summary from the ensembler")
-    parser.add_argument("--sync_dir", type=str, default="out_sync", help="Directory for seed synchronization.")
-    parser.add_argument("--sync_cycle", type=int, default=5, help="Time between sync cycle.")
-
-    # Miscellaneous options
-    parser.add_argument("--fuzzer_help", action="store_true", help="Show fuzzer command line options.")
-    parser.add_argument("--which_test", type=str, help="Which test to run (equivalent to --input_which_test).")
-    parser.add_argument("--prog_args", default=[], nargs=argparse.REMAINDER, help="Other DeepState flags to pass to harness before execution, in format `--arg=val`.")
-
-    cls._ARGS = parser.parse_args()
-    cls.parser = parser

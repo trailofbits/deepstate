@@ -54,8 +54,6 @@ class AFL(DeepStateFrontend):
 
 
   def compile(self):
-    args = self._ARGS
-
     lib_path = "/usr/local/lib/libdeepstate_AFL.a"
     L.debug(f"Static library path: {lib_path}")
 
@@ -63,11 +61,11 @@ class AFL(DeepStateFrontend):
       raise FrontendError("No AFL-instrumented DeepState static library found in {}".format(lib_path))
 
     flags = ["-ldeepstate_AFL"]
-    if args.compiler_args:
-      flags += [arg for arg in args.compiler_args.split(" ")]
+    if self.compiler_args:
+      flags += [arg for arg in self.compiler_args.split(" ")]
 
-    compiler_args = ["-std=c++11", args.compile_test] + flags + \
-                    ["-o", args.out_test_name + ".afl"]
+    compiler_args = ["-std=c++11", self.compile_test] + flags + \
+                    ["-o", self.out_test_name + ".afl"]
     super().compile(compiler_args)
 
 
@@ -83,14 +81,12 @@ class AFL(DeepStateFrontend):
 
     super().pre_exec()
 
-    args = self._ARGS
-
     # require input seeds if we aren't in dumb mode, or we are using crash mode
-    if not args.dumb_mode or args.crash_mode:
-      if not args.input_seeds:
+    if not self.dumb_mode or args.crash_mode:
+      if not self.input_seeds:
         raise FrontendError("Must provide -i/--input_seeds option for AFL.")
 
-      seeds = args.input_seeds
+      seeds = self.input_seeds
       L.debug(f"Fuzzing with seed directory: {seeds}.")
 
       # check if seeds dir exists
@@ -105,33 +101,31 @@ class AFL(DeepStateFrontend):
 
   @property
   def cmd(self):
-    args = self._ARGS
-
     cmd_dict = {
-      "-o": args.output_test_dir,
-      "-t": str(args.timeout),
-      "-m": str(args.mem_limit)
+      "-o": self.output_test_dir,
+      "-t": str(self.timeout),
+      "-m": str(self.mem_limit)
     }
 
     # since this is optional for AFL's dumb fuzzing
-    if args.input_seeds:
-      cmd_dict["-i"] = args.input_seeds
+    if self.input_seeds:
+      cmd_dict["-i"] = self.input_seeds
 
     # check if we are using one of AFL's many "modes"
-    if args.dirty_mode:
+    if self.dirty_mode:
       cmd_dict["-d"] = None
-    if args.dumb_mode:
+    if self.dumb_mode:
       cmd_dict["-n"] = None
-    if args.qemu_mode:
+    if self.qemu_mode:
       cmd_dict["-Q"] = None
-    if args.crash_explore:
+    if self.crash_explore:
       cmd_dict["-C"] = None
 
     # other misc arguments
-    if args.dictionary:
-      cmd_dict["-x"] = args.dictionary
-    if args.file:
-      cmd_dict["-f"] = args.file
+    if self.dictionary:
+      cmd_dict["-x"] = self.dictionary
+    if self.file:
+      cmd_dict["-f"] = self.file
 
     return self.build_cmd(cmd_dict)
 
@@ -141,8 +135,7 @@ class AFL(DeepStateFrontend):
     """
     Retrieves and parses the stats file produced by AFL
     """
-    args = self._ARGS
-    stat_file = args.output_test_dir + "/fuzzer_stats"
+    stat_file = self.output_test_dir + "/fuzzer_stats"
     with open(stat_file, "r") as sf:
       lines = sf.readlines()
 
@@ -205,9 +198,7 @@ class AFL(DeepStateFrontend):
     and (TODO) performs crash triaging with seeds from
     both sync_dir and local queue.
     """
-    args = self._ARGS
-
-    if args.post_stats:
+    if self.post_stats:
       print("\nAFL RUN STATS:\n")
       for stat, val in self.stats.items():
         fstat = stat.replace("_", " ").upper()
@@ -217,7 +208,12 @@ class AFL(DeepStateFrontend):
 
 def main():
   fuzzer = AFL()
+
+  # parse user arguments and build object
   fuzzer.parse_args()
+  fuzzer.init_fuzzer()
+
+  # run fuzzer with parsed attributes
   fuzzer.run()
   return 0
 
