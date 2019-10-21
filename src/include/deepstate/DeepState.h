@@ -200,6 +200,9 @@ extern const char *DeepState_ConcretizeCStr(const char *begin);
 /* Allocate and return a pointer to `num_bytes` symbolic bytes. */
 extern void *DeepState_Malloc(size_t num_bytes);
 
+/* Portable and architecture-independent memory scrub without dead store elimination. */
+extern void *DeepState_MemScrub(void *pointer, size_t data_size);
+
 #define DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Tname, tname) \
     DEEPSTATE_INLINE static \
     tname *DeepState_Symbolic ## Tname ## Array(size_t num_elms) { \
@@ -526,7 +529,7 @@ static void DeepState_InitInputFromFile(const char *path) {
   }
 
   /* Reset the input buffer and reset the index. */
-  memset((void *) DeepState_Input, 0, sizeof(DeepState_Input));
+  DeepState_MemScrub((void *) DeepState_Input, sizeof(DeepState_Input));
   DeepState_InputIndex = 0;
 
   size_t count = fread((void *) DeepState_Input, 1, to_read, fp);

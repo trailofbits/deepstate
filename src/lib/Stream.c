@@ -46,7 +46,7 @@ struct DeepState_StreamFormatOptions {
 /* Stream type that accumulates formatted data to be printed. This loosely
  * mirrors C++ I/O streams, not because I/O streams are good, but instead
  * because the ability to stream in data to things like the C++-backed
- * `ASSERT` and `CHECK` macros is really nice. */ 
+ * `ASSERT` and `CHECK` macros is really nice. */
 struct DeepState_Stream {
   int size;
   struct DeepState_StreamFormatOptions options;
@@ -276,7 +276,7 @@ void DeepState_StreamDouble(enum DeepState_LogLevel level, double val) {
 void DeepState_ClearStream(enum DeepState_LogLevel level) {
   struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   if (stream->size) {
-    memset(stream->message, 0, DeepState_StreamSize);
+    DeepState_MemScrub(stream->message, DeepState_StreamSize);
     stream->size = 0;
   }
 }
@@ -295,7 +295,7 @@ void DeepState_LogStream(enum DeepState_LogLevel level) {
 /* Reset the formatting in a stream. */
 void DeepState_StreamResetFormatting(enum DeepState_LogLevel level) {
   struct DeepState_Stream *stream = &(DeepState_Streams[level]);
-  memset(&(stream->options), 0, sizeof(stream->options));
+  DeepState_MemScrub(&(stream->options), sizeof(stream->options));
 }
 
 static int DeepState_NumLsInt64BitFormat = 2;

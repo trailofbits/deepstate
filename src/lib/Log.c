@@ -48,7 +48,7 @@ static const char *DeepState_LogLevelStr(enum DeepState_LogLevel level) {
     case DeepState_LogDebug:
       return "DEBUG";
     case DeepState_LogTrace:
-      return "TRACE";      
+      return "TRACE";
     case DeepState_LogInfo:
       return "INFO";
     case DeepState_LogWarning:
@@ -80,7 +80,7 @@ void DeepState_Log(enum DeepState_LogLevel level, const char *str) {
       (level < FLAGS_min_log_level)) {
     return;
   }
-  memset(DeepState_LogBuf, 0, DeepState_LogBufSize);
+  DeepState_MemScrub(DeepState_LogBuf, DeepState_LogBufSize);
   snprintf(DeepState_LogBuf, DeepState_LogBufSize, "%s: %s\n",
            DeepState_LogLevelStr(level), str);
   fputs(DeepState_LogBuf, stderr);
@@ -196,7 +196,7 @@ int vfprintf(FILE *file, const char *format, va_list args) {
 	DeepState_LogVFormat(DeepState_LogInfo, format, args);
       }
     } else {
-      DeepState_LogVFormat(DeepState_LogExternal, format, args);      
+      DeepState_LogVFormat(DeepState_LogExternal, format, args);
     }
   */
   return 0;

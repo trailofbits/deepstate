@@ -295,6 +295,16 @@ void *DeepState_Malloc(size_t num_bytes) {
   return data;
 }
 
+/* Portable and architecture-independent memory scrub without dead store elimination. */
+void *DeepState_MemScrub(void *pointer, size_t data_size) {
+  volatile unsigned char *p = pointer;
+  while (data_size--) {
+    *p++ = 0;
+  }
+  return pointer;
+}
+
+
 DEEPSTATE_NOINLINE int DeepState_One(void) {
   return 1;
 }
@@ -963,7 +973,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     }
   }
 
-  memset((void *) DeepState_Input, 0, sizeof(DeepState_Input));
+  DeepState_MemScrub((void *) DeepState_Input, sizeof(DeepState_Input));
   DeepState_InputIndex = 0;
 
   memcpy((void *) DeepState_Input, (void *) Data, Size);
