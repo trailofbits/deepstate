@@ -101,12 +101,11 @@ class DeepStateFrontend(object):
       else:
         self.compiler = compiler_paths[0]
 
+      # toss exception if compiler still could not be found
+      if not hasattr(self, "compiler"):
+        raise FrontendError(f"{compiler} does not exist as absolute path, or in ${envvar} or $PATH")
 
-    # toss exception if compiler could not be found
-    if not hasattr(self, "compiler"):
-      raise FrontendError(f"{compiler} does not exist as absolute path, or in ${envvar} or $PATH")
-
-    L.debug(f"Initialized compiler: {self.compiler}")
+      L.debug(f"Initialized compiler: {self.compiler}")
 
     # in case name supplied as `bin/fuzzer`, strip executable name
     if '/' in fuzzer_name:
@@ -157,7 +156,7 @@ class DeepStateFrontend(object):
       parser = argparse.ArgumentParser(description="Use {} fuzzer as a backend for DeepState".format(str(cls)))
 
     # Compilation/instrumentation support, only if COMPILER is set
-    if cls.COMPILER:
+    if hasattr(cls, "COMPILER"):
       compile_group = parser.add_argument_group("compilation and instrumentation arguments")
       compile_group.add_argument("--compile_test", type=str, help="Path to DeepState test harness for compilation.")
       compile_group.add_argument("--compiler_args", type=str, help="Linker flags (space seperated) to include for external libraries.")
@@ -247,9 +246,10 @@ class DeepStateFrontend(object):
       sys.exit(0)
 
     # if compile_test is an existing argument, call compile for user
-    if self.compile_test:
-      self.compile()
-      sys.exit(0)
+    if hasattr(self, "compile_test"):
+      if self.compile_test:
+        self.compile()
+        sys.exit(0)
 
     # manually check if binary positional argument was passed
     if self.binary is None:
@@ -380,7 +380,7 @@ class DeepStateFrontend(object):
       if self.proc.returncode != 0:
         self._kill()
         err = stdout if stderr is None else stderr
-        raise FrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Error: {err}")
+        raise FrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Error: {err.decode('utf-8')}")
 
       # invoke ensemble if seed synchronization option is set
       if self.enable_sync:

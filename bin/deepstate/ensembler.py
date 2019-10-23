@@ -19,6 +19,8 @@ logging.basicConfig()
 import os
 import sys
 import time
+import string
+import random
 import argparse
 import multiprocessing
 
@@ -31,20 +33,12 @@ from .frontend.honggfuzz import Honggfuzz
 from .frontend.angora import Angora
 from .frontend.eclipser import Eclipser
 
-"""
-TODO: safer support for dynamic subclass importing
-for subclass in DeepStateFrontend.__subclasses__():
-  __import__(subclass.__module__, globals(), locals(), [subclass.__name__])
-  globals().update({subclass.__name__:
-                    getattr(sys.modules[subclass.__module__], subclass.__name__)})
-"""
-
 
 L = logging.getLogger("deepstate.ensembler")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
-class Ensembler:
+class Ensembler(DeepStateFrontend):
   """
   Ensembler is the ensemble-based fuzzer that orchestrates and invokes fuzzer frontends, while also
   supporting seed synchronization between those frontends. It initializes a set of global input args
@@ -52,62 +46,84 @@ class Ensembler:
   seed synchronization between them.
   """
 
-  def __init__(self, target, seeds, out_dir, out_sync, num_cores, sync_cycle, timeout, workspace, \
-               compiler_args=None, ignore_list=None):
+  FUZZER = "deepstate-ensembler"
 
-    self.seeds = os.path.abspath(seeds)
-    self.out_dir = os.path.abspath(out_dir)
-    self.sync_dir = os.path.abspath(out_sync)
-    self.workspace = os.path.abspath(workspace)
+  @classmethod
+  def parse_args(cls):
+    parser = argparse.ArgumentParser(description="Ensemble-based fuzzer executor for DeepState")
+    test_group = parser.add_mutually_exclusive_group(required=True)
 
-    self.num_cores = num_cores
-    self.sync_cycle = sync_cycle
-    self.timeout = timeout
+    # Mutually exclusive target options
+    test_group.add_argument("--test", type=str, \
+      help="Path to test case harness for compilation and instrumentation.")
 
-    self.fuzzers = list(self._init_fuzzers())
-    L.debug(f"Fuzzers for ensembling: {self.fuzzers}")
+    test_group.add_argument("--test_dir", type=str, \
+      help="Path to existing workspace directory with compiled and instrumented binaries.")
 
-    # given a path to a DeepState harness, provision/compile, and retrieve test bins
-    if isinstance(target, str):
-      self.targets = self.get_tests(self._provision(target, compiler_args, ignore_list))
+    # Compilation options
+    parser.add_argument("-a", "--compiler_args", type=str, \
+      help="Compiler linker arguments for test harness, if provided as argument.")
 
-    # given a list of paths from a workspace, instantiate normally
-    elif isinstance(target, list):
-      self.targets = self.get_tests(target)
+    parser.add_argument("--ignore_calls", type=str, \
+      help="Path to static/shared libraries (colon seperated) to blackbox for taint analysis.")
+
+    parser.add_argument("-w", "--workspace", type=str, default="ensemble_bins", \
+      help="Path to workspace to store compiled and instrumented binaries (default is `ensemble_bins`).")
+
+    # Ensembler execution options
+    parser.add_argument("-n", "--num_cores", type=int, default=multiprocessing.cpu_count(), \
+      help="Override number of cores to use.")
+
+    parser.add_argument("--no_global", action="store_true", \
+      help="If set, disable global ensembler output, and instead report individual fuzzer stats.")
+
+    # TODO(alan): other execution options
+
+    #parser.add_argument("--fuzzers", type=str, \
+    #  help="Comma-seperated string of fuzzers to ensemble with (overrides default ensemble).")
+
+    #parser.add_argument("--abort_on_crash", action="store_true", \
+    #  help="Stop ensembler when any base fuzzer returns a crash.")
+
+    cls.parser = parser
+    super(Ensembler, cls).parse_args()
 
 
-  def _provision(self, test_case, compiler_args, ignore_list=None):
+  def pre_exec(self):
     """
-    Given a testcase source, provision a workspace with appropriate target binaries.
-
-    :param test_case: path to uncompiled test case directory
-    :param compiler_args: compilation flags (ie for linking) needed to successfully compile
-    :param ignore_list: optional str of static libraries to ignore for taint analysis (see Angora frontend)
+    Implements pre_exec method from frontend superclass, and does sanity-checking on
+    parsed arguments before we can go ahead and provision an environment for ensemble fuzzing.
     """
-    if not os.path.isdir(self.workspace):
-      L.info("Workspace doesn't exist. Creating.")
-      os.mkdir(self.workspace)
 
-    L.info("Provisioning test case into workspace with instrumented binaries")
-    for fuzzer in self.fuzzers:
+    # `--fuzzer_help` equivalent to `--help`
+    if self.fuzzer_help:
+      self.parser.print_help()
 
-      test_name = self.workspace + "/" + test_case.split(".")[0]
-      L.debug(f"Compiling `{test_name}` for fuzzer `{fuzzer}`")
+    # ignore compiler-related arguments if not necessary
+    if self.test_dir and (self.ignore_calls or self.compiler_args):
+      L.info("Ignoring --ignore_calls and/or --compiler_args arguments passed")
 
-      cmd_map = {
-        "compile_test": test_case,
-        "out_test_name": test_name,
-        "compiler_args": compiler_args
-      }
+    # initial path check
+    _test = self.test if not self.test_dir else self.test_dir
+    if not os.path.exists(_test):
+      L.error(f"Target path `{_test}` does not exist. Exiting.")
+      sys.exit(1)
 
-      if isinstance(fuzzer, Angora):
-        cmd_map["mode"] = "llvm"
-        cmd_map["ignore_calls"] = ignore_list
+    if not os.path.isdir(self.input_seeds):
+      L.error(f"Input seeds directory `{self.input_seeds}` does not exist. Exiting.")
+      sys.exit(1)
 
-      fuzzer.set_args(cmd_map)
-      fuzzer.compile()
+    if not os.path.isdir(self.output_test_dir):
+      L.warn("Output directory does not exist. Creating.")
+      os.mkdir(self.output_test_dir)
 
-    return [test for test in os.listdir(self.workspace)]
+    sync_dir = self.output_test_dir + "/" + self.sync_dir
+    if not os.path.isdir(sync_dir):
+      L.warn("Sync directory does not exist. Creating.")
+      os.mkdir(sync_dir)
+    elif os.path.isdir(sync_dir) and len([f for f in os.listdir(sync_dir)]) != 0:
+      L.error("Sync directory exists and is not empty. Exiting.")
+      sys.exit(1)
 
 
   @staticmethod
@@ -126,7 +142,7 @@ class Ensembler:
       return [AFL(), Honggfuzz(), Angora(), Eclipser()]
 
 
-  def get_tests(self, tests):
+  def _get_tests(self, tests):
     """
     Given a workspace path, retrieve testcases and map to specific fuzzer. We map
     based on the condition that the generated test binary contains an extension
@@ -153,6 +169,69 @@ class Ensembler:
     return fuzz_map
 
 
+  def provision(self):
+    """
+    Initializes our ensemble of fuzzers, and creates a workspace with instrumented
+    harness binaries, if necessary.
+    """
+
+    # manually call pre_exec (we don't use frontend's runner routine) before provisioning
+    self.pre_exec()
+
+    # initialize target - test str if user specified a harness, or a list to already-compiled binaries
+    target = self.test if not self.test_dir else list([f for f in os.listdir(self.test_dir)])
+    L.info(f"Provisioning environment with target `{target}`")
+
+    self.fuzzers = list(self._init_fuzzers())
+    L.debug(f"Fuzzers for ensembling: {self.fuzzers}")
+
+    # given a path to a DeepState harness, provision/compile, and retrieve test bins
+    if isinstance(target, str):
+      L.info("Detected source target. Compiling and then retrieving harnesses from workspace.")
+      self.targets = self._get_tests(self._provision_workspace(target))
+
+    # given a list of paths from a workspace, instantiate normally
+    elif isinstance(target, list):
+      L.info("Detected workspace target. Retrieving harnesses from workspace.")
+      self.targets = self._get_tests(target)
+
+    L.debug(f"Target for analysis: {self.targets}")
+
+
+  def _provision_workspace(self, test_case):
+    """
+    Given a testcase source, provision a workspace with appropriate target binaries.
+
+    :param test_case: path to uncompiled test case directory
+    """
+    if not os.path.isdir(self.workspace):
+      L.info("Workspace doesn't exist. Creating.")
+      os.mkdir(self.workspace)
+
+    L.info("Provisioning test case into workspace with instrumented binaries")
+    for fuzzer in self.fuzzers:
+
+      test_name = self.workspace + "/" + test_case.split(".")[0]
+      L.debug(f"Compiling `{test_name}` for fuzzer `{fuzzer}`")
+
+      cmd_map = {
+        "compile_test": test_case,
+        "out_test_name": test_name,
+        "compiler_args": self.compiler_args if self.compiler_args else None
+      }
+
+      if isinstance(fuzzer, Angora):
+        cmd_map["mode"] = "llvm"
+        cmd_map["ignore_calls"] = self.ignore_calls
+
+      fuzzer.init_fuzzer(cmd_map)
+
+      L.info(f"Compiling test case {test_case} as `{test_name}` with {fuzzer}")
+      fuzzer.compile()
+
+    return [test for test in os.listdir(self.workspace)]
+
+
   def report(self):
     """
     Global status reporter for ensemble fuzzing. We store and parse each individual
@@ -172,44 +251,51 @@ class Ensembler:
         print(f"Total {head}\t:\t{stat}")
 
 
-  def run(self, which_test=None, global_reporter=True):
+  def run_ensembler(self):
     """
     Bootstraps all fuzzers for ensembling with appropriate arguments,
     and run fuzzers in parallel.
 
     TODO(alan): exit_crash arg to kill fuzzer and report when one crash is found
-
-    :param which_test: specifies which test from suite to analyze
-
     """
+
+    def _rand_id():
+      return "".join(random.choice(string.ascii_uppercase + string.digits)
+      for _ in range(4))
 
     #pool = multiprocessing.Pool(processes=self.num_cores)
     procs = []
 
-    # for each fuzzer, instantiate fuzzer arguments manually using set_args() rather than
+    L.info("Initializing fuzzers for ensembling.")
+
+    # for each fuzzer, instantiate fuzzer arguments manually using () rather than
     # the parse_args() interface in each frontend. Specific fuzzers need specific options, so
     # we also set those
+    # TODO(alan): migrate instantiation to provision or _provision_workspace
     for fuzzer, binary in self.targets.items():
       fuzzer_args = {
 
         # default fuzzer execution related options
         "timeout": self.timeout,
         "binary": self.workspace + "/" + binary[0],
-        "input_seeds": self.seeds,
-        "output_test_dir": "{}/{}_out".format(self.out_dir, str(fuzzer)),
-        "args": [],
+        "input_seeds": self.input_seeds,
+        "output_test_dir": "{}/{}_{}_out".format(self.output_test_dir, str(fuzzer), _rand_id()),
         "dictionary": None,
-        "max_input_size": 8192,
+        "max_input_size": self.max_input_size if self.max_input_size else 8192,
         "mem_limit": 50,
-        "which_test": which_test,
+        "which_test": self.which_test,
+        "prog_args": self.prog_args,
 
         # set sync options for all fuzzers (TODO): configurable exec cycle
         # set sync_out to output global fuzzer stats, set as default
         "enable_sync": True,
         "sync_cycle": self.sync_cycle,
         "sync_dir": self.sync_dir,
-        "sync_out": not global_reporter
+        "sync_out": not self.no_global
       }
+
+      # TODO(alan): store default dict in each fuzzer's _ARGS such that we don't need to
+      # manually instantiate fuzzer-specific attributes
 
       # manually set and override options for Angora, due to the requirement of two binaries
       if isinstance(fuzzer, Angora):
@@ -247,7 +333,7 @@ class Ensembler:
           "perf_branch": False
         })
 
-      fuzzer.set_args(fuzzer_args)
+      fuzzer.init_fuzzer(fuzzer_args)
 
       # sets compiler and no_exec params before execution
       # Eclipser requires `dotnet` to be invoked before fuzzer executable.
@@ -256,16 +342,19 @@ class Ensembler:
       else:
         args = (None, True)
 
+
+      L.info(f"Initialized {fuzzer} for ensemble-fuzzing and spinning up child proc.")
+
       # initialize concurrent process and add to process pool
       proc = Process(target=fuzzer.run, args=args)
       procs.append(proc)
 
-
-    # initialize another child process that invokes the global reporter
-    if global_reporter:
+    # TODO(alan): fix up delayed reporter; try not to have an individual proc run for
+    # reporting
+    if not self.no_global:
+      L.info("Starting up child proc for global stats reporting.")
       report_proc = Process(target=self.report, args=())
       procs.append(report_proc)
-
 
     for proc in procs:
       proc.start()
@@ -277,105 +366,16 @@ class Ensembler:
       proc.join()
 
 
-
-
 def main():
-  parser = argparse.ArgumentParser(description="DeepState Ensemble Fuzzer.")
-  test_group = parser.add_mutually_exclusive_group(required=True)
+  ensembler = Ensembler()
 
-  # Mutually exclusive target options
-  test_group.add_argument("--test", type=str, \
-    help="Path to test case harness for compilation and instrumentation.")
+  # parse arguments and provision ensembler
+  ensembler.parse_args()
+  ensembler.init_fuzzer()
+  ensembler.provision()
 
-  test_group.add_argument("--test_dir", type=str, \
-    help="Path to existing workspace directory with compiled and instrumented binaries.")
-
-
-  # Compilation options
-  parser.add_argument("-a", "--compiler_args", type=str, \
-    help="Compiler linker arguments for test harness, if provided as argument")
-
-  parser.add_argument("--ignore_calls", type=str, \
-    help="Path to static/shared libraries (colon seperated) to blackbox for taint analysis.")
-
-
-  # Fuzzer-related paths
-  parser.add_argument("-i", "--input_seeds", type=str, required=True, \
-    help="Path to directory with initial seed inputs for all fuzzer instances.")
-
-  parser.add_argument("-o", "--out_dir", type=str, default="out", \
-    help="Path to output directory for generated fuzzer logs and local queue (default is `out`).")
-
-  parser.add_argument("-w", "--workspace", type=str, default="ensemble_bins", \
-    help="Path to workspace to store compiled and instrumented binaries (default is `ensemble_bins`).")
-
-  parser.add_argument("-t", "--timeout", type=int, default=360, \
-    help="Timeout for base fuzzers in seconds (default: 360).")
-
-
-  # Seed Synchronization options
-  parser.add_argument("-s", "--sync_dir", type=str, default="out_sync", \
-    help="Path to shared seed synchronization directory (default is `out_sync`).")
-
-  parser.add_argument("-c", "--sync_cycle", type=int, default=5, \
-    help="Time between sync cycle for each instantiated base fuzzer.")
-
-
-  # Ensembler execution options
-  parser.add_argument("-n", "--num_cores", type=int, default=multiprocessing.cpu_count(), \
-    help="Override number of cores to use.")
-
-  parser.add_argument("--no_global", action="store_false", \
-    help="If set, disable global ensembler output, and instead report individual fuzzer stats.")
-
-  parser.add_argument("--which_test", type=str, \
-    help="Which test to run (equivalent to --input_which_test).")
-
-  # TODO(alan)
-  #parser.add_argument("--abort_on_crash", action="store_true", \
-  #  help="Stop ensembler when any base fuzzer returns a crash")
-
-  args = parser.parse_args()
-
-  # ignore compiler-related arguments if not necessary
-  if args.test_dir and (args.ignore_calls or args.compiler_args):
-    L.info("Ignoring --ignore_calls and/or --compiler_args arguments passed")
-
-  # initial path check
-  _test = args.test if not args.test_dir else args.test_dir
-  if not os.path.exists(_test):
-    print(f"Target path `{_test}` does not exist. Exiting.")
-    sys.exit(1)
-
-  # initialize target - test str if user specified a harness, or a list to already-compiled binaries
-  test = args.test if not args.test_dir else list([f for f in os.listdir(args.test_dir)])
-
-  # initialize test case to run from harness, if specified
-  which_test = args.which_test
-
-  if not os.path.isdir(args.input_seeds):
-    print(f"Input seeds directory `{args.input_seeds}` does not exist. Exiting.")
-    sys.exit(1)
-
-  if not os.path.isdir(args.out_dir):
-    print("Output directory does not exist. Creating.")
-    os.mkdir(args.out_dir)
-
-  sync_dir = args.out_dir + "/" + args.sync_dir
-  if not os.path.isdir(sync_dir):
-    print("Sync directory does not exist. Creating.")
-    os.mkdir(sync_dir)
-  elif os.path.isdir(sync_dir) and len([f for f in os.listdir(sync_dir)]) != 0:
-    print("Sync directory exists and is not empty. Exiting.")
-    sys.exit(1)
-
-
-  # initialize ensembler
-  ensembler = Ensembler(test, args.input_seeds, args.out_dir, sync_dir,
-                        args.num_cores, args.sync_cycle, args.timeout, args.workspace,
-                        args.compiler_args, args.ignore_calls)
-
-  ensembler.run(which_test, args.no_global)
+  # call ensembler routine
+  ensembler.run_ensembler()
   return 0
 
 
