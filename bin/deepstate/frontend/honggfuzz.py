@@ -58,8 +58,6 @@ class Honggfuzz(DeepStateFrontend):
 
 
   def compile(self):
-    args = self._ARGS
-
     lib_path = "/usr/local/lib/libdeepstate_hfuzz.a"
     L.debug(f"Static library path: {lib_path}")
 
@@ -68,88 +66,75 @@ class Honggfuzz(DeepStateFrontend):
     else:
       flags = ["-ldeepstate_hfuzz"]
 
-    if args.compiler_args:
-      flags += [arg for arg in args.compiler_args.split(" ")]
+    if self.compiler_args:
+      flags += [arg for arg in self.compiler_args.split(" ")]
 
-    compiler_args = ["-std=c++11", args.compile_test] + flags + \
-                    ["-o", args.out_test_name + ".hfuzz"]
+    compiler_args = ["-std=c++11", self.compile_test] + flags + \
+                    ["-o", self.out_test_name + ".hfuzz"]
     super().compile(compiler_args)
 
 
   def pre_exec(self):
     super().pre_exec()
-    args = self._ARGS
 
-    if not args.no_inst:
-      if not args.input_seeds:
+    if not self.no_inst:
+      if not self.input_seeds:
         raise FrontendError("No -i/--input_seeds provided.")
 
-      if not os.path.exists(args.input_seeds):
-        os.mkdir(args.input_seeds)
+      if not os.path.exists(self.input_seeds):
+        os.mkdir(self.input_seeds)
         raise FrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
 
-      if len([name for name in os.listdir(args.input_seeds)]) == 0:
-        raise FrontendError(f"No seeds present in directory {args.input_seeds}.")
+      if len([name for name in os.listdir(self.input_seeds)]) == 0:
+        raise FrontendError(f"No seeds present in directory {self.input_seeds}.")
 
 
   @property
   def cmd(self):
-    args = self._ARGS
-
     cmd_dict = {
-      "--input": args.input_seeds,
-      "--workspace": args.output_test_dir,
-      "--timeout": str(args.timeout),
+      "--input": self.input_seeds,
+      "--workspace": self.output_test_dir,
+      "--timeout": str(self.timeout),
     }
 
-    if args.dictionary:
-      cmd_dict["--dict"] = args.dictionary
-    if args.iterations:
-      cmd_dict["--iterations"] = str(args.iterations)
+    if self.dictionary:
+      cmd_dict["--dict"] = self.dictionary
+    if self.iterations:
+      cmd_dict["--iterations"] = str(self.iterations)
 
-    if args.persistent:
+    if self.persistent:
       cmd_dict["--persistent"] = None
-    if args.no_inst:
+    if self.no_inst:
       cmd_dict["--noinst"] = None
-    if args.keep_output:
+    if self.keep_output:
       cmd_dict["--keep_output"] = None
-    if args.sanitizers:
+    if self.sanitizers:
       cmd_dict["--sanitizers"] = None
-    if args.clear_env:
+    if self.clear_env:
       cmd_dict["--clear_env"] = None
-    if args.save_all:
+    if self.save_all:
       cmd_dict["--save_all"] = None
-    if args.keep_aslr:
+    if self.keep_aslr:
       cmd_dict["--linux_keep_aslr"] = None
 
     # TODO: autodetect hardware features
-    if args.perf_instr:
+    if self.perf_instr:
       cmd_dict["--linux_perf_instr"] = None
-    if args.perf_branch:
+    if self.perf_branch:
       cmd_dict["--linux_perf_branch"] = None
 
-    cmd_dict.update({
-      "--": args.binary,
-      "--input_test_file": "___FILE___",
-      "--abort_on_fail": None,
-      "--no_fork": None
-    })
+    return self.build_cmd(cmd_dict, input_symbol="___FILE___")
 
-    if args.which_test:
-      cmd_dict["--input_which_test"] = args.which_test
-
-    return cmd_dict
 
   @property
   def stats(self):
     """
     Retrieves and parses the stats file produced by Honggfuzz
     """
-    args = self._ARGS
-    out_dir = os.path.abspath(args.output_test_dir) + "/"
-    report_f = "HONGGFUZZ.REPORT.TXT"
+    out_dir = os.path.abspath(self.output_test_dir) + "/"
+    report_file = "HONGGFUZZ.REPORT.TXT"
 
-    stat_file = out_dir + report_f
+    stat_file = out_dir + report_file
     with open(stat_file, "r") as sf:
       lines = sf.readlines()
 
@@ -182,7 +167,7 @@ class Honggfuzz(DeepStateFrontend):
           stats[k] = l.split(":")[1].strip()
 
     # add crash metrics
-    crashes = len([name for name in os.listdir(out_dir) if name != report_f])
+    crashes = len([name for name in os.listdir(out_dir) if name != report_file])
     stats.update({
       "CRASHES": crashes
     })
@@ -195,12 +180,13 @@ class Honggfuzz(DeepStateFrontend):
     Report a summarized version of statistics, ideal for ensembler output.
     """
     return dict({
-      "Unique Crashes": self.stats["CRASHES"]
+      "Unique Crashes": self.stats["CRASHES"],
+      "Mutations Per Run": self.stats["mutationsPerRun"]
     })
 
 
   def post_exec(self):
-    if self._ARGS.post_stats:
+    if self.post_stats:
       print("\n")
       for k, v in self.stats.items():
         print(f"{k} : {v}")
@@ -208,8 +194,12 @@ class Honggfuzz(DeepStateFrontend):
 
 def main():
   fuzzer = Honggfuzz()
-  args = fuzzer.parse_args()
 
+  # parse user arguments and build object
+  fuzzer.parse_args()
+  fuzzer.init_fuzzer()
+
+  # run fuzzer with parsed attributes
   fuzzer.run()
   return 0
 

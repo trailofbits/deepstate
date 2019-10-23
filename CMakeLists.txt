@@ -123,6 +123,11 @@ install(
 )
 
 if (DEEPSTATE_LIBFUZZER)
+
+    if(CMAKE_CXX_COMPILE_VERSION LESS 6.0)
+      message(WARNING "libFuzzer is not built-in for your Clang version. If fails, recompile with clang-6.0 or above")
+    endif()
+
     add_library(${PROJECT_NAME}_LF STATIC
        src/lib/DeepState.c
        src/lib/Log.c
