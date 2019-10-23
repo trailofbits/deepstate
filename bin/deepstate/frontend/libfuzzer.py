@@ -65,10 +65,10 @@ class LibFuzzer(DeepStateFrontend):
 
     flags = ["-ldeepstate_LF"]
     if self.compiler_args:
-      flags += [arg for arg in args.compiler_args.split(" ")]
+      flags += [arg for arg in self.compiler_args.split(" ")]
 
-    compiler_args = ["-std=c++11", "-fsanitize=fuzzer", args.compile_test] + flags + \
-                    ["-o", args.out_test_name + ".libfuzzer"]
+    compiler_args = ["-std=c++11", "-fsanitize=fuzzer", self.compile_test] + flags + \
+                    ["-o", self.out_test_name + ".libfuzzer"]
     super().compile(compiler_args)
 
 
@@ -97,28 +97,28 @@ class LibFuzzer(DeepStateFrontend):
     """
     cmd_dict = {}
 
-    if args.input_seeds:
-      cmd_dict[""] = args.input_seeds
+    if self.input_seeds:
+      cmd_dict[""] = self.input_seeds
 
     cmd_dict.update({
-      "-max_len": str(args.max_input_size),
-      "-timeout": str(args.timeout),
-      "-rss_limit_mb": str(args.mem_limit),
-      "-max_total_time": str(args.runtime),
+      "-max_len": str(self.max_input_size),
+      "-timeout": str(self.timeout),
+      "-rss_limit_mb": str(self.mem_limit),
+      "-max_total_time": str(self.runtime),
       "-artifact_prefix": "deepstate_"
     })
 
-    if args.dictionary:
-      cmd_dict["-dict"] = args.dictionary
-    if args.use_counters:
-      cmd_dict["-use_counters"] = args.use_counters
-    if args.use_ascii:
+    if self.dictionary:
+      cmd_dict["-dict"] = self.dictionary
+    if self.use_counters:
+      cmd_dict["-use_counters"] = self.use_counters
+    if self.use_ascii:
       cmd_dict["-only_ascii"] = "1"
-    if args.print_pcs:
+    if self.print_pcs:
       cmd_dict["-print_pcs"] = "1"
-    if args.post_stats:
+    if self.post_stats:
       cmd_dict["-print_final_stats"] = "1"
-    if args.minimize_crash:
+    if self.minimize_crash:
       cmd_dict["-minimize_crash"] = "1"
 
     return cmd_dict
