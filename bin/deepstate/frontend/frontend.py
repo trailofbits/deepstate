@@ -24,6 +24,8 @@ import threading
 import argparse
 import functools
 
+from typing import ClassVar, Optional
+
 
 L = logging.getLogger("deepstate.frontend")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
@@ -41,10 +43,15 @@ class DeepStateFrontend(object):
   Defines a base front-end object for using DeepState to interact with fuzzers.
   """
 
-  # temporary attribute for argparsing, and should be used to build up object attributes
-  _ARGS = None
+  # to be implemented by fuzzer subclass
+  FUZZER: ClassVar[Optional[str]] = None
+  COMPILER: ClassVar[Optional[str]]  = None
 
-  def __init__(self, envvar="PATH"):
+  # temporary attribute for argparsing, and should be used to build up object attributes
+  _ARGS: ClassVar[Optional[dict]] = None
+
+
+  def __init__(self, envvar: str = "PATH") -> None:
     """
     Initializes base object with fuzzer executable and path, and checks to see if fuzzer
     executable exists in supplied environment variable (default is $PATH). Optionally also
@@ -55,22 +62,18 @@ class DeepStateFrontend(object):
     :param envvar: name of envvar to discover executables. Default is $PATH.
     """
 
-    if not hasattr(self, "FUZZER"):
+    fuzzer_name: Optional[str] = self.FUZZER
+    if fuzzer_name is None:
       raise FrontendError("DeepStateFrontend.FUZZER not set")
 
-    fuzzer_name = self.FUZZER
-
-    if hasattr(self, "COMPILER"):
-      compiler = self.COMPILER
-    else:
-      compiler = None
+    compiler: Optional[str] = self.COMPILER
 
     if os.environ.get(envvar) is None:
       raise FrontendError(f"${envvar} does not contain any known paths.")
 
     # collect paths from envvar, and check to see if fuzzer executable is present in paths
-    potential_paths = [var for var in os.environ.get(envvar).split(":")]
-    fuzzer_paths = [f"{path}/{fuzzer_name}" for path in potential_paths if os.path.isfile(path + '/' + fuzzer_name)]
+    potential_paths: List[str] = [var for var in os.environ.get(envvar).split(":")]
+    fuzzer_paths: List[str] = [f"{path}/{fuzzer_name}" for path in potential_paths if os.path.isfile(path + '/' + fuzzer_name)]
     if len(fuzzer_paths) == 0:
       raise FrontendError(f"${envvar} does not contain supplied fuzzer executable for `{self.FUZZER}`.")
 
@@ -79,27 +82,26 @@ class DeepStateFrontend(object):
     # if supplied, check if compiler exists in potential_paths
     if compiler is not None:
 
-      compiler_paths = [f"{path}/{compiler}" for path in potential_paths if os.path.isfile(path + '/' + compiler)]
-
+      compiler_paths: List[str] = [f"{path}/{compiler}" for path in potential_paths if os.path.isfile(path + '/' + compiler)]
       if len(compiler_paths) == 0:
 
         # if not in envvar, check to see if user supplied absolute path
         if os.path.isfile(compiler):
-          self.compiler = compiler
+          self.compiler: str = compiler
 
         # .. or check if in $PATH before tossing exception
         else:
           for path in os.environ["PATH"].split(os.pathsep):
-            compiler_path = os.path.join(path, compiler)
+            compiler_path: str = os.path.join(path, compiler)
 
             L.debug(f"Checking if `{compiler_path}` is a valid compiler path")
             if os.path.isfile(compiler_path) and os.access(compiler_path, os.X_OK):
-              self.compiler = compiler_path
+              self.compiler: str = compiler_path
               break
 
       # use first compiler executable if multiple exists
       else:
-        self.compiler = compiler_paths[0]
+        self.compiler: str = compiler_paths[0]
 
       # toss exception if compiler still could not be found
       if not hasattr(self, "compiler"):
@@ -108,14 +110,11 @@ class DeepStateFrontend(object):
       L.debug(f"Initialized compiler: {self.compiler}")
 
     # in case name supplied as `bin/fuzzer`, strip executable name
-    if '/' in fuzzer_name:
-      self.name = fuzzer_name.split('/')[-1]
-    else:
-      self.name = fuzzer_name
+    self.name: str = fuzzer_name.split('/')[-1] if '/' in fuzzer_name else fuzzer_name
+    L.debug(f"Fuzzer name: {self.name}")
 
     # use first fuzzer executable path if multiple exists
     self.fuzzer = fuzzer_paths[0]
-
     L.debug(f"Initialized fuzzer path: {self.fuzzer}")
 
     self._on = False
