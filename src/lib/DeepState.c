@@ -296,6 +296,16 @@ void *DeepState_Malloc(size_t num_bytes) {
   return data;
 }
 
+/* Portable and architecture-independent memory scrub without dead store elimination. */
+void *DeepState_MemScrub(void *pointer, size_t data_size) {
+  volatile unsigned char *p = pointer;
+  while (data_size--) {
+    *p++ = 0;
+  }
+  return pointer;
+}
+
+
 DEEPSTATE_NOINLINE int DeepState_One(void) {
   return 1;
 }
@@ -448,7 +458,10 @@ float DeepState_FloatInRange(float low, float high) {
     }
   }
   int32_t int_v = DeepState_IntInRange(*(int32_t *)&low, *(int32_t *)&high);
-  return *(float*)&int_v;
+  float float_v = *(float*)&int_v;
+  assume (float_v >= low);
+  assume (float_v <= high);
+  return float_v;
 }
 
 double DeepState_DoubleInRange(double low, double high) {
@@ -467,7 +480,10 @@ double DeepState_DoubleInRange(double low, double high) {
     }
   }
   int64_t int_v = DeepState_Int64InRange(*(int64_t *)&low, *(int64_t *)&high);
-  return *(double*)&int_v;
+  double double_v = *(double*)&int_v;
+  assume (double_v >= low);
+  assume (double_v <= high);
+  return double_v;
 }
 
 int32_t DeepState_RandInt() {
@@ -996,7 +1012,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     }
   }
 
-  memset((void *) DeepState_Input, 0, sizeof(DeepState_Input));
+  DeepState_MemScrub((void *) DeepState_Input, sizeof(DeepState_Input));
   DeepState_InputIndex = 0;
 
   memcpy((void *) DeepState_Input, (void *) Data, Size);

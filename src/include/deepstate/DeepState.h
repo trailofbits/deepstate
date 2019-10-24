@@ -203,6 +203,9 @@ extern void *DeepState_Malloc(size_t num_bytes);
 /* Returns the path to a testcase without parsing to any aforementioned types */
 extern const char *DeepState_InputPath(char *testcase_path);
 
+/* Portable and architecture-independent memory scrub without dead store elimination. */
+extern void *DeepState_MemScrub(void *pointer, size_t data_size);
+
 #define DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Tname, tname) \
     DEEPSTATE_INLINE static \
     tname *DeepState_Symbolic ## Tname ## Array(size_t num_elms) { \
@@ -319,8 +322,10 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
 	    printf("Converting out-of-range value to %lld\n", (long long)(low + ((x % size + size) % size))); \
 	  } \
 	} \
+	(void) DeepState_Assume(low <= (low + ((x % size + size) % size)) && (low + ((x % size + size) % size)) <= high); \
         return low + ((x % size + size) % size); \
       } \
+      (void) DeepState_Assume(low <= x && x <= high); \
       return x; \
     }
 
@@ -527,7 +532,7 @@ static void DeepState_InitInputFromFile(const char *path) {
   }
 
   /* Reset the input buffer and reset the index. */
-  memset((void *) DeepState_Input, 0, sizeof(DeepState_Input));
+  DeepState_MemScrub((void *) DeepState_Input, sizeof(DeepState_Input));
   DeepState_InputIndex = 0;
 
   size_t count = fread((void *) DeepState_Input, 1, to_read, fp);
