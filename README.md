@@ -2,7 +2,7 @@
 
 [![Slack Chat](http://empireslacking.herokuapp.com/badge.svg)](https://empireslacking.herokuapp.com/)
 
-[![Build Status](https://travis-ci.org/trailofbits/deepstate.svg?branch=master)](https://travis-ci.org/trailofbits/deepstate) 
+[![Build Status](https://travis-ci.org/trailofbits/deepstate.svg?branch=master)](https://travis-ci.org/trailofbits/deepstate)
 
 DeepState is a framework that provides C and C++ developers with a common interface to various symbolic execution and fuzzing engines. Users can write one test harness using a Google Test-like API, then execute it using multiple backends without having to learn the complexities of the underlying engines. It supports writing unit tests and API sequence tests, as well as automatic test generation. Read more about the goals and design of DeepState in our [paper](https://agroce.github.io/bar18.pdf).
 
@@ -12,7 +12,12 @@ included a
 [full tutorial](https://github.com/trailofbits/publications/tree/master/workshops/DeepState:%20Bringing%20vulnerability%20detection%20tools%20into%20the%20development%20lifecycle%20-%20SecDev%202018)
 on effective use of DeepState.
 
-There are two blog posts on using DeepState: [Part 1](https://blog.trailofbits.com/2019/01/22/fuzzing-an-api-with-deepstate-part-1/) and [Part 2](https://blog.trailofbits.com/2019/01/23/fuzzing-an-api-with-deepstate-part-2/).
+## Articles describing DeepState
+
+* [Fuzzing an API with DeepState (Part 1)](https://blog.trailofbits.com/2019/01/22/fuzzing-an-api-with-deepstate-part-1)
+* [Fuzzing an API with DeepState (Part 2)](https://blog.trailofbits.com/2019/01/23/fuzzing-an-api-with-deepstate-part-2)
+* [Fuzzing Unit Tests with DeepState and Eclipser](https://blog.trailofbits.com/2019/05/31/fuzzing-unit-tests-with-deepstate-and-eclipser)
+* [DeepState Now Supports Ensemble Fuzzing](https://blog.trailofbits.com/2019/09/03/deepstate-now-supports-ensemble-fuzzing/)
 
 ## Overview of Features
 
@@ -83,7 +88,9 @@ virtualenv venv
 python $DEEPSTATE/build/setup.py install
 ```
 
-The `virtualenv`-enabled `$PATH` should now include two executables: `deepstate` and `deepstate-angr`. These are _executors_, which are used to run DeepState test binaries with specific backends (automatically installed as Python dependencies). The `deepstate` executor uses the Manticore backend while `deepstate-angr` uses angr. They share a common interface where you may specify a number of workers and an output directory for saving backend-generated test cases.
+The `virtualenv`-enabled `$PATH` should now include two executables: `deepstate` and `deepstate-angr`. These are _executors_, which are used to run DeepState test binaries with specific backends (automatically installed as Python dependencies). The `deepstate` or `deepstate-manticore` executor uses the Manticore backend while `deepstate-angr` uses angr. They share a common interface where you may specify a number of workers and an output directory for saving backend-generated test cases.
+
+If you try using Manticore, and it doesn't work, but you definitely have the latest Manticore installed, check the `.travis.yml` file.  If that grabs a Manticore other than the master version, you can try using the version of Manticore we use in our CI tests.  Sometimes Manticore makes a breaking change, and we are behind for a short time.
 
 You can check your build using the test binaries that were (by default) built and emitted to `deepstate/build/examples`. For example, to use angr to symbolically execute the `IntegerOverflow` test harness with 4 workers, saving generated test cases in a directory called `out`, you would invoke:
 
@@ -129,6 +136,22 @@ argument to see all DeepState options.
 
 If you want to use DeepState in C/C++ code, you will likely want to run `sudo make install` from the `$DEEPSTATE/build` directory as well.  The examples mentioned below (file system, databases) assume this has already been done.
 
+### Docker
+
+You can also try out Deepstate with Docker, which is the easiest way
+to get all the fuzzers and tools up and running on any system.
+
+```bash
+$ docker build -t deepstate . -f docker/Dockerfile
+$ docker run -it deepstate bash
+user@0f7cccd70f7b:~/deepstate/build/examples$ cd deepstate/build/examples
+user@0f7cccd70f7b:~/deepstate/build/examples$ deepstate-angr ./Runlen
+user@0f7cccd70f7b:~/deepstate/build/examples$ deepstate-eclipser ./Runlen --timeout 30
+user@0f7cccd70f7b:~/deepstate/build/examples$ ./Runlen_LF -max_total_time=30
+user@0f7cccd70f7b:~/deepstate/build/examples$ mkdir foo; echo foo > foo/foo
+user@0f7cccd70f7b:~/deepstate/build/examples$ afl-fuzz -i foo -o afl_Runlen -- ./Runlen_AFL --input_test_file @@ --no_fork --abort_on_fail
+```
+
 ## Usage
 
 DeepState consists of a static library, used to write test harnesses,
@@ -145,7 +168,7 @@ Facebook's rocksdb](https://github.com/agroce/testleveldb).
 
 ## Example Code
 
-```
+```cpp
 #include <deepstate/DeepState.hpp>
 
 using namespace deepstate;
@@ -268,16 +291,72 @@ CRITICAL: /Users/alex/deepstate/examples/Runlen.cpp(60): ORIGINAL: '91c499', ENC
 ERROR: Failed: Runlength_EncodeDecode
 ```
 
+If you're using the DeepState docker, it's easy to also try libFuzzer
+and AFL on the Runlen example:
+
+```shell
+mkdir libfuzzer_runlen
+./Runlen_LF libfuzzer_runlen -max_total_time=30
+./Runlen --input_test_files_dir libfuzzer_runlen
+```
+
+And you'll see a number of failures, e.g.:
+```
+WARNING: No test specified, defaulting to last test defined (Runlength_EncodeDecode)
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: '4af4aa', ENCODED: '4AaAfA4AaA', ROUNDTRIP: '4af4a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//9e266f6cb627ce3bb7d717a6e569ade6b3633f23 failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: 'aaaaaa', ENCODED: 'aA', ROUNDTRIP: 'a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//d8fc60ccdd8f555c1858b9f0820f263e3d2b58ec failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: '4aaa', ENCODED: '4AaA', ROUNDTRIP: '4a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//3177c75208f2d35399842196dc8093243d5a8243 failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: 'aaa', ENCODED: 'aA', ROUNDTRIP: 'a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//9842926af7ca0a8cca12604f945414f07b01e13d failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: 'aaa', ENCODED: 'aA', ROUNDTRIP: 'a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//85e53271e14006f0265921d02d4d736cdc580b0b failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: 'aaaaa', ENCODED: 'aA', ROUNDTRIP: 'a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//241cbd6dfb6e53c43c73b62f9384359091dcbf56 failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: 'aa', ENCODED: 'aA', ROUNDTRIP: 'a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//05a79f06cf3f67f726dae68d18a2290f6c9a50c9 failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: '25aaaa', ENCODED: '2A5AaA', ROUNDTRIP: '25a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//419c3b754bacd6fc14ff9a932c5e2089d6dfcab5 failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: 'aaaa', ENCODED: 'aA', ROUNDTRIP: 'a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//bb589d0621e5472f470fa3425a234c74b1e202e8 failed
+CRITICAL: /home/user/deepstate/examples/Runlen.cpp(60): ORIGINAL: '97aa', ENCODED: '9A7AaA', ROUNDTRIP: '97a'
+ERROR: Failed: Runlength_EncodeDecode
+ERROR: Test case libfuzzer_runlen//ca61c43b0e3ff0a8eccf3136996c9f1d9bfd627c failed
+INFO: Ran 16 tests; 10 tests failed
+```
+
+Using AFL is similarly easy:
+
+```shell
+mkdir afl_seeds
+echo "ok" >& seeds/seed
+afl-fuzz -i seeds -o afl_runlen -- ./Runlen_AFL --input_test_file @@ --no_fork --abort_on_fail
+```
+
+You'll have to stop this with Ctrl-C.  The `afl_runlen/crashes`
+directory will contain crashing inputs AFL found.
+
 ## Log Levels
 
 By default, DeepState is not very verbose about testing activity,
-other than failing tests.  The `--log_level` argument lowers the
+other than failing tests.  The `--min_log_level` argument lowers the
 threshold for output, with 0 = `DEBUG`, 1 = `TRACE` (output from the
 tests, including from `printf`), 2 = INFO (DeepState messages, the default), 3 = `WARNING`,
 4 = `ERROR`, 5 = `EXTERNAL` (output from other programs such as
-libFuzzer), and 6 = `CRITICAL` messages.  Lowering the `log_level` can be very
+libFuzzer), and 6 = `CRITICAL` messages.  Lowering the `min_log_level` can be very
 useful for understanding what a DeepState harness is actually doing;
-often, setting `--log_level 1` in either fuzzing or symbolic
+often, setting `--min_log_level 1` in either fuzzing or symbolic
 execution will give sufficient information to debug your test harness.
 
 
@@ -295,8 +374,8 @@ DeepState where to put the generated tests, and if you want the
 (totally random and unlikely to be high-quality) passing tests, you
 need to add `--fuzz_save_passing`.
 
-Note that while symbolic execution only works on Linux, without a 
-fairly complex cross-compilation process, the brute force fuzzer works 
+Note that while symbolic execution only works on Linux, without a
+fairly complex cross-compilation process, the brute force fuzzer works
 on macOS or (as far as we know) any Unix-like system.
 
 ## A Note on MacOS and Forking
@@ -348,7 +427,7 @@ CC=/usr/local/opt/llvm\@7/bin/clang CXX=/usr/local/opt/llvm\@7/bin/clang++ BUILD
 make install
 ```
 
-Other ways of getting an appropriate LLVM may also work. 
+Other ways of getting an appropriate LLVM may also work.
 
 On macOS, libFuzzer's normal output is not visible.  Because libFuzzer
 does not fork to execute tests, there is no issue with fork speed on
@@ -371,44 +450,66 @@ executable is named `TestFileSystem` and the test you want to reduce
 is named `rmdirfail.test` you would use it like this:
 
 ```shell
-deepstate-reduce ./TestFileSystem rmdirfail.test minrmdirfail.test
+deepstate-reduce ./TestFileSystem create.test mincreate.test
 ```
 
 In many cases, this will result in finding a different failure or
 crash that allows smaller test cases, so you can also provide a string
-that controls the criteria for which test outputs are considered valid
+that controls the criterion for which test outputs are considered valid
 reductions (by default, the reducer looks for any test that fails or
-crashes).  Only outputs containing the `--criteria` are considered to
-be valid reductions:
+crashes).  Only outputs containing the `--criterion` are considered to
+be valid reductions (`--regexpCriterion` lets you use a Python regexp
+for more complex checks):
 
 ```shell
-deepstate-reduce ./TestFileSystem rmdirfail.test minrmdirfail.test --criteria "FATAL: /root/testfs/super.c(252)"
+deepstate-reduce ./TestFileSystem create.test mincreate.test --criteria "Assertion failed: ((testfs_inode_get_type(in) == I_FILE)"
 ```
 
 The output will look something like:
 
 ```
-ORIGINAL TEST HAS 119 BYTES
-ONEOF REMOVAL REDUCED TEST TO 103 BYTES
-ONEOF REMOVAL REDUCED TEST TO 87 BYTES
-ONEOF REMOVAL REDUCED TEST TO 67 BYTES
-ONEOF REMOVAL REDUCED TEST TO 51 BYTES
-BYTE RANGE REMOVAL REDUCED TEST TO 50 BYTES
-BYTE RANGE REMOVAL REDUCED TEST TO 49 BYTES
-BYTE REDUCTION: BYTE 3 FROM 4 TO 0
-BYTE REDUCTION: BYTE 43 FROM 4 TO 0
-ONEOF REMOVAL REDUCED TEST TO 33 BYTES
-ONEOF REMOVAL REDUCED TEST TO 17 BYTES
-BYTE REDUCTION: BYTE 7 FROM 2 TO 1
-BYTE REDUCTION: BYTE 15 FROM 2 TO 1
-NO REDUCTIONS FOUND
-PADDING TEST WITH 3 ZEROS
+Original test has 8192 bytes
+Applied 128 range conversions
+Last byte read: 527
+Shrinking to ignore unread bytes
+Writing reduced test with 528 bytes to rnew
+================================================================================
+Iteration #1 0.39 secs / 2 execs / 0.0% reduction
+Structured deletion reduced test to 520 bytes
+Writing reduced test with 520 bytes to rnew
+0.77 secs / 3 execs / 1.52% reduction
 
-WRITING REDUCED TEST WITH 20 BYTES TO minrmdirfail.test
+...
+
+Structured swap: PASS FINISHED IN 0.01 SECONDS, RUN: 5.1 secs / 151 execs / 97.54% reduction
+Reduced byte 12 from 4 to 1
+Writing reduced test with 13 bytes to rnew
+5.35 secs / 169 execs / 97.54% reduction
+================================================================================
+Byte reduce: PASS FINISHED IN 0.5 SECONDS, RUN: 5.6 secs / 186 execs / 97.54% reduction
+================================================================================
+Iteration #2 5.6 secs / 186 execs / 97.54% reduction
+Structured deletion: PASS FINISHED IN 0.03 SECONDS, RUN: 5.62 secs / 188 execs / 97.54% reduction
+Structured edge deletion: PASS FINISHED IN 0.03 SECONDS, RUN: 5.65 secs / 190 execs / 97.54% reduction
+1-byte chunk removal: PASS FINISHED IN 0.19 SECONDS, RUN: 5.84 secs / 203 execs / 97.54% reduction
+4-byte chunk removal: PASS FINISHED IN 0.19 SECONDS, RUN: 6.03 secs / 216 execs / 97.54% reduction
+8-byte chunk removal: PASS FINISHED IN 0.19 SECONDS, RUN: 6.22 secs / 229 execs / 97.54% reduction
+1-byte reduce and delete: PASS FINISHED IN 0.04 SECONDS, RUN: 6.26 secs / 232 execs / 97.54% reduction
+4-byte reduce and delete: PASS FINISHED IN 0.03 SECONDS, RUN: 6.29 secs / 234 execs / 97.54% reduction
+8-byte reduce and delete: PASS FINISHED IN 0.01 SECONDS, RUN: 6.31 secs / 235 execs / 97.54% reduction
+Byte range removal: PASS FINISHED IN 0.76 SECONDS, RUN: 7.06 secs / 287 execs / 97.54% reduction
+Structured swap: PASS FINISHED IN 0.01 SECONDS, RUN: 7.08 secs / 288 execs / 97.54% reduction
+================================================================================
+Completed 2 iterations: 7.08 secs / 288 execs / 97.54% reduction
+Padding test with 23 zeroes
+Writing reduced test with 36 bytes to mincreate.test
 ```
 
 You can use `--which_test <testname>` to specify which test to
-run, as with the `--input_which_test` options to test replay.
+run, as with the `--input_which_test` options to test replay.  If you
+find that test reduction is taking too long, you can try the `--fast`
+option to get a quick-and-dirty reduction, and later use the default
+settings, or even `--slowest` setting to try to reduce it further.
 
 Test case reduction should work on any OS.
 
@@ -484,7 +585,7 @@ with some of the advantages of symbolic execution, but with more scalability.  D
 
 After that, you can use Eclipser like this:
 
-`deepstate-eclisper <binary> --timeout <how long to test> --output_test_dir <where to put generated tests>`
+`deepstate-eclipser <binary> --timeout <how long to test> --output_test_dir <where to put generated tests>`
 
 In our experience, Eclipser is quite effective, often better than
 libFuzzer and sometimes better than AFL, despite having a much slower

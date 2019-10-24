@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Trail of Bits, Inc.
+ * Copyright (c) 2019 Trail of Bits, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,26 +30,33 @@
 
 DEEPSTATE_BEGIN_EXTERN_C
 
-DEFINE_uint(num_workers, 1,
-            "Number of workers to spawn for testing and test generation.");
+/* Basic input and output options, specifies files for read/write before and after test analysis */
+DEFINE_string(input_test_dir, InputOutputGroup, "", "Directory of saved tests to run.");
+DEFINE_string(input_test_file, InputOutputGroup, "", "Saved test to run.");
+DEFINE_string(input_test_files_dir, InputOutputGroup, "", "Directory of saved test files to run (flat structure).");
+DEFINE_string(output_test_dir, InputOutputGroup, "", "Directory where tests will be saved.");
 
-DEFINE_string(input_test_dir, "", "Directory of saved tests to run.");
-DEFINE_string(input_which_test, "", "Test to use with --input_test_file or --input_test_files_dir.");
-DEFINE_string(input_test_file, "", "Saved test to run.");
-DEFINE_string(input_test_files_dir, "", "Directory of saved test files to run (flat structure).");
-DEFINE_string(output_test_dir, "", "Directory where tests will be saved.");
+/* Test execution-related options, configures how an execution run is carried out */
+DEFINE_bool(take_over, ExecutionGroup, false, "Replay test cases in take-over mode.");
+DEFINE_bool(abort_on_fail, ExecutionGroup, false, "Abort on file replay failure (useful in file fuzzing).");
+DEFINE_bool(exit_on_fail, ExecutionGroup, false, "Exit with status 255 on test failure.");
+DEFINE_bool(verbose_reads, ExecutionGroup, false, "Report on bytes being read during execution of test.");
+DEFINE_int(min_log_level, ExecutionGroup, 0, "Minimum level of logging to output (default 2, 0=debug, 1=trace, 2=info, ...).");
+DEFINE_int(timeout, ExecutionGroup, 120, "Timeout for brute force fuzzing.");
+DEFINE_uint(num_workers, ExecutionGroup, 1, "Number of workers to spawn for testing and test generation.");
 
-DEFINE_bool(take_over, false, "Replay test cases in take-over mode.");
-DEFINE_bool(abort_on_fail, false, "Abort on file replay failure (useful in file fuzzing).");
-DEFINE_bool(exit_on_fail, false, "Exit with status 255 on test failure.");
-DEFINE_bool(verbose_reads, false, "Report on bytes being read during execution of test.");
-DEFINE_bool(fuzz, false, "Perform brute force unguided fuzzing.");
-DEFINE_bool(fuzz_save_passing, false, "Save passing tests during fuzzing.");
-DEFINE_bool(fork, true, "Fork when running a test.");
+/* Fuzzing and symex related options, baked in to perform analysis-related tasks without auxiliary tools */
+DEFINE_bool(fuzz, AnalysisGroup, false, "Perform brute force unguided fuzzing.");
+DEFINE_bool(fuzz_save_passing, AnalysisGroup, false, "Save passing tests during fuzzing.");
+DEFINE_bool(fork, AnalysisGroup, true, "Fork when running a test.");
+DEFINE_int(seed, AnalysisGroup, 0, "Seed for brute force fuzzing (uses time if not set).");
 
-DEFINE_int(log_level, 0, "Minimum level of logging to output.");
-DEFINE_int(seed, 0, "Seed for brute force fuzzing (uses time if not set).");
-DEFINE_int(timeout, 120, "Timeout for brute force fuzzing.");
+/* Test selection options to configure what test or tests should be executed during a run */
+DEFINE_string(input_which_test, TestSelectionGroup, "", "Test to use with --input_test_file or --input_test_files_dir.");
+DEFINE_string(test_filter, TestSelectionGroup, "", "Run all tests matched with wildcard pattern.");
+DEFINE_bool(list_tests, TestSelectionGroup, false, "List all available tests instead of running tests.");
+DEFINE_bool(boring_only, TestSelectionGroup, false, "Run Boring concrete tests only.");
+DEFINE_bool(run_disabled, TestSelectionGroup, false, "Run Disabled tests alongside other tests.");
 
 /* Set to 1 by Manticore/Angr/etc. when we're running symbolically. */
 int DeepState_UsingSymExec = 0;
@@ -67,6 +74,9 @@ uint32_t DeepState_GeneratedStringsIndex = 0;
 
 /* Pointer to the last registers DeepState_TestInfo data structure */
 struct DeepState_TestInfo *DeepState_LastTestInfo = NULL;
+
+/* Pointer to structure for ordered DeepState_TestInfo */
+struct DeepState_TestInfo *DeepState_FirstTestInfo = NULL;
 
 /* Pointer to the test being run in this process by Dr. Fuzz. */
 static struct DeepState_TestInfo *DeepState_DrFuzzTest = NULL;
@@ -166,7 +176,7 @@ void DeepState_SymbolizeData(void *begin, void *end) {
     uint8_t *bytes = (uint8_t *) begin;
     for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
       if (DeepState_InputIndex >= DeepState_InputSize) {
-        DeepState_Abandon("Read too many symbols");
+        DeepState_Abandon("Exceeded set input limit. Set or expand DEEPSTATE_SIZE to write more bytes.");
       }
       if (FLAGS_verbose_reads) {
         printf("Reading byte at %u\n", DeepState_InputIndex);
@@ -190,14 +200,14 @@ void DeepState_SymbolizeDataNoNull(void *begin, void *end) {
     uint8_t *bytes = (uint8_t *) begin;
     for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
       if (DeepState_InputIndex >= DeepState_InputSize) {
-        DeepState_Abandon("Read too many symbols");
+        DeepState_Abandon("Exceeded set input limit. Set or expand DEEPSTATE_SIZE to write more bytes.");
       }
       if (FLAGS_verbose_reads) {
         printf("Reading byte at %u\n", DeepState_InputIndex);
       }
       bytes[i] = DeepState_Input[DeepState_InputIndex++];
       if (bytes[i] == 0) {
-	bytes[i] = 1;
+		bytes[i] = 1;
       }
     }
   }
@@ -224,7 +234,7 @@ void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed) {
     } else {
       uint32_t allowed_size = strlen(allowed);
       for (int i = 0; i < len; i++) {
-	str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+	    str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
       }
     }
   }
@@ -240,14 +250,14 @@ char *DeepState_CStr_C(size_t len, const char* allowed) {
   if (NULL == str) {
     DeepState_Abandon("Can't allocate memory");
   }
-  DeepState_GeneratedStrings[DeepState_GeneratedStringsIndex++] = str;  
+  DeepState_GeneratedStrings[DeepState_GeneratedStringsIndex++] = str;
   if (len) {
     if (!allowed) {
       DeepState_SymbolizeDataNoNull(str, &(str[len]));
     } else {
       uint32_t allowed_size = strlen(allowed);
       for (int i = 0; i < len; i++) {
-	str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+	    str[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
       }
     }
   }
@@ -261,13 +271,13 @@ void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
     if (!allowed) {
       DeepState_SymbolizeDataNoNull(begin, begin + strlen(begin));
     } else {
-      uint32_t allowed_size = strlen(allowed);      
+      uint32_t allowed_size = strlen(allowed);
       uint8_t *bytes = (uint8_t *) begin;
       uintptr_t begin_addr = (uintptr_t) begin;
-      uintptr_t end_addr = (uintptr_t) (begin + strlen(begin));  
+      uintptr_t end_addr = (uintptr_t) (begin + strlen(begin));
       for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
-	bytes[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
-      }      
+	    bytes[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
+      }
     }
   }
 }
@@ -284,6 +294,16 @@ void *DeepState_Malloc(size_t num_bytes) {
   DeepState_SymbolizeData(data, (void *) data_end);
   return data;
 }
+
+/* Portable and architecture-independent memory scrub without dead store elimination. */
+void *DeepState_MemScrub(void *pointer, size_t data_size) {
+  volatile unsigned char *p = pointer;
+  while (data_size--) {
+    *p++ = 0;
+  }
+  return pointer;
+}
+
 
 DEEPSTATE_NOINLINE int DeepState_One(void) {
   return 1;
@@ -313,18 +333,18 @@ int DeepState_IsTrue(int expr) {
 /* Return a symbolic value of a given type. */
 int DeepState_Bool(void) {
   if (DeepState_InputIndex >= DeepState_InputSize) {
-    DeepState_Abandon("Read too many symbols");
+    DeepState_Abandon("Exceeded set input limit. Set or expand DEEPSTATE_SIZE to write more bytes.");
   }
   if (FLAGS_verbose_reads) {
     printf("Reading byte as boolean at %u\n", DeepState_InputIndex);
-  }  
+  }
   return DeepState_Input[DeepState_InputIndex++] & 1;
 }
 
 #define MAKE_SYMBOL_FUNC(Type, type) \
     type DeepState_ ## Type(void) { \
       if ((DeepState_InputIndex + sizeof(type)) > DeepState_InputSize) { \
-        DeepState_Abandon("Read too many symbols"); \
+        DeepState_Abandon("Exceeded set input limit. Set or expand DEEPSTATE_SIZE to write more bytes."); \
       } \
       type val = 0; \
       if (FLAGS_verbose_reads) { \
@@ -345,6 +365,20 @@ int DeepState_Bool(void) {
 
 
 MAKE_SYMBOL_FUNC(Size, size_t)
+
+MAKE_SYMBOL_FUNC(Long, long)
+
+float DeepState_Float(void) {
+  float float_v;
+  DeepState_SymbolizeData(&float_v, &float_v + 1);
+  return float_v;
+}
+
+double DeepState_Double(void) {
+  double double_v;
+  DeepState_SymbolizeData(&double_v, &double_v + 1);
+  return double_v;
+}
 
 MAKE_SYMBOL_FUNC(UInt64, uint64_t)
 int64_t DeepState_Int64(void) {
@@ -367,6 +401,50 @@ int8_t DeepState_Char(void) {
 }
 
 #undef MAKE_SYMBOL_FUNC
+
+float DeepState_FloatInRange(float low, float high) {
+  if (low > high) {
+    return DeepState_FloatInRange(high, low);
+  }
+  if (low < 0.0) { // Handle negatives differently
+    if (high > 0.0) {
+      if (DeepState_Bool()) {
+	return -(DeepState_FloatInRange(0.0, -low));
+      } else {
+	return DeepState_FloatInRange(0.0, high);
+      }
+    } else {
+      return -(DeepState_FloatInRange(-high, -low));
+    }
+  }
+  int32_t int_v = DeepState_IntInRange(*(int32_t *)&low, *(int32_t *)&high);
+  float float_v = *(float*)&int_v;
+  assume (float_v >= low);
+  assume (float_v <= high);
+  return float_v;
+}
+
+double DeepState_DoubleInRange(double low, double high) {
+  if (low > high) {
+    return DeepState_DoubleInRange(high, low);
+  }
+  if (low < 0.0) { // Handle negatives differently
+    if (high > 0.0) {
+      if (DeepState_Bool()) {
+	return -(DeepState_DoubleInRange(0.0, -low));
+      } else {
+	return DeepState_DoubleInRange(0.0, high);
+      }
+    } else {
+      return -(DeepState_DoubleInRange(-high, -low));
+    }
+  }
+  int64_t int_v = DeepState_Int64InRange(*(int64_t *)&low, *(int64_t *)&high);
+  double double_v = *(double*)&int_v;
+  assume (double_v >= low);
+  assume (double_v <= high);
+  return double_v;
+}
 
 int32_t DeepState_RandInt() {
   return DeepState_IntInRange(0, RAND_MAX);
@@ -407,7 +485,7 @@ void _DeepState_Assume(int expr, const char *expr_str, const char *file,
   if (!expr) {
     DeepState_LogFormat(DeepState_LogError,
                         "%s(%u): Assumption %s failed",
-                        file, line, expr_str);    
+                        file, line, expr_str);
     DeepState_Abandon("Assumption failed");
   }
 }
@@ -488,7 +566,19 @@ void DeepState_Setup(void) {
     was_setup = 1;
   }
 
-  /* TODO(pag): Sort the test cases by file name and line number. */
+  /* Sort the test cases by line number. */
+  struct DeepState_TestInfo *current = DeepState_LastTestInfo;
+  struct DeepState_TestInfo *min_node = current->prev;
+  current->prev = NULL;
+
+  while (min_node != NULL) {
+    struct DeepState_TestInfo *temp = min_node;
+
+	min_node = min_node->prev;
+	temp->prev = current;
+	current = temp;
+  }
+  DeepState_FirstTestInfo = current;
 }
 
 /* Tear down DeepState. */
@@ -685,11 +775,11 @@ void writeInputData(char* name, int important) {
     if (important) {
       DeepState_LogFormat(DeepState_LogInfo, "Saved test case in file `%s`", path);
     } else {
-      DeepState_LogFormat(DeepState_LogTrace, "Saved test case in file `%s`", path);      
+      DeepState_LogFormat(DeepState_LogTrace, "Saved test case in file `%s`", path);
     }
   }
-  free(path);  
-  fclose(fp);  
+  free(path);
+  fclose(fp);
 }
 
 /* Save a passing test to the output test directory. */
@@ -721,7 +811,7 @@ void DeepState_SaveCrashingTest(void) {
 
 /* Return the first test case to run. */
 struct DeepState_TestInfo *DeepState_FirstTest(void) {
-  return DeepState_LastTestInfo;
+  return DeepState_FirstTestInfo;
 }
 
 /* Returns `true` if a failure was caught for the current test case. */
@@ -739,10 +829,10 @@ bool DeepState_CatchAbandoned(void) {
 int DeepState_Fuzz(void){
   DeepState_LogFormat(DeepState_LogInfo, "Starting fuzzing");
 
-  if (!HAS_FLAG_log_level) {
-    FLAGS_log_level = 2;
+  if (!HAS_FLAG_min_log_level) {
+    FLAGS_min_log_level = 2;
   }
-  
+
   if (HAS_FLAG_seed) {
     srand(FLAGS_seed);
   } else {
@@ -757,10 +847,11 @@ int DeepState_Fuzz(void){
   unsigned int i = 0;
 
   int num_failed_tests = 0;
+  int num_passed_tests = 0;
+  int num_abandoned_tests = 0;
 
-  struct DeepState_TestInfo *test = NULL;  
+  struct DeepState_TestInfo *test = NULL;
 
-  DeepState_Setup();
 
   for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
     if (HAS_FLAG_input_which_test) {
@@ -769,7 +860,7 @@ int DeepState_Fuzz(void){
       }
     } else {
       DeepState_LogFormat(DeepState_LogWarning,
-			  "No test specified, defaulting to last test defined (%s)",
+			  "No test specified, defaulting to first test defined (%s)",
 			  test->test_name);
       break;
     }
@@ -783,26 +874,32 @@ int DeepState_Fuzz(void){
   }
 
   unsigned int last_status = 0;
-  
+
   while (diff < FLAGS_timeout) {
     i++;
     if ((diff != last_status) && ((diff % 30) == 0) ) {
       time_t t = time(NULL);
       struct tm tm = *localtime(&t);
-      DeepState_LogFormat(DeepState_LogInfo, "%d-%02d-%02d %02d:%02d:%02d: %u tests/second / %d failed tests so far",
-			  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, i/diff, num_failed_tests);
+      DeepState_LogFormat(DeepState_LogInfo, "%d-%02d-%02d %02d:%02d:%02d: %u tests/second: %d failed/%d passed/%d abandoned",
+			  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, i/diff,
+			  num_failed_tests, num_passed_tests, num_abandoned_tests);
       last_status = diff;
     }
-    if (DeepState_FuzzOneTestCase(test) != 0) {
-      num_failed_tests ++;
+    enum DeepState_TestRunResult result = DeepState_FuzzOneTestCase(test);
+    if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
+      num_failed_tests++;
+    } else if (result == DeepState_TestRunPass) {
+      num_passed_tests++;
+    } else if (result == DeepState_TestRunAbandon) {
+      num_abandoned_tests++;
     }
-    
+
     current = (long)time(NULL);
     diff = current-start;
   }
 
-  DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests (%u tests/second) with %d failed tests",
-		      i, i/diff, num_failed_tests);
+  DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests (%u tests/second) with %d failed/%d passed/%d abandoned tests",
+		      i, i/diff, num_failed_tests, num_passed_tests, num_abandoned_tests);
 
   return num_failed_tests;
 }
@@ -812,7 +909,7 @@ int DeepState_Fuzz(void){
    Has to be defined here since we redefine rand in the header. */
 enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test) {
   DeepState_InputIndex = 0;
-  
+
   for (int i = 0; i < DeepState_InputSize; i++) {
     DeepState_Input[i] = (char)rand();
   }
@@ -823,7 +920,7 @@ enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo
 
   if (result == DeepState_TestRunCrash) {
     DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
-    
+
     if (HAS_FLAG_output_test_dir) {
       DeepState_SaveCrashingTest();
     }
@@ -853,14 +950,16 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 
   const char* loud = getenv("LIBFUZZER_LOUD");
   if (loud != NULL) {
-    FLAGS_log_level = 0;
+    FLAGS_min_log_level = 0;
     DeepState_LibFuzzerLoud = 1;
   }
-  
+
   struct DeepState_TestInfo *test = NULL;
 
-  DeepState_InitOptions(0, "");  
-  //DeepState_Setup(); we want to do our own, simpler, memory management
+  DeepState_InitOptions(0, "");
+  DeepState_Setup();
+
+  /* we also want to manually allocate CurrentTestRun */
   void *mem = malloc(sizeof(struct DeepState_TestRunInfo));
   DeepState_CurrentTestRun = (struct DeepState_TestRunInfo *) mem;
 
@@ -874,7 +973,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     }
   }
 
-  memset((void *) DeepState_Input, 0, sizeof(DeepState_Input));
+  DeepState_MemScrub((void *) DeepState_Input, sizeof(DeepState_Input));
   DeepState_InputIndex = 0;
 
   memcpy((void *) DeepState_Input, (void *) Data, Size);
@@ -887,21 +986,21 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   const char* abort_check = getenv("LIBFUZZER_ABORT_ON_FAIL");
   if (abort_check != NULL) {
     if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
-      assert(0); // Terminate the testing more permanently      
+      assert(0); // Terminate the testing more permanently
     }
   }
 
   const char* exit_check = getenv("LIBFUZZER_EXIT_ON_FAIL");
   if (exit_check != NULL) {
     if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
-      exit(255); // Terminate the testing     
+      exit(255); // Terminate the testing
     }
-  }  
+  }
 
   DeepState_Teardown();
   DeepState_CurrentTestRun = NULL;
   free(mem);
-  
+
   return 0;  // Non-zero return values are reserved for future use.
 }
 

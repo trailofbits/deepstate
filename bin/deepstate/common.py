@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Trail of Bits, Inc.
+# Copyright (c) 2019 Trail of Bits, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ logging.TRACE = 15
 
 LOG_LEVEL_TO_LOGGER = {
   LOG_LEVEL_DEBUG: LOGGER.debug,
-  LOG_LEVEL_TRACE: LOGGER.trace, 
+  LOG_LEVEL_TRACE: LOGGER.trace,
   LOG_LEVEL_INFO: LOGGER.info,
   LOG_LEVEL_WARNING: LOGGER.warning,
   LOG_LEVEL_ERROR: LOGGER.error,
@@ -121,7 +121,7 @@ class DeepState(object):
       return cls._ARGS
 
     parser = argparse.ArgumentParser(
-        description="Symbolically execute unit tests with Angr")
+        description="Symbolically execute unit tests with {}".format(cls.NAME))
 
     parser.add_argument(
         "--num_workers", default=1, type=int,
@@ -141,12 +141,16 @@ class DeepState(object):
 
     parser.add_argument(
         "--verbosity", default=1, type=int,
-        help="Verbosity level for symbolic execution tool.")
+        help="Verbosity level for symbolic execution tool (default: 1, lower means less output).")
 
     parser.add_argument(
-        "--log_level", default=2, type=int,
-        help="Log level (DeepState logging).")
-    
+        "--min_log_level", default=2, type=int,
+        help="Minimum DeepState log level to print (default: 2), 0-6 (debug, trace, info, warning, error, external, critical).")
+
+    parser.add_argument(
+        "--timeout", default=240, type=int,
+        help="Time to kill symbolic exploration workers, in seconds (default 240).")
+
     parser.add_argument(
         "binary", type=str, help="Path to the test binary to run.")
 
@@ -273,8 +277,8 @@ class DeepState(object):
       LOG_LEVEL_ERROR: logging.ERROR,
       LOG_LEVEL_FATAL: logging.CRITICAL
     }
-    LOGGER.setLevel(logging_levels[args.log_level])
-    
+    LOGGER.setLevel(logging_levels[args.min_log_level])
+
     if args.output_test_dir is not None:
       test_dir = os.path.join(args.output_test_dir,
                               os.path.basename(info.file_name),
@@ -329,7 +333,7 @@ class DeepState(object):
         val = "".join(chr(b) for b in val_bytes)
       elif val_type == float:
         data = struct.pack('BBBBBBBB', *val_bytes)
-        val = struct.unpack(unpack_str, data)[0]
+        val = struct.unpack("d", data)
       else:
         assert val_type == int
 
@@ -381,7 +385,7 @@ class DeepState(object):
     if not passing:
       LOGGER.info("Saved test case in file {}".format(test_file))
     else:
-      LOGGER.trace("Saved test case in file {}".format(test_file))      
+      LOGGER.trace("Saved test case in file {}".format(test_file))
 
   def report(self):
     """Report on the pass/fail status of a test case, and dump its log."""
@@ -472,7 +476,7 @@ class DeepState(object):
         return
 
     expr_ea = self.concretize(expr_ea, constrain=True)
-    file_ea = self.concretize(file_ea, constrain=True)    
+    file_ea = self.concretize(file_ea, constrain=True)
     constraint = arg != 0
     if not self.add_constraint(constraint):
       expr, _ = self.read_c_string(expr_ea, concretize=False)

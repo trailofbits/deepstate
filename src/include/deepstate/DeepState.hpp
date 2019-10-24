@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Trail of Bits, Inc.
+ * Copyright (c) 2019 Trail of Bits, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -314,7 +314,7 @@ static T Pump(T val, unsigned max=10) {
   }
   return Minimize(val);
 }
-  
+
 template <typename... Args>
 inline static void ForAll(void (*func)(Args...)) {
   func(Symbolic<Args>()...);
@@ -334,7 +334,7 @@ inline static void OneOf(FuncTys&&... funcs) {
   unsigned index = DeepState_UIntInRange(
       0U, static_cast<unsigned>(sizeof...(funcs))-1);
   func_arr[Pump(index, sizeof...(funcs))]();
-  if (FLAGS_verbose_reads) {  
+  if (FLAGS_verbose_reads) {
     printf("FINISHED OneOf CALL\n");
   }
 }
@@ -345,7 +345,7 @@ inline static char OneOf(const char *str) {
   }
   return str[DeepState_IntInRange(0, strlen(str) - 1)];
 }
-  
+
 template <typename T>
 inline static const T &OneOf(const std::vector<T> &arr) {
   if (arr.empty()) {
@@ -430,13 +430,18 @@ struct IsUnsigned<Symbolic<T>> : public std::is_unsigned<T> {};
 
 template <typename A, typename B>
 struct BestType {
+
+  // type alias for bools, since std::make_unsigned<bool> returns unexpected behavior
+  using _A = typename std::conditional<std::is_same<A, bool>::value, unsigned int, A>::type;
+  using _B = typename std::conditional<std::is_same<B, bool>::value, unsigned int, B>::type;
+
   using UA = typename std::conditional<
       IsUnsigned<B>::value,
-      typename std::make_unsigned<A>::type, A>::type;
+      typename std::make_unsigned<_A>::type, A>::type;
 
   using UB = typename std::conditional<
       IsUnsigned<A>::value,
-      typename std::make_unsigned<B>::type, B>::type;
+      typename std::make_unsigned<_B>::type, B>::type;
 
   using Type = typename std::conditional<(sizeof(UA) > sizeof(UB)),
                                          UA, UB>::type;
@@ -445,8 +450,11 @@ struct BestType {
 template <typename A, typename B>
 struct Comparer {
   static constexpr bool kIsIntegral = IsIntegral<A>() && IsIntegral<B>();
+  static constexpr bool IsBool = std::is_same<A, bool>::value && std::is_same<B, bool>::value;
+
   struct tag_int {};
   struct tag_not_int {};
+
   using tag = typename std::conditional<kIsIntegral,tag_int,tag_not_int>::type;
 
   template <typename C>
@@ -467,28 +475,35 @@ struct Comparer {
 
   template <typename C>
   static DEEPSTATE_INLINE bool Do(const A &a, const B &b, C cmp) {
+
+    // IsIntegral returns true for booleans, so we override to basic overloaded method
+    // if we have boolean template parameters passed to prevent error in ASSERT_EQ
+    if (IsBool) {
+      return Do(a, b, cmp, tag_not_int());
+    }
     return Do(a, b, cmp, tag());
   }
+
 };
 
 /* Like DeepState_AssignCStr_C, but fills in a null `allowed` value. */
 inline static void DeepState_AssignCStr(char* str, size_t len,
 					const char* allowed = 0) {
-  DeepState_AssignCStr_C(str, len, allowed);  
+  DeepState_AssignCStr_C(str, len, allowed);
 }
-  
+
 /* Like DeepState_AssignCStr, but Pumps through possible string sizes. */
 inline static void DeepState_AssignCStrUpToLen(char* str, size_t max_len,
 					   const char* allowed = 0) {
   uint32_t len = DeepState_UIntInRange(0, max_len);
-  DeepState_AssignCStr_C(str, Pump(len, max_len+1), allowed);  
+  DeepState_AssignCStr_C(str, Pump(len, max_len+1), allowed);
 }
 
 /* Like DeepState_CStr_C, but fills in a null `allowed` value. */
 inline static char* DeepState_CStr(size_t len, const char* allowed = 0) {
   return DeepState_CStr_C(len, allowed);
 }
-  
+
 /* Like DeepState_CStr, but Pumps through possible string sizes. */
 inline static char* DeepState_CStrUpToLen(size_t max_len, const char* allowed = 0) {
   uint32_t len = DeepState_UIntInRange(0, max_len);
