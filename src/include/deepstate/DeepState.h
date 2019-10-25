@@ -317,9 +317,8 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
       } \
       if ((x < low) || (x > high)) { \
         const tname size = (high - low) + 1; \
-	if (x < 0) { \
-	  x = -x; \
-	} \
+	if (x < 0) x = -x; \
+	if (x < 0) x = 0; \
 	if (FLAGS_verbose_reads) { \
 	  printf("Converting out-of-range value to %lld\n", (long long)(low + (x % size))); \
 	} \
