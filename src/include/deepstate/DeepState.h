@@ -304,7 +304,10 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
       if (low > high) { \
         return DeepState_ ## Tname ## InRange(high, low); \
       } \
-      const tname x = DeepState_ ## Tname(); \
+      if (low == high) { \
+        return low;	 \
+      } \
+      tname x = DeepState_ ## Tname(); \
       if (DeepState_UsingSymExec) { \
         (void) DeepState_Assume(low <= x && x <= high); \
 	return x; \
@@ -314,15 +317,14 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
       } \
       if ((x < low) || (x > high)) { \
         const tname size = (high - low) + 1; \
-	if (FLAGS_verbose_reads) { \
-	  if (x != (low + ((x % size + size) % size))) { \
-	    printf("Converting out-of-range value to %lld\n", (long long)(low + ((x % size + size) % size))); \
-	  } \
+	if (x < 0) { \
+	  x = -x; \
 	} \
-	(void) DeepState_Assume(low <= (low + ((x % size + size) % size)) && (low + ((x % size + size) % size)) <= high); \
-        return low + ((x % size + size) % size); \
+	if (FLAGS_verbose_reads) { \
+	  printf("Converting out-of-range value to %lld\n", (long long)(low + (x % size))); \
+	} \
+	return low + (x % size); \
       } \
-      (void) DeepState_Assume(low <= x && x <= high); \
       return x; \
     }
 
