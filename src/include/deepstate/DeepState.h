@@ -310,19 +310,19 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
       tname x = DeepState_ ## Tname(); \
       if (DeepState_UsingSymExec) { \
         (void) DeepState_Assume(low <= x && x <= high); \
-	return x; \
+        return x;					\
       } \
       if (FLAGS_verbose_reads) { \
         printf("Range read low %lld high %lld\n", (long long)low, (long long)high); \
       } \
       if ((x < low) || (x > high)) { \
         const tname size = (high - low) + 1; \
-	if (x < 0) x = -x; \
-	if (x < 0) x = 0; \
-	if (FLAGS_verbose_reads) { \
-	  printf("Converting out-of-range value to %lld\n", (long long)(low + (x % size))); \
-	} \
-	return low + (x % size); \
+        if (x < 0) x = -x;		     \
+        if (x < 0) x = 0;		     \
+        if (FLAGS_verbose_reads) { \
+          printf("Converting out-of-range value to %lld\n", (long long)(low + (x % size))); \
+        } \
+        return low + (x % size); \
       } \
       return x; \
     }
