@@ -200,6 +200,9 @@ extern const char *DeepState_ConcretizeCStr(const char *begin);
 /* Allocate and return a pointer to `num_bytes` symbolic bytes. */
 extern void *DeepState_Malloc(size_t num_bytes);
 
+/* Returns the path to a testcase without parsing to any aforementioned types */
+extern const char *DeepState_InputPath(char *testcase_path);
+
 /* Portable and architecture-independent memory scrub without dead store elimination. */
 extern void *DeepState_MemScrub(void *pointer, size_t data_size);
 
@@ -875,7 +878,6 @@ static int DeepState_RunSingleSavedTestDir(void) {
       DeepState_LogFormat(DeepState_LogWarning,
 			  "No test specified, defaulting to first test defined (%s)",
 			  test->test_name);
-	;
       break;
     }
   }
@@ -914,13 +916,12 @@ static int DeepState_RunSingleSavedTestDir(void) {
         DeepState_RunSavedTestCase(test, FLAGS_input_test_files_dir, dp->d_name);
 
       if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
-	if (FLAGS_abort_on_fail) {
-	  DeepState_HardCrash();
-	}
-	if (FLAGS_exit_on_fail) {
-	  exit(255); // Terminate the testing
-	}
-
+        if (FLAGS_abort_on_fail) {
+          DeepState_HardCrash();
+        }
+        if (FLAGS_exit_on_fail) {
+          exit(255); // Terminate the testing
+        }
         num_failed_tests++;
       }
     }
