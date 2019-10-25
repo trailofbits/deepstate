@@ -7,7 +7,7 @@ RUN apt-get update \
 
 ADD /docker/sudoers.txt /etc/sudoers
 
-ENV ECLIPSER_HOME /home/user/Eclipser
+ENV ECLIPSER_HOME /home/user/Eclipser/build
 
 WORKDIR /home/user
 
@@ -65,6 +65,8 @@ RUN git clone https://github.com/SoftSec-KAIST/Eclipser \
     && cd Eclipser \
     && make \
     && cd ../
+
+ENV PATH "${ECLIPSER_HOME}:${PATH}"
 
 # Install Angora
 #RUN git clone https://github.com/AngoraFuzzer/Angora \
