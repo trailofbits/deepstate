@@ -379,8 +379,11 @@ class DeepStateFrontend(object):
       stdout, stderr = self.proc.communicate()
       if self.proc.returncode != 0:
         self._kill()
-        err = stdout if stderr is None else stderr
-        raise FrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Error: {err.decode('utf-8')}")
+        if self.enable_sync:
+          err = stdout if stderr is None else stderr
+          raise FrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Message: {err.decode('utf-8')}")
+        else:
+          raise FrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Error code: {self.proc.returncode}")
 
       # invoke ensemble if seed synchronization option is set
       if self.enable_sync:
