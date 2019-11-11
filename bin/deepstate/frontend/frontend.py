@@ -24,7 +24,7 @@ import threading
 import argparse
 import functools
 
-from typing import ClassVar, Optional
+from typing import ClassVar, Optional, Dict, List
 
 
 L = logging.getLogger("deepstate.frontend")
@@ -120,24 +120,24 @@ class DeepStateFrontend(object):
     self._on = False
 
 
-  def __repr__(self):
+  def __repr__(self) -> str:
     return "{}".format(self.__class__.__name__)
 
 
-  def init_fuzzer(self, _args=None):
+  def init_fuzzer(self, _args: Optional[Dict[str, str]] = None) -> None:
     """
     Builder-like initialization routine used to instantiate the attributes of the frontend object, either from the stored
     _ARGS namespace, or manual arguments passed in (not ideal, but useful for ensembler orchestration).
 
-    :param _self. optional dictionary with parsed arguments to set as attributes.
+    :param _args: optional dictionary with parsed arguments to set as attributes.
     """
-    args = vars(self._ARGS) if not _args else _args
+    args: Dict[str, str] = vars(self._ARGS) if not _args else _args
     for key, value in args.items():
       setattr(self, key, value)
 
 
   @classmethod
-  def parse_args(cls):
+  def parse_args(cls) -> None:
     """
     Default base argument parser for DeepState frontends. Comprises of default arguments all
     frontends must implement to maintain consistency in executables. Users can inherit this
@@ -189,7 +189,7 @@ class DeepStateFrontend(object):
     cls.parser = parser
 
 
-  def print_help(self):
+  def print_help(self) -> None:
     """
     Calls fuzzer to print executable help menu.
     """
@@ -273,7 +273,7 @@ class DeepStateFrontend(object):
 
 
   @staticmethod
-  def _dict_to_cmd(cmd_dict):
+  def _dict_to_cmd(cmd_dict: Dict[str, str]) -> List[str]:
     """
     Helper that provides an interface for constructing proper command to be passed
     to fuzzer executable. This takes a dict that maps a str argument flag to a value,
@@ -282,14 +282,14 @@ class DeepStateFrontend(object):
     :param cmd_dict: dict with keys as cli flags and values as arguments
     """
 
-    cmd_args = list(functools.reduce(lambda key, val: key + val, cmd_dict.items()))
+    cmd_args: List[str] = list(functools.reduce(lambda key, val: key + val, cmd_dict.items()))
     cmd_args = [arg for arg in cmd_args if arg is not None]
 
     L.debug(f"Fuzzer arguments: `{str(cmd_args)}`")
     return cmd_args
 
 
-  def build_cmd(self, cmd_dict, input_symbol="@@"):
+  def build_cmd(self, cmd_dict: Dict[str, str], input_symbol: str = "@@") -> Dict[str, str]:
     """
     Helper method to be invoked by child fuzzer class's cmd() property method in order
     to finalize command called by the fuzzer executable with appropriate arguments for the
