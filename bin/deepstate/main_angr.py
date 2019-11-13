@@ -456,20 +456,33 @@ def main_unit_test(args, project):
   tests = mc.find_test_cases()
   del mc
 
-  L.info("Running {} tests across {} workers".format(
-      len(tests), args.num_workers))
+  if not args.which_test:
+    L.info("Running {} tests across {} workers".format(
+        len(tests), args.num_workers))
 
-  pool = multiprocessing.Pool(processes=max(1, args.num_workers))
-  results = []
+    pool = multiprocessing.Pool(processes=max(1, args.num_workers))
 
-  # For each test, create a simulation manager whose initial state calls into
-  # the test case function.
-  for test in tests:
-    res = pool.apply_async(run_test, (project, test, apis, run_state))
-    results.append(res)
+    # For each test, create a simulation manager whose initial state calls into
+    # the test case function.
+    for test in tests:
+      res = pool.apply_async(run_test, (project, test, apis, run_state))
 
-  pool.close()
-  pool.join()
+    pool.close()
+    pool.join()
+
+  else:
+
+    test = [t for t in tests if t.name == args.which_test]
+    if len(test) == 0:
+      L.error()
+      exit(1)
+    elif len(test) > 1:
+      L.error()
+      exit(1)
+
+    L.info("Running `{}` test across {} workers".format(
+      test, arg.num_workers))
+    run_test(project, test[0], apis, run_state)
 
   return 0
 
