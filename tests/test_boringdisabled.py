@@ -10,5 +10,3 @@ class BoringDisabledTest(deepstate_base.DeepStateTestCase):
 
     self.assertTrue("Failed: CharTest_VerifyCheck" in output)
     self.assertTrue("Passed: CharTest_BoringVerifyCheck" in output)
-
-
