@@ -60,7 +60,7 @@ TEST(CharTest, DisabledVerifyCheck) {
 
 /* Regular test that executes during every run */
 TEST(CharTest, VerifyCheck) {
-  char *in_pass = DeepState_CStr(11);
-  ASSERT(check_pass(in_pass, strlen(in_pass)) == 0)
+  char *in_pass = DeepState_CStr_C(11, 0);
+  ASSERT(check_pass(in_pass, 11) == 0)
 	<< "password check failed.";
 }

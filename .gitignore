@@ -146,5 +146,9 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# DeepState-specific ignores
+deepstate.out
+out/
+mcore_*/
 
 # End of https://www.gitignore.io/api/c++,cmake,python
