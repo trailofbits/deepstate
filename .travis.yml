@@ -44,7 +44,7 @@ script:
 - if [ $TASK = PRIMES ]; then nosetests3 tests/test_primes.py ; fi
 #- if [ $TASK = STREAMINGANDFORMATTING ]; then nosetests3 tests/test_streamingandformatting.py ; fi
 - if [ $TASK = TAKEOVER ]; then nosetests3 tests/test_takeover.py ; fi
-- if [ $TASK = BORINGDISABLED ]; then nosetests3 tests/test_boringdisabled.py ; fi
+#- if [ $TASK = BORINGDISABLED ]; then nosetests3 tests/test_boringdisabled.py ; fi
 after_success:
 - travis_wait bash push/run.sh
 

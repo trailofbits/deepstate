@@ -152,6 +152,9 @@ class DeepState(object):
         help="Time to kill symbolic exploration workers, in seconds (default 240).")
 
     parser.add_argument(
+        "--which_test", type=str, help="Unit test to symbolically explore")
+
+    parser.add_argument(
         "binary", type=str, help="Path to the test binary to run.")
 
     cls._ARGS = parser.parse_args()

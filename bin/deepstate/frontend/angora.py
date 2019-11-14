@@ -14,9 +14,7 @@
 # limitations under the License.
 
 import os
-import sys
 import json
-import pipes
 import logging
 import argparse
 import subprocess

@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import os
-import sys
 import logging
 import argparse
 
@@ -82,7 +81,7 @@ class AFL(DeepStateFrontend):
     super().pre_exec()
 
     # require input seeds if we aren't in dumb mode, or we are using crash mode
-    if not self.dumb_mode or args.crash_mode:
+    if not self.dumb_mode or self.crash_mode:
       if not self.input_seeds:
         raise FrontendError("Must provide -i/--input_seeds option for AFL.")
 

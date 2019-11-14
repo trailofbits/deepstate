@@ -8,7 +8,5 @@ class BoringDisabledTest(deepstate_base.DeepStateTestCase):
                   "deepstate.out", 1800)
     self.assertEqual(r, 0)
 
-    self.assertTrue("Failed: CharTest_VerifyCheck" in output)
     self.assertTrue("Passed: CharTest_BoringVerifyCheck" in output)
-
-
+    self.assertTrue("Failed: CharTest_VerifyCheck" in output)

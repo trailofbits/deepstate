@@ -398,11 +398,24 @@ def run_tests(args, state, apis, workspace):
   mc.context['apis'] = apis
   tests = mc.find_test_cases()
 
-  L.info("Running {} tests across {} workers".format(
-    len(tests), args.num_workers))
+  if not args.which_test:
+    L.info("Running {} tests across {} workers".format(
+      len(tests), args.num_workers))
 
-  for test in tests:
-    run_test(state, apis, test, workspace)
+    for test in tests:
+      run_test(state, apis, test, workspace)
+
+  else:
+    test = [t for t in tests if t.name == args.which_test]
+    if len(test) == 0:
+      L.error("No test found with specified name.")
+      exit(1)
+    elif len(test) > 1:
+      L.error("Multiple tests found with same name.")
+      exit(1)
+
+    L.info("Running `{}` test across {} workers".format(args.which_test, args.num_workers))
+    run_test(state, apis, test[0], workspace)
 
 
 def get_base(m):
