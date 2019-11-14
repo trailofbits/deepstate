@@ -14,9 +14,7 @@
 # limitations under the License.
 
 import os
-import sys
 import logging
-import subprocess
 import argparse
 
 from .frontend import DeepStateFrontend, FrontendError

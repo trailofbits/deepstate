@@ -17,7 +17,6 @@ import sys
 import pkgutil
 import importlib
 
-from .frontend import DeepStateFrontend
 
 def import_fuzzers(pkg_name):
   """
