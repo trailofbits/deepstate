@@ -31,7 +31,7 @@ on effective use of DeepState.
     * Find out which tool works best for your code under test
     * Different tools find different bugs/vulnerabilities
     * Fair way to benchmark/bakeoff tools
-* Provides test replay for regression plus effective automatic test case reduction to aid debugging
+* Provides test replay for regression [plus effective automatic test case reduction to aid debugging](https://blog.trailofbits.com/2019/11/11/test-case-reduction/)
 * Supports API-sequence generation with extensions to Google Test interface
   * Concise readable way (OneOf) to say "run one of these blocks of code"
   * Same construct supports fixed value set non-determinism
