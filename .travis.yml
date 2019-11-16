@@ -11,7 +11,7 @@ install:
 - pip3 install pip
 - pip3.6 -V
 - pip3.6 install pyflakes
-- pip3.6 install z3-solver==4.5.1.0.post2
+- pip3.6 install z3-solver
 - pip3.6 install angr
 - pip3.6 install git+git://github.com/trailofbits/manticore.git
 - mkdir build
