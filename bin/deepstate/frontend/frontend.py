@@ -50,6 +50,9 @@ class DeepStateFrontend(object):
   # temporary attribute for argparsing, and should be used to build up object attributes
   _ARGS: ClassVar[Optional[argparse.Namespace]] = None
 
+  # stores parser instantiation, should be used to check if user parsed args
+  parser: ClassVar[Optional[argparse.ArgumentParser]] = None
+
 
   def __init__(self, envvar: str = "PATH") -> None:
     """
@@ -68,11 +71,14 @@ class DeepStateFrontend(object):
 
     compiler: Optional[str] = self.COMPILER
 
-    if os.environ.get(envvar) is None:
+    # work-around for mypy type-checking
+    _env = os.environ.get(envvar)
+    if _env is None:
       raise FrontendError(f"${envvar} does not contain any known paths.")
+    env: str = str(_env)
 
     # collect paths from envvar, and check to see if fuzzer executable is present in paths
-    potential_paths: List[str] = [var for var in os.environ.get(envvar).split(":")]
+    potential_paths: List[str] = [var for var in env.split(":")]
     fuzzer_paths: List[str] = [f"{path}/{fuzzer_name}" for path in potential_paths if os.path.isfile(path + '/' + fuzzer_name)]
     if len(fuzzer_paths) == 0:
       raise FrontendError(f"${envvar} does not contain supplied fuzzer executable for `{self.FUZZER}`.")
@@ -120,13 +126,9 @@ class DeepStateFrontend(object):
     # flag to ensure fuzzer processes do not persist
     self._on: bool = False
 
-    # declares object used to build up argparse
-    self.parser: Optional[argparse.ArgumentParser] = None
-
     # parsed argument attributes
     self.binary: Optional[str] = None
     self.prog_args: List[str] = []
-    self.cmd: Dict[str, Optional[str]] = {}
     self.output_test_dir: str = "{}_out".format(str(self))
 
     self.compile_test: Optional[str] = None
@@ -165,18 +167,24 @@ class DeepStateFrontend(object):
     method to extend and add own arguments or override for outstanding deviations in fuzzer CLIs.
     """
 
+    L.debug("Parsing arguments with internal base class routine")
+
     if cls._ARGS:
+      L.debug("Returning already-parsed arguments")
       return cls._ARGS
 
     # use existing argparser if defined in fuzzer object, or initialize new one, both with default arguments
-    if cls.parser is not None:
+    if cls.parser:
       L.debug("Using previously initialized parser")
       parser = cls.parser
     else:
+      L.debug("Instantiating new ArgumentParser")
       parser = argparse.ArgumentParser(description="Use {} fuzzer as a backend for DeepState".format(str(cls)))
 
     # Compilation/instrumentation support, only if COMPILER is set
-    if cls.COMPILER is not None:
+    if cls.COMPILER:
+      L.debug("Adding compilation support since a compiler was specified")
+
       compile_group = parser.add_argument_group("compilation and instrumentation arguments")
       compile_group.add_argument("--compile_test", type=str, help="Path to DeepState test harness for compilation.")
       compile_group.add_argument("--compiler_args", type=str, help="Linker flags (space seperated) to include for external libraries.")
@@ -218,11 +226,11 @@ class DeepStateFrontend(object):
 
 
   ##############################################
-  # Fuzzer pre-process provision methods
+  # Fuzzer pre-execution methods
   ##############################################
 
 
-  def compile(self, compiler_args: List[str], env: str = os.environ.copy()) -> None:
+  def compile(self, compiler_args, env = os.environ.copy()) -> None:
     """
     Provides a simple interface that allows the user to compile a test harness
     with instrumentation using the specified compiler. Users should implement an
@@ -245,13 +253,12 @@ class DeepStateFrontend(object):
     L.debug(f"CC={env['CC']} and CXX={env['CXX']}")
 
     # initialize command with prepended compiler
-    compile_cmd: List[str] = [self.compiler] + compiler_args
+    compile_cmd = [self.compiler] + compiler_args
     L.debug(f"Compilation command: {str(compile_cmd)}")
 
     L.info(f"Compiling test harness `{self.compile_test}` with {self.compiler}")
     try:
-      ps = subprocess.Popen(compile_cmd, env=env)
-      ps.communicate()
+      subprocess.Popen(compile_cmd, env=env).communicate()
     except BaseException as e:
       raise FrontendError(f"{self.compiler} interrupted due to exception:", e)
 
@@ -263,8 +270,8 @@ class DeepStateFrontend(object):
     checks or initializations before execution.
     """
 
-    if self._ARGS is None:
-      raise FrontendError("No arguments parsed yet. Call parse_self.before pre_exec.")
+    if self.parser is None:
+      raise FrontendError("No arguments parsed yet. Call parse_args() before pre_exec().")
 
     if self.fuzzer_help:
       self.print_help()
@@ -297,6 +304,22 @@ class DeepStateFrontend(object):
       L.debug(f"Sync directory: {self.sync_dir}")
 
 
+  ##################################
+  # Fuzzer command builder methods
+  ##################################
+
+
+  @property
+  def cmd(self) -> Dict[str, Optional[str]]:
+    """
+    Property method that implements the logic for constructing a valid command
+    for fuzzing, which is then bootstrapped and consumed by subprocess. User must
+    implement functionality that can construct a valid dict of flags (key) to values,
+    and then returns it to build_cmd().
+    """
+    raise NotImplementedError("Must implement in frontend subclass.")
+
+
   @staticmethod
   def _dict_to_cmd(cmd_dict: Dict[str, Optional[str]]) -> List[Optional[str]]:
     """
@@ -307,7 +330,9 @@ class DeepStateFrontend(object):
     :param cmd_dict: dict with keys as cli flags and values as arguments
     """
 
-    cmd_args: List[Optional[str]] = list(functools.reduce(lambda key, val: key + val, cmd_dict.items()))
+    # explicit lambda def to deal with mypy-lambda relations
+    concat = lambda key, val: key + val
+    cmd_args: List[Optional[str]] = list(functools.reduce(concat, cmd_dict.items()))
     cmd_args = [arg for arg in cmd_args if arg is not None]
 
     L.debug(f"Fuzzer arguments: `{str(cmd_args)}`")
@@ -353,6 +378,7 @@ class DeepStateFrontend(object):
   # Fuzzer process execution methods
   ##############################################
 
+
   def run(self, compiler: Optional[str] = None, no_exec: bool = False):
     """
     Spawns the fuzzer by taking the self.cmd property and initializing a command in a list
@@ -367,11 +393,8 @@ class DeepStateFrontend(object):
       L.info("Calling pre_exec before fuzzing")
       self.pre_exec()
 
-    # initialize cmd from property or throw exception
-    if hasattr(self, "cmd") or isinstance(getattr(type(self), "cmd", None), property):
-      command = [self.fuzzer] + DeepStateFrontend._dict_to_cmd(self.cmd)
-    else:
-      raise FrontendError("No DeepStateFrontend.cmd attribute defined.")
+    # initialize cmd from property
+    command = [self.fuzzer] + DeepStateFrontend._dict_to_cmd(self.cmd)
 
     # prepend compiler that invokes fuzzer
     if compiler:
