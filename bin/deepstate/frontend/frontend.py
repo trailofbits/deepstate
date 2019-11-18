@@ -23,6 +23,8 @@ import subprocess
 import argparse
 import functools
 
+from typing import ClassVar, Optional, Dict, List, Any
+
 
 L = logging.getLogger("deepstate.frontend")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
@@ -40,10 +42,18 @@ class DeepStateFrontend(object):
   Defines a base front-end object for using DeepState to interact with fuzzers.
   """
 
-  # temporary attribute for argparsing, and should be used to build up object attributes
-  _ARGS = None
+  # to be implemented by fuzzer subclass
+  FUZZER: ClassVar[Optional[str]] = None
+  COMPILER: ClassVar[Optional[str]]  = None
 
-  def __init__(self, envvar="PATH"):
+  # temporary attribute for argparsing, and should be used to build up object attributes
+  _ARGS: ClassVar[Optional[argparse.Namespace]] = None
+
+  # stores parser instantiation, should be used to check if user parsed args
+  parser: ClassVar[Optional[argparse.ArgumentParser]] = None
+
+
+  def __init__(self, envvar: str = "PATH") -> None:
     """
     Initializes base object with fuzzer executable and path, and checks to see if fuzzer
     executable exists in supplied environment variable (default is $PATH). Optionally also
@@ -54,22 +64,21 @@ class DeepStateFrontend(object):
     :param envvar: name of envvar to discover executables. Default is $PATH.
     """
 
-    if not hasattr(self, "FUZZER"):
+    fuzzer_name: Optional[str] = self.FUZZER
+    if fuzzer_name is None:
       raise FrontendError("DeepStateFrontend.FUZZER not set")
 
-    fuzzer_name = self.FUZZER
+    compiler: Optional[str] = self.COMPILER
 
-    if hasattr(self, "COMPILER"):
-      compiler = self.COMPILER
-    else:
-      compiler = None
-
-    if os.environ.get(envvar) is None:
+    # work-around for mypy type-checking
+    _env = os.environ.get(envvar)
+    if _env is None:
       raise FrontendError(f"${envvar} does not contain any known paths.")
+    env: str = str(_env)
 
     # collect paths from envvar, and check to see if fuzzer executable is present in paths
-    potential_paths = [var for var in os.environ.get(envvar).split(":")]
-    fuzzer_paths = [f"{path}/{fuzzer_name}" for path in potential_paths if os.path.isfile(path + '/' + fuzzer_name)]
+    potential_paths: List[str] = [var for var in env.split(":")]
+    fuzzer_paths: List[str] = [f"{path}/{fuzzer_name}" for path in potential_paths if os.path.isfile(path + '/' + fuzzer_name)]
     if len(fuzzer_paths) == 0:
       raise FrontendError(f"${envvar} does not contain supplied fuzzer executable for `{self.FUZZER}`.")
 
@@ -78,18 +87,17 @@ class DeepStateFrontend(object):
     # if supplied, check if compiler exists in potential_paths
     if compiler is not None:
 
-      compiler_paths = [f"{path}/{compiler}" for path in potential_paths if os.path.isfile(path + '/' + compiler)]
-
+      compiler_paths: List[str] = [f"{path}/{compiler}" for path in potential_paths if os.path.isfile(path + '/' + compiler)]
       if len(compiler_paths) == 0:
 
         # if not in envvar, check to see if user supplied absolute path
         if os.path.isfile(compiler):
-          self.compiler = compiler
+          self.compiler: str = compiler
 
         # .. or check if in $PATH before tossing exception
         else:
           for path in os.environ["PATH"].split(os.pathsep):
-            compiler_path = os.path.join(path, compiler)
+            compiler_path: str = os.path.join(path, compiler)
 
             L.debug(f"Checking if `{compiler_path}` is a valid compiler path")
             if os.path.isfile(compiler_path) and os.access(compiler_path, os.X_OK):
@@ -107,55 +115,75 @@ class DeepStateFrontend(object):
       L.debug(f"Initialized compiler: {self.compiler}")
 
     # in case name supplied as `bin/fuzzer`, strip executable name
-    if '/' in fuzzer_name:
-      self.name = fuzzer_name.split('/')[-1]
-    else:
-      self.name = fuzzer_name
+    self.name: str = fuzzer_name.split('/')[-1] if '/' in fuzzer_name else fuzzer_name
+    L.debug(f"Fuzzer name: {self.name}")
 
     # use first fuzzer executable path if multiple exists
     self.fuzzer = fuzzer_paths[0]
-
     L.debug(f"Initialized fuzzer path: {self.fuzzer}")
 
-    self._on = False
+    # flag to ensure fuzzer processes do not persist
+    self._on: bool = False
+
+    # parsed argument attributes
+    self.binary: Optional[str] = None
+    self.prog_args: List[str] = []
+    self.output_test_dir: str = "{}_out".format(str(self))
+
+    self.compile_test: Optional[str] = None
+    self.compiler_args: List[str] = []
+    self.out_test_name: str = "out"
+
+    self.enable_sync: bool = False
+    self.sync_cycle: int = 5
+    self.sync_out: bool = True
+    self.sync_dir: str = "out_sync"
+
+    self.which_test: Optional[str] = None
 
 
-  def __repr__(self):
+  def __repr__(self) -> str:
     return "{}".format(self.__class__.__name__)
 
 
-  def init_fuzzer(self, _args=None):
+  def init_fuzzer(self, _args: Optional[Dict[str, str]] = None) -> None:
     """
     Builder-like initialization routine used to instantiate the attributes of the frontend object, either from the stored
     _ARGS namespace, or manual arguments passed in (not ideal, but useful for ensembler orchestration).
 
-    :param _self. optional dictionary with parsed arguments to set as attributes.
+    :param _args: optional dictionary with parsed arguments to set as attributes.
     """
-    args = vars(self._ARGS) if not _args else _args
+    args: Dict[str, str] = vars(self._ARGS) if not _args else _args
     for key, value in args.items():
       setattr(self, key, value)
 
 
   @classmethod
-  def parse_args(cls):
+  def parse_args(cls) -> Optional[argparse.Namespace]:
     """
     Default base argument parser for DeepState frontends. Comprises of default arguments all
     frontends must implement to maintain consistency in executables. Users can inherit this
     method to extend and add own arguments or override for outstanding deviations in fuzzer CLIs.
     """
 
+    L.debug("Parsing arguments with internal base class routine")
+
     if cls._ARGS:
+      L.debug("Returning already-parsed arguments")
       return cls._ARGS
 
     # use existing argparser if defined in fuzzer object, or initialize new one, both with default arguments
-    if hasattr(cls, "parser"):
+    if cls.parser:
       L.debug("Using previously initialized parser")
       parser = cls.parser
     else:
+      L.debug("Instantiating new ArgumentParser")
       parser = argparse.ArgumentParser(description="Use {} fuzzer as a backend for DeepState".format(str(cls)))
 
     # Compilation/instrumentation support, only if COMPILER is set
-    if hasattr(cls, "COMPILER"):
+    if cls.COMPILER:
+      L.debug("Adding compilation support since a compiler was specified")
+
       compile_group = parser.add_argument_group("compilation and instrumentation arguments")
       compile_group.add_argument("--compile_test", type=str, help="Path to DeepState test harness for compilation.")
       compile_group.add_argument("--compiler_args", type=str, help="Linker flags (space seperated) to include for external libraries.")
@@ -183,20 +211,25 @@ class DeepStateFrontend(object):
     parser.add_argument("--which_test", type=str, help="Which test to run (equivalent to --input_which_test).")
     parser.add_argument("--prog_args", default=[], nargs=argparse.REMAINDER, help="Other DeepState flags to pass to harness before execution, in format `--arg=val`.")
 
-
     # NOTE(alan): we don't use namespace param so we "build up" object with `init_fuzzer()`
     cls._ARGS = parser.parse_args()
     cls.parser = parser
+    return None
 
 
-  def print_help(self):
+  def print_help(self) -> None:
     """
     Calls fuzzer to print executable help menu.
     """
     subprocess.call([self.fuzzer, "--help"])
 
 
-  def compile(self, compiler_args, env=os.environ.copy()):
+  ##############################################
+  # Fuzzer pre-execution methods
+  ##############################################
+
+
+  def compile(self, compiler_args, env = os.environ.copy()) -> None:
     """
     Provides a simple interface that allows the user to compile a test harness
     with instrumentation using the specified compiler. Users should implement an
@@ -224,8 +257,7 @@ class DeepStateFrontend(object):
 
     L.info(f"Compiling test harness `{self.compile_test}` with {self.compiler}")
     try:
-      ps = subprocess.Popen(compile_cmd, env=env)
-      ps.communicate()
+      subprocess.Popen(compile_cmd, env=env).communicate()
     except BaseException as e:
       raise FrontendError(f"{self.compiler} interrupted due to exception:", e)
 
@@ -237,18 +269,17 @@ class DeepStateFrontend(object):
     checks or initializations before execution.
     """
 
-    if self._ARGS is None:
-      raise FrontendError("No arguments parsed yet. Call parse_self.before pre_exec.")
+    if self.parser is None:
+      raise FrontendError("No arguments parsed yet. Call parse_args() before pre_exec().")
 
     if self.fuzzer_help:
       self.print_help()
       sys.exit(0)
 
-    # if compile_test is an existing argument, call compile for user
-    if hasattr(self, "compile_test"):
-      if self.compile_test:
-        self.compile()
-        sys.exit(0)
+    # if compile_test is set, ignore everything else and call compile for user
+    if self.compile_test:
+      self.compile()
+      sys.exit(0)
 
     # manually check if binary positional argument was passed
     if self.binary is None:
@@ -272,8 +303,24 @@ class DeepStateFrontend(object):
       L.debug(f"Sync directory: {self.sync_dir}")
 
 
+  ##################################
+  # Fuzzer command builder methods
+  ##################################
+
+
+  @property
+  def cmd(self) -> Dict[str, Optional[str]]:
+    """
+    Property method that implements the logic for constructing a valid command
+    for fuzzing, which is then bootstrapped and consumed by subprocess. User must
+    implement functionality that can construct a valid dict of flags (key) to values,
+    and then returns it to build_cmd().
+    """
+    raise NotImplementedError("Must implement in frontend subclass.")
+
+
   @staticmethod
-  def _dict_to_cmd(cmd_dict):
+  def _dict_to_cmd(cmd_dict: Dict[str, Optional[str]]) -> List[Optional[str]]:
     """
     Helper that provides an interface for constructing proper command to be passed
     to fuzzer executable. This takes a dict that maps a str argument flag to a value,
@@ -282,14 +329,16 @@ class DeepStateFrontend(object):
     :param cmd_dict: dict with keys as cli flags and values as arguments
     """
 
-    cmd_args = list(functools.reduce(lambda key, val: key + val, cmd_dict.items()))
+    # explicit lambda def to deal with mypy-lambda relations
+    concat = lambda key, val: key + val
+    cmd_args: List[Optional[str]] = list(functools.reduce(concat, cmd_dict.items()))
     cmd_args = [arg for arg in cmd_args if arg is not None]
 
     L.debug(f"Fuzzer arguments: `{str(cmd_args)}`")
     return cmd_args
 
 
-  def build_cmd(self, cmd_dict, input_symbol="@@"):
+  def build_cmd(self, cmd_dict: Dict[str, Optional[str]], input_symbol: str = "@@") -> Dict[str, Optional[str]]:
     """
     Helper method to be invoked by child fuzzer class's cmd() property method in order
     to finalize command called by the fuzzer executable with appropriate arguments for the
@@ -324,16 +373,12 @@ class DeepStateFrontend(object):
     return cmd_dict
 
 
-  def reporter(self):
-    """
-    Provides an interface for fuzzers to output important statistics during an ensemble
-    cycle. This ensure that fuzzer outputs don't clobber STDOUT, and that users can gain
-    insight during ensemble run.
-    """
-    return NotImplementedError("Must implement in frontend subclass.")
+  ##############################################
+  # Fuzzer process execution methods
+  ##############################################
 
 
-  def run(self, compiler=None, no_exec=False):
+  def run(self, compiler: Optional[str] = None, no_exec: bool = False):
     """
     Spawns the fuzzer by taking the self.cmd property and initializing a command in a list
     format for subprocess.
@@ -347,11 +392,8 @@ class DeepStateFrontend(object):
       L.info("Calling pre_exec before fuzzing")
       self.pre_exec()
 
-    # initialize cmd from property or throw exception
-    if hasattr(self, "cmd") or isinstance(getattr(type(self), "cmd", None), property):
-      command = [self.fuzzer] + DeepStateFrontend._dict_to_cmd(self.cmd)
-    else:
-      raise FrontendError("No DeepStateFrontend.cmd attribute defined.")
+    # initialize cmd from property
+    command = [self.fuzzer] + DeepStateFrontend._dict_to_cmd(self.cmd)
 
     # prepend compiler that invokes fuzzer
     if compiler:
@@ -426,17 +468,17 @@ class DeepStateFrontend(object):
       self._kill()
 
     # calculate total execution time
-    self.exec_time = round(time.time() - self._start_time, 2)
-    L.info(f"Fuzzer exec time: {self.exec_time}s")
+    exec_time: float = round(time.time() - self._start_time, 2)
+    L.info(f"Fuzzer exec time: {exec_time}s")
 
     # do post-fuzz operations
     if not no_exec:
-      if hasattr(self, "post_exec") and callable(getattr(self, "post_exec")):
+      if callable(getattr(self, "post_exec")):
         L.info("Calling post-exec for fuzzer post-processing")
         self.post_exec()
 
 
-  def _is_alive(self):
+  def _is_alive(self) -> bool:
     """
     Checks to see if fuzzer PID is running, but tossing SIGT (0) to see if we can
     interact. Ideally used in an event loop during a running process.
@@ -453,7 +495,7 @@ class DeepStateFrontend(object):
     return True
 
 
-  def _kill(self):
+  def _kill(self) -> None:
     """
     Kills running fuzzer process. Can be used forcefully if
     KeyboardInterrupt signal falls through and process continues execution.
@@ -471,6 +513,20 @@ class DeepStateFrontend(object):
     self._on = False
 
 
+  ############################################
+  # Auxiliary reporting and processing methods
+  ############################################
+
+
+  def reporter(self):
+    """
+    Provides an interface for fuzzers to output important statistics during an ensemble
+    cycle. This ensure that fuzzer outputs don't clobber STDOUT, and that users can gain
+    insight during ensemble run.
+    """
+    return NotImplementedError("Must implement in frontend subclass.")
+
+
   @property
   def stats(self):
     """
@@ -480,7 +536,21 @@ class DeepStateFrontend(object):
     raise NotImplementedError("Must implement in frontend subclass.")
 
 
-  def _sync_seeds(self, mode, src, dest, excludes=[]):
+  def post_exec(self):
+    """
+    Performs user-specified post-processing execution logic. Should be implemented by user, and can implement
+    things like crash triaging, testcase minimization (ie with `deepstate-reduce`), or any other manipulations
+    with produced testcases.
+    """
+    raise NotImplementedError("Must implement in frontend subclass.")
+
+
+  ###################################
+  # Ensemble/Parallel Fuzzing methods
+  ###################################
+
+
+  def _sync_seeds(self, mode: str, src: str, dest: str, excludes: List[str] = []) -> None:
     """
     Helper that invokes rsync for convenient file syncing between two files.
 
@@ -496,7 +566,7 @@ class DeepStateFrontend(object):
     if not mode in ["GET", "PUSH"]:
       raise FrontendError(f"Unknown mode for seed syncing: `{mode}`")
 
-    rsync_cmd = ["rsync", "-racz", "--ignore-existing"]
+    rsync_cmd: List[str] = ["rsync", "-racz", "--ignore-existing"]
 
     # subclass should invoke with list of pattern ignores
     if len(excludes) > 0:
@@ -515,7 +585,7 @@ class DeepStateFrontend(object):
 
 
   @staticmethod
-  def _queue_len(queue_path):
+  def _queue_len(queue_path: str) -> int:
     """
     Helper that checks the number of seeds in queue, returns 0 if path doesn't
     exist yet.
@@ -527,7 +597,7 @@ class DeepStateFrontend(object):
     return len([path for path in os.listdir(queue_path)])
 
 
-  def ensemble(self, local_queue=None, global_queue=None):
+  def ensemble(self, local_queue: Optional[str] = None, global_queue: Optional[str] = None):
     """
     Base method for implementing ensemble fuzzing with seed synchronization. User should
     implement any additional logic for determining whether to sync/get seeds as if in event loop.
@@ -536,13 +606,13 @@ class DeepStateFrontend(object):
     if global_queue is None:
       global_queue = self.sync_dir + "/"
 
-    global_len = DeepStateFrontend._queue_len(global_queue)
+    global_len: int = DeepStateFrontend._queue_len(global_queue)
     L.debug(f"Global seed queue: {global_queue} with {global_len} files")
 
     if local_queue is None:
       local_queue = self.output_test_dir + "/queue/"
 
-    local_len = DeepStateFrontend._queue_len(local_queue)
+    local_len: int = DeepStateFrontend._queue_len(local_queue)
     L.debug(f"Fuzzer local seed queue: {local_queue} with {local_len} files")
 
     # sanity check: if global queue is empty, populate from local queue
