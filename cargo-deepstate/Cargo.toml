@@ -1,0 +1,16 @@
+[package]
+name 		= "cargo-deepstate"
+description = "A unit test-like interface for fuzzing and symbolic execution in Rust"
+version 	= "0.1.0"
+authors 	= ["Alan Cao <alan.cao@trailofbits.com>"]
+edition 	= "2018"
+
+[dependencies]
+clap = "2.33.0"
+
+[dependencies.libfuzzer-sys]
+git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
+
+[[bin]]
+name = "cargo-deepstate"
+path = "src/bin/cli.rs"
