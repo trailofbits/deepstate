@@ -33,7 +33,7 @@ from manticore.utils import log
 from manticore.core.state import TerminateState
 from manticore.native.manticore import _make_initial_state
 
-from deepstate.core.frontend.symex import DeepState
+from deepstate.core.frontend.symex import SymexFrontend
 
 L = logging.getLogger("deepstate.mcore")
 L.setLevel(logging.INFO)
@@ -42,7 +42,7 @@ OUR_TERMINATION_REASON = "I DeepState'd it"
 
 consts = config.get_group("core")
 
-class DeepManticore(DeepState):
+class DeepManticore(SymexFrontend):
 
   NAME = "Manticore"
 

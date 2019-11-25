@@ -64,7 +64,7 @@ class Stream(object):
     self.entries = entries
 
 
-class DeepState(object):
+class SymexFrontend(object):
   """Wrapper around a symbolic executor for making it easy to do common DeepState-
   specific things."""
   def __init__(self):
