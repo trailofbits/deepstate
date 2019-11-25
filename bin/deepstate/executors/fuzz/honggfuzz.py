@@ -16,14 +16,14 @@ import os
 import logging
 import argparse
 
-from .frontend import DeepStateFrontend, FrontendError
+from .core.frontend.fuzz import FuzzerFrontend, FuzzFrontendError
 
 
 L = logging.getLogger("deepstate.frontend.honggfuzz")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
-class Honggfuzz(DeepStateFrontend):
+class Honggfuzz(FuzzerFrontend):
 
   FUZZER = "honggfuzz"
   COMPILER = "hfuzz-clang++"
@@ -78,14 +78,14 @@ class Honggfuzz(DeepStateFrontend):
 
     if not self.no_inst:
       if not self.input_seeds:
-        raise FrontendError("No -i/--input_seeds provided.")
+        raise FuzzFrontendError("No -i/--input_seeds provided.")
 
       if not os.path.exists(self.input_seeds):
         os.mkdir(self.input_seeds)
-        raise FrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
+        raise FuzzFrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
 
       if len([name for name in os.listdir(self.input_seeds)]) == 0:
-        raise FrontendError(f"No seeds present in directory {self.input_seeds}.")
+        raise FuzzFrontendError(f"No seeds present in directory {self.input_seeds}.")
 
 
   @property

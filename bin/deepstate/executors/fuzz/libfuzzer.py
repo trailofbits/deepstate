@@ -17,14 +17,14 @@ import os
 import logging
 import argparse
 
-from .frontend import DeepStateFrontend, FrontendError
+from .core.frontend.fuzz import FuzzerFrontend, FuzzFrontendError
 
 
 L = logging.getLogger("deepstate.frontend.libfuzzer")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
-class LibFuzzer(DeepStateFrontend):
+class LibFuzzer(FuzzerFrontend):
 
   FUZZER = "clang++"    # placeholder, set as harness binary later
   COMPILER = "clang++"
@@ -84,7 +84,7 @@ class LibFuzzer(DeepStateFrontend):
     if seeds:
       if os.path.exists(seeds):
         if len([name for name in os.listdir(seeds)]) == 0:
-          raise FrontendError(f"Seeds path specified but none present in directory.")
+          raise FuzzFrontendError(f"Seeds path specified but none present in directory.")
 
 
   @property

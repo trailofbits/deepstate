@@ -19,16 +19,16 @@ import shutil
 import logging
 import subprocess
 
-from .frontend import DeepStateFrontend, FrontendError
+from .core.frontend.fuzz import FuzzerFrontend, FuzzFrontendError
 
 
 L = logging.getLogger("deepstate.frontend.eclipser")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
-class Eclipser(DeepStateFrontend):
+class Eclipser(FuzzerFrontend):
   """
-  Eclipser front-end implemented with a base DeepStateFrontend object
+  Eclipser front-end implemented with a base FuzzerFrontend object
   in order to interface the executable DLL for greybox concolic testing.
   """
 
@@ -73,7 +73,7 @@ class Eclipser(DeepStateFrontend):
     if seeds:
       if os.path.exists(seeds):
         if len([name for name in os.listdir(seeds)]) == 0:
-          raise FrontendError(f"Seeds path specified but none present in directory.")
+          raise FuzzFrontendError(f"Seeds path specified but none present in directory.")
 
 
   @property

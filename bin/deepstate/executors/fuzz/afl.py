@@ -17,14 +17,14 @@ import os
 import logging
 import argparse
 
-from .frontend import DeepStateFrontend, FrontendError
+from .core.frontend.fuzz import FuzzerFrontend, FuzzFrontendError
 
 
 L = logging.getLogger("deepstate.frontend.afl")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
-class AFL(DeepStateFrontend):
+class AFL(FuzzerFrontend):
   """ Defines default AFL fuzzer frontend """
 
   FUZZER = "afl-fuzz"
@@ -57,7 +57,7 @@ class AFL(DeepStateFrontend):
     L.debug(f"Static library path: {lib_path}")
 
     if not os.path.isfile(lib_path):
-      raise FrontendError("No AFL-instrumented DeepState static library found in {}".format(lib_path))
+      raise FuzzFrontendError("No AFL-instrumented DeepState static library found in {}".format(lib_path))
 
     flags = ["-ldeepstate_AFL"]
     if self.compiler_args:
@@ -76,14 +76,14 @@ class AFL(DeepStateFrontend):
     # check if core dump pattern is set as `core`
     with open("/proc/sys/kernel/core_pattern") as f:
       if not "core" in f.read():
-        raise FrontendError("No core dump pattern set. Execute 'echo core | sudo tee /proc/sys/kernel/core_pattern'")
+        raise FuzzFrontendError("No core dump pattern set. Execute 'echo core | sudo tee /proc/sys/kernel/core_pattern'")
 
     super().pre_exec()
 
     # require input seeds if we aren't in dumb mode, or we are using crash mode
     if not self.dumb_mode or self.crash_mode:
       if not self.input_seeds:
-        raise FrontendError("Must provide -i/--input_seeds option for AFL.")
+        raise FuzzFrontendError("Must provide -i/--input_seeds option for AFL.")
 
       seeds = self.input_seeds
       L.debug(f"Fuzzing with seed directory: {seeds}.")
@@ -91,11 +91,11 @@ class AFL(DeepStateFrontend):
       # check if seeds dir exists
       if not os.path.exists(seeds):
         os.mkdir(seeds)
-        raise FrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
+        raise FuzzFrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
 
       # check if seeds dir is empty
       if len([name for name in os.listdir(seeds)]) == 0:
-        raise FrontendError(f"No seeds present in directory {seeds}.")
+        raise FuzzFrontendError(f"No seeds present in directory {seeds}.")
 
 
   @property

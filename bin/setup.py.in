@@ -23,8 +23,8 @@ setuptools.setup(
     name="deepstate",
     version="0.1",
     package_dir={"": "${CMAKE_SOURCE_DIR}/bin"},
-    packages=['deepstate', 'deepstate.frontend'],
-    description="DeepState augments C/C++ Test-Driven Development with Symbolic Execution",
+    packages=setuptools.find_packages(),
+    description="DeepState augments C/C++ Test-Driven Development with Fuzzing and Symbolic Execution",
     url="https://github.com/trailofbits/deepstate",
     author="Peter Goodman",
     author_email="peter@trailofbits.com",
@@ -33,15 +33,17 @@ setuptools.setup(
     install_requires=["angr ; sys_platform != 'darwin'", "manticore ; sys_platform != 'darwin'"],
     entry_points={
         'console_scripts': [
-            'deepstate = deepstate.main_manticore:main',
-            'deepstate-angr = deepstate.main_angr:main',
-            'deepstate-manticore = deepstate.main_manticore:main',
-            'deepstate-reduce = deepstate.reducer:main',
-            'deepstate-ensembler = deepstate.ensembler:main',
-            'deepstate-afl = deepstate.frontend.afl:main',
-            'deepstate-libfuzzer = deepstate.frontend.libfuzzer:main',
-            'deepstate-eclipser = deepstate.frontend.eclipser:main',
-            'deepstate-angora = deepstate.frontend.angora:main',
-            'deepstate-honggfuzz = deepstate.frontend.honggfuzz:main'
+            'deepstate = deepstate.executors.symex.manticore:main',
+            'deepstate-angr = deepstate.executors.symex.angr:main',
+            'deepstate-manticore = deepstate.executors.symex.manticore:main',
+
+            'deepstate-afl = deepstate.executors.fuzz.afl:main',
+            'deepstate-libfuzzer = deepstate.executors.fuzz.libfuzzer:main',
+            'deepstate-eclipser = deepstate.executors.fuzz.eclipser:main',
+            'deepstate-angora = deepstate.executors.fuzz.angora:main',
+            'deepstate-honggfuzz = deepstate.executors.fuzz.honggfuzz:main',
+
+            'deepstate-reduce = deepstate.executors.auxiliary.reducer:main',
+            'deepstate-ensembler = deepstate.executors.auxiliary.ensembler:main'
         ]
     })

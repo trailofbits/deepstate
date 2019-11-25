@@ -27,18 +27,18 @@ import multiprocessing
 from multiprocessing import Process
 from collections import defaultdict
 
-from .frontend import DeepStateFrontend
-from .frontend.afl import AFL
-from .frontend.honggfuzz import Honggfuzz
-from .frontend.angora import Angora
-from .frontend.eclipser import Eclipser
+from .core.frontend.fuzz import FuzzerFrontend
+from .executors.fuzz.afl import AFL
+from .executors.fuzz.honggfuzz import Honggfuzz
+from .executors.fuzz.angora import Angora
+from .executors.fuzz.eclipser import Eclipser
 
 
 L = logging.getLogger("deepstate.ensembler")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
-class Ensembler(DeepStateFrontend):
+class Ensembler(FuzzerFrontend):
   """
   Ensembler is the ensemble-based fuzzer that orchestrates and invokes fuzzer frontends, while also
   supporting seed synchronization between those frontends. It initializes a set of global input args
@@ -137,7 +137,7 @@ class Ensembler(DeepStateFrontend):
 
     """
     if ret_all:
-      return [subclass() for subclass in DeepStateFrontend.__subclasses__()]
+      return [subclass() for subclass in FuzzerFrontend.__subclasses__()]
     else:
       return [AFL(), Honggfuzz(), Angora(), Eclipser()]
 

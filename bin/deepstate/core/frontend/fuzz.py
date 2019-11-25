@@ -37,7 +37,7 @@ class FrontendError(Exception):
   pass
 
 
-class DeepStateFrontend(object):
+class FuzzerFrontend(object):
   """
   Defines a base front-end object for using DeepState to interact with fuzzers.
   """
