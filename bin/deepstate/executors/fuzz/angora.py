@@ -19,8 +19,7 @@ import logging
 import argparse
 import subprocess
 
-from .core.frontend.fuzz import FuzzerFrontend, FuzzFrontendError
-
+from deepstate.core.frontend.fuzz import FuzzerFrontend, FuzzFrontendError
 
 L = logging.getLogger("deepstate.frontend.angora")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())

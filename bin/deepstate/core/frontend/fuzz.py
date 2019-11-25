@@ -30,7 +30,7 @@ L = logging.getLogger("deepstate.frontend")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
-class FrontendError(Exception):
+class FuzzFrontendError(Exception):
   """
   Defines our custom exception class for DeepStateFrontend
   """
@@ -66,21 +66,21 @@ class FuzzerFrontend(object):
 
     fuzzer_name: Optional[str] = self.FUZZER
     if fuzzer_name is None:
-      raise FrontendError("DeepStateFrontend.FUZZER not set")
+      raise FuzzFrontendError("DeepStateFrontend.FUZZER not set")
 
     compiler: Optional[str] = self.COMPILER
 
     # work-around for mypy type-checking
     _env = os.environ.get(envvar)
     if _env is None:
-      raise FrontendError(f"${envvar} does not contain any known paths.")
+      raise FuzzFrontendError(f"${envvar} does not contain any known paths.")
     env: str = str(_env)
 
     # collect paths from envvar, and check to see if fuzzer executable is present in paths
     potential_paths: List[str] = [var for var in env.split(":")]
     fuzzer_paths: List[str] = [f"{path}/{fuzzer_name}" for path in potential_paths if os.path.isfile(path + '/' + fuzzer_name)]
     if len(fuzzer_paths) == 0:
-      raise FrontendError(f"${envvar} does not contain supplied fuzzer executable for `{self.FUZZER}`.")
+      raise FuzzFrontendError(f"${envvar} does not contain supplied fuzzer executable for `{self.FUZZER}`.")
 
     L.debug(fuzzer_paths)
 
@@ -110,7 +110,7 @@ class FuzzerFrontend(object):
 
       # toss exception if compiler still could not be found
       if not hasattr(self, "compiler"):
-        raise FrontendError(f"{compiler} does not exist as absolute path, or in ${envvar} or $PATH")
+        raise FuzzFrontendError(f"{compiler} does not exist as absolute path, or in ${envvar} or $PATH")
 
       L.debug(f"Initialized compiler: {self.compiler}")
 
@@ -244,7 +244,7 @@ class FuzzerFrontend(object):
     """
 
     if self.compiler is None:
-      raise FrontendError(f"No compiler specified for compile-time instrumentation.")
+      raise FuzzFrontendError(f"No compiler specified for compile-time instrumentation.")
 
     # initialize compiler envvars
     env["CC"] = self.compiler
@@ -259,7 +259,7 @@ class FuzzerFrontend(object):
     try:
       subprocess.Popen(compile_cmd, env=env).communicate()
     except BaseException as e:
-      raise FrontendError(f"{self.compiler} interrupted due to exception:", e)
+      raise FuzzFrontendError(f"{self.compiler} interrupted due to exception:", e)
 
 
   def pre_exec(self):
@@ -270,7 +270,7 @@ class FuzzerFrontend(object):
     """
 
     if self.parser is None:
-      raise FrontendError("No arguments parsed yet. Call parse_args() before pre_exec().")
+      raise FuzzFrontendError("No arguments parsed yet. Call parse_args() before pre_exec().")
 
     if self.fuzzer_help:
       self.print_help()
@@ -422,9 +422,9 @@ class FuzzerFrontend(object):
         self._kill()
         if self.enable_sync:
           err = stdout if stderr is None else stderr
-          raise FrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Message: {err.decode('utf-8')}")
+          raise FuzzFrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Message: {err.decode('utf-8')}")
         else:
-          raise FrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Error code: {self.proc.returncode}")
+          raise FuzzFrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Error code: {self.proc.returncode}")
 
       # invoke ensemble if seed synchronization option is set
       if self.enable_sync:
@@ -457,7 +457,7 @@ class FuzzerFrontend(object):
     # any OS-specific errors encountered
     except OSError as e:
       self._kill()
-      raise FrontendError(f"{self.fuzzer} run interrupted due to exception {e}.")
+      raise FuzzFrontendError(f"{self.fuzzer} run interrupted due to exception {e}.")
 
     # SIGINT stops fuzzer, but continues execution
     except KeyboardInterrupt:
@@ -501,14 +501,14 @@ class FuzzerFrontend(object):
     KeyboardInterrupt signal falls through and process continues execution.
     """
     if not hasattr(self, "proc"):
-      raise FrontendError("Attempted to kill non-running PID.")
+      raise FuzzFrontendError("Attempted to kill non-running PID.")
 
     self.proc.terminate()
     try:
       self.proc.wait(timeout=0.5)
       L.info(f"Fuzzer subprocess exited with `{self.proc.returncode}`")
     except subprocess.TimeoutExpired:
-      raise FrontendError("Subprocess could not terminate in time")
+      raise FuzzFrontendError("Subprocess could not terminate in time")
 
     self._on = False
 
@@ -564,7 +564,7 @@ class FuzzerFrontend(object):
     """
 
     if not mode in ["GET", "PUSH"]:
-      raise FrontendError(f"Unknown mode for seed syncing: `{mode}`")
+      raise FuzzFrontendError(f"Unknown mode for seed syncing: `{mode}`")
 
     rsync_cmd: List[str] = ["rsync", "-racz", "--ignore-existing"]
 
@@ -581,7 +581,7 @@ class FuzzerFrontend(object):
     try:
       subprocess.Popen(rsync_cmd)
     except subprocess.CalledProcessError as e:
-      raise FrontendError(f"{self.fuzzer} run interrupted due to exception {e}.")
+      raise FuzzFrontendError(f"{self.fuzzer} run interrupted due to exception {e}.")
 
 
   @staticmethod

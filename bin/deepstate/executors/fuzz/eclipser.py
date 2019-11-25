@@ -19,7 +19,7 @@ import shutil
 import logging
 import subprocess
 
-from .core.frontend.fuzz import FuzzerFrontend, FuzzFrontendError
+from deepstate.core.frontend.fuzz import FuzzerFrontend, FuzzFrontendError
 
 
 L = logging.getLogger("deepstate.frontend.eclipser")

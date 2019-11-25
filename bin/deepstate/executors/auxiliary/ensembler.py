@@ -27,11 +27,11 @@ import multiprocessing
 from multiprocessing import Process
 from collections import defaultdict
 
-from .core.frontend.fuzz import FuzzerFrontend
-from .executors.fuzz.afl import AFL
-from .executors.fuzz.honggfuzz import Honggfuzz
-from .executors.fuzz.angora import Angora
-from .executors.fuzz.eclipser import Eclipser
+from deepstate.core.frontend.fuzz import FuzzerFrontend
+from deepstate.executors.fuzz.afl import AFL
+from deepstate.executors.fuzz.honggfuzz import Honggfuzz
+from deepstate.executors.fuzz.angora import Angora
+from deepstate.executors.fuzz.eclipser import Eclipser
 
 
 L = logging.getLogger("deepstate.ensembler")
