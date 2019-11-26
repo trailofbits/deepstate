@@ -19,14 +19,13 @@ import logging
 import argparse
 import subprocess
 
-from .frontend import DeepStateFrontend, FrontendError
-
+from deepstate.core.frontend import FuzzerFrontend, FuzzFrontendError
 
 L = logging.getLogger("deepstate.frontend.angora")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
-class Angora(DeepStateFrontend):
+class Angora(FuzzerFrontend):
 
   FUZZER = "angora_fuzzer"
   COMPILER = "bin/angora-clang++"
@@ -72,7 +71,7 @@ class Angora(DeepStateFrontend):
       ignore_bufs = []
       for path in libpath:
         if not os.path.isfile(path):
-          raise FrontendError(f"Library `{path}` to blackbox was not a valid library path.")
+          raise FuzzFrontendError(f"Library `{path}` to blackbox was not a valid library path.")
 
         # instantiate command to call, but store output to buffer
         cmd = [os.getenv("ANGORA") + "/tools/gen_library_abilist.sh", path, "discard"]
@@ -126,23 +125,23 @@ class Angora(DeepStateFrontend):
     # since base method checks for self.binary by default
     if not self.taint_binary:
       self.parser.print_help()
-      raise FrontendError("Must provide taint binary for Angora.")
+      raise FuzzFrontendError("Must provide taint binary for Angora.")
 
     if not self.input_seeds:
-      raise FrontendError("Must provide -i/--input_seeds option for Angora.")
+      raise FuzzFrontendError("Must provide -i/--input_seeds option for Angora.")
 
     seeds = os.path.abspath(self.input_seeds)
     L.debug(f"Seed path: {seeds}")
 
     if not os.path.exists(seeds):
       os.mkdir(seeds)
-      raise FrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
+      raise FuzzFrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
 
     if len([name for name in os.listdir(seeds)]) == 0:
-      raise FrontendError(f"No seeds present in directory {seeds}")
+      raise FuzzFrontendError(f"No seeds present in directory {seeds}")
 
     if os.path.exists(self.output_test_dir):
-      raise FrontendError(f"Remove previous `{self.output_test_dir}` output directory before running Angora.")
+      raise FuzzFrontendError(f"Remove previous `{self.output_test_dir}` output directory before running Angora.")
 
 
   @property

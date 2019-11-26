@@ -17,13 +17,14 @@ import angr
 import logging
 import multiprocessing
 import traceback
-from .common import DeepState, TestInfo
+
+from deepstate.core.frontend import SymexFrontend, TestInfo
 
 L = logging.getLogger("deepstate.angr")
 L.setLevel(logging.INFO)
 
 
-class DeepAngr(DeepState):
+class DeepAngr(SymexFrontend):
 
   NAME = "Angr"
 

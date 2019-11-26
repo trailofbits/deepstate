@@ -27,12 +27,13 @@ except Exception as e:
   else:
     raise
 import traceback
-from .common import DeepState, TestInfo
 
 from manticore.utils import config
 from manticore.utils import log
 from manticore.core.state import TerminateState
 from manticore.native.manticore import _make_initial_state
+
+from deepstate.core.frontend import SymexFrontend, TestInfo
 
 L = logging.getLogger("deepstate.mcore")
 L.setLevel(logging.INFO)
@@ -41,7 +42,7 @@ OUR_TERMINATION_REASON = "I DeepState'd it"
 
 consts = config.get_group("core")
 
-class DeepManticore(DeepState):
+class DeepManticore(SymexFrontend):
 
   NAME = "Manticore"
 
