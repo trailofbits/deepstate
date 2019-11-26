@@ -18,7 +18,7 @@ import logging
 import multiprocessing
 import traceback
 
-from deepstate.core.frontend.symex import SymexFrontend, TestInfo
+from deepstate.core.frontend import SymexFrontend, TestInfo
 
 L = logging.getLogger("deepstate.angr")
 L.setLevel(logging.INFO)
