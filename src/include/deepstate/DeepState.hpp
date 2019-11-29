@@ -339,8 +339,10 @@ inline static void OneOf(FuncTys&&... funcs) {
   }
 }
 
+#define SwarmedOneOf(...) _SwarmedOneOf(__FILE__, __LINE__, __VA_ARGS__)
+
 template <typename... FuncTys>
-inline static void SwarmedOneOf(FuncTys&&... funcs, unsigned id=0) {
+inline static void _SwarmedOneOf(const char* file, unsigned line, FuncTys&&... funcs) {
   if (FLAGS_verbose_reads) {
     printf("STARTING OneOf CALL\n");
   }
