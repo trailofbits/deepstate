@@ -25,7 +25,6 @@ import functools
 
 from typing import ClassVar, Optional, Dict, List, Any
 
-
 L = logging.getLogger("deepstate.frontend")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
@@ -393,7 +392,7 @@ class FuzzerFrontend(object):
       self.pre_exec()
 
     # initialize cmd from property
-    command = [self.fuzzer] + DeepStateFrontend._dict_to_cmd(self.cmd)
+    command = [self.fuzzer] + self._dict_to_cmd(self.cmd)
 
     # prepend compiler that invokes fuzzer
     if compiler:
@@ -606,13 +605,13 @@ class FuzzerFrontend(object):
     if global_queue is None:
       global_queue = self.sync_dir + "/"
 
-    global_len: int = DeepStateFrontend._queue_len(global_queue)
+    global_len: int = self._queue_len(global_queue)
     L.debug(f"Global seed queue: {global_queue} with {global_len} files")
 
     if local_queue is None:
       local_queue = self.output_test_dir + "/queue/"
 
-    local_len: int = DeepStateFrontend._queue_len(local_queue)
+    local_len: int = self._queue_len(local_queue)
     L.debug(f"Fuzzer local seed queue: {local_queue} with {local_len} files")
 
     # sanity check: if global queue is empty, populate from local queue
