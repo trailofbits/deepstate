@@ -339,6 +339,20 @@ inline static void OneOf(FuncTys&&... funcs) {
   }
 }
 
+template <typename... FuncTys>
+inline static void SwarmedOneOf(FuncTys&&... funcs, unsigned id=0) {
+  if (FLAGS_verbose_reads) {
+    printf("STARTING OneOf CALL\n");
+  }
+  unsigned fsize = static_cast<unsigned>(sizeof...(funcs));
+  std::function<void(void)> func_arr[sizeof...(FuncTys)] = {funcs...};
+  unsigned index = DeepState_UIntInRange(0U, fsize-1);
+  func_arr[Pump(index, sizeof...(funcs))]();
+  if (FLAGS_verbose_reads) {
+    printf("FINISHED OneOf CALL\n");
+  }
+}
+
 inline static char OneOf(const char *str) {
   if (!str || !str[0]) {
     DeepState_Abandon("NULL or empty string passed to OneOf");
