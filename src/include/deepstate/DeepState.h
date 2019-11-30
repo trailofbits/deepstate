@@ -58,6 +58,10 @@
 #define DEEPSTATE_SIZE 8192
 #endif
 
+#ifndef DEEPSTATE_MAX_SWARM_CONFIGS
+#define DEEPSTATE_MAX_SWARM_CONFIGS 1024
+#endif
+
 #define MAYBE(...) \
     if (DeepState_Bool()) { \
       __VA_ARGS__ ; \
@@ -99,6 +103,12 @@ extern volatile uint8_t DeepState_Input[DeepState_InputSize];
 /* Index into the `DeepState_Input` array that tracks how many input bytes have
  * been consumed. */
 extern uint32_t DeepState_InputIndex;
+
+/* Index into the set of swarm configurations. */
+extern uint32_t DeepState_SwarmConfigsIndex;
+
+/* Function to return a swarm configuration. */
+extern struct DeepState_SwarmConfig* DeepState_GetSwarmConfig(unsigned fcount, const char* file, unsigned line);
 
 /* Return a symbolic value of a given type. */
 extern int DeepState_Bool(void);
@@ -415,6 +425,15 @@ struct DeepState_TestRunInfo {
   const char *reason;
 };
 
+/* Contains info about a swarm configuration */
+struct DeepState_SwarmConfig {
+  char* file;
+  unsigned line;
+  unsigned orig_fcount;
+  unsigned fcount;
+  unsigned* fmap;
+};
+
 /* Pointer to the last registered `TestInfo` structure. */
 extern struct DeepState_TestInfo *DeepState_LastTestInfo;
 
@@ -535,6 +554,7 @@ static void DeepState_InitInputFromFile(const char *path) {
   /* Reset the input buffer and reset the index. */
   DeepState_MemScrub((void *) DeepState_Input, sizeof(DeepState_Input));
   DeepState_InputIndex = 0;
+  DeepState_SwarmConfigsIndex = 0;
 
   size_t count = fread((void *) DeepState_Input, 1, to_read, fp);
   fclose(fp);
