@@ -86,6 +86,10 @@ static struct DeepState_TestInfo *DeepState_DrFuzzTest = NULL;
 volatile uint8_t DeepState_Input[DeepState_InputSize] = {};
 uint32_t DeepState_InputIndex = 0;
 
+/* Swarm related state. */
+uint32_t DeepState_SwarmConfigsIndex = 0;
+struct DeepState_SwarmConfig *DeepState_SwarmConfigs[DEEPSTATE_MAX_SWARM_CONFIGS];
+
 /* Jump buffer for returning to `DeepState_Run`. */
 jmp_buf DeepState_ReturnToRun = {};
 
@@ -305,6 +309,50 @@ void *DeepState_MemScrub(void *pointer, size_t data_size) {
   return pointer;
 }
 
+/* Generate a new swarm configuration. */
+struct DeepState_SwarmConfig *DeepState_NewSwarmConfig(unsigned fcount, const char* file, unsigned line) {
+  struct DeepState_SwarmConfig *new_config = malloc(sizeof(struct DeepState_SwarmConfig));
+  new_config->file = malloc(strlen(file) + 1);
+  strncpy(new_config->file, file, strlen(file));
+  new_config->line = line;
+  new_config->orig_fcount = fcount;
+  new_config->fcount = 0;
+  new_config->fmap = malloc(sizeof(unsigned) * fcount);
+  /* "Half" the time just use everything */
+  int full_config = DeepState_Bool();
+  if (DeepState_UsingSymExec) {
+    /* We don't want to make additional pointless paths to explore for symex */
+    (void) DeepState_Assume(full_config);
+  }
+  for (int i = 0; i < fcount; i++) {
+    if (full_config) {
+      new_config->fmap[new_config->fcount++] = i;
+    } else if (DeepState_Bool()) {
+      new_config->fmap[new_config->fcount++] = i;
+    }
+  }
+  /* We always need to allow at least one option! */
+  if (new_config->fcount == 0) {
+    new_config->fmap[new_config->fcount++] = DeepState_UIntInRange(0, fcount-1);
+  }
+  return new_config;
+}
+
+/* Either fetch existing configuration, or generate a new one. */
+struct DeepState_SwarmConfig *DeepState_GetSwarmConfig(unsigned fcount, const char* file, unsigned line) {
+  /* In general, there should be few enough OneOfs in a harness that linear search is fine. */
+  for (int i = 0; i < DeepState_SwarmConfigsIndex; i++) {
+    struct DeepState_SwarmConfig* sc = DeepState_SwarmConfigs[i];
+    if ((sc->line == line) && (sc->orig_fcount == fcount) && (strncmp(sc->file, file, strlen(file)) == 0)) {
+      return sc;
+    }
+  }
+  if (DeepState_SwarmConfigsIndex == DEEPSTATE_MAX_SWARM_CONFIGS) {
+    DeepState_Abandon("Exceeded swarm config limit. Set or expand DEEPSTATE_MAX_SWARM_CONFIGS. This is highly unusual.");
+  }
+  DeepState_SwarmConfigs[DeepState_SwarmConfigsIndex] = DeepState_NewSwarmConfig(fcount, file, line);
+  return DeepState_SwarmConfigs[DeepState_SwarmConfigsIndex++];
+}
 
 DEEPSTATE_NOINLINE int DeepState_One(void) {
   return 1;
@@ -518,6 +566,13 @@ extern void DeepState_CleanUp() {
     free(DeepState_GeneratedStrings[i]);
   }
   DeepState_GeneratedStringsIndex = 0;
+  
+  for (int i = 0; i < DeepState_SwarmConfigsIndex; i++) {
+    free(DeepState_SwarmConfigs[i]->file);
+    free(DeepState_SwarmConfigs[i]->fmap);
+    free(DeepState_SwarmConfigs[i]);
+  }
+  DeepState_SwarmConfigsIndex = 0;
 }
 
 void _DeepState_Assume(int expr, const char *expr_str, const char *file,
@@ -639,6 +694,7 @@ void DeepState_Begin(struct DeepState_TestInfo *test) {
 void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
   struct DeepState_TestInfo *test = DeepState_DrFuzzTest;
   DeepState_InputIndex = 0;
+  DeepState_SwarmConfigsIndex = 0;
   DeepState_InitCurrentTestRun(test);
   DeepState_LogFormat(DeepState_LogTrace, "Running: %s from %s(%u)",
                       test->test_name, test->file_name, test->line_number);
@@ -948,6 +1004,7 @@ int DeepState_Fuzz(void){
    Has to be defined here since we redefine rand in the header. */
 enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test) {
   DeepState_InputIndex = 0;
+  DeepState_SwarmConfigsIndex = 0;
 
   for (int i = 0; i < DeepState_InputSize; i++) {
     DeepState_Input[i] = (char)rand();
@@ -1014,6 +1071,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 
   DeepState_MemScrub((void *) DeepState_Input, sizeof(DeepState_Input));
   DeepState_InputIndex = 0;
+  DeepState_SwarmConfigsIndex = 0;
 
   memcpy((void *) DeepState_Input, (void *) Data, Size);
 
