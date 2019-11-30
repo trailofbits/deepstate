@@ -343,12 +343,12 @@ inline static void OneOf(FuncTys&&... funcs) {
 
 template <typename... FuncTys>
 inline static void _SwarmedOneOf(const char* file, unsigned line, FuncTys&&... funcs) {
-  if (FLAGS_verbose_reads) {
-    printf("STARTING OneOf CALL\n");
-  }
   unsigned fcount = static_cast<unsigned>(sizeof...(funcs));
   std::function<void(void)> func_arr[sizeof...(FuncTys)] = {funcs...};
   struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(fcount, file, line);
+  if (FLAGS_verbose_reads) {
+    printf("STARTING OneOf CALL\n");
+  }
   unsigned index = sc->fmap[DeepState_UIntInRange(0U, sc->fcount)];
   func_arr[Pump(index, sizeof...(funcs))]();
   if (FLAGS_verbose_reads) {
