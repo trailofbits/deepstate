@@ -330,6 +330,7 @@ struct DeepState_SwarmConfig *DeepState_NewSwarmConfig(unsigned fcount, const ch
   return new_config;
 }
 
+/* Either fetch existing configuration, or generate a new one. */
 struct DeepState_SwarmConfig *DeepState_GetSwarmConfig(unsigned fcount, const char* file, unsigned line) {
   /* In general, there should be few enough OneOfs in a harness that linear search is fine. */
   for (int i = 0; i < DeepState_SwarmConfigsIndex; i++) {
@@ -339,7 +340,7 @@ struct DeepState_SwarmConfig *DeepState_GetSwarmConfig(unsigned fcount, const ch
     }
   }
   if (DeepState_SwarmConfigsIndex == DEEPSTATE_MAX_SWARM_CONFIGS) {
-    DeepState_Abandon("Exceeded swarm config limit. Set or expand DEEPSTATE_MAX_SWARM_CONFIGS (this means you have 512+ OneOfs!");
+    DeepState_Abandon("Exceeded swarm config limit. Set or expand DEEPSTATE_MAX_SWARM_CONFIGS. This is highly unusual.");
   }
   DeepState_SwarmConfigs[DeepState_SwarmConfigsIndex] = DeepState_NewSwarmConfig(fcount, file, line);
   return DeepState_SwarmConfigs[DeepState_SwarmConfigsIndex++];
