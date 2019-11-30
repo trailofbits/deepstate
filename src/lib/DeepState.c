@@ -318,12 +318,20 @@ struct DeepState_SwarmConfig *DeepState_NewSwarmConfig(unsigned fcount, const ch
   new_config->orig_fcount = fcount;
   new_config->fcount = 0;
   new_config->fmap = malloc(sizeof(unsigned) * fcount);
+  /* "Half" the time just use everything */
+  int full_config = DeepState_Bool();
+  if (DeepState_UsingSymExec) {
+    /* We don't want to make additional pointless paths to explore for symex */
+    (void) DeepState_Assume(full_config);
+  }
   for (int i = 0; i < fcount; i++) {
-    if (DeepState_Bool()) {
+    if (full_config) {
+      new_config->fmap[new_config->fcount++] = i;
+    } else if (DeepState_Bool()) {
       new_config->fmap[new_config->fcount++] = i;
     }
   }
-  /* We need at least one option! */
+  /* We always need to allow at least one option! */
   if (new_config->fcount == 0) {
     new_config->fmap[new_config->fcount++] = DeepState_UIntInRange(0, fcount-1);
   }

@@ -349,8 +349,8 @@ inline static void _SwarmedOneOf(const char* file, unsigned line, FuncTys&&... f
   if (FLAGS_verbose_reads) {
     printf("STARTING OneOf CALL\n");
   }
-  unsigned index = sc->fmap[DeepState_UIntInRange(0U, sc->fcount)];
-  func_arr[Pump(index, sizeof...(funcs))]();
+  unsigned index = sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)];
+  func_arr[index]();
   if (FLAGS_verbose_reads) {
     printf("FINISHED OneOf CALL\n");
   }
@@ -363,6 +363,16 @@ inline static char OneOf(const char *str) {
   return str[DeepState_IntInRange(0, strlen(str) - 1)];
 }
 
+inline static char _SwarmedOneOf(const char* file, unsigned line, const char *str) {
+  if (!str || !str[0]) {
+    DeepState_Abandon("NULL or empty string passed to OneOf");
+  }
+  unsigned fcount = strlen(str);
+  struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(fcount, file, line);
+  unsigned index = sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)];
+  return str[index];
+}
+
 template <typename T>
 inline static const T &OneOf(const std::vector<T> &arr) {
   if (arr.empty()) {
@@ -371,6 +381,16 @@ inline static const T &OneOf(const std::vector<T> &arr) {
   return arr[DeepState_IntInRange(0, arr.size() - 1)];
 }
 
+template <typename T>
+inline static const T &_SwarmedOneOf(const char* file, unsigned line, const std::vector<T> &arr) {
+  if (arr.empty()) {
+    DeepState_Abandon("Empty vector passed to OneOf");
+  }
+  unsigned fcount = arr.size();
+  struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(fcount, file, line);
+  unsigned index = sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)];
+  return arr[index];
+}
 
 template <typename T, int len>
 inline static const T &OneOf(T (&arr)[len]) {
@@ -378,6 +398,16 @@ inline static const T &OneOf(T (&arr)[len]) {
     DeepState_Abandon("Empty array passed to OneOf");
   }
   return arr[DeepState_IntInRange(0, len - 1)];
+}
+
+template <typename T, int len>
+inline static const T &_SwarmedOneOf(const char* file, unsigned line, T (&arr)[len]) {
+  if (!len) {
+    DeepState_Abandon("Empty array passed to OneOf");
+  }
+  struct DeepState_SwarmConfig*	sc = DeepState_GetSwarmConfig(len, file, line);
+  unsigned index = sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)];
+  return arr[index];
 }
 
 
