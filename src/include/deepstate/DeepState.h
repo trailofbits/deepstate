@@ -430,6 +430,9 @@ struct DeepState_SwarmConfig {
   char* file;
   unsigned line;
   unsigned orig_fcount;
+  /* We identify a configuration by these first three elements of the struct */
+
+  /* These fields allow us to map choices to the restricted configuration */
   unsigned fcount;
   unsigned* fmap;
 };
