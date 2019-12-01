@@ -108,7 +108,7 @@ extern uint32_t DeepState_InputIndex;
 extern uint32_t DeepState_SwarmConfigsIndex;
 
 /* Function to return a swarm configuration. */
-extern struct DeepState_SwarmConfig* DeepState_GetSwarmConfig(unsigned fcount, const char* file, unsigned line);
+extern struct DeepState_SwarmConfig* DeepState_GetSwarmConfig(unsigned fcount, const char* file, unsigned line, int mix);
 
 /* Return a symbolic value of a given type. */
 extern int DeepState_Bool(void);

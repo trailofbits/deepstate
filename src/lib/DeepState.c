@@ -310,7 +310,7 @@ void *DeepState_MemScrub(void *pointer, size_t data_size) {
 }
 
 /* Generate a new swarm configuration. */
-struct DeepState_SwarmConfig *DeepState_NewSwarmConfig(unsigned fcount, const char* file, unsigned line) {
+struct DeepState_SwarmConfig *DeepState_NewSwarmConfig(unsigned fcount, const char* file, unsigned line, int mix) {
   struct DeepState_SwarmConfig *new_config = malloc(sizeof(struct DeepState_SwarmConfig));
   new_config->file = malloc(strlen(file) + 1);
   strncpy(new_config->file, file, strlen(file));
@@ -319,16 +319,23 @@ struct DeepState_SwarmConfig *DeepState_NewSwarmConfig(unsigned fcount, const ch
   new_config->fcount = 0;
   new_config->fmap = malloc(sizeof(unsigned) * fcount);
   /* "Half" the time just use everything */
-  int full_config = DeepState_Bool();
-  if (DeepState_UsingSymExec) {
+  int full_config = mix && DeepState_Bool();
+  if (mix && DeepState_UsingSymExec) {
     /* We don't want to make additional pointless paths to explore for symex */
     (void) DeepState_Assume(full_config);
   }
   for (int i = 0; i < fcount; i++) {
     if (full_config) {
       new_config->fmap[new_config->fcount++] = i;
-    } else if (DeepState_Bool()) {
-      new_config->fmap[new_config->fcount++] = i;
+    } else {
+      int in_swarm = DeepState_Bool();
+      if (DeepState_UsingSymExec) {
+	/* If not in mix mode, just allow everything in each configuration for symex. */
+	(void) DeepState_Assume(in_swarm);
+      }
+      if (in_swarm) {
+	new_config->fmap[new_config->fcount++] = i;
+      }
     }
   }
   /* We always need to allow at least one option! */
@@ -339,7 +346,7 @@ struct DeepState_SwarmConfig *DeepState_NewSwarmConfig(unsigned fcount, const ch
 }
 
 /* Either fetch existing configuration, or generate a new one. */
-struct DeepState_SwarmConfig *DeepState_GetSwarmConfig(unsigned fcount, const char* file, unsigned line) {
+struct DeepState_SwarmConfig *DeepState_GetSwarmConfig(unsigned fcount, const char* file, unsigned line, int mix) {
   /* In general, there should be few enough OneOfs in a harness that linear search is fine. */
   for (int i = 0; i < DeepState_SwarmConfigsIndex; i++) {
     struct DeepState_SwarmConfig* sc = DeepState_SwarmConfigs[i];
@@ -350,7 +357,7 @@ struct DeepState_SwarmConfig *DeepState_GetSwarmConfig(unsigned fcount, const ch
   if (DeepState_SwarmConfigsIndex == DEEPSTATE_MAX_SWARM_CONFIGS) {
     DeepState_Abandon("Exceeded swarm config limit. Set or expand DEEPSTATE_MAX_SWARM_CONFIGS. This is highly unusual.");
   }
-  DeepState_SwarmConfigs[DeepState_SwarmConfigsIndex] = DeepState_NewSwarmConfig(fcount, file, line);
+  DeepState_SwarmConfigs[DeepState_SwarmConfigsIndex] = DeepState_NewSwarmConfig(fcount, file, line, mix);
   return DeepState_SwarmConfigs[DeepState_SwarmConfigsIndex++];
 }
 
