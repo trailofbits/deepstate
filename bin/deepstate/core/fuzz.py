@@ -25,32 +25,24 @@ import functools
 
 from typing import ClassVar, Optional, Dict, List, Any
 
+from deepstate.core.base import AnalysisBackend
+
+
 L = logging.getLogger("deepstate.frontend")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
 class FuzzFrontendError(Exception):
   """
-  Defines our custom exception class for DeepStateFrontend
+  Defines our custom exception class for FuzzerFrontend
   """
   pass
 
 
-class FuzzerFrontend(object):
+class FuzzerFrontend(AnalysisBackend):
   """
   Defines a base front-end object for using DeepState to interact with fuzzers.
   """
-
-  # to be implemented by fuzzer subclass
-  FUZZER: ClassVar[Optional[str]] = None
-  COMPILER: ClassVar[Optional[str]]  = None
-
-  # temporary attribute for argparsing, and should be used to build up object attributes
-  _ARGS: ClassVar[Optional[argparse.Namespace]] = None
-
-  # stores parser instantiation, should be used to check if user parsed args
-  parser: ClassVar[Optional[argparse.ArgumentParser]] = None
-
 
   def __init__(self, envvar: str = "PATH") -> None:
     """
@@ -58,14 +50,14 @@ class FuzzerFrontend(object):
     executable exists in supplied environment variable (default is $PATH). Optionally also
     sets path to compiler executable for compile-time instrumentation, for those fuzzers that support it.
 
-    User must define FUZZER and COMPILER members in inherited fuzzer class.
+    User must define NAME and COMPILER (if compiling) members in inherited fuzzer class.
 
     :param envvar: name of envvar to discover executables. Default is $PATH.
     """
 
-    fuzzer_name: Optional[str] = self.FUZZER
+    fuzzer_name: Optional[str] = self.NAME
     if fuzzer_name is None:
-      raise FuzzFrontendError("DeepStateFrontend.FUZZER not set")
+      raise FuzzFrontendError("FuzzerFrontend.FUZZER not set")
 
     compiler: Optional[str] = self.COMPILER
 
@@ -79,7 +71,7 @@ class FuzzerFrontend(object):
     potential_paths: List[str] = [var for var in env.split(":")]
     fuzzer_paths: List[str] = [f"{path}/{fuzzer_name}" for path in potential_paths if os.path.isfile(path + '/' + fuzzer_name)]
     if len(fuzzer_paths) == 0:
-      raise FuzzFrontendError(f"${envvar} does not contain supplied fuzzer executable for `{self.FUZZER}`.")
+      raise FuzzFrontendError(f"${envvar} does not contain supplied fuzzer executable for `{self.NAME}`.")
 
     L.debug(fuzzer_paths)
 
@@ -145,18 +137,6 @@ class FuzzerFrontend(object):
     return "{}".format(self.__class__.__name__)
 
 
-  def init_fuzzer(self, _args: Optional[Dict[str, str]] = None) -> None:
-    """
-    Builder-like initialization routine used to instantiate the attributes of the frontend object, either from the stored
-    _ARGS namespace, or manual arguments passed in (not ideal, but useful for ensembler orchestration).
-
-    :param _args: optional dictionary with parsed arguments to set as attributes.
-    """
-    args: Dict[str, str] = vars(self._ARGS) if not _args else _args
-    for key, value in args.items():
-      setattr(self, key, value)
-
-
   @classmethod
   def parse_args(cls) -> Optional[argparse.Namespace]:
     """
@@ -179,23 +159,8 @@ class FuzzerFrontend(object):
       L.debug("Instantiating new ArgumentParser")
       parser = argparse.ArgumentParser(description="Use {} fuzzer as a backend for DeepState".format(str(cls)))
 
-    # Compilation/instrumentation support, only if COMPILER is set
-    if cls.COMPILER:
-      L.debug("Adding compilation support since a compiler was specified")
-
-      compile_group = parser.add_argument_group("compilation and instrumentation arguments")
-      compile_group.add_argument("--compile_test", type=str, help="Path to DeepState test harness for compilation.")
-      compile_group.add_argument("--compiler_args", type=str, help="Linker flags (space seperated) to include for external libraries.")
-      compile_group.add_argument("--out_test_name", type=str, default="out", help="Set name of generated instrumented binary.")
-
-    # Target binary (not required, as we enforce manual checks in pre_exec)
-    parser.add_argument("binary", nargs="?", type=str, help="Path to the test binary to run.")
-
-    # Input/output workdirs
-    parser.add_argument("-i", "--input_seeds", type=str, help="Directory with seed inputs.")
-    parser.add_argument("-o", "--output_test_dir", type=str, default="{}_out".format(str(cls())), help="Directory where tests will be saved.")
-
     # Fuzzer execution options
+    parser.add_argument("-i", "--input_seeds", type=str, help="Directory with seed inputs.")
     parser.add_argument("-t", "--timeout", type=str, default="3600", help="How long to fuzz.")
     parser.add_argument("-s", "--max_input_size", type=int, default=8192, help="Maximum input size.")
 
@@ -207,13 +172,10 @@ class FuzzerFrontend(object):
 
     # Miscellaneous options
     parser.add_argument("--fuzzer_help", action="store_true", help="Show fuzzer command line options.")
-    parser.add_argument("--which_test", type=str, help="Which test to run (equivalent to --input_which_test).")
-    parser.add_argument("--prog_args", default=[], nargs=argparse.REMAINDER, help="Other DeepState flags to pass to harness before execution, in format `--arg=val`.")
 
-    # NOTE(alan): we don't use namespace param so we "build up" object with `init_fuzzer()`
-    cls._ARGS = parser.parse_args()
+    # finalize building up parser by passing to superclass, and instantiate object attributes
     cls.parser = parser
-    return None
+    cls._ARGS = super(FuzzerFrontend, cls).parse_args()
 
 
   def print_help(self) -> None:
@@ -268,6 +230,9 @@ class FuzzerFrontend(object):
     checks or initializations before execution.
     """
 
+    # NOTE(alan): we don't use namespace param so we "build up" object attributes
+    super(FuzzerFrontend, self).init_from_dict()
+
     if self.parser is None:
       raise FuzzFrontendError("No arguments parsed yet. Call parse_args() before pre_exec().")
 
@@ -294,10 +259,10 @@ class FuzzerFrontend(object):
 
     L.debug(f"Output directory: {self.output_test_dir}")
 
-    # check if we in ensemble mode, and initialize directory
+    # check if we enabled seed synchronization, and initialize directory
     if self.enable_sync:
       if not os.path.isdir(self.sync_dir):
-        L.info("Initializing sync directory for ensembling")
+        L.info("Initializing sync directory for ensembling seeds.")
         os.mkdir(self.sync_dir)
       L.debug(f"Sync directory: {self.sync_dir}")
 
