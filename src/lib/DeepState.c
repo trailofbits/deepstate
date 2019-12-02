@@ -258,7 +258,7 @@ void DeepState_SwarmAssignCStr_C(const char* file, unsigned line, int mix,
   if (allowed == 0) {
     /* In swarm mode, if there is no allowed string, create one over all chars. */
     for (int i = 0; i < 255; i++) {
-      swarm_allowed[i] = i;
+      swarm_allowed[i] = i+1;
     }
     swarm_allowed[255] = 0;
     allowed = (const char*)&swarm_allowed;
@@ -310,7 +310,7 @@ char *DeepState_SwarmCStr_C(const char* file, unsigned line, int mix,
   if (allowed == 0) {
     /* In swarm mode, if there is no allowed string, create one over all chars. */
     for (int i = 0; i < 255; i++) {
-      swarm_allowed[i] = i;
+      swarm_allowed[i] = i+1;
     }
     swarm_allowed[255] = 0;
     allowed = (const char*)&swarm_allowed;
