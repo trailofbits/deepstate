@@ -33,7 +33,7 @@ from manticore.utils import log
 from manticore.core.state import TerminateState
 from manticore.native.manticore import _make_initial_state
 
-from deepstate.core.frontend import SymexFrontend, TestInfo
+from deepstate.core import SymexFrontend, TestInfo
 
 L = logging.getLogger("deepstate.mcore")
 L.setLevel(logging.INFO)

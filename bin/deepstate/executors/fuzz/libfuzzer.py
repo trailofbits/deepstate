@@ -17,7 +17,7 @@ import os
 import logging
 import argparse
 
-from deepstate.core.frontend import FuzzerFrontend, FuzzFrontendError
+from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
 L = logging.getLogger("deepstate.frontend.libfuzzer")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
@@ -25,7 +25,7 @@ L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 class LibFuzzer(FuzzerFrontend):
 
-  FUZZER = "clang++"    # placeholder, set as harness binary later
+  NAME = "clang++"    # placeholder, set as harness binary later
   COMPILER = "clang++"
 
 
@@ -126,7 +126,6 @@ def main():
 
   # parse user arguments and build object
   fuzzer.parse_args()
-  fuzzer.init_fuzzer()
 
   # run fuzzer with parsed attributes
   fuzzer.run()

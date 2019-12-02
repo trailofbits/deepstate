@@ -16,7 +16,7 @@ import os
 import logging
 import argparse
 
-from deepstate.core.frontend import FuzzerFrontend, FuzzFrontendError
+from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
 L = logging.getLogger("deepstate.frontend.honggfuzz")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
@@ -24,7 +24,7 @@ L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 class Honggfuzz(FuzzerFrontend):
 
-  FUZZER = "honggfuzz"
+  NAME = "honggfuzz"
   COMPILER = "hfuzz-clang++"
 
   @classmethod
@@ -195,7 +195,6 @@ def main():
 
   # parse user arguments and build object
   fuzzer.parse_args()
-  fuzzer.init_fuzzer()
 
   # run fuzzer with parsed attributes
   fuzzer.run()

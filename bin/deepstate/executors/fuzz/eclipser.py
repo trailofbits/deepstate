@@ -19,7 +19,7 @@ import shutil
 import logging
 import subprocess
 
-from deepstate.core.frontend import FuzzerFrontend, FuzzFrontendError
+from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
 
 L = logging.getLogger("deepstate.frontend.eclipser")
@@ -32,7 +32,7 @@ class Eclipser(FuzzerFrontend):
   in order to interface the executable DLL for greybox concolic testing.
   """
 
-  FUZZER = "Eclipser.dll"
+  NAME = "Eclipser.dll"
   COMPILER = "clang++" 	 # for regular compilation
 
   def print_help(self):
@@ -136,7 +136,6 @@ def main():
 
   # parse user arguments and build object
   fuzzer.parse_args()
-  fuzzer.init_fuzzer()
 
   # run fuzzer with parsed attributes
   fuzzer.run(compiler="dotnet")

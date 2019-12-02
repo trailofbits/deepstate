@@ -17,7 +17,8 @@ import os
 import logging
 import argparse
 
-from deepstate.core.frontend import FuzzerFrontend, FuzzFrontendError
+from deepstate.core import FuzzerFrontend, FuzzFrontendError
+from deepstate.core.base import AnalysisBackend
 
 
 L = logging.getLogger("deepstate.frontend.afl")
@@ -25,9 +26,9 @@ L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
 class AFL(FuzzerFrontend):
-  """ Defines default AFL fuzzer frontend """
+  """ Defines AFL fuzzer frontend """
 
-  FUZZER = "afl-fuzz"
+  NAME = "afl-fuzz"
   COMPILER = "afl-clang++"
 
   @classmethod
@@ -210,7 +211,6 @@ def main():
 
   # parse user arguments and build object
   fuzzer.parse_args()
-  fuzzer.init_fuzzer()
 
   # run fuzzer with parsed attributes
   fuzzer.run()

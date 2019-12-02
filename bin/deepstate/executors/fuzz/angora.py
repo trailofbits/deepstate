@@ -19,7 +19,7 @@ import logging
 import argparse
 import subprocess
 
-from deepstate.core.frontend import FuzzerFrontend, FuzzFrontendError
+from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
 L = logging.getLogger("deepstate.frontend.angora")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
@@ -27,7 +27,7 @@ L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 class Angora(FuzzerFrontend):
 
-  FUZZER = "angora_fuzzer"
+  NAME = "angora_fuzzer"
   COMPILER = "bin/angora-clang++"
 
   @classmethod
@@ -196,7 +196,6 @@ def main():
 
   # parse user arguments and build object
   fuzzer.parse_args()
-  fuzzer.init_fuzzer()
 
   # run fuzzer with parsed attributes
   fuzzer.run()
