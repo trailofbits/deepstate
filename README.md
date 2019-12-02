@@ -616,13 +616,17 @@ with heads for push and tails for pop and clear.
 DeepState supports fully automated swarm testing.  Just compile your
 harness with `-DDEEPSTATE_PURE_SWARM` and all your `OneOf`s _and_
 DeepState string generation functions will use swarm testing.  This is
-a huge help for the built-in fuzzer, and sometimes helps other fuzzers
-as well.  Eclipser can get "stuck" with swarm testing, but AFL can
-certainly benefit in some situations.  There is also an option
+a huge help for the built-in fuzzer (for example, it more than doubles
+the fault detection rate for the `Runlen` example above).  Eclipser
+can get "stuck" with swarm testing, but AFL and libFuzzer can
+certainly sometimes benefit from swarm testing.  There is also an option
 `-DDEEPSTATE_MIXED_SWARM` that mixes swarm and regular generation.  It
 flips an additional coin for each potentially swarmable thing, and
 decides to use swarm or not for that test.  This can produce a mix of
-swarm and regular generation that is unique to DeepState.
+swarm and regular generation that is unique to DeepState.  If you
+aren't finding any bugs using a harness that involves `OneOf` or
+generating strings, it's a good idea to try both swarm methods before
+declaring the code bug-free!
 
 Note that tests produced under a particular swarm option are _not_
 binary compatible with other settings for swarm, due to the added coin flips.
