@@ -227,14 +227,14 @@ void *DeepState_ConcretizeData(void *begin, void *end) {
  * storage for both `len` characters AND the null terminator.  Allowed
  * is a set of chars that are allowed (ignored if null). */
 void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed) {
-  if (SIZE_MAX == len) {
-    DeepState_Abandon("Can't create an SIZE_MAX-length string.");
+  if (SIZE_MAX <= len) {
+    DeepState_Abandon("Can't create a SIZE_MAX-length string.");
   }
   if (NULL == str) {
     DeepState_Abandon("Attempted to populate null pointer.");
   }
   if (len) {
-    if (!allowed) {
+    if (allowed == 0) {
       DeepState_SymbolizeDataNoNull(str, &(str[len]));
     } else {
       uint32_t allowed_size = strlen(allowed);
@@ -246,10 +246,37 @@ void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed) {
   str[len] = '\0';
 }
 
+void DeepState_SwarmAssignCStr_C(const char* file, unsigned line, int mix,
+				 char* str, size_t len, const char* allowed) {
+  if (SIZE_MAX <= len) {
+    DeepState_Abandon("Can't create a SIZE_MAX-length string.");
+  }
+  if (NULL == str) {
+    DeepState_Abandon("Attempted to populate null pointer.");
+  }
+  char swarm_allowed[257];  
+  if (allowed == 0) {
+    /* In swarm mode, if there is no allowed string, create one over all chars. */
+    for (int i = 0; i < 256; i++) {
+      swarm_allowed[i] = i;
+    }
+    swarm_allowed[256] = 0;
+    allowed = (const char*)&swarm_allowed;
+  }
+  if (len) {
+    uint32_t allowed_size = strlen(allowed);
+    struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(allowed_size, file, line, mix);
+    for (int i = 0; i < len; i++) {
+      str[i] = allowed[sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)]];
+    }
+  }
+  str[len] = '\0';
+}
+
 /* Return a symbolic C string of strlen `len`. */
 char *DeepState_CStr_C(size_t len, const char* allowed) {
-  if (SIZE_MAX == len) {
-    DeepState_Abandon("Can't create an SIZE_MAX-length string");
+  if (SIZE_MAX <= len) {
+    DeepState_Abandon("Can't create a SIZE_MAX-length string");
   }
   char *str = (char *) malloc(sizeof(char) * (len + 1));
   if (NULL == str) {
@@ -257,7 +284,7 @@ char *DeepState_CStr_C(size_t len, const char* allowed) {
   }
   DeepState_GeneratedStrings[DeepState_GeneratedStringsIndex++] = str;
   if (len) {
-    if (!allowed) {
+    if (allowed == 0) {
       DeepState_SymbolizeDataNoNull(str, &(str[len]));
     } else {
       uint32_t allowed_size = strlen(allowed);
@@ -270,10 +297,40 @@ char *DeepState_CStr_C(size_t len, const char* allowed) {
   return str;
 }
 
+char *DeepState_SwarmCStr_C(const char* file, unsigned line, int mix,
+			    size_t len, const char* allowed) {
+  if (SIZE_MAX <= len) {
+    DeepState_Abandon("Can't create a SIZE_MAX-length string");
+  }
+  char *str = (char *) malloc(sizeof(char) * (len + 1));
+  if (NULL == str) {
+    DeepState_Abandon("Can't allocate memory");
+  }
+  char swarm_allowed[257];  
+  if (allowed == 0) {
+    /* In swarm mode, if there is no allowed string, create one over all chars. */
+    for (int i = 0; i < 256; i++) {
+      swarm_allowed[i] = i;
+    }
+    swarm_allowed[256] = 0;
+    allowed = (const char*)&swarm_allowed;
+  }
+  DeepState_GeneratedStrings[DeepState_GeneratedStringsIndex++] = str;
+  if (len) {
+    uint32_t allowed_size = strlen(allowed);
+    struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(allowed_size, file, line, mix);
+    for (int i = 0; i < len; i++) {
+      str[i] = allowed[sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)]];
+    }
+  }
+  str[len] = '\0';
+  return str;
+}
+
 /* Symbolize a C string; keeps the null terminator where it was. */
 void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
   if (begin && begin[0]) {
-    if (!allowed) {
+    if (allowed == 0) {
       DeepState_SymbolizeDataNoNull(begin, begin + strlen(begin));
     } else {
       uint32_t allowed_size = strlen(allowed);
@@ -283,6 +340,29 @@ void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
       for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
         bytes[i] = allowed[DeepState_UIntInRange(0, allowed_size-1)];
       }
+    }
+  }
+}
+
+void DeepState_SwarmSymbolizeCStr_C(const char* file, unsigned line, int mix,
+				    char *begin, const char* allowed) {
+  if (begin && begin[0]) {
+    char swarm_allowed[257];    
+    if (allowed == 0) {
+      /* In swarm mode, if there is no allowed string, create one over all chars. */
+      for (int i = 0; i < 256; i++) {
+	swarm_allowed[i] = i;
+      }
+      swarm_allowed[256] = 0;
+      allowed = (const char*)&swarm_allowed;      
+    }
+    uint32_t allowed_size = strlen(allowed);
+    struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(allowed_size, file, line, mix);    
+    uint8_t *bytes = (uint8_t *) begin;
+    uintptr_t begin_addr = (uintptr_t) begin;
+    uintptr_t end_addr = (uintptr_t) (begin + strlen(begin));
+    for (uintptr_t i = 0, max_i = (end_addr - begin_addr); i < max_i; ++i) {
+      bytes[i] = allowed[sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)]];
     }
   }
 }
@@ -318,7 +398,7 @@ struct DeepState_SwarmConfig *DeepState_NewSwarmConfig(unsigned fcount, const ch
   new_config->orig_fcount = fcount;
   new_config->fcount = 0;
   new_config->fmap = malloc(sizeof(unsigned) * fcount);
-  /* "Half" the time just use everything */
+  /* In mix mode, "half" the time just use everything */
   int full_config = mix && DeepState_Bool();
   if (mix && DeepState_UsingSymExec) {
     /* We don't want to make additional pointless paths to explore for symex */
@@ -330,7 +410,7 @@ struct DeepState_SwarmConfig *DeepState_NewSwarmConfig(unsigned fcount, const ch
     } else {
       int in_swarm = DeepState_Bool();
       if (DeepState_UsingSymExec) {
-	/* If not in mix mode, just allow everything in each configuration for symex. */
+	/* If not in mix mode, just allow everything in each configuration for symex */
 	(void) DeepState_Assume(in_swarm);
       }
       if (in_swarm) {
