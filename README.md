@@ -39,6 +39,7 @@ on effective use of DeepState.
 * Provides high-level strategies for improving symbolic execution/fuzzing effectiveness
   * Pumping (novel to DeepState) to pick concrete values when symbolic execution is too expensive
   * Automatic decomposition of integer compares to guide coverage-driven fuzzers
+  * Stong support for automated [swarm testing](https://agroce.github.io/issta12.pdf)
 
 To put it another way, DeepState sits at the intersection of
 *property-based testing*, *traditional unit testing*, *fuzzing*, and
@@ -132,7 +133,7 @@ $DEEPSTATE/build/examples/IntegerOverflow --input_test_file out/IntegerOverflow.
 ```
 
 In the absence of an `--input_which_test` argument, DeepState defaults
-to the last-defined test.  Run the native executable with the `--help`
+to the first-defined test.  Run the native executable with the `--help`
 argument to see all DeepState options.
 
 If you want to use DeepState in C/C++ code, you will likely want to run `sudo make install` from the `$DEEPSTATE/build` directory as well.  The examples mentioned below (file system, databases) assume this has already been done.
@@ -394,8 +395,11 @@ If you install clang 6.0 or later, and run `cmake` when you install
 with the `BUILD_LIBFUZZER` environment variable defined, you can
 generate tests using libFuzzer.  Because both DeepState and libFuzzer
 want to be `main`, this requires building a different executable for
-libFuzzer.  The `examples` directory shows how this can be done.  The
-libFuzzer executable works like any other libFuzzer executable, and
+libFuzzer.  The `examples` directory shows how this can be done: just
+compile with a libFuzzer-supporting clang, and add `-fsanitize=fuzzer`
+as an option, and link to the right DeepState library
+(`-ldeepstate_LF`).  The
+libFuzzer executable thus produced works like any other libFuzzer executable, and
 the tests produced can be replayed using the normal DeepState executable.
 For example, generating some tests of the `OneOf` example (up to 5,000
 runs), then running those tests to examine the results, would look
@@ -411,7 +415,7 @@ Use the `LIBFUZZER_WHICH_TEST`
 environment variable to control which test libFuzzer runs, using a
 fully qualified name (e.g.,
 `Arithmetic_InvertibleMultiplication_CanFail`).  By default, you get
-the last test defined (which works fine if there is only one test).
+the first test defined (which works fine if there is only one test).
 Obviously, libFuzzer may work better if you provide a non-empty
 corpus, but fuzzing will work even without an initial corpus, unlike AFL.
 
@@ -516,56 +520,37 @@ Test case reduction should work on any OS.
 
 ## Fuzzing with AFL
 
-DeepState can also be used with a file-based fuzzer (e.g. AFL).  There
-are a few steps to this.  First, compile DeepState itself with any
-needed instrumentation.  E.g., to use it with AFL, you will want to
-set the compilers to `afl-gcc` and `afl-g++` or `afl-clang` and
-`afl-clang++` when you `cmake` on your DeepState install:
+DeepState can also be used with a file-based fuzzer (e.g. AFL).   If
+you compile using `afl-clang++` and `afl-clang`, and link with
+`-ldeepstate_AFL` when working with AFL. `deepstate-afl` then gives
+you an easy front-end for running AFL.
 
-```
-CC=afl-clang CXX=afl-clang++ cmake ..
-```
-
-Since you may want to use other fuzzers, you might at this point want
-to do something like:
-
-```shell
-cp /usr/local/lib/libdeepstate.a /usr/local/lib/libdeepstate_AFL.a
-```
-
-You can then recompile DeepState with a "normal" compiler and use `-ldeepstate_AFL` when working with AFL.
-
-In either case, compile the DeepState
-test harness and any code it links to you want instrumented with the
-same AFL compiler, and link to an AFL-generated version of DeepState.  Finally, run the fuzzing via the
-interface to replay test files.  For example, to fuzz the `OneOf`
-example, if we were in the `deepstate/build/examples` directory, you
+For example, to fuzz the `OneOf`
+example, if we were in the `deepstate/build/examples` directory (and had
+built an AFL executable for it), you
 would do something like:
 
 ```shell
-afl-fuzz -d -i corpus -o afl_OneOf -- ./OneOf --input_test_file @@ --abort_on_fail--no_fork
+deepstate-afl ./OneOf_afl -i corpus --output_test_dir afl_OneOf_out
 ```
 
 where `corpus` contains at least one file to start fuzzing from.  The
 file needs to be smaller than the DeepState input size limit, but has
 few other limitations (for AFL it should also not cause test
 failure).  The `abort_on_fail` flag makes DeepState crashes and failed
-tests appear as crashes to the fuzzer.  There's no reason to run AFL
-tests with a fork for better crash reporting, so `--no_fork` avoids an
-extra fork.
-
+tests appear as crashes to the fuzzer.  
 To replay the tests from AFL:
 
 ```shell
-./OneOf --input_test_files_dir afl_OneOf/crashes
-./OneOf --input_test_files_dir afl_OneOf/queue
+./OneOf --input_test_files_dir afl_OneOf_out/crashes
+./OneOf --input_test_files_dir afl_OneOf_out/queue
 ```
 
 Finally, if an example has more than one test, you need to specify,
 with a fully qualified name (e.g.,
 `Arithmetic_InvertibleMultiplication_CanFail`), which test to run,
-using the `--input_which_test` flag to the binary.  By
-default, DeepState will run the last test defined.
+using the `--input_which_test` flag.  By
+default, DeepState will run the first test defined.
 
 Because AFL and other file-based fuzzers only rely on the DeepState
 native test executable, they should (like DeepState's built-in simple
@@ -604,6 +589,47 @@ excellent general-purpose fuzzer, and often beats "improved" versions
 over a range of programs.  Finally, Eclipser has some tricks that let
 it get traction in some cases where you might think only symbolic
 execution (which wouldn't scale) could help.
+
+## Swarm Testing
+
+ [Swarm testing](https://agroce.github.io/issta12.pdf) is an approach
+ to test generation that [modifies the distributions of finite choices](https://blog.regehr.org/archives/591)
+ (e.g., string generation and `OneOf` choices of which functions to
+ call).  It has a long history of improving compiler testing, and
+ usually (but not always) API testing.  The Hypothesis Python testing
+ tool
+ [recently added swarm to its' stable of heuristics](https://github.com/HypothesisWorks/hypothesis/pull/2238).
+
+The basic idea is simple.  Let's say we are generating tests of a
+stack that overflows when a 64th item is pushed on the stack, due to a
+typo in the overflow check.  Our tests are
+256 calls to push/pop/top/clear.  Obviously the odds of getting 64
+pushes in a row, without popping or clearing, are very low (for a dumb
+fuzzer, the odds are astronomically low).
+Coverage-feedback and various byte-copying heuristics in AFL and
+libFuzzer etc. can sometimes work around such problems, but in other,
+more complex cases, they are stumped.  Swarm testing "flips a coin"
+before each test, and only includes API calls in the test if the coin
+came up heads for that test.  That means we just need some test to run
+with heads for push and tails for pop and clear.
+
+DeepState supports fully automated swarm testing.  Just compile your
+harness with `-DDEEPSTATE_PURE_SWARM` and all your `OneOf`s _and_
+DeepState string generation functions will use swarm testing.  This is
+a huge help for the built-in fuzzer (for example, it more than doubles
+the fault detection rate for the `Runlen` example above).  Eclipser
+can get "stuck" with swarm testing, but AFL and libFuzzer can
+certainly sometimes benefit from swarm testing.  There is also an option
+`-DDEEPSTATE_MIXED_SWARM` that mixes swarm and regular generation.  It
+flips an additional coin for each potentially swarmable thing, and
+decides to use swarm or not for that test.  This can produce a mix of
+swarm and regular generation that is unique to DeepState.  If you
+aren't finding any bugs using a harness that involves `OneOf` or
+generating strings, it's a good idea to try both swarm methods before
+declaring the code bug-free!
+
+Note that tests produced under a particular swarm option are _not_
+binary compatible with other settings for swarm, due to the added coin flips.
 
 ## Contributing
 

@@ -197,11 +197,24 @@ extern void *DeepState_ConcretizeData(void *begin, void *end);
  * if `allowed` is non-null; needs space for null + len bytes */
 extern void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed);
 
+/* Assign a symbolic C string of _strlen_ `len` -- with only chars in allowed,
+ * if `allowed` is non-null; needs space for null + len bytes */
+extern void DeepState_SwarmAssignCStr_C(const char* file, unsigned line, int mix,
+					char* str, size_t len, const char* allowed);
+
 /* Return a symbolic C string of strlen `len`. */
 extern char *DeepState_CStr_C(size_t len, const char* allowed);
 
+/* Return a symbolic C string of strlen `len`. */
+extern char *DeepState_SwarmCStr_C(const char* file, unsigned line, int mix,
+				   size_t len, const char* allowed);
+
 /* Symbolize a C string */
 void DeepState_SymbolizeCStr_C(char *begin, const char* allowed);
+
+/* Symbolize a C string */
+void DeepState_SwarmSymbolizeCStr_C(const char* file, unsigned line, int mix,
+				    char *begin, const char* allowed);
 
 /* Concretize a C string. Returns a pointer to the beginning of the
  * concretized C string. */

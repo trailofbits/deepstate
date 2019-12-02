@@ -325,21 +325,21 @@ inline static void ForAll(Closure func) {
   func(Symbolic<Args>()...);
 }
 
-#define SwarmOneOf(...) _SwarmOneOf(__FILE__, __LINE__, __VA_ARGS__)
-#define PureSwarmOneOf(...) _PureSwarmOneOf(__FILE__, __LINE__, __VA_ARGS__)
+#define MixedSwarmOneOf(...) _SwarmOneOf(__FILE__, __LINE__, 1, __VA_ARGS__)
+#define PureSwarmOneOf(...) _SwarmOneOf(__FILE__, __LINE__, 0, __VA_ARGS__)
 
-#ifndef DEEPSTATE_SWARM
+#ifndef DEEPSTATE_MIXED_SWARM
 #ifndef DEEPSTATE_PURE_SWARM
 #define OneOf(...) NoSwarmOneOf(__VA_ARGS__)
 #endif
 #endif
 
-#ifdef DEEPSTATE_SWARM
-#define OneOf(...) _SwarmOneOf(__FILE__, __LINE__, __VA_ARGS__)
+#ifdef DEEPSTATE_MIXED_SWARM
+#define OneOf(...) _SwarmOneOf(__FILE__, __LINE__, 1, __VA_ARGS__)
 #endif
 
 #ifdef DEEPSTATE_PURE_SWARM
-#define OneOf(...) _PureSwarmOneOf(__FILE__, __LINE__, __VA_ARGS__)
+#define OneOf(...) _SwarmOneOf(__FILE__, __LINE__, 0, __VA_ARGS__)
 #endif
 
 template <typename... FuncTys>
@@ -357,25 +357,10 @@ inline static void NoSwarmOneOf(FuncTys&&... funcs) {
 }
 
 template <typename... FuncTys>
-inline static void _SwarmOneOf(const char* file, unsigned line, FuncTys&&... funcs) {
+inline static void _SwarmOneOf(const char* file, unsigned line, bool mix, FuncTys&&... funcs) {
   unsigned fcount = static_cast<unsigned>(sizeof...(funcs));
   std::function<void(void)> func_arr[sizeof...(FuncTys)] = {funcs...};
-  struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(fcount, file, line, 1);
-  if (FLAGS_verbose_reads) {
-    printf("STARTING OneOf CALL\n");
-  }
-  unsigned index = sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)];
-  func_arr[index]();
-  if (FLAGS_verbose_reads) {
-    printf("FINISHED OneOf CALL\n");
-  }
-}
-
-template <typename... FuncTys>
-inline static void _PureSwarmOneOf(const char* file, unsigned line, FuncTys&&... funcs) {
-  unsigned fcount = static_cast<unsigned>(sizeof...(funcs));
-  std::function<void(void)> func_arr[sizeof...(FuncTys)] = {funcs...};
-  struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(fcount, file, line, 0);
+  struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(fcount, file, line, mix);
   if (FLAGS_verbose_reads) {
     printf("STARTING OneOf CALL\n");
   }
@@ -393,22 +378,12 @@ inline static char NoSwarmOneOf(const char *str) {
   return str[DeepState_IntInRange(0, strlen(str) - 1)];
 }
 
-inline static char _SwarmOneOf(const char* file, unsigned line, const char *str) {
+inline static char _SwarmOneOf(const char* file, unsigned line, bool mix, const char *str) {
   if (!str || !str[0]) {
     DeepState_Abandon("NULL or empty string passed to OneOf");
   }
   unsigned fcount = strlen(str);
-  struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(fcount, file, line, 1);
-  unsigned index = sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)];
-  return str[index];
-}
-
-inline static char _PureSwarmOneOf(const char* file, unsigned line, const char *str) {
-  if (!str || !str[0]) {
-    DeepState_Abandon("NULL or empty string passed to OneOf");
-  }
-  unsigned fcount = strlen(str);
-  struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(fcount, file, line, 0);
+  struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(fcount, file, line, mix);
   unsigned index = sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)];
   return str[index];
 }
@@ -422,23 +397,12 @@ inline static const T &NoSwarmOneOf(const std::vector<T> &arr) {
 }
 
 template <typename T>
-inline static const T &_SwarmOneOf(const char* file, unsigned line, const std::vector<T> &arr) {
+inline static const T &_SwarmOneOf(const char* file, unsigned line, bool mix, const std::vector<T> &arr) {
   if (arr.empty()) {
     DeepState_Abandon("Empty vector passed to OneOf");
   }
   unsigned fcount = arr.size();
-  struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(fcount, file, line, 1);
-  unsigned index = sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)];
-  return arr[index];
-}
-
-template <typename T>
-inline static const T &_PureSwarmOneOf(const char* file, unsigned line, const std::vector<T> &arr) {
-  if (arr.empty()) {
-    DeepState_Abandon("Empty vector passed to OneOf");
-  }
-  unsigned fcount = arr.size();
-  struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(fcount, file, line, 0);
+  struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(fcount, file, line, mix);
   unsigned index = sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)];
   return arr[index];
 }
@@ -452,21 +416,11 @@ inline static const T &NoSwarmOneOf(T (&arr)[len]) {
 }
 
 template <typename T, int len>
-inline static const T &_SwarmOneOf(const char* file, unsigned line, T (&arr)[len]) {
+inline static const T &_SwarmOneOf(const char* file, unsigned line, bool mix, T (&arr)[len]) {
   if (!len) {
     DeepState_Abandon("Empty array passed to OneOf");
   }
-  struct DeepState_SwarmConfig*	sc = DeepState_GetSwarmConfig(len, file, line, 1);
-  unsigned index = sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)];
-  return arr[index];
-}
-
-template <typename T, int len>
-inline static const T &_PureSwarmOneOf(const char* file, unsigned line, T (&arr)[len]) {
-  if (!len) {
-    DeepState_Abandon("Empty array passed to OneOf");
-  }
-  struct DeepState_SwarmConfig*	sc = DeepState_GetSwarmConfig(len, file, line, 0);
+  struct DeepState_SwarmConfig*	sc = DeepState_GetSwarmConfig(len, file, line, mix);
   unsigned index = sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)];
   return arr[index];
 }
@@ -594,35 +548,103 @@ struct Comparer {
 
 };
 
+#define DeepState_MixedSwarmAssignCStr(...) _DeepState_SwarmAssignCStr(__FILE__, __LINE__, 1, __VA_ARGS__)
+#define DeepState_PureSwarmAssignCStr(...) _DeepState_SwarmAssignCStr(__FILE__, __LINE__, 0, __VA_ARGS__)
+#define DeepState_MixedSwarmAssignCStrUpToLen(...) _DeepState_SwarmAssignCStr(__FILE__, __LINE__, 1, __VA_ARGS__)
+#define DeepState_PureSwarmAssignCStrUpToLen(...) _DeepState_SwarmAssignCStr(__FILE__, __LINE__, 0, __VA_ARGS__)
+
+#define DeepState_MixedSwarmCStr(...) _DeepState_SwarmCStr(__FILE__, __LINE__, 1, __VA_ARGS__)
+#define DeepState_PureSwarmCStr(...) _DeepState_SwarmCStr(__FILE__, __LINE__, 0, __VA_ARGS__)
+#define DeepState_MixedSwarmCStrUpToLen(...) _DeepState_SwarmCStr(__FILE__, __LINE__, 1, __VA_ARGS__)
+#define DeepState_PureSwarmCStrUpToLen(...) _DeepState_SwarmCStr(__FILE__, __LINE__, 0, __VA_ARGS__)
+
+#define DeepState_MixedSwarmSymbolizeCStr(...) _DeepState_SwarmSymbolizeCStr(__FILE__, __LINE__, 1, __VA_ARGS__)
+#define DeepState_PureSwarmSymbolizeCStr(...) _DeepState_SwarmSymbolizeCStr(__FILE__, __LINE__, 0, __VA_ARGS__)
+
+#ifndef DEEPSTATE_MIXED_SWARM
+#ifndef DEEPSTATE_PURE_SWARM
+#define DeepState_AssignCStr(...) DeepState_NoSwarmAssignCStr(__VA_ARGS__)
+#define DeepState_AssignCStrUpToLen(...) DeepState_NoSwarmAssignCStrUpToLen(__VA_ARGS__)
+#define DeepState_CStr(...) DeepState_NoSwarmCStr(__VA_ARGS__)
+#define DeepState_CStrUpToLen(...) DeepState_NoSwarmCStrUpToLen(__VA_ARGS__)
+#define DeepState_SymbolizeCStr(...) DeepState_NoSwarmSymbolizeCStr(__VA_ARGS__)
+#endif
+#endif
+
+#ifdef DEEPSTATE_MIXED_SWARM
+#define DeepState_AssignCStr(...) _DeepState_SwarmAssignCStr(__FILE__, __LINE__, 1, __VA_ARGS__)
+#define DeepState_AssignCStrUpToLen(...) _DeepState_SwarmAssignCStrUpToLen(__FILE__, __LINE__, 1, __VA_ARGS__)
+#define DeepState_CStr(...) _DeepState_SwarmCStr(__FILE__, __LINE__, 1, __VA_ARGS__)
+#define DeepState_CStrUpToLen(...) _DeepState_SwarmCStrUpToLen(__FILE__, __LINE__, 1, __VA_ARGS__)
+#define DeepState_SymbolizeCStr(...) _DeepState_SwarmSymbolizeCStr(__FILE__, __LINE__, 1, __VA_ARGS__)
+#endif
+
+#ifdef DEEPSTATE_PURE_SWARM
+#define DeepState_AssignCStr(...) _DeepState_SwarmAssignCStr(__FILE__, __LINE__, 0, __VA_ARGS__)
+#define DeepState_AssignCStrUpToLen(...) _DeepState_SwarmAssignCStrUpToLen(__FILE__, __LINE__, 0, __VA_ARGS__)
+#define DeepState_CStr(...) _DeepState_SwarmCStr(__FILE__, __LINE__, 0, __VA_ARGS__)
+#define DeepState_CStrUpToLen(...) _DeepState_SwarmCStrUpToLen(__FILE__, __LINE__, 0, __VA_ARGS__)
+#define DeepState_SymbolizeCStr(...) _DeepState_SwarmSymbolizeCStr(__FILE__, __LINE__, 0, __VA_ARGS__)
+#endif
+
 /* Like DeepState_AssignCStr_C, but fills in a null `allowed` value. */
-inline static void DeepState_AssignCStr(char* str, size_t len,
-					const char* allowed = 0) {
+inline static void DeepState_NoSwarmAssignCStr(char* str, size_t len,
+					       const char* allowed = 0) {
   DeepState_AssignCStr_C(str, len, allowed);
 }
 
+inline static void _DeepState_SwarmAssignCStr(const char* file, unsigned line, bool mix,
+					      char* str, size_t len,
+					      const char* allowed = 0) {
+  DeepState_SwarmAssignCStr_C(file, line, mix, str, len, allowed);
+}
+
 /* Like DeepState_AssignCStr, but Pumps through possible string sizes. */
-inline static void DeepState_AssignCStrUpToLen(char* str, size_t max_len,
-					   const char* allowed = 0) {
+inline static void DeepState_NoSwarmAssignCStrUpToLen(char* str, size_t max_len,
+						      const char* allowed = 0) {
   uint32_t len = DeepState_UIntInRange(0, max_len);
   DeepState_AssignCStr_C(str, Pump(len, max_len+1), allowed);
 }
 
+inline static void _DeepState_SwarmAssignCStrUpToLen(const char* file, unsigned line, bool mix,
+						     char* str, size_t max_len,
+						     const char* allowed = 0) {
+  uint32_t len = DeepState_UIntInRange(0, max_len);
+  DeepState_SwarmAssignCStr_C(file, line, mix, str, Pump(len, max_len+1), allowed);
+}
+
 /* Like DeepState_CStr_C, but fills in a null `allowed` value. */
-inline static char* DeepState_CStr(size_t len, const char* allowed = 0) {
+inline static char* DeepState_NoSwarmCStr(size_t len, const char* allowed = 0) {
   return DeepState_CStr_C(len, allowed);
 }
 
+inline static char* _DeepState_SwarmCStr(const char* file, unsigned line, bool mix,
+					size_t len, const char* allowed = 0) {
+  return DeepState_SwarmCStr_C(file, line, mix, len, allowed);
+}
+
 /* Like DeepState_CStr, but Pumps through possible string sizes. */
-inline static char* DeepState_CStrUpToLen(size_t max_len, const char* allowed = 0) {
+inline static char* DeepState_NoSwarmCStrUpToLen(size_t max_len, const char* allowed = 0) {
   uint32_t len = DeepState_UIntInRange(0, max_len);
   return DeepState_CStr_C(Pump(len, max_len+1), allowed);
 }
 
+inline static char* _DeepState_SwarmCStrUpToLen(const char* file, unsigned line, bool mix,
+					       size_t max_len, const char* allowed = 0) {
+  uint32_t len = DeepState_UIntInRange(0, max_len);
+  return DeepState_SwarmCStr_C(file, line, mix, Pump(len, max_len+1), allowed);
+}
+
 /* Like DeepState_Symbolize_CStr, but fills in null `allowed` value. */
-inline static void DeepState_SymbolizeCStr(char *begin, const char* allowed = 0) {
+inline static void DeepState_NoSwarmSymbolizeCStr(char *begin, const char* allowed = 0) {
   DeepState_SymbolizeCStr_C(begin, allowed);
 }
 
+inline static void _DeepState_SwarmSymbolizeCStr(const char* file, unsigned line, bool mix,
+						char *begin, const char* allowed = 0) {
+  DeepState_SwarmSymbolizeCStr_C(file, line, mix, begin, allowed);
+}
+ 
 }  // namespace deepstate
 
 #define ONE_OF ::deepstate::OneOf
