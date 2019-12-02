@@ -254,13 +254,13 @@ void DeepState_SwarmAssignCStr_C(const char* file, unsigned line, int mix,
   if (NULL == str) {
     DeepState_Abandon("Attempted to populate null pointer.");
   }
-  char swarm_allowed[257];  
+  char swarm_allowed[256];  
   if (allowed == 0) {
     /* In swarm mode, if there is no allowed string, create one over all chars. */
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 255; i++) {
       swarm_allowed[i] = i;
     }
-    swarm_allowed[256] = 0;
+    swarm_allowed[255] = 0;
     allowed = (const char*)&swarm_allowed;
   }
   if (len) {
@@ -306,13 +306,13 @@ char *DeepState_SwarmCStr_C(const char* file, unsigned line, int mix,
   if (NULL == str) {
     DeepState_Abandon("Can't allocate memory");
   }
-  char swarm_allowed[257];  
+  char swarm_allowed[256];  
   if (allowed == 0) {
     /* In swarm mode, if there is no allowed string, create one over all chars. */
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 255; i++) {
       swarm_allowed[i] = i;
     }
-    swarm_allowed[256] = 0;
+    swarm_allowed[255] = 0;
     allowed = (const char*)&swarm_allowed;
   }
   DeepState_GeneratedStrings[DeepState_GeneratedStringsIndex++] = str;
@@ -347,13 +347,13 @@ void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
 void DeepState_SwarmSymbolizeCStr_C(const char* file, unsigned line, int mix,
 				    char *begin, const char* allowed) {
   if (begin && begin[0]) {
-    char swarm_allowed[257];    
+    char swarm_allowed[256];    
     if (allowed == 0) {
       /* In swarm mode, if there is no allowed string, create one over all chars. */
-      for (int i = 0; i < 256; i++) {
-	swarm_allowed[i] = i;
+      for (int i = 0; i < 255; i++) {
+	swarm_allowed[i] = i+1;
       }
-      swarm_allowed[256] = 0;
+      swarm_allowed[255] = 0;
       allowed = (const char*)&swarm_allowed;      
     }
     uint32_t allowed_size = strlen(allowed);
