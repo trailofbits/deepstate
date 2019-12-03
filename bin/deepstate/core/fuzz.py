@@ -28,7 +28,7 @@ from typing import ClassVar, Optional, Dict, List, Any
 from deepstate.core.base import AnalysisBackend
 
 
-L = logging.getLogger("deepstate.frontend")
+L = logging.getLogger("deepstate.core.fuzz")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
@@ -160,22 +160,42 @@ class FuzzerFrontend(AnalysisBackend):
       parser = argparse.ArgumentParser(description="Use {} fuzzer as a backend for DeepState".format(str(cls)))
 
     # Fuzzer execution options
-    parser.add_argument("-i", "--input_seeds", type=str, help="Directory with seed inputs.")
-    parser.add_argument("-t", "--timeout", type=str, default="3600", help="How long to fuzz.")
-    parser.add_argument("-s", "--max_input_size", type=int, default=8192, help="Maximum input size.")
+    parser.add_argument(
+      "-i", "--input_seeds", type=str,
+      help="Directory with seed inputs for fuzzers to queue and mutate.")
+
+    parser.add_argument(
+      "-s", "--max_input_size", type=int, default=8192,
+      help="Maximum input size for input generator (default is 8192).")
+
 
     # Parallel / Ensemble Fuzzing
-    parser.add_argument("--enable_sync", action="store_true", help="Enable seed synchronization.")
-    parser.add_argument("--sync_out", action="store_true", help="When set, output individual fuzzer stat summary, instead of a global summary from the ensembler")
-    parser.add_argument("--sync_dir", type=str, default="out_sync", help="Directory for seed synchronization.")
-    parser.add_argument("--sync_cycle", type=int, default=5, help="Time between sync cycle.")
+    ensemble_group = parser.add_argument_group("Parallel/Ensemble Fuzzing")
+    ensemble_group.add_argument(
+      "--enable_sync", action="store_true",
+      help="Enable seed synchronization to another seed queue directory.")
+
+    ensemble_group.add_argument(
+      "--sync_out", action="store_true",
+      help="When set, output individual fuzzer stat summary, instead of a global summary from the ensembler")
+
+    ensemble_group.add_argument(
+      "--sync_dir", type=str, default="out_sync",
+      help="Directory representing seed queue for synchronization between local queue.")
+
+    ensemble_group.add_argument(
+      "--sync_cycle", type=int, default=5,
+      help="Time in seconds the executor should sync to sync directory (default is 5 seconds).")
+
 
     # Miscellaneous options
-    parser.add_argument("--fuzzer_help", action="store_true", help="Show fuzzer command line options.")
+    parser.add_argument(
+      "--fuzzer_help", action="store_true",
+      help="Show fuzzer command line interface's help options.")
 
     # finalize building up parser by passing to superclass, and instantiate object attributes
     cls.parser = parser
-    cls._ARGS = super(FuzzerFrontend, cls).parse_args()
+    super(FuzzerFrontend, cls).parse_args()
 
 
   def print_help(self) -> None:
@@ -243,7 +263,6 @@ class FuzzerFrontend(AnalysisBackend):
     # if compile_test is set, ignore everything else and call compile for user
     if self.compile_test:
       self.compile()
-      sys.exit(0)
 
     # manually check if binary positional argument was passed
     if self.binary is None:

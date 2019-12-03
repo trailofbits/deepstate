@@ -23,6 +23,8 @@ import functools
 import os
 import struct
 
+from deepstate.core.base import AnalysisBackend
+
 
 class TestInfo(object):
   """Represents a `DeepState_TestInfo` data structure from the program, as
@@ -64,7 +66,7 @@ class Stream(object):
     self.entries = entries
 
 
-class SymexFrontend(object):
+class SymexFrontend(AnalysisBackend):
   """Wrapper around a symbolic executor for making it easy to do common DeepState-
   specific things."""
   def __init__(self):
@@ -112,11 +114,10 @@ class SymexFrontend(object):
   def add_constraint(self, expr):
     raise NotImplementedError("Must be implemented by engine.")
 
-  _ARGS = None
 
   @classmethod
   def parse_args(cls):
-    """Parses command-line arguments needed by DeepState."""
+    """Parses command-line arguments needed by symbolic engine."""
     if cls._ARGS:
       return cls._ARGS
 
@@ -126,10 +127,6 @@ class SymexFrontend(object):
     parser.add_argument(
         "--num_workers", default=1, type=int,
         help="Number of workers to spawn for testing and test generation.")
-
-    parser.add_argument(
-        "--output_test_dir", default="out", type=str, required=False,
-        help="Directory where tests will be saved.")
 
     parser.add_argument(
         "--take_over", action='store_true',
@@ -147,18 +144,10 @@ class SymexFrontend(object):
         "--min_log_level", default=2, type=int,
         help="Minimum DeepState log level to print (default: 2), 0-6 (debug, trace, info, warning, error, external, critical).")
 
-    parser.add_argument(
-        "--timeout", default=240, type=int,
-        help="Time to kill symbolic exploration workers, in seconds (default 240).")
+    cls.parser = parser
+    super(SymexFrontend, cls).parse_args()
+    return cls.parser.parse_args()
 
-    parser.add_argument(
-        "--which_test", type=str, help="Unit test to symbolically explore")
-
-    parser.add_argument(
-        "binary", type=str, help="Path to the test binary to run.")
-
-    cls._ARGS = parser.parse_args()
-    return cls._ARGS
 
   @property
   def context(self):
