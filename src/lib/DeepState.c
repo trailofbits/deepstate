@@ -246,7 +246,7 @@ void DeepState_AssignCStr_C(char* str, size_t len, const char* allowed) {
   str[len] = '\0';
 }
 
-void DeepState_SwarmAssignCStr_C(const char* file, unsigned line, int mix,
+void DeepState_SwarmAssignCStr_C(const char* file, unsigned line, int stype,
 				 char* str, size_t len, const char* allowed) {
   if (SIZE_MAX <= len) {
     DeepState_Abandon("Can't create a SIZE_MAX-length string.");
@@ -265,7 +265,7 @@ void DeepState_SwarmAssignCStr_C(const char* file, unsigned line, int mix,
   }
   if (len) {
     uint32_t allowed_size = strlen(allowed);
-    struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(allowed_size, file, line, mix);
+    struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(allowed_size, file, line, stype);
     for (int i = 0; i < len; i++) {
       str[i] = allowed[sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)]];
     }
@@ -297,7 +297,7 @@ char *DeepState_CStr_C(size_t len, const char* allowed) {
   return str;
 }
 
-char *DeepState_SwarmCStr_C(const char* file, unsigned line, int mix,
+char *DeepState_SwarmCStr_C(const char* file, unsigned line, int stype,
 			    size_t len, const char* allowed) {
   if (SIZE_MAX <= len) {
     DeepState_Abandon("Can't create a SIZE_MAX-length string");
@@ -318,7 +318,7 @@ char *DeepState_SwarmCStr_C(const char* file, unsigned line, int mix,
   DeepState_GeneratedStrings[DeepState_GeneratedStringsIndex++] = str;
   if (len) {
     uint32_t allowed_size = strlen(allowed);
-    struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(allowed_size, file, line, mix);
+    struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(allowed_size, file, line, stype);
     for (int i = 0; i < len; i++) {
       str[i] = allowed[sc->fmap[DeepState_UIntInRange(0U, sc->fcount-1)]];
     }
@@ -344,7 +344,7 @@ void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
   }
 }
 
-void DeepState_SwarmSymbolizeCStr_C(const char* file, unsigned line, int mix,
+void DeepState_SwarmSymbolizeCStr_C(const char* file, unsigned line, int stype,
 				    char *begin, const char* allowed) {
   if (begin && begin[0]) {
     char swarm_allowed[256];    
@@ -357,7 +357,7 @@ void DeepState_SwarmSymbolizeCStr_C(const char* file, unsigned line, int mix,
       allowed = (const char*)&swarm_allowed;      
     }
     uint32_t allowed_size = strlen(allowed);
-    struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(allowed_size, file, line, mix);    
+    struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(allowed_size, file, line, stype);
     uint8_t *bytes = (uint8_t *) begin;
     uintptr_t begin_addr = (uintptr_t) begin;
     uintptr_t end_addr = (uintptr_t) (begin + strlen(begin));
@@ -390,31 +390,45 @@ void *DeepState_MemScrub(void *pointer, size_t data_size) {
 }
 
 /* Generate a new swarm configuration. */
-struct DeepState_SwarmConfig *DeepState_NewSwarmConfig(unsigned fcount, const char* file, unsigned line, int mix) {
+struct DeepState_SwarmConfig *DeepState_NewSwarmConfig(unsigned fcount, const char* file, unsigned line,
+						       enum DeepState_SwarmType stype) {
   struct DeepState_SwarmConfig *new_config = malloc(sizeof(struct DeepState_SwarmConfig));
   new_config->file = malloc(strlen(file) + 1);
   strncpy(new_config->file, file, strlen(file));
   new_config->line = line;
   new_config->orig_fcount = fcount;
   new_config->fcount = 0;
-  new_config->fmap = malloc(sizeof(unsigned) * fcount);
-  /* In mix mode, "half" the time just use everything */
-  int full_config = mix && DeepState_Bool();
-  if (mix && DeepState_UsingSymExec) {
-    /* We don't want to make additional pointless paths to explore for symex */
-    (void) DeepState_Assume(full_config);
-  }
-  for (int i = 0; i < fcount; i++) {
-    if (full_config) {
-      new_config->fmap[new_config->fcount++] = i;
-    } else {
-      int in_swarm = DeepState_Bool();
-      if (DeepState_UsingSymExec) {
-	/* If not in mix mode, just allow everything in each configuration for symex */
-	(void) DeepState_Assume(in_swarm);
-      }
-      if (in_swarm) {
+  if (stype == DeepState_SwarmTypeProb) {
+    new_config->fmap = malloc(sizeof(unsigned) * fcount * DEEPSTATE_SWARM_MAX_PROB_RATIO);
+    for (int i = 0; i < fcount; i++) {
+      unsigned int prob = DeepState_UIntInRange(0U, DEEPSTATE_SWARM_MAX_PROB_RATIO);
+      for (int j = 0; j < prob; j++) {
 	new_config->fmap[new_config->fcount++] = i;
+      }
+    }
+    if (new_config->fcount == 0) {
+      new_config->fmap[new_config->fcount++] = DeepState_UIntInRange(0, fcount-1);
+    }
+  } else {
+    new_config->fmap = malloc(sizeof(unsigned) * fcount);
+    /* In mix mode, "half" the time just use everything */
+    int full_config = (stype == DeepState_SwarmTypeMixed) && DeepState_Bool();
+    if ((stype == DeepState_SwarmTypeMixed) && DeepState_UsingSymExec) {
+      /* We don't want to make additional pointless paths to explore for symex */
+      (void) DeepState_Assume(full_config);
+    }
+    for (int i = 0; i < fcount; i++) {
+      if (full_config) {
+	new_config->fmap[new_config->fcount++] = i;
+      } else {
+	int in_swarm = DeepState_Bool();
+	if (DeepState_UsingSymExec) {
+	  /* If not in mix mode, just allow everything in each configuration for symex */
+	  (void) DeepState_Assume(in_swarm);
+	}
+	if (in_swarm) {
+	  new_config->fmap[new_config->fcount++] = i;
+	}
       }
     }
   }
@@ -426,7 +440,8 @@ struct DeepState_SwarmConfig *DeepState_NewSwarmConfig(unsigned fcount, const ch
 }
 
 /* Either fetch existing configuration, or generate a new one. */
-struct DeepState_SwarmConfig *DeepState_GetSwarmConfig(unsigned fcount, const char* file, unsigned line, int mix) {
+struct DeepState_SwarmConfig *DeepState_GetSwarmConfig(unsigned fcount, const char* file, unsigned line,
+						       enum DeepState_SwarmType stype) {
   /* In general, there should be few enough OneOfs in a harness that linear search is fine. */
   for (int i = 0; i < DeepState_SwarmConfigsIndex; i++) {
     struct DeepState_SwarmConfig* sc = DeepState_SwarmConfigs[i];
@@ -437,7 +452,7 @@ struct DeepState_SwarmConfig *DeepState_GetSwarmConfig(unsigned fcount, const ch
   if (DeepState_SwarmConfigsIndex == DEEPSTATE_MAX_SWARM_CONFIGS) {
     DeepState_Abandon("Exceeded swarm config limit. Set or expand DEEPSTATE_MAX_SWARM_CONFIGS. This is highly unusual.");
   }
-  DeepState_SwarmConfigs[DeepState_SwarmConfigsIndex] = DeepState_NewSwarmConfig(fcount, file, line, mix);
+  DeepState_SwarmConfigs[DeepState_SwarmConfigsIndex] = DeepState_NewSwarmConfig(fcount, file, line, stype);
   return DeepState_SwarmConfigs[DeepState_SwarmConfigsIndex++];
 }
 
