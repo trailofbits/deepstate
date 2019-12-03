@@ -626,7 +626,12 @@ decides to use swarm or not for that test.  This can produce a mix of
 swarm and regular generation that is unique to DeepState.  If you
 aren't finding any bugs using a harness that involves `OneOf` or
 generating strings, it's a good idea to try both swarm methods before
-declaring the code bug-free!
+declaring the code bug-free! There is another, more experimental,
+swarm-like method, `-DDEEPSTATE_PROB_SWARM`, that is of possible interest.
+Instead of pure binary inclusion/exclusion of choices, this varies the
+actual distribution of choices.  However, because this often ends up behaving
+more like a non-swarm selection, it may not be as good at ferreting out
+unusual behaviors due to extreme imbalance of choices.
 
 Note that tests produced under a particular swarm option are _not_
 binary compatible with other settings for swarm, due to the added coin flips.
