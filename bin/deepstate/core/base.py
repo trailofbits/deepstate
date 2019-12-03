@@ -13,10 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+logging.basicConfig()
+
+import os
 import argparse
 import configparser
 
-from typing import Dict, ClassVar, Optional, Union
+from typing import Dict, ClassVar, Optional, Union, List
+
+
+L = logging.getLogger("deepstate.core.base")
+L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
 class AnalysisBackend(object):
@@ -32,18 +40,19 @@ class AnalysisBackend(object):
   # name of compiler executable, should be implemented by subclass
   COMPILER: ClassVar[Optional[str]] = None
 
-  # path to incomplete DeepState path, should be modified
-  LIB_PATH: ClassVar[Optional[str]] = "/usr/local/lib/libdeepstate"
-
   # temporary attribute for argparsing, and should be used to build up object attributes
-  _ARGS: ClassVar[Optional[argparse.Namespace]] = None
+  _ARGS: ClassVar[Optional[Dict[str, str]]] = None
 
   # temporary attribute for parser instantiation, should be used to check if user parsed args
   parser: ClassVar[Optional[argparse.ArgumentParser]] = None
 
 
+  def __init__(self):
+    pass
+
+
   @classmethod
-  def parse_args(cls) -> argparse.Namespace:
+  def parse_args(cls) -> None:
     """
     Base root-level argument parser. After the executors initializes its application-specific arguments, and the frontend
     builds up further with analysis-specific arguments, this base parse_args finalizes with all other required args every
@@ -52,31 +61,107 @@ class AnalysisBackend(object):
     parser = cls.parser
 
     # Compilation/instrumentation support, only if COMPILER is set
-    # TODO: symex engines extends an interface that "compiles" source to
-    # binary, IR format, or boolean expressions for symbolic engine to reason with
+    # TODO: extends compilation interface for symex engines that "compile" source to
+    # binary, IR format, or boolean expressions for symbolic VM to reason with
     if cls.COMPILER:
       L.debug("Adding compilation support since a compiler was specified")
 
       compile_group = parser.add_argument_group("Compilation and Instrumentation")
-      compile_group.add_argument("--compile_test", type=str, help="Path to DeepState test harness for compilation.")
-      compile_group.add_argument("--compiler_args", type=str, help="Linker flags (space seperated) to include for external libraries.")
-      compile_group.add_argument("--out_test_name", type=str, default="out", help="Set name of generated instrumented binary.")
+      compile_group.add_argument("--compile_test", type=str,
+        help="Path to DeepState test source for compilation and instrumentation by analysis tool.")
+
+      # TODO: instead of parsing out arguments, we should consume JSON compilation databases instead
+      compile_group.add_argument("--compiler_args", type=str,
+        help="Linker flags (space seperated) to include for external libraries.")
+
+      compile_group.add_argument("--out_test_name", type=str, default="out",
+        help="Set name of generated instrumented binary (default is `out.{FUZZER}`).")
+
 
     # Target binary (not required, since user may pass in source for compilation)
-    parser.add_argument("binary", nargs="?", type=str, help="Path to the test binary to run.")
+    parser.add_argument("binary", nargs="?", type=str,
+      help="Path to the test binary compiled with DeepState to run under analysis tool.")
 
-    # Configurations for Analysis
-    analysis_group = parser.add_argument_group("Analysis Execution")
-    analysis_group.add_argument("-o", "--output_test_dir", type=str, default="{}_out".format(str(cls())), help="Directory where tests will be saved.")
-    analysis_group.add_argument("-c", "--configuration", type=str, help="Configuration file to be consumed instead of arguments.")
+    # Analysis-related configurations
+    parser.add_argument(
+      "-o", "--output_test_dir", type=str, default="{}_out".format(cls.NAME),
+      help="Output directory where tests will be saved (default is `{FUZZER}_out`).")
+
+    parser.add_argument(
+      "-c", "--config", type=str,
+      help="Configuration file to be consumed instead of arguments.")
+
+    parser.add_argument(
+      "-t", "--timeout", default=240, type=int,
+      help="Time to kill analysis workers, in seconds (default 240).")
+
 
     # DeepState-related options
     exec_group = parser.add_argument_group("DeepState Test Configuration")
-    exec_group.add_argument("--which_test", type=str, help="DeepState test to run (equivalent to `--input_which_test`).")
-    exec_group.add_argument("--prog_args", default=[], nargs=argparse.REMAINDER, help="Other DeepState flags to pass to \
-      harness before execution, in format `--arg=val`.")
+    exec_group.add_argument(
+      "--which_test", type=str,
+      help="DeepState unit test to run (equivalent to `--input_which_test`).")
 
-    return parser.parse_args()
+    exec_group.add_argument(
+      "--prog_args", default=[], nargs=argparse.REMAINDER,
+      help="Other DeepState flags to pass to harness before execution, in format `--arg=val`.")
+
+    # parse arguments, and read from config or parse in args
+    args = vars(parser.parse_args())
+
+    if args["config"]:
+      args.update(AnalysisBackend.build_from_config(args["config"]))
+      del args["config"]
+
+    cls._ARGS = args
+
+    #cls._ARGS = AnalysisBackend.build_from_config(args.config) if args.config is not None else vars(args)
+
+
+  ConfigType = Dict[str, Dict[str, Union[str, List[str]]]]
+
+  @staticmethod
+  def build_from_config(config: str, include_sections: bool = False) -> Union[ConfigType, Dict[str, str]]:
+    """
+    Simple auxiliary helper that does safe and correct parsing of DeepState configurations. This can be used
+    in the following manners:
+
+    * Baked-in usage with AnalysisBackend, allowing us to take input user configurations and initialize attributes for
+    our frontend executors.
+    * Used externally as API for reasoning with configurations as part of auxiliary tools or test runners.
+
+    :param config: path to configuration file
+    :param include_sections: if true, will return a ConfigType where keys are section names
+    """
+
+    context = dict()
+    allowed_sections = ["compile", "test", "manifest"]
+
+    # TODO: `allowed_keys` storing subclass attributes
+
+    parser = configparser.SafeConfigParser()
+    parser.read(config)
+
+    for section, kv in parser._sections.items():
+      if section not in allowed_sections:
+        continue
+
+      # TODO: make functional or less repetitive
+      if include_sections:
+        context[section] = dict()
+        for key, val in kv.items():
+          if isinstance(val, list):
+            context[section][key].append(val)
+          else:
+            context[section][key] = val
+      else:
+        for key, val in kv.items():
+          if isinstance(val, list):
+            context[key].append(val)
+          else:
+            context[key] = val
+
+    return context
 
 
   def init_from_dict(self, _args: Optional[Dict[str, str]] = None) -> None:
@@ -86,14 +171,6 @@ class AnalysisBackend(object):
 
     :param _args: optional dictionary with parsed arguments to set as attributes.
     """
-    args: Dict[str, str] = vars(self._ARGS) if _args is None else _args
+    args: Dict[str, str] = self._ARGS if _args is None else _args
     for key, value in args.items():
       setattr(self, key, value)
-
-
-  def fallback_compile(self) -> None:
-    """
-    Defines a fallback compilation routine for executors. This should be used as the default method
-    for symex executors, or for grey/black-box fuzzers that don't mutate or instrument code with a compiler wrapper.
-    """
-    pass
