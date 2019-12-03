@@ -62,6 +62,10 @@
 #define DEEPSTATE_MAX_SWARM_CONFIGS 1024
 #endif
 
+#ifndef DEEPSTATE_SWARM_MAX_PROB_RATIO
+#define DEEPSTATE_SWARM_MAX_PROB_RATIO 16
+#endif
+
 #define MAYBE(...) \
     if (DeepState_Bool()) { \
       __VA_ARGS__ ; \
@@ -104,11 +108,29 @@ extern volatile uint8_t DeepState_Input[DeepState_InputSize];
  * been consumed. */
 extern uint32_t DeepState_InputIndex;
 
+enum DeepState_SwarmType {
+  DeepState_SwarmTypePure = 0,
+  DeepState_SwarmTypeMixed = 1,
+  DeepState_SwarmTypeProb = 2
+};
+
+/* Contains info about a swarm configuration */
+struct DeepState_SwarmConfig {
+  char* file;
+  unsigned line;
+  unsigned orig_fcount;
+  /* We identify a configuration by these first three elements of the struct */
+
+  /* These fields allow us to map choices to the restricted configuration */
+  unsigned fcount;
+  unsigned* fmap;
+};
+
 /* Index into the set of swarm configurations. */
 extern uint32_t DeepState_SwarmConfigsIndex;
 
 /* Function to return a swarm configuration. */
-extern struct DeepState_SwarmConfig* DeepState_GetSwarmConfig(unsigned fcount, const char* file, unsigned line, int mix);
+extern struct DeepState_SwarmConfig* DeepState_GetSwarmConfig(unsigned fcount, const char* file, unsigned line, enum DeepState_SwarmType stype);
 
 /* Return a symbolic value of a given type. */
 extern int DeepState_Bool(void);
@@ -436,18 +458,6 @@ struct DeepState_TestRunInfo {
   struct DeepState_TestInfo *test;
   enum DeepState_TestRunResult result;
   const char *reason;
-};
-
-/* Contains info about a swarm configuration */
-struct DeepState_SwarmConfig {
-  char* file;
-  unsigned line;
-  unsigned orig_fcount;
-  /* We identify a configuration by these first three elements of the struct */
-
-  /* These fields allow us to map choices to the restricted configuration */
-  unsigned fcount;
-  unsigned* fmap;
 };
 
 /* Pointer to the last registered `TestInfo` structure. */
