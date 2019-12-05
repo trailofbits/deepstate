@@ -77,6 +77,8 @@ class AnalysisBackend(object):
       compile_group.add_argument("--out_test_name", type=str, default="out",
         help="Set name of generated instrumented binary (default is `out.{FUZZER}`).")
 
+      compile_group.add_argument("--no_exit_compile", action="store_true",
+        help="Continue execution after compiling a harness (set as default when input is a configuration).")
 
     # Target binary (not required, since user may pass in source for compilation)
     parser.add_argument("binary", nargs="?", type=str,
@@ -112,7 +114,11 @@ class AnalysisBackend(object):
     # if configuration is specified, parse and replace argument instantiations
     if args.config:
       _args.update(cls.build_from_config(args.config))
-      del args.config
+
+      # Cleanup: force --no_exit_compile to be on, meaning if user specifies a `[test]` section,
+      # execution will continue. Delete config as well
+      _args["no_exit_compile"] = True
+      del _args["config"]
 
     cls._ARGS = args
     return cls._ARGS
@@ -132,24 +138,39 @@ class AnalysisBackend(object):
     * Used externally as API for reasoning with configurations as part of auxiliary tools or test runners.
 
     :param config: path to configuration file
-    :param include_sections: if true, will return a ConfigType where keys are section names
+    :param include_sections: if true, parse all sections, and return a ConfigType where keys are section names
     """
 
     context = dict()
 
+    # reserved sections are ignored by executors, but should be used by other auxiliary tools
+    # to reason about with.
+    reserved_sections: List[str] = [
+      "manifest",   # contains "metadata" for a configuration,
+      "internal"    # write-only by auxiliary tools, and should hold
+    ]
+
     # define tokens that are allowed for a configuration. This way users will not be able to
     # populate an executor with unnecessary attributes that do not contribute to execution.
-    allowed_sections: List[str] = ["compile", "test", "manifest"]
+    allowed_sections: List[str] = [
+          "compile",    # specifies configuration for compiling a test
+          "test"        # configurations for execution
+    ]
 
-    # TODO: allow only a subset of keys
+    # TODO: allow only keys that represent subclass attributes
     #allowed_keys: List[str] = vars(cls)
 
     parser = configparser.SafeConfigParser()
     parser.read(config)
 
     for section, kv in parser._sections.items():
+
+      # parse if allowed, and only parse reserved if `include_sections` is set
       if section not in allowed_sections:
         continue
+      elif section in reserved_sections:
+        if include_sections:
+          pass
 
       _context = context[section] if include_sections else context
       for key, val in kv.items():

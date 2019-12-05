@@ -87,7 +87,7 @@ class FuzzerFrontend(AnalysisBackend):
 
         # .. or check if in $PATH before tossing exception
         else:
-          for path in os.environ["PATH"].split(os.pathsep):
+          for path in os.environ.get("PATH").split(os.pathsep):
             compiler_path: str = os.path.join(path, compiler)
 
             L.debug(f"Checking if `{compiler_path}` is a valid compiler path")
@@ -211,22 +211,31 @@ class FuzzerFrontend(AnalysisBackend):
   ##############################################
 
 
-  def compile(self, compiler_args, env = os.environ.copy()) -> None:
+  def compile(self, lib_path: str, flags: List[str], _out_bin: str, env = os.environ.copy()) -> Optional[str]:
     """
     Provides a simple interface that allows the user to compile a test harness
     with instrumentation using the specified compiler. Users should implement an
     inherited method that constructs the arguments necessary, and then pass it to the
-    base object.
+    base object. Returns string of generated binary if successful.
 
     `compile()` also supports compiling arbitrary harnesses without instrumentation if a compiler
     isn't set.
 
-    :param compiler_args: list of arguments for compiler (excluding compiler executable)
+    :param lib_path: path to DeepState static library for linking
+    :param flags: list of compiler flags (TODO: parse from compilation database)
+    :param _out_bin: name of linked test harness binary
     :param env: optional envvars to set during compilation
     """
 
     if self.compiler is None:
       raise FuzzFrontendError(f"No compiler specified for compile-time instrumentation.")
+
+    if self.binary is not None:
+      raise FuzzFrontendError(f"User-specified test binary conflicts with compiling from source.")
+
+    if not os.path.isfile(lib_path):
+      raise FuzzFrontendError("No {}-instrumented DeepState static library found in {}".format(cls, lib_path))
+    L.debug(f"Static library path: {lib_path}")
 
     # initialize compiler envvars
     env["CC"] = self.compiler
@@ -234,6 +243,8 @@ class FuzzerFrontend(AnalysisBackend):
     L.debug(f"CC={env['CC']} and CXX={env['CXX']}")
 
     # initialize command with prepended compiler
+    compiler_args = ["-std=c++11", self.compile_test] + flags + \
+                    ["-o", _out_bin]
     compile_cmd = [self.compiler] + compiler_args
     L.debug(f"Compilation command: {str(compile_cmd)}")
 
@@ -244,6 +255,10 @@ class FuzzerFrontend(AnalysisBackend):
     except BaseException as e:
       raise FuzzFrontendError(f"{self.compiler} interrupted due to exception:", e)
 
+    # extra check if target binary was successfully compiled, and set that as target binary
+    out_bin = os.path.join(os.environ.get("PWD"), _out_bin)
+    if os.path.exists(out_bin):
+      self.binary = out_bin
 
 
   def pre_exec(self):
@@ -263,10 +278,16 @@ class FuzzerFrontend(AnalysisBackend):
       self.print_help()
       sys.exit(0)
 
-    # if compile_test is set, ignore everything else and call compile for user
+    # if compile_test is set, call compile for user
     if self.compile_test:
       self.compile()
+
       if self.binary is None:
+        print("\nError: Could not compile binary for execution.")
+        sys.exit(1)
+
+      if not self.no_exit_compile:
+        print(f"\nDone compiling target binary `{self.binary}`.")
         sys.exit(0)
 
     # manually check if binary positional argument was passed
@@ -274,6 +295,10 @@ class FuzzerFrontend(AnalysisBackend):
       self.parser.print_help()
       print("\nError: Target binary not specified.")
       sys.exit(1)
+
+    # check if binary exists
+    if not os.path.isabs(self.binary):
+      self.binary = os.path.abspath(self.binary)
 
     L.debug(f"Target binary: {self.binary}")
 

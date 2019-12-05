@@ -55,18 +55,11 @@ class AFL(FuzzerFrontend):
 
   def compile(self):
     lib_path = "/usr/local/lib/libdeepstate_AFL.a"
-    L.debug(f"Static library path: {lib_path}")
-
-    if not os.path.isfile(lib_path):
-      raise FuzzFrontendError("No AFL-instrumented DeepState static library found in {}".format(lib_path))
 
     flags = ["-ldeepstate_AFL"]
     if self.compiler_args:
       flags += [arg for arg in self.compiler_args.split(" ")]
-
-    compiler_args = ["-std=c++11", self.compile_test] + flags + \
-                    ["-o", self.out_test_name + ".afl"]
-    super().compile(compiler_args)
+    super().compile(lib_path, flags, self.out_test_name + ".afl")
 
 
   def pre_exec(self):
