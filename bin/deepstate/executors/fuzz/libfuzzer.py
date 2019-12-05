@@ -17,7 +17,7 @@ import os
 import logging
 import argparse
 
-from deepstate.core.frontend import FuzzerFrontend, FuzzFrontendError
+from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
 L = logging.getLogger("deepstate.frontend.libfuzzer")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
@@ -25,7 +25,7 @@ L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 class LibFuzzer(FuzzerFrontend):
 
-  FUZZER = "clang++"    # placeholder, set as harness binary later
+  NAME = "clang++"    # placeholder, set as harness binary later
   COMPILER = "clang++"
 
 
@@ -55,18 +55,11 @@ class LibFuzzer(FuzzerFrontend):
 
   def compile(self):
     lib_path = "/usr/local/lib/libdeepstate_LF.a"
-    L.debug(f"Static library path: {lib_path}")
-
-    if not os.path.isfile(lib_path):
-      raise RuntimeError("no LibFuzzer-instrumented DeepState static library found in {}".format(lib_path))
 
     flags = ["-ldeepstate_LF"]
     if self.compiler_args:
       flags += [arg for arg in self.compiler_args.split(" ")]
-
-    compiler_args = ["-std=c++11", "-fsanitize=fuzzer", self.compile_test] + flags + \
-                    ["-o", self.out_test_name + ".libfuzzer"]
-    super().compile(compiler_args)
+    super().compile(lib_path, flags, self.out_test_name + ".libfuzzer")
 
 
   def pre_exec(self):
@@ -126,7 +119,6 @@ def main():
 
   # parse user arguments and build object
   fuzzer.parse_args()
-  fuzzer.init_fuzzer()
 
   # run fuzzer with parsed attributes
   fuzzer.run()

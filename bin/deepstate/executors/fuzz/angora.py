@@ -19,7 +19,7 @@ import logging
 import argparse
 import subprocess
 
-from deepstate.core.frontend import FuzzerFrontend, FuzzFrontendError
+from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
 L = logging.getLogger("deepstate.frontend.angora")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
@@ -27,7 +27,7 @@ L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 class Angora(FuzzerFrontend):
 
-  FUZZER = "angora_fuzzer"
+  NAME = "angora_fuzzer"
   COMPILER = "bin/angora-clang++"
 
   @classmethod
@@ -49,15 +49,6 @@ class Angora(FuzzerFrontend):
   def compile(self):
     env = os.environ.copy()
 
-    # check if static libraries exist
-    lib_path = "/usr/local/lib/"
-    L.debug(f"Static library path: {lib_path}")
-
-    if not os.path.isfile(lib_path + "libdeepstate_fast.a"):
-      raise RuntimeError("no Angora branch-instrumented DeepState static library found in {}".format(lib_path))
-    if not os.path.isfile(lib_path + "libdeepstate_taint.a"):
-      raise RuntimeError("no Angora taint-tracked DeepState static library found in {}".format(lib_path))
-
     # generate ignored functions output for taint tracking
     # set envvar to file with ignored lib functions for taint tracking
     if self.ignore_calls:
@@ -74,7 +65,7 @@ class Angora(FuzzerFrontend):
           raise FuzzFrontendError(f"Library `{path}` to blackbox was not a valid library path.")
 
         # instantiate command to call, but store output to buffer
-        cmd = [os.getenv("ANGORA") + "/tools/gen_library_abilist.sh", path, "discard"]
+        cmd = [os.environ.get("ANGORA") + "/tools/gen_library_abilist.sh", path, "discard"]
         L.debug(f"Compilation command: {cmd}")
 
         out = subprocess.check_output(cmd)
@@ -91,32 +82,30 @@ class Angora(FuzzerFrontend):
 
 
     # make a binary with light instrumentation
+    fast_path= "/usr/local/lib/libdeepstate_fast.a"
+    L.debug(f"Static library path: {fast_path}")
+
     fast_flags = ["-ldeepstate_fast"]
     if self.compiler_args:
       fast_flags += [arg for arg in self.compiler_args.split(" ")]
-
-    fast_args = ["-std=c++11", self.compile_test] + fast_flags + \
-                ["-o", self.out_test_name + ".fast"]
-
     L.info(f"Compiling {self.compile_test} for Angora with light instrumentation")
-    super().compile(compiler_args=fast_args, env=env)
+    super().compile(fast_path, fast_flags, self.out_test_name + ".fast", env=env)
 
-
-    # make a binary with taint tracking information
-    taint_flags = ["-ldeepstate_taint"]
-    if self.compiler_args:
-      taint_flags += [arg for arg in self.compiler_args.split(' ')]
-
+    # initialize envvar for instrumentation framework
     if self.mode == "pin":
       env["USE_PIN"] = "1"
     else:
       env["USE_TRACK"] = "1"
 
-    taint_args = ["-std=c++11", self.compile_test] + taint_flags + \
-                 ["-o", self.out_test_name + ".taint"]
+    # make a binary with taint tracking information
+    taint_path = "/usr/local/lib/libdeepstate_taint.a"
+    L.debug(f"Static library path: {taint_path}")
 
+    taint_flags = ["-ldeepstate_taint"]
+    if self.compiler_args:
+      taint_flags += [arg for arg in self.compiler_args.split(' ')]
     L.info(f"Compiling {self.compile_test} for Angora with taint tracking")
-    super().compile(compiler_args=taint_args, env=env)
+    super().compile(taint_path, taint_flags, self.out_test_name + ".taint", env=env)
 
 
   def pre_exec(self):
@@ -196,7 +185,6 @@ def main():
 
   # parse user arguments and build object
   fuzzer.parse_args()
-  fuzzer.init_fuzzer()
 
   # run fuzzer with parsed attributes
   fuzzer.run()

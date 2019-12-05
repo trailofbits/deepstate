@@ -16,7 +16,7 @@ import os
 import logging
 import argparse
 
-from deepstate.core.frontend import FuzzerFrontend, FuzzFrontendError
+from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
 L = logging.getLogger("deepstate.frontend.honggfuzz")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
@@ -24,7 +24,7 @@ L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 class Honggfuzz(FuzzerFrontend):
 
-  FUZZER = "honggfuzz"
+  NAME = "honggfuzz"
   COMPILER = "hfuzz-clang++"
 
   @classmethod
@@ -57,7 +57,6 @@ class Honggfuzz(FuzzerFrontend):
 
   def compile(self):
     lib_path = "/usr/local/lib/libdeepstate_hfuzz.a"
-    L.debug(f"Static library path: {lib_path}")
 
     if not os.path.isfile(lib_path):
       flags = ["-ldeepstate"]
@@ -66,10 +65,7 @@ class Honggfuzz(FuzzerFrontend):
 
     if self.compiler_args:
       flags += [arg for arg in self.compiler_args.split(" ")]
-
-    compiler_args = ["-std=c++11", self.compile_test] + flags + \
-                    ["-o", self.out_test_name + ".hfuzz"]
-    super().compile(compiler_args)
+    super().compile(lib_path, flags, self.out_test_name + ".hfuzz")
 
 
   def pre_exec(self):
@@ -195,7 +191,6 @@ def main():
 
   # parse user arguments and build object
   fuzzer.parse_args()
-  fuzzer.init_fuzzer()
 
   # run fuzzer with parsed attributes
   fuzzer.run()

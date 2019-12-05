@@ -23,7 +23,7 @@ setuptools.setup(
     name="deepstate",
     version="0.1",
     package_dir={"": "${CMAKE_SOURCE_DIR}/bin"},
-    packages=['deepstate', 'deepstate.core', 'deepstate.core.frontend', 'deepstate.executors',
+    packages=['deepstate', 'deepstate.core', 'deepstate.executors',
               'deepstate.executors.fuzz', 'deepstate.executors.symex', 'deepstate.executors.auxiliary'],
     description="DeepState augments C/C++ Test-Driven Development with Fuzzing and Symbolic Execution",
     url="https://github.com/trailofbits/deepstate",

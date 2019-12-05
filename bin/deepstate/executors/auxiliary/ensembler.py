@@ -27,7 +27,7 @@ import multiprocessing
 from multiprocessing import Process
 from collections import defaultdict
 
-from deepstate.core.frontend.fuzz import FuzzerFrontend
+from deepstate.core.fuzz import FuzzerFrontend
 from deepstate.executors.fuzz.afl import AFL
 from deepstate.executors.fuzz.honggfuzz import Honggfuzz
 from deepstate.executors.fuzz.angora import Angora
@@ -224,7 +224,7 @@ class Ensembler(FuzzerFrontend):
         cmd_map["mode"] = "llvm"
         cmd_map["ignore_calls"] = self.ignore_calls
 
-      fuzzer.init_fuzzer(cmd_map)
+      fuzzer.init_from_dict(cmd_map)
 
       L.info(f"Compiling test case {test_case} as `{test_name}` with {fuzzer}")
       fuzzer.compile()
@@ -333,7 +333,7 @@ class Ensembler(FuzzerFrontend):
           "perf_branch": False
         })
 
-      fuzzer.init_fuzzer(fuzzer_args)
+      fuzzer.init_from_dict(fuzzer_args)
 
       # sets compiler and no_exec params before execution
       # Eclipser requires `dotnet` to be invoked before fuzzer executable.
@@ -371,7 +371,7 @@ def main():
 
   # parse arguments and provision ensembler
   ensembler.parse_args()
-  ensembler.init_fuzzer()
+  ensembler.init_from_dict()
   ensembler.provision()
 
   # call ensembler routine
