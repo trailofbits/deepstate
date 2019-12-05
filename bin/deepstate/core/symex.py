@@ -145,8 +145,7 @@ class SymexFrontend(AnalysisBackend):
         help="Minimum DeepState log level to print (default: 2), 0-6 (debug, trace, info, warning, error, external, critical).")
 
     cls.parser = parser
-    super(SymexFrontend, cls).parse_args()
-    return cls.parser.parse_args()
+    return super(SymexFrontend, cls).parse_args()
 
 
   @property

@@ -194,6 +194,7 @@ class FuzzerFrontend(AnalysisBackend):
       help="Show fuzzer command line interface's help options.")
 
     # finalize building up parser by passing to superclass, and instantiate object attributes
+    # the base `parse_args` sets state with _ARGS, so we do need to return a namespace
     cls.parser = parser
     super(FuzzerFrontend, cls).parse_args()
 

@@ -106,15 +106,17 @@ class AnalysisBackend(object):
       "--prog_args", default=[], nargs=argparse.REMAINDER,
       help="Other DeepState flags to pass to harness before execution, in format `--arg=val`.")
 
-
-    args: Dict[str, str] = vars(parser.parse_args())
+    args = parser.parse_args()
+    _args: Dict[str, str] = vars(args)
 
     # if configuration is specified, parse and replace argument instantiations
-    if args["config"]:
-      args.update(cls.build_from_config(args["config"]))
-      del args["config"]
+    if args.config:
+      _args.update(cls.build_from_config(args.config))
+      del args.config
 
     cls._ARGS = args
+    return cls._ARGS
+
 
 
   ConfigType = Dict[str, Dict[str, Union[str, List[str]]]]
@@ -139,7 +141,8 @@ class AnalysisBackend(object):
     # populate an executor with unnecessary attributes that do not contribute to execution.
     allowed_sections: List[str] = ["compile", "test", "manifest"]
 
-    allowed_keys: List[str] = vars(cls)
+    # TODO: allow only a subset of keys
+    #allowed_keys: List[str] = vars(cls)
 
     parser = configparser.SafeConfigParser()
     parser.read(config)
@@ -150,11 +153,10 @@ class AnalysisBackend(object):
 
       _context = context[section] if include_sections else context
       for key, val in kv.items():
-        if key in allowed_keys:
-          if isinstance(val, list):
-            _context[key].append(val)
-          else:
-            _context[key] = val
+        if isinstance(val, list):
+          _context[key].append(val)
+        else:
+          _context[key] = val
 
     return context
 
@@ -166,6 +168,6 @@ class AnalysisBackend(object):
 
     :param _args: optional dictionary with parsed arguments to set as attributes.
     """
-    args: Dict[str, str] = self._ARGS if _args is None else _args
+    args: Dict[str, str] = vars(self._ARGS) if _args is None else _args
     for key, value in args.items():
       setattr(self, key, value)
