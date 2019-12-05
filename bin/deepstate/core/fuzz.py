@@ -236,11 +236,13 @@ class FuzzerFrontend(AnalysisBackend):
     compile_cmd = [self.compiler] + compiler_args
     L.debug(f"Compilation command: {str(compile_cmd)}")
 
+    # call compiler, and deal with exceptions accordingly
     L.info(f"Compiling test harness `{self.compile_test}` with {self.compiler}")
     try:
       subprocess.Popen(compile_cmd, env=env).communicate()
     except BaseException as e:
       raise FuzzFrontendError(f"{self.compiler} interrupted due to exception:", e)
+
 
 
   def pre_exec(self):
@@ -263,6 +265,8 @@ class FuzzerFrontend(AnalysisBackend):
     # if compile_test is set, ignore everything else and call compile for user
     if self.compile_test:
       self.compile()
+      if self.binary is None:
+        sys.exit(0)
 
     # manually check if binary positional argument was passed
     if self.binary is None:

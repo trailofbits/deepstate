@@ -106,22 +106,21 @@ class AnalysisBackend(object):
       "--prog_args", default=[], nargs=argparse.REMAINDER,
       help="Other DeepState flags to pass to harness before execution, in format `--arg=val`.")
 
-    # parse arguments, and read from config or parse in args
-    args = vars(parser.parse_args())
 
+    args: Dict[str, str] = vars(parser.parse_args())
+
+    # if configuration is specified, parse and replace argument instantiations
     if args["config"]:
-      args.update(AnalysisBackend.build_from_config(args["config"]))
+      args.update(cls.build_from_config(args["config"]))
       del args["config"]
 
     cls._ARGS = args
 
-    #cls._ARGS = AnalysisBackend.build_from_config(args.config) if args.config is not None else vars(args)
-
 
   ConfigType = Dict[str, Dict[str, Union[str, List[str]]]]
 
-  @staticmethod
-  def build_from_config(config: str, include_sections: bool = False) -> Union[ConfigType, Dict[str, str]]:
+  @classmethod
+  def build_from_config(cls, config: str, include_sections: bool = False) -> Union[ConfigType, Dict[str, str]]:
     """
     Simple auxiliary helper that does safe and correct parsing of DeepState configurations. This can be used
     in the following manners:
@@ -135,9 +134,12 @@ class AnalysisBackend(object):
     """
 
     context = dict()
-    allowed_sections = ["compile", "test", "manifest"]
 
-    # TODO: `allowed_keys` storing subclass attributes
+    # define tokens that are allowed for a configuration. This way users will not be able to
+    # populate an executor with unnecessary attributes that do not contribute to execution.
+    allowed_sections: List[str] = ["compile", "test", "manifest"]
+
+    allowed_keys: List[str] = vars(cls)
 
     parser = configparser.SafeConfigParser()
     parser.read(config)
@@ -146,20 +148,13 @@ class AnalysisBackend(object):
       if section not in allowed_sections:
         continue
 
-      # TODO: make functional or less repetitive
-      if include_sections:
-        context[section] = dict()
-        for key, val in kv.items():
+      _context = context[section] if include_sections else context
+      for key, val in kv.items():
+        if key in allowed_keys:
           if isinstance(val, list):
-            context[section][key].append(val)
+            _context[key].append(val)
           else:
-            context[section][key] = val
-      else:
-        for key, val in kv.items():
-          if isinstance(val, list):
-            context[key].append(val)
-          else:
-            context[key] = val
+            _context[key] = val
 
     return context
 
