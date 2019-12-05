@@ -45,18 +45,11 @@ class Eclipser(FuzzerFrontend):
     for consistency.
     """
     lib_path = "/usr/local/lib/libdeepstate.a"
-    L.debug(f"Static library path: {lib_path}")
-
-    if not os.path.isfile(lib_path):
-      raise RuntimeError("no DeepState static library found in {}".format(lib_path))
 
     flags = ["-ldeepstate"]
     if self.compiler_args:
       flags += [arg for arg in self.compiler_args.split(" ")]
-
-    compiler_args = ["-std=c++11", self.compile_test] + flags + \
-                    ["-o", self.out_test_name + ".eclipser"]
-    super().compile(compiler_args)
+    super().compile(lib_path, flags, self.out_test_name + ".eclipser")
 
 
   def pre_exec(self):

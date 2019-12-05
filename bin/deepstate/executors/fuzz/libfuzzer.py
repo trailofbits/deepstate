@@ -55,18 +55,11 @@ class LibFuzzer(FuzzerFrontend):
 
   def compile(self):
     lib_path = "/usr/local/lib/libdeepstate_LF.a"
-    L.debug(f"Static library path: {lib_path}")
-
-    if not os.path.isfile(lib_path):
-      raise RuntimeError("no LibFuzzer-instrumented DeepState static library found in {}".format(lib_path))
 
     flags = ["-ldeepstate_LF"]
     if self.compiler_args:
       flags += [arg for arg in self.compiler_args.split(" ")]
-
-    compiler_args = ["-std=c++11", "-fsanitize=fuzzer", self.compile_test] + flags + \
-                    ["-o", self.out_test_name + ".libfuzzer"]
-    super().compile(compiler_args)
+    super().compile(lib_path, flags, self.out_test_name + ".libfuzzer")
 
 
   def pre_exec(self):
