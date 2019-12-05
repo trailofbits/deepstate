@@ -153,8 +153,8 @@ class AnalysisBackend(object):
     # define tokens that are allowed for a configuration. This way users will not be able to
     # populate an executor with unnecessary attributes that do not contribute to execution.
     allowed_sections: List[str] = [
-          "compile",    # specifies configuration for compiling a test
-          "test"        # configurations for execution
+      "compile",    # specifies configuration for compiling a test
+      "test"        # configurations for execution
     ]
 
     # TODO: allow only keys that represent subclass attributes

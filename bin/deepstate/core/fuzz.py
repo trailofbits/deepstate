@@ -296,7 +296,7 @@ class FuzzerFrontend(AnalysisBackend):
       print("\nError: Target binary not specified.")
       sys.exit(1)
 
-    # check if binary exists
+    # check if binary exists and contains an absolute path
     if not os.path.isabs(self.binary):
       self.binary = os.path.abspath(self.binary)
 
