@@ -82,14 +82,16 @@ class AFL(FuzzerFrontend):
       seeds = self.input_seeds
       L.debug(f"Fuzzing with seed directory: {seeds}.")
 
-      # check if seeds dir exists
-      if not os.path.exists(seeds):
-        os.mkdir(seeds)
-        raise FuzzFrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
+      # AFL uses "-" to tell it to resume fuzzing, don't treat as a real seed dir
+      if seeds != "-":
+        # check if seeds dir exists
+        if not os.path.exists(seeds):
+          os.mkdir(seeds)
+          raise FuzzFrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
 
-      # check if seeds dir is empty
-      if len([name for name in os.listdir(seeds)]) == 0:
-        raise FuzzFrontendError(f"No seeds present in directory {seeds}.")
+        # check if seeds dir is empty
+        if len([name for name in os.listdir(seeds)]) == 0:
+          raise FuzzFrontendError(f"No seeds present in directory {seeds}.")
 
 
   @property
