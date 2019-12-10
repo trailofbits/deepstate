@@ -124,11 +124,10 @@ class AnalysisBackend(object):
     return cls._ARGS
 
 
-
   ConfigType = Dict[str, Dict[str, Union[str, List[str]]]]
 
-  @classmethod
-  def build_from_config(cls, config: str, include_sections: bool = False) -> Union[ConfigType, Dict[str, str]]:
+  @staticmethod
+  def build_from_config(config: str, allowed_keys: Optional[List[str]] = None,  include_sections: bool = False) -> Union[ConfigType, Dict[str, str]]:
     """
     Simple auxiliary helper that does safe and correct parsing of DeepState configurations. This can be used
     in the following manners:
@@ -138,42 +137,51 @@ class AnalysisBackend(object):
     * Used externally as API for reasoning with configurations as part of auxiliary tools or test runners.
 
     :param config: path to configuration file
+    :param allowed_keys: contains allowed keys that should be parsed
     :param include_sections: if true, parse all sections, and return a ConfigType where keys are section names
     """
 
-    context = dict()
+    context: ConfigType = dict()
 
-    # reserved sections are ignored by executors, but should be used by other auxiliary tools
+    # reserved sections are ignored by executors, but can be used by other auxiliary tools
     # to reason about with.
     reserved_sections: List[str] = [
-      "manifest",   # contains "metadata" for a configuration,
-      "internal"    # write-only by auxiliary tools, and should hold
+      "manifest",   # contains "metadata" for a configuration
+      "internal"    # write-only by auxiliary tools, and should store anything not used by DeepState
     ]
 
     # define tokens that are allowed for a configuration. This way users will not be able to
     # populate an executor with unnecessary attributes that do not contribute to execution.
     allowed_sections: List[str] = [
       "compile",    # specifies configuration for compiling a test
-      "test"        # configurations for execution
+      "test"        # configurations for harness execution under analysis tool
     ]
-
-    # TODO: allow only keys that represent subclass attributes
-    #allowed_keys: List[str] = vars(cls)
 
     parser = configparser.SafeConfigParser()
     parser.read(config)
 
     for section, kv in parser._sections.items():
 
-      # parse if allowed, and only parse reserved if `include_sections` is set
-      if section not in allowed_sections:
-        continue
-      elif section in reserved_sections:
-        if include_sections:
-          pass
+      # if `include_sections` is not set, parse only from allowed_sections
+      if not include_sections:
+        if section not in allowed_sections:
+          continue
+        elif section in reserved_sections:
+          continue
 
-      _context = context[section] if include_sections else context
+      # if `include_sections`, keys are now all section names
+      if include_sections:
+        _context = context[section] = dict()
+      else:
+        _context = context
+
       for key, val in kv.items():
+
+        # check if key should be parsed
+        if allowed_keys is not None:
+          if key not in allowed_keys:
+            continue
+
         if isinstance(val, list):
           _context[key].append(val)
         else:
