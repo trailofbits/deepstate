@@ -35,6 +35,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <fnmatch.h>
+#include <execinfo.h>
 
 #include <deepstate/Log.h>
 #include <deepstate/Compiler.h>
@@ -90,6 +91,7 @@ DECLARE_bool(fork);
 DECLARE_bool(list_tests);
 DECLARE_bool(boring_only);
 DECLARE_bool(run_disabled);
+DECLARE_bool(verbose_crash_trace);
 
 DECLARE_int(min_log_level);
 DECLARE_int(seed);
@@ -521,6 +523,25 @@ extern void DeepState_SaveFailingTest(void);
 /* Save a crashing test to the output test directory. */
 extern void DeepState_SaveCrashingTest(void);
 
+/* Emit test function backtrace after test crashes. */
+static void DeepState_EmitBacktrace(int signum, siginfo_t *sig, void *context) {
+
+  DeepState_LogFormat(DeepState_LogInfo, "Test crashed with: %s", sys_siglist[sig->si_status]);
+
+  void *array[10];
+  size_t size;
+  char **strings;
+
+  size = backtrace(array, 10);
+  strings = backtrace_symbols(array, size);
+
+  for (size_t i = 0; i < size; i++)
+     DeepState_LogFormat(DeepState_LogTrace, "%s", strings[i]);
+
+  free(strings);
+}
+
+
 /* Jump buffer for returning to `DeepState_Run`. */
 extern jmp_buf DeepState_ReturnToRun;
 
@@ -650,7 +671,6 @@ static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
 #if defined(__cplusplus) && defined(__cpp_exceptions)
     try {
 #endif  /* __cplusplus */
-
       test->test_func();  /* Run the test function. */
       return(DeepState_TestRunPass);
 
@@ -692,6 +712,19 @@ static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
 /* Fork and run `test`. */
 static enum DeepState_TestRunResult
 DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
+
+  /* If flag is set, install a signal handler for SIGCHLD */
+  /* TODO(alan): use handler as "multiplexer" and handle child signal */
+  if (FLAGS_verbose_crash_trace) {
+    struct sigaction sigact, oldact;
+
+    sigact.sa_flags = SA_SIGINFO | SA_NOCLDWAIT;
+    sigact.sa_sigaction = DeepState_EmitBacktrace;
+
+    sigaction(SIGCHLD, &sigact, &oldact);
+  }
+
+
   pid_t test_pid;
   if (FLAGS_fork) {
     test_pid = fork();
@@ -754,6 +787,7 @@ DeepState_RunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
       DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
       DeepState_LogFormat(DeepState_LogError, "Test case %s crashed", path);
       free(path);
+
       if (HAS_FLAG_output_test_dir) {
         DeepState_SaveCrashingTest();
       }
