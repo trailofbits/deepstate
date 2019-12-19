@@ -27,26 +27,44 @@ L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 class Angora(FuzzerFrontend):
 
+  # these classvars are set under the assumption that $ANGORA_PATH is set to the built source
   NAME = "angora_fuzzer"
   COMPILER = "bin/angora-clang++"
+
 
   @classmethod
   def parse_args(cls):
     parser = argparse.ArgumentParser(description="Use Angora as a backend for DeepState.")
 
+    # Other compilation arguments
     compile_group = parser.add_argument_group("compilation and instrumentation arguments")
-    compile_group.add_argument("--ignore_calls", type=str, help="Path to static/shared libraries (colon seperated) for functions to blackbox for taint analysis.")
+    compile_group.add_argument("--ignore_calls", type=str,
+      help="Path to static/shared libraries (colon seperated) for functions to blackbox for taint analysis.")
 
-    parser.add_argument("taint_binary", nargs="?", type=str, help="Path to binary compiled with taint tracking.")
-    parser.add_argument("--mode", type=str, default="llvm", choices=["llvm", "pin"], help="Specifies binary instrumentation framework used (either llvm or pin).")
-    parser.add_argument("--no_afl", action='store_true', help="Disables AFL mutation strategies being used.")
-    parser.add_argument("--no_exploration", action='store_true', help="Disables context-sensitive input bytes mutation.")
+
+    # Angora-specific test execution options
+    parser.add_argument("taint_binary", nargs="?", type=str,
+      help="Path to binary compiled with taint tracking.")
+
+    parser.add_argument("--mode", type=str, default="llvm", choices=["llvm", "pin"],
+      help="Specifies binary instrumentation framework used (either llvm or pin).")
+
+    parser.add_argument("--no_afl", action='store_true',
+      help="Disables AFL mutation strategies being used.")
+
+    parser.add_argument("--no_exploration", action='store_true',
+      help="Disables context-sensitive input bytes mutation.")
 
     cls.parser = parser
     return super(Angora, cls).parse_args()
 
 
   def compile(self):
+    """
+    Compilation interface provides extra support for generating taint policy for
+    blacklisted ABI calls with DFsan.
+    """
+
     env = os.environ.copy()
 
     # generate ignored functions output for taint tracking

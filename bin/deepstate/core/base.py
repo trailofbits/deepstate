@@ -78,7 +78,7 @@ class AnalysisBackend(object):
         help="Set name of generated instrumented binary (default is `out.{FUZZER}`).")
 
       compile_group.add_argument("--no_exit_compile", action="store_true",
-        help="Continue execution after compiling a harness (set as default when input is a configuration).")
+        help="Continue execution after compiling a harness (set as default if `--config` is set).")
 
     # Target binary (not required, since user may pass in source for compilation)
     parser.add_argument("binary", nargs="?", type=str,
@@ -94,8 +94,12 @@ class AnalysisBackend(object):
       help="Configuration file to be consumed instead of arguments.")
 
     parser.add_argument(
-      "-t", "--timeout", default=240, type=int,
-      help="Time to kill analysis workers, in seconds (default 240).")
+      "-t", "--timeout", default=0, type=int,
+      help="Time to kill analysis worker processes, in seconds (default is 0 for none).")
+
+    parser.add_argument(
+      "-w", "--num_workers", default=1, type=int,
+      help="Number of worker jobs to spawn for analysis (default is 1).")
 
 
     # DeepState-related options

@@ -125,10 +125,6 @@ class SymexFrontend(AnalysisBackend):
         description="Symbolically execute unit tests with {}".format(cls.NAME))
 
     parser.add_argument(
-        "--num_workers", default=1, type=int,
-        help="Number of workers to spawn for testing and test generation.")
-
-    parser.add_argument(
         "--take_over", action='store_true',
         help="Explore the program starting at the `TakeOver` hook.")
 

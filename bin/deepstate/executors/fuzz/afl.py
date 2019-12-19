@@ -36,18 +36,36 @@ class AFL(FuzzerFrontend):
     parser = argparse.ArgumentParser(description="Use AFL as a backend for DeepState")
 
     # Execution options
-    parser.add_argument("--dictionary", type=str, help="Optional fuzzer dictionary for AFL.")
-    parser.add_argument("--mem_limit", type=int, default=50, help="Child process memory limit in MB (default is 50).")
-    parser.add_argument("--file", type=str, help="Input file read by fuzzed program, if any.")
+    parser.add_argument("--dictionary", type=str,
+      help="Optional fuzzer dictionary for AFL.")
+
+    parser.add_argument("--run_timeout", type=int, default=50,
+      help="Timeout for each instance of a run in ms (default is 50ms).")
+
+    parser.add_argument("--mem_limit", type=int, default=50,
+      help="Child process memory limit in MB (default is 50).")
+
+    parser.add_argument("--file", type=str,
+      help="Input file read by fuzzed program, if any.")
+
 
     # AFL execution modes
-    parser.add_argument("--dirty_mode", action="store_true", help="Fuzz without deterministic steps.")
-    parser.add_argument("--dumb_mode", action="store_true", help="Fuzz without instrumentation.")
-    parser.add_argument("--qemu_mode", action="store_true", help="Fuzz with QEMU mode.")
-    parser.add_argument("--crash_explore", action="store_true", help="Fuzz with crash exploration.")
+    parser.add_argument("--dirty_mode", action="store_true",
+      help="Fuzz without deterministic steps.")
+
+    parser.add_argument("--dumb_mode", action="store_true",
+      help="Fuzz without instrumentation.")
+
+    parser.add_argument("--qemu_mode", action="store_true",
+      help="Fuzz with QEMU mode.")
+
+    parser.add_argument("--crash_explore", action="store_true",
+      help="Fuzz with crash exploration.")
+
 
     # Misc. post-processing
-    parser.add_argument("--post_stats", action="store_true", help="Output post-fuzzing stats.")
+    parser.add_argument("--post_stats", action="store_true",
+      help="Output post-fuzzing stats.")
 
     cls.parser = parser
     return super(AFL, cls).parse_args()
@@ -98,13 +116,15 @@ class AFL(FuzzerFrontend):
   def cmd(self):
     cmd_dict = {
       "-o": self.output_test_dir,
-      "-t": str(self.timeout),
       "-m": str(self.mem_limit)
     }
 
     # since this is optional for AFL's dumb fuzzing
     if self.input_seeds:
       cmd_dict["-i"] = self.input_seeds
+
+    if self.run_timeout:
+      cmd_dict["-t"] = str(self.run_timeout)
 
     # check if we are using one of AFL's many "modes"
     if self.dirty_mode:

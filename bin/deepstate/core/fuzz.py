@@ -22,6 +22,7 @@ import sys
 import subprocess
 import argparse
 import functools
+import multiprocessing
 
 from typing import ClassVar, Optional, Dict, List, Any
 
@@ -120,6 +121,8 @@ class FuzzerFrontend(AnalysisBackend):
     self.binary: Optional[str] = None
     self.prog_args: List[str] = []
     self.output_test_dir: str = "{}_out".format(str(self))
+    self.timeout: int = 0
+    self.num_workers: int = 1
 
     self.compile_test: Optional[str] = None
     self.compiler_args: List[str] = []
@@ -268,9 +271,6 @@ class FuzzerFrontend(AnalysisBackend):
     checks or initializations before execution.
     """
 
-    # NOTE(alan): we don't use namespace param so we "build up" object attributes
-    super(FuzzerFrontend, self).init_from_dict()
-
     if self.parser is None:
       raise FuzzFrontendError("No arguments parsed yet. Call parse_args() before pre_exec().")
 
@@ -390,15 +390,18 @@ class FuzzerFrontend(AnalysisBackend):
   # Fuzzer process execution methods
   ##############################################
 
-
   def run(self, compiler: Optional[str] = None, no_exec: bool = False):
     """
-    Spawns the fuzzer by taking the self.cmd property and initializing a command in a list
-    format for subprocess.
+    Interface for spawning and executing fuzzer jobs. Uses the configured `num_workers` in order to
+    create a multiprocessing pool to parallelize fuzzers for execution in self._run.
 
     :param compiler: if necessary, a compiler that is invoked before fuzzer executable (ie `dotnet`)
     :param no_exec: skips pre- and post-processing steps during execution
+
     """
+
+    # NOTE(alan): we don't use namespace param so we "build up" object attributes when we execute run()
+    super(FuzzerFrontend, self).init_from_dict()
 
     # call pre_exec for any checks/inits before execution.
     if not no_exec:
@@ -411,6 +414,32 @@ class FuzzerFrontend(AnalysisBackend):
     # prepend compiler that invokes fuzzer
     if compiler:
       command.insert(0, compiler)
+
+    results: List[int] = []
+    pool = multiprocessing.Pool(processes=self.num_workers)
+    results = pool.apply_async(self._run, args=(command,))
+
+    pool.close()
+    pool.join()
+
+    L.debug(results)
+
+    # TODO: check results for failures
+
+    # do post-fuzz operations
+    if not no_exec:
+      if callable(getattr(self, "post_exec")):
+        L.info("Calling post-exec for fuzzer post-processing")
+        self.post_exec()
+
+
+  def _run(self, command: List[str]) -> int:
+    """
+    Spawns a singular fuzzer process for execution with proper error-handling and foreground STDOUT output.
+    Also supports rsync-style seed synchronization if configured to share seeds between a global queue.
+
+    :param command: list of arguments representing fuzzer command to execute.
+    """
 
     L.info(f"Executing command `{str(command)}`")
 
@@ -430,7 +459,8 @@ class FuzzerFrontend(AnalysisBackend):
       L.info(f"Fuzzer start time: {self._start_time}")
 
       # check status if fuzzer exited early, and return error
-      stdout, stderr = self.proc.communicate()
+      # set finite timeout if not equal to 0
+      stdout, stderr = self.proc.communicate(timeout=self.timeout if self.timeout != 0 else None)
       if self.proc.returncode != 0:
         self._kill()
         if self.enable_sync:
@@ -476,6 +506,7 @@ class FuzzerFrontend(AnalysisBackend):
     except KeyboardInterrupt:
       print(f"Killing fuzzer {self.name} with PID {self.proc.pid}")
       self._kill()
+      return 1
 
     finally:
       self._kill()
@@ -484,11 +515,7 @@ class FuzzerFrontend(AnalysisBackend):
     exec_time: float = round(time.time() - self._start_time, 2)
     L.info(f"Fuzzer exec time: {exec_time}s")
 
-    # do post-fuzz operations
-    if not no_exec:
-      if callable(getattr(self, "post_exec")):
-        L.info("Calling post-exec for fuzzer post-processing")
-        self.post_exec()
+    return 0
 
 
   def _is_alive(self) -> bool:
