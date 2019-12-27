@@ -43,9 +43,8 @@ DEFINE_bool(abort_on_fail, ExecutionGroup, false, "Abort on file replay failure 
 DEFINE_bool(exit_on_fail, ExecutionGroup, false, "Exit with status 255 on test failure.");
 DEFINE_int(min_log_level, ExecutionGroup, 0, "Minimum level of logging to output (default 2, 0=debug, 1=trace, 2=info, ...).");
 DEFINE_int(timeout, ExecutionGroup, 120, "Timeout for brute force fuzzing.");
-DEFINE_uint(num_workers, ExecutionGroup, 1, "Number of workers to spawn for testing and test generation.");
 DEFINE_bool(verbose_reads, ExecutionGroup, false, "Report on bytes being read during execution of test.");
-DEFINE_bool(verbose_crash_trace, ExecutionGroup, false, "If test crashes, report an execution backtrace after abrupt exit.");
+DEFINE_bool(verbose_crash_trace, ExecutionGroup, false, "If unforked test crashes, report crash information and backtrace.");
 
 /* Fuzzing and symex related options, baked in to perform analysis-related tasks without auxiliary tools */
 DEFINE_bool(fuzz, AnalysisGroup, false, "Perform brute force unguided fuzzing.");

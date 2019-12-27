@@ -59,6 +59,10 @@
 #define DEEPSTATE_SIZE 8192
 #endif
 
+#ifndef DEEPSTATE_CRASH_MAX_FRAMES
+#define DEEPSTATE_CRASH_MAX_FRAMES 63
+#endif
+
 #ifndef DEEPSTATE_MAX_SWARM_CONFIGS
 #define DEEPSTATE_MAX_SWARM_CONFIGS 1024
 #endif
@@ -524,21 +528,38 @@ extern void DeepState_SaveFailingTest(void);
 extern void DeepState_SaveCrashingTest(void);
 
 /* Emit test function backtrace after test crashes. */
-static void DeepState_EmitBacktrace(int signum, siginfo_t *sig, void *context) {
+static void DeepState_EmitBacktrace(int signum, siginfo_t *sig, void *_context) {
 
-  DeepState_LogFormat(DeepState_LogInfo, "Test crashed with: %s", sys_siglist[sig->si_status]);
+  /* output information about the signal caught and the exception that occurred */
+  const char *result;
+  if (!sig->si_status)
+    result = sys_siglist[signum];
+  else
+    result = sys_siglist[sig->si_status];
+  DeepState_LogFormat(DeepState_LogError, "Signal caught in test: %s (error: %d)", result, sig->si_signo);
 
-  void *array[10];
+  /* return a backtrace */
   size_t size;
-  char **strings;
+  void *back_addrs[DEEPSTATE_CRASH_MAX_FRAMES];
+  char **symbols;
 
-  size = backtrace(array, 10);
-  strings = backtrace_symbols(array, size);
+  size = backtrace(back_addrs, DEEPSTATE_CRASH_MAX_FRAMES);
+  if (size == 0)
+    DeepState_Abandon("Cannot retrieve backtrace stack addresses");
 
+  symbols = backtrace_symbols(back_addrs, size);
+  if (symbols == NULL)
+    DeepState_Abandon("Cannot retrieve symbols for stack addresses");
+
+  DeepState_LogFormat(DeepState_LogTrace, "======= Backtrace: =========");
   for (size_t i = 0; i < size; i++)
-     DeepState_LogFormat(DeepState_LogTrace, "%s", strings[i]);
+     DeepState_LogFormat(DeepState_LogTrace, "%s", symbols[i]);
+  DeepState_LogFormat(DeepState_LogTrace, "===========================");
 
-  free(strings);
+  /* cleanup resources and exit */
+  free(symbols);
+  DeepState_CleanUp();
+  exit(DeepState_TestRunCrash);
 }
 
 
@@ -712,19 +733,6 @@ static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
 /* Fork and run `test`. */
 static enum DeepState_TestRunResult
 DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
-
-  /* If flag is set, install a signal handler for SIGCHLD */
-  /* TODO(alan): use handler as "multiplexer" and handle child signal */
-  if (FLAGS_verbose_crash_trace) {
-    struct sigaction sigact, oldact;
-
-    sigact.sa_flags = SA_SIGINFO | SA_NOCLDWAIT;
-    sigact.sa_sigaction = DeepState_EmitBacktrace;
-
-    sigaction(SIGCHLD, &sigact, &oldact);
-  }
-
-
   pid_t test_pid;
   if (FLAGS_fork) {
     test_pid = fork();
@@ -737,6 +745,18 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
   if (FLAGS_fork) {
     waitpid(test_pid, &wstatus, 0);
   } else {
+
+    /* If flag is set, install a "multiplexed" signal handler
+     * in order to backtrace and cleanup without an abrupt exit. */
+    if (FLAGS_verbose_crash_trace) {
+      struct sigaction sigact;
+      sigact.sa_flags = SA_SIGINFO;
+      sigact.sa_sigaction = DeepState_EmitBacktrace;
+
+      for (int i = 0; i <= sizeof(sys_siglist); i++)
+        sigaction(i, &sigact, 0);
+    }
+
     wstatus = DeepState_RunTestNoFork(test);
     DeepState_CleanUp();
   }
