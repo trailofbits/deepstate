@@ -82,7 +82,6 @@ class Eclipser(FuzzerFrontend):
     cmd_dict = {
       "fuzz": None,
       "-p": self.binary,
-      "-t": str(self.timeout),
       "-o": self.output_test_dir,
       "--src": "file",
       "--fixfilepath": "eclipser.input",
@@ -90,6 +89,11 @@ class Eclipser(FuzzerFrontend):
       "--maxfilelen": str(self.max_input_size),
     }
 
+    # check for indefinite run
+    if self.timeout != 0:
+      cmd_dict["-t"] = str(self.timeout)
+
+    # use initial corpus to explore with
     if self.input_seeds is not None:
       cmd_dict["--initseedsdir"] = self.input_seeds
 

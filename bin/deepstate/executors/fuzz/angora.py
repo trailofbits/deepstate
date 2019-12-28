@@ -154,12 +154,15 @@ class Angora(FuzzerFrontend):
   @property
   def cmd(self):
     cmd_dict = {
-      "--time_limit": str(self.timeout),
       "--mode": self.mode,
       "--input": self.input_seeds,
       "--output": self.output_test_dir,
       "--track": os.path.abspath(self.taint_binary),
     }
+
+    # check for indefinite run
+    if self.timeout != 0:
+      cmd_dict["--time_limit"] = str(self.timeout)
 
     # execution options
     if self.no_afl:

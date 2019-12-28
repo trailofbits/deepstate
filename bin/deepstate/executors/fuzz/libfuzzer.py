@@ -90,6 +90,7 @@ class LibFuzzer(FuzzerFrontend):
     if self.input_seeds:
       cmd_dict[""] = self.input_seeds
 
+    # preserve timeout, since libfuzzer exits after crash
     cmd_dict.update({
       "-max_len": str(self.max_input_size),
       "-timeout": str(self.timeout),
