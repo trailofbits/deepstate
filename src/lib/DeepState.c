@@ -1170,6 +1170,13 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
       }
     }
   }
+  
+  if (test == NULL) {
+    DeepState_LogFormat(DeepState_LogFatal,
+                        "Could not find matching test for %s (from LIBFUZZER_WHICH_TEST)",
+                        which_test);
+    exit(255);
+  }
 
   DeepState_MemScrub((void *) DeepState_Input, sizeof(DeepState_Input));
   DeepState_InputIndex = 0;
