@@ -458,8 +458,8 @@ class FuzzerFrontend(AnalysisBackend):
 
       L.info(f"Fuzzer start time: {self._start_time}")
 
-      # check status if fuzzer exited early, and return error
-      # set finite timeout if not equal to 0
+      # while fuzzers may configure timeout, subprocess can ensure exit and is useful when parallelizing
+      # processes or doing ensemble-based testing.
       stdout, stderr = self.proc.communicate(timeout=self.timeout if self.timeout != 0 else None)
       if self.proc.returncode != 0:
         self._kill()

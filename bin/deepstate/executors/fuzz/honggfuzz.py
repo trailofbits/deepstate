@@ -88,9 +88,10 @@ class Honggfuzz(FuzzerFrontend):
     cmd_dict = {
       "--input": self.input_seeds,
       "--workspace": self.output_test_dir,
-      "--timeout": str(self.timeout),
     }
 
+    if self.timeout != 0:
+      cmd_dict["--timeout"] = str(self.timeout)
     if self.dictionary:
       cmd_dict["--dict"] = self.dictionary
     if self.iterations:
