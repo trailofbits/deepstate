@@ -68,7 +68,7 @@ jobs:
       - name: Build and publish container
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
-          name: trailofbits/deepstate
+          name: trailofbits/deepstate/deepstate
           registry: docker.pkg.github.com
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
