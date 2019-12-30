@@ -61,3 +61,16 @@ jobs:
       - name: Test
         run: |
           nosetests tests/test_${{ matrix.env.TEST }}.py
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build and publish container
+        uses: elgohr/Publish-Docker-Github-Action@master
+        with:
+          name: trailofbits/deepstate
+          registry: docker.pkg.github.com
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          dockerfile: docker/Dockerfile
+          tag_names: true
