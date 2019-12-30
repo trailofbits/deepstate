@@ -2,7 +2,7 @@
 
 [![Slack Chat](http://empireslacking.herokuapp.com/badge.svg)](https://empireslacking.herokuapp.com/)
 
-[![Build Status](https://travis-ci.org/trailofbits/deepstate.svg?branch=master)](https://travis-ci.org/trailofbits/deepstate)
+[![Build Status](https://img.shields.io/github/workflow/status/trailofbits/deepstate/CI/master)](https://github.com/trailofbits/deepstate/actions?query=workflow%3ACI)
 
 DeepState is a framework that provides C and C++ developers with a common interface to various symbolic execution and fuzzing engines. Users can write one test harness using a Google Test-like API, then execute it using multiple backends without having to learn the complexities of the underlying engines. It supports writing unit tests and API sequence tests, as well as automatic test generation. Read more about the goals and design of DeepState in our [paper](https://agroce.github.io/bar18.pdf).
 
@@ -538,7 +538,7 @@ where `corpus` contains at least one file to start fuzzing from.  The
 file needs to be smaller than the DeepState input size limit, but has
 few other limitations (for AFL it should also not cause test
 failure).  The `abort_on_fail` flag makes DeepState crashes and failed
-tests appear as crashes to the fuzzer.  
+tests appear as crashes to the fuzzer.
 To replay the tests from AFL:
 
 ```shell
