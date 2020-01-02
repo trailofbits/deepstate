@@ -82,13 +82,17 @@ class FuzzerFrontend(AnalysisBackend):
       compiler_paths: List[str] = [f"{path}/{compiler}" for path in potential_paths if os.path.isfile(path + '/' + compiler)]
       if len(compiler_paths) == 0:
 
-        # if not in envvar, check to see if user supplied absolute path
+        # if not in earlier envvar, check to see if user supplied absolute path
         if os.path.isfile(compiler):
           self.compiler: str = compiler
 
         # .. or check if in $PATH before tossing exception
         else:
-          for path in os.environ.get("PATH").split(os.pathsep):
+          path_env: Optional[str] = os.environ.get("PATH")
+          if path_env is None:
+            raise FuzzFrontendError("$PATH envvar is not defined.")
+
+          for path in path_env.split(os.pathsep):
             compiler_path: str = os.path.join(path, compiler)
 
             L.debug(f"Checking if `{compiler_path}` is a valid compiler path")
@@ -105,6 +109,9 @@ class FuzzerFrontend(AnalysisBackend):
         raise FuzzFrontendError(f"{compiler} does not exist as absolute path, or in ${envvar} or $PATH")
 
       L.debug(f"Initialized compiler: {self.compiler}")
+
+    # store envvar for re-use across API
+    self.env: str = env
 
     # in case name supplied as `bin/fuzzer`, strip executable name
     self.name: str = fuzzer_name.split('/')[-1] if '/' in fuzzer_name else fuzzer_name
@@ -125,7 +132,7 @@ class FuzzerFrontend(AnalysisBackend):
     self.num_workers: int = 1
 
     self.compile_test: Optional[str] = None
-    self.compiler_args: List[str] = []
+    self.compiler_args: Optional[str] = None
     self.out_test_name: str = "out"
 
     self.enable_sync: bool = False
@@ -134,6 +141,7 @@ class FuzzerFrontend(AnalysisBackend):
     self.sync_dir: str = "out_sync"
 
     self.which_test: Optional[str] = None
+    self.post_stats: bool = False
 
 
   def __repr__(self) -> str:
@@ -191,6 +199,12 @@ class FuzzerFrontend(AnalysisBackend):
       help="Time in seconds the executor should sync to sync directory (default is 5 seconds).")
 
 
+    # Post-processing
+    post_group = parser.add_argument_group("Execution Post-processing")
+    post_group.add_argument("--post_stats", action="store_true",
+      help="Output post-fuzzing statistics to user (if any).")
+
+
     # Miscellaneous options
     parser.add_argument(
       "--fuzzer_help", action="store_true",
@@ -200,6 +214,8 @@ class FuzzerFrontend(AnalysisBackend):
     # the base `parse_args` sets state with _ARGS, so we do need to return a namespace
     cls.parser = parser
     super(FuzzerFrontend, cls).parse_args()
+
+    return None
 
 
   def print_help(self) -> None:
@@ -214,18 +230,18 @@ class FuzzerFrontend(AnalysisBackend):
   ##############################################
 
 
-  def compile(self, lib_path: str, flags: List[str], _out_bin: str, env = os.environ.copy()) -> Optional[str]:
+  def compile(self, lib_path: str, flags: List[str], _out_bin: str, env = os.environ.copy()) -> None:
     """
     Provides a simple interface that allows the user to compile a test harness
     with instrumentation using the specified compiler. Users should implement an
     inherited method that constructs the arguments necessary, and then pass it to the
-    base object. Returns string of generated binary if successful.
+    base object.
 
     `compile()` also supports compiling arbitrary harnesses without instrumentation if a compiler
     isn't set.
 
     :param lib_path: path to DeepState static library for linking
-    :param flags: list of compiler flags (TODO: parse from compilation database)
+    :param flags: list of compiler flags (TODO: support parsing from compilation database path)
     :param _out_bin: name of linked test harness binary
     :param env: optional envvars to set during compilation
     """
@@ -237,7 +253,7 @@ class FuzzerFrontend(AnalysisBackend):
       raise FuzzFrontendError(f"User-specified test binary conflicts with compiling from source.")
 
     if not os.path.isfile(lib_path):
-      raise FuzzFrontendError("No {}-instrumented DeepState static library found in {}".format(cls, lib_path))
+      raise FuzzFrontendError("No {}-instrumented DeepState static library found in {}".format(self, lib_path))
     L.debug(f"Static library path: {lib_path}")
 
     # initialize compiler envvars
@@ -246,8 +262,7 @@ class FuzzerFrontend(AnalysisBackend):
     L.debug(f"CC={env['CC']} and CXX={env['CXX']}")
 
     # initialize command with prepended compiler
-    compiler_args = ["-std=c++11", self.compile_test] + flags + \
-                    ["-o", _out_bin]
+    compiler_args: List[str] = ["-std=c++11", self.compile_test] + flags + ["-o", _out_bin] # type: ignore
     compile_cmd = [self.compiler] + compiler_args
     L.debug(f"Compilation command: {str(compile_cmd)}")
 
@@ -259,7 +274,7 @@ class FuzzerFrontend(AnalysisBackend):
       raise FuzzFrontendError(f"{self.compiler} interrupted due to exception:", e)
 
     # extra check if target binary was successfully compiled, and set that as target binary
-    out_bin = os.path.join(os.environ.get("PWD"), _out_bin)
+    out_bin = os.path.join(os.getcwd(), _out_bin)
     if os.path.exists(out_bin):
       self.binary = out_bin
 
@@ -351,7 +366,7 @@ class FuzzerFrontend(AnalysisBackend):
     return cmd_args
 
 
-  def build_cmd(self, cmd_dict: Dict[str, Optional[str]], input_symbol: str = "@@") -> Dict[str, Optional[str]]:
+  def build_cmd(self, cmd_dict: Dict[str, Any], input_symbol: str = "@@") -> Dict[str, Optional[str]]:
     """
     Helper method to be invoked by child fuzzer class's cmd() property method in order
     to finalize command called by the fuzzer executable with appropriate arguments for the
@@ -409,7 +424,7 @@ class FuzzerFrontend(AnalysisBackend):
       self.pre_exec()
 
     # initialize cmd from property
-    command = [self.fuzzer] + self._dict_to_cmd(self.cmd)
+    command = [self.fuzzer] + self._dict_to_cmd(self.cmd) # type: ignore
 
     # prepend compiler that invokes fuzzer
     if compiler:
@@ -417,7 +432,7 @@ class FuzzerFrontend(AnalysisBackend):
 
     results: List[int] = []
     pool = multiprocessing.Pool(processes=self.num_workers)
-    results = pool.apply_async(self._run, args=(command,))
+    results = pool.apply_async(self._run, args=(command,)) # type: ignore
 
     pool.close()
     pool.join()

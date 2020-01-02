@@ -20,7 +20,7 @@ import os
 import argparse
 import configparser
 
-from typing import Dict, ClassVar, Optional, Union, List
+from typing import Dict, ClassVar, Optional, Union, List, Any
 
 
 L = logging.getLogger("deepstate.core.base")
@@ -41,7 +41,7 @@ class AnalysisBackend(object):
   COMPILER: ClassVar[Optional[str]] = None
 
   # temporary attribute for argparsing, and should be used to build up object attributes
-  _ARGS: ClassVar[Optional[Dict[str, str]]] = None
+  _ARGS: ClassVar[Optional[argparse.Namespace]] = None
 
   # temporary attribute for parser instantiation, should be used to check if user parsed args
   parser: ClassVar[Optional[argparse.ArgumentParser]] = None
@@ -52,13 +52,22 @@ class AnalysisBackend(object):
 
 
   @classmethod
-  def parse_args(cls) -> None:
+  def parse_args(cls) -> Optional[argparse.Namespace]:
     """
     Base root-level argument parser. After the executors initializes its application-specific arguments, and the frontend
     builds up further with analysis-specific arguments, this base parse_args finalizes with all other required args every
     executor should consume.
     """
-    parser = cls.parser
+
+    if cls._ARGS:
+      L.debug("Returning already-parsed arguments")
+      return cls._ARGS
+
+    # checks if frontend executor already implements an argparser, since we want to extend on that.
+    if cls.parser is not None:
+      parser: argparse.ArgumentParser = cls.parser
+    else:
+      parser = argparse.ArgumentParser(description="Use {} as a backend for DeepState".format(cls.NAME))
 
     # Compilation/instrumentation support, only if COMPILER is set
     # TODO: extends compilation interface for symex engines that "compile" source to
@@ -66,6 +75,7 @@ class AnalysisBackend(object):
     if cls.COMPILER:
       L.debug("Adding compilation support since a compiler was specified")
 
+      # type: ignore
       compile_group = parser.add_argument_group("Compilation and Instrumentation")
       compile_group.add_argument("--compile_test", type=str,
         help="Path to DeepState test source for compilation and instrumentation by analysis tool.")
@@ -113,25 +123,27 @@ class AnalysisBackend(object):
       help="Other DeepState flags to pass to harness before execution, in format `--arg=val`.")
 
     args = parser.parse_args()
+
+    # from parsed arguments, modify dict copy if configuration is specified
     _args: Dict[str, str] = vars(args)
 
     # if configuration is specified, parse and replace argument instantiations
     if args.config:
-      _args.update(cls.build_from_config(args.config))
+      _args.update(cls.build_from_config(args.config)) # type: ignore
 
       # Cleanup: force --no_exit_compile to be on, meaning if user specifies a `[test]` section,
       # execution will continue. Delete config as well
-      _args["no_exit_compile"] = True
+      _args["no_exit_compile"] = True # type: ignore
       del _args["config"]
 
     cls._ARGS = args
-    return cls._ARGS
+    return None
 
 
-  ConfigType = Dict[str, Dict[str, Union[str, List[str]]]]
+  ConfigType = Dict[str, Dict[str, Any]]
 
   @staticmethod
-  def build_from_config(config: str, allowed_keys: Optional[List[str]] = None,  include_sections: bool = False) -> Union[ConfigType, Dict[str, str]]:
+  def build_from_config(config: str, allowed_keys: Optional[List[str]] = None, include_sections: bool = False) -> Union[ConfigType, Dict[str, Any]]:
     """
     Simple auxiliary helper that does safe and correct parsing of DeepState configurations. This can be used
     in the following manners:
@@ -145,7 +157,7 @@ class AnalysisBackend(object):
     :param include_sections: if true, parse all sections, and return a ConfigType where keys are section names
     """
 
-    context: ConfigType = dict()
+    context: ConfigType = dict() # type: ignore
 
     # reserved sections are ignored by executors, but can be used by other auxiliary tools
     # to reason about with.
@@ -164,7 +176,7 @@ class AnalysisBackend(object):
     parser = configparser.SafeConfigParser()
     parser.read(config)
 
-    for section, kv in parser._sections.items():
+    for section, kv in parser._sections.items(): # type: ignore
 
       # if `include_sections` is not set, parse only from allowed_sections
       if not include_sections:
@@ -191,7 +203,7 @@ class AnalysisBackend(object):
         else:
           _context[key] = val
 
-    return context
+    return context # type: ignore
 
 
   def init_from_dict(self, _args: Optional[Dict[str, str]] = None) -> None:

@@ -14,28 +14,20 @@
 
 import logging
 logging.basicConfig()
-logging.addLevelName(15, "TRACE")
 
-import argparse
-#import md5
-import hashlib
-import functools
 import os
 import struct
+import argparse
+import hashlib
+import functools
 
 from deepstate.core.base import AnalysisBackend
 
 
-class TestInfo(object):
-  """Represents a `DeepState_TestInfo` data structure from the program, as
-  well as associated meta-data about the test."""
-  def __init__(self, ea, name, file_name, line_number):
-    self.ea = ea
-    self.name = name
-    self.file_name = file_name
-    self.line_number = line_number
+LOGGER = logging.getLogger("deepstate")
+LOGGER.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
-
+"""
 LOG_LEVEL_DEBUG = 0
 LOG_LEVEL_TRACE = 1
 LOG_LEVEL_INFO = 2
@@ -43,10 +35,6 @@ LOG_LEVEL_WARNING = 3
 LOG_LEVEL_ERROR = 4
 LOG_LEVEL_EXTERNAL = 5
 LOG_LEVEL_FATAL = 6
-
-
-LOGGER = logging.getLogger("deepstate")
-LOGGER.setLevel(logging.DEBUG)
 
 LOGGER.trace = functools.partial(LOGGER.log, 15)
 logging.TRACE = 15
@@ -59,6 +47,18 @@ LOG_LEVEL_TO_LOGGER = {
   LOG_LEVEL_ERROR: LOGGER.error,
   LOG_LEVEL_FATAL: LOGGER.critical
 }
+"""
+
+
+
+class TestInfo(object):
+  """Represents a `DeepState_TestInfo` data structure from the program, as
+  well as associated meta-data about the test."""
+  def __init__(self, ea, name, file_name, line_number):
+    self.ea = ea
+    self.name = name
+    self.file_name = file_name
+    self.line_number = line_number
 
 
 class Stream(object):
@@ -146,13 +146,13 @@ class SymexFrontend(AnalysisBackend):
 
   @property
   def context(self):
-    """Gives convenient property-based access to a dictionary holding state-
-    local varaibles."""
+    """Gives convenient property-based access to a dictionary holding state-local variables."""
     return self.get_context()
 
+
   def read_c_string(self, ea, concretize=True, constrain=False):
-    """Read a NUL-terminated string from `ea`."""
-    assert isinstance(ea, (int))
+    """Read a NULL-terminated string from address `ea`."""
+
     chars = []
     while True:
       b, ea = self.read_uint8_t(ea, concretize=concretize, constrain=constrain)
@@ -172,6 +172,7 @@ class SymexFrontend(AnalysisBackend):
       return "".join(chr(b) for b in chars), next_ea
     else:
       return chars, next_ea
+
 
   def _read_test_info(self, ea):
     """Read in a `DeepState_TestInfo` info structure from memory."""
