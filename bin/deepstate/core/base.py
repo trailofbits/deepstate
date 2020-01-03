@@ -96,8 +96,8 @@ class AnalysisBackend(object):
 
     # Analysis-related configurations
     parser.add_argument(
-      "-o", "--output_test_dir", type=str, default="{}_out".format(cls.NAME),
-      help="Output directory where tests will be saved (default is `{FUZZER}_out`).")
+      "-o", "--output_test_dir", type=str, default="out",
+      help="Output directory where tests will be saved (default is `out`).")
 
     parser.add_argument(
       "-c", "--config", type=str,
@@ -137,7 +137,7 @@ class AnalysisBackend(object):
       del _args["config"]
 
     cls._ARGS = args
-    return None
+    return cls._ARGS
 
 
   ConfigType = Dict[str, Dict[str, Any]]

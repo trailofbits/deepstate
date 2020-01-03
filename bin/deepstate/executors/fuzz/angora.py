@@ -178,7 +178,7 @@ class Angora(FuzzerFrontend):
 
 
   @property
-  def stats(self) -> Dict[str, str]:
+  def stats(self) -> Optional[Dict[str, str]]:
     """
     Parses Angora output JSON config to dict for reporting.
     """
@@ -199,9 +199,9 @@ class Angora(FuzzerFrontend):
     return stats
 
 
-  def reporter(self) -> Dict[str, Any]:
+  def reporter(self) -> Optional[Dict[str, Any]]:
 
-    # included to shut up mypy
+    # included to silence mypy error
     if self.stats is None:
       return None
 

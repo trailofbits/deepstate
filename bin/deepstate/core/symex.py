@@ -27,7 +27,6 @@ from deepstate.core.base import AnalysisBackend
 LOGGER = logging.getLogger("deepstate")
 LOGGER.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
-"""
 LOG_LEVEL_DEBUG = 0
 LOG_LEVEL_TRACE = 1
 LOG_LEVEL_INFO = 2
@@ -36,19 +35,17 @@ LOG_LEVEL_ERROR = 4
 LOG_LEVEL_EXTERNAL = 5
 LOG_LEVEL_FATAL = 6
 
-LOGGER.trace = functools.partial(LOGGER.log, 15)
-logging.TRACE = 15
+LOGGER.trace = functools.partial(LOGGER.log, 15) # type: ignore
+logging.TRACE = 15 # type: ignore
 
 LOG_LEVEL_TO_LOGGER = {
   LOG_LEVEL_DEBUG: LOGGER.debug,
-  LOG_LEVEL_TRACE: LOGGER.trace,
+  LOG_LEVEL_TRACE: LOGGER.trace, # type: ignore
   LOG_LEVEL_INFO: LOGGER.info,
   LOG_LEVEL_WARNING: LOGGER.warning,
   LOG_LEVEL_ERROR: LOGGER.error,
   LOG_LEVEL_FATAL: LOGGER.critical
 }
-"""
-
 
 
 class TestInfo(object):
