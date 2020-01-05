@@ -245,6 +245,9 @@ extern const char *DeepState_ConcretizeCStr(const char *begin);
 /* Allocate and return a pointer to `num_bytes` symbolic bytes. */
 extern void *DeepState_Malloc(size_t num_bytes);
 
+/* Allocate all the concrete inputs and return a pointer to `num_bytes` symbolic bytes. */
+extern void *DeepState_MallocAll(size_t *num_bytes);
+
 /* Returns the path to a testcase without parsing to any aforementioned types */
 extern const char *DeepState_InputPath(char *testcase_path);
 
