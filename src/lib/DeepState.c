@@ -85,6 +85,7 @@ static struct DeepState_TestInfo *DeepState_DrFuzzTest = NULL;
 /* Initialize global input buffer and index. */
 volatile uint8_t DeepState_Input[DeepState_InputSize] = {};
 uint32_t DeepState_InputIndex = 0;
+uint32_t DeepState_ConcreteInputIndex = 0;
 
 /* Swarm related state. */
 uint32_t DeepState_SwarmConfigsIndex = 0;
@@ -378,6 +379,13 @@ void *DeepState_Malloc(size_t num_bytes) {
   uintptr_t data_end = ((uintptr_t) data) + num_bytes;
   DeepState_SymbolizeData(data, (void *) data_end);
   return data;
+}
+
+/* Allocate all the available concrete input, update the `num_bytes` pointer and return a pointer to symbolic bytes. */
+void *DeepState_MallocAll(size_t *num_bytes) {
+  *num_bytes = DeepState_ConcreteInputIndex;
+  DeepState_ConcreteInputIndex = 0;
+  return DeepState_Malloc(*num_bytes);
 }
 
 /* Portable and architecture-independent memory scrub without dead store elimination. */
@@ -1183,6 +1191,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   DeepState_SwarmConfigsIndex = 0;
 
   memcpy((void *) DeepState_Input, (void *) Data, Size);
+  DeepState_ConcreteInputIndex = Size;
 
   DeepState_Begin(test);
 
