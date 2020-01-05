@@ -19,6 +19,8 @@ import shutil
 import logging
 import subprocess
 
+from typing import ClassVar, List, Dict, Optional
+
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
 
@@ -32,41 +34,44 @@ class Eclipser(FuzzerFrontend):
   in order to interface the executable DLL for greybox concolic testing.
   """
 
-  NAME = "Eclipser.dll"
-  COMPILER = "clang++" 	 # for regular compilation
+  NAME: ClassVar[str] = "Eclipser.dll"
+  COMPILER: ClassVar[str] = "clang++" 	 # for regular compilation
+
 
   def print_help(self):
     subprocess.call(["dotnet", self.fuzzer, "fuzz", "--help"])
 
 
-  def compile(self):
+  def compile(self) -> None: # type: ignore
     """
     Eclipser actually doesn't need instrumentation, but we still implement
     for consistency.
     """
-    lib_path = "/usr/local/lib/libdeepstate.a"
+    lib_path: str = "/usr/local/lib/libdeepstate.a"
 
-    flags = ["-ldeepstate"]
+    flags: List[str] = ["-ldeepstate"]
     if self.compiler_args:
       flags += [arg for arg in self.compiler_args.split(" ")]
     super().compile(lib_path, flags, self.out_test_name + ".eclipser")
 
 
-  def pre_exec(self):
+  def pre_exec(self) -> None:
     super().pre_exec()
 
-    out = self.output_test_dir
+    out: str = self.output_test_dir
     L.debug(f"Output test directory: {out}")
 
     if not os.path.exists(out):
       print("Creating output directory.")
       os.mkdir(out)
 
-    seeds = self.input_seeds
+    seeds: str = self.input_seeds # type: ignore
     if seeds:
       if os.path.exists(seeds):
         if len([name for name in os.listdir(seeds)]) == 0:
           raise FuzzFrontendError(f"Seeds path specified but none present in directory.")
+      else:
+        raise FuzzFrontendError(f"Seeds path `{seeds}` not found.")
 
 
   @property
@@ -101,16 +106,19 @@ class Eclipser(FuzzerFrontend):
     return cmd_dict
 
 
-  def ensemble(self):
-    local_queue = self.output_test_dir + "/testcase/"
+  def ensemble(self) -> None: # type: ignore
+    """
+    Overrides queue path for ensemble-fuzz
+    """
+    local_queue: str = os.path.join(self.output_test_dir, "testcase/")
     super().ensemble(local_queue)
 
 
-  def post_exec(self):
+  def post_exec(self) -> None:
     """
     Decode and minimize testcases after fuzzing.
     """
-    out = self.output_test_dir
+    out: str = self.output_test_dir
 
     L.info("Performing post-processing decoding on testcases and crashes")
     subprocess.call(["dotnet", self.fuzzer, "decode", "-i", out + "/testcase", "-o", out + "/decoded"])
@@ -120,8 +128,12 @@ class Eclipser(FuzzerFrontend):
     shutil.rmtree(out + "/decoded")
 
 
-  def reporter(self):
-    num_crashes = len([crash for crash in os.listdir(self.output_test_dir + "/crash")
+  def reporter(self) -> Dict[str, int]:
+    """
+    TODO: report more metrics
+    """
+
+    num_crashes: int = len([crash for crash in os.listdir(self.output_test_dir + "/crash")
                        if os.path.isfile(crash)])
     return dict({
         "Unique Crashes": num_crashes
@@ -130,11 +142,7 @@ class Eclipser(FuzzerFrontend):
 
 def main():
   fuzzer = Eclipser(envvar="ECLIPSER_HOME")
-
-  # parse user arguments and build object
   fuzzer.parse_args()
-
-  # run fuzzer with parsed attributes
   fuzzer.run(compiler="dotnet")
   return 0
 

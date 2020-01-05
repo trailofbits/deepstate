@@ -17,6 +17,8 @@ import os
 import logging
 import argparse
 
+from typing import ClassVar, List, Dict, Any, Optional
+
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
 from deepstate.core.base import AnalysisBackend
 
@@ -28,12 +30,14 @@ L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 class AFL(FuzzerFrontend):
   """ Defines AFL fuzzer frontend """
 
-  NAME = "afl-fuzz"
-  COMPILER = "afl-clang++"
+  NAME: ClassVar[str] = "afl-fuzz"
+  COMPILER: ClassVar[str] = "afl-clang++"
+
 
   @classmethod
-  def parse_args(cls):
-    parser = argparse.ArgumentParser(description="Use AFL as a backend for DeepState")
+  def parse_args(cls) -> None:
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+      description="Use AFL as a backend for DeepState")
 
     # Execution options
     parser.add_argument("--dictionary", type=str,
@@ -62,21 +66,18 @@ class AFL(FuzzerFrontend):
     parser.add_argument("--crash_explore", action="store_true",
       help="Fuzz with crash exploration.")
 
-
-    # Misc. post-processing
-    parser.add_argument("--post_stats", action="store_true",
-      help="Output post-fuzzing stats.")
-
     cls.parser = parser
-    return super(AFL, cls).parse_args()
+    super(AFL, cls).parse_args()
 
 
-  def compile(self):
-    lib_path = "/usr/local/lib/libdeepstate_AFL.a"
+  def compile(self) -> None: # type: ignore
+    lib_path: str = "/usr/local/lib/libdeepstate_AFL.a"
 
-    flags = ["-ldeepstate_AFL"]
+    flags: List[str] = list()
     if self.compiler_args:
       flags += [arg for arg in self.compiler_args.split(" ")]
+    flags.append("-ldeepstate_AFL")
+
     super().compile(lib_path, flags, self.out_test_name + ".afl")
 
 
@@ -94,10 +95,10 @@ class AFL(FuzzerFrontend):
 
     # require input seeds if we aren't in dumb mode, or we are using crash mode
     if not self.dumb_mode or self.crash_mode:
-      if not self.input_seeds:
+      if self.input_seeds is None:
         raise FuzzFrontendError("Must provide -i/--input_seeds option for AFL.")
 
-      seeds = self.input_seeds
+      seeds: str = self.input_seeds
       L.debug(f"Fuzzing with seed directory: {seeds}.")
 
       # AFL uses "-" to tell it to resume fuzzing, don't treat as a real seed dir
@@ -123,6 +124,7 @@ class AFL(FuzzerFrontend):
     if self.input_seeds:
       cmd_dict["-i"] = self.input_seeds
 
+    # AFL's timeout affects run cycle rather than the whole process
     if self.run_timeout:
       cmd_dict["-t"] = str(self.run_timeout)
 
@@ -146,15 +148,15 @@ class AFL(FuzzerFrontend):
 
 
   @property
-  def stats(self):
+  def stats(self) -> Dict[str, Optional[str]]:
     """
     Retrieves and parses the stats file produced by AFL
     """
-    stat_file = self.output_test_dir + "/fuzzer_stats"
+    stat_file: str = self.output_test_dir + "/fuzzer_stats"
     with open(stat_file, "r") as sf:
       lines = sf.readlines()
 
-    stats = {
+    stats: Dict[str, Optional[str]] = {
       "last_update": None,
       "start_time": None,
       "fuzzer_pid": None,
@@ -191,7 +193,7 @@ class AFL(FuzzerFrontend):
     return stats
 
 
-  def reporter(self):
+  def reporter(self) -> Dict[str, Optional[str]]:
     """
     Report a summarized version of statistics, ideal for ensembler output.
     """
@@ -203,11 +205,11 @@ class AFL(FuzzerFrontend):
     })
 
 
-  def _sync_seeds(self, mode, src, dest, excludes=["*.cur_input"]):
+  def _sync_seeds(self, mode, src, dest, excludes=["*.cur_input"]) -> None:
     super()._sync_seeds(mode, src, dest, excludes=excludes)
 
 
-  def post_exec(self):
+  def post_exec(self) -> None:
     """
     AFL post_exec outputs last updated fuzzer stats,
     and (TODO) performs crash triaging with seeds from
@@ -216,7 +218,7 @@ class AFL(FuzzerFrontend):
     if self.post_stats:
       print("\nAFL RUN STATS:\n")
       for stat, val in self.stats.items():
-        fstat = stat.replace("_", " ").upper()
+        fstat: str = stat.replace("_", " ").upper()
         print(f"{fstat}:\t\t\t{val}")
 
 

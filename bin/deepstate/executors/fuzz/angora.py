@@ -19,7 +19,10 @@ import logging
 import argparse
 import subprocess
 
+from typing import ClassVar, List, Dict, Optional, Any
+
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
+
 
 L = logging.getLogger("deepstate.frontend.angora")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
@@ -28,13 +31,14 @@ L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 class Angora(FuzzerFrontend):
 
   # these classvars are set under the assumption that $ANGORA_PATH is set to the built source
-  NAME = "angora_fuzzer"
-  COMPILER = "bin/angora-clang++"
+  NAME: ClassVar[str] = "angora_fuzzer"
+  COMPILER: ClassVar[str] = "bin/angora-clang++"
 
 
   @classmethod
-  def parse_args(cls):
-    parser = argparse.ArgumentParser(description="Use Angora as a backend for DeepState.")
+  def parse_args(cls) -> None:
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+      description="Use Angora as a backend for DeepState.")
 
     # Other compilation arguments
     compile_group = parser.add_argument_group("compilation and instrumentation arguments")
@@ -56,37 +60,37 @@ class Angora(FuzzerFrontend):
       help="Disables context-sensitive input bytes mutation.")
 
     cls.parser = parser
-    return super(Angora, cls).parse_args()
+    super(Angora, cls).parse_args()
 
 
-  def compile(self):
+  def compile(self) -> None: # type: ignore
     """
     Compilation interface provides extra support for generating taint policy for
     blacklisted ABI calls with DFsan.
     """
 
-    env = os.environ.copy()
+    env: Dict[str, str] = os.environ.copy()
 
     # generate ignored functions output for taint tracking
     # set envvar to file with ignored lib functions for taint tracking
-    if self.ignore_calls:
+    if self.ignore_calls: # type: ignore
 
-      libpath = [path for path in self.ignore_calls.split(":")]
+      libpath: List[str] = [path for path in self.ignore_calls.split(":")] # type: ignore
       L.debug(f"Ignoring library objects: {libpath}")
 
-      out_file = "abilist.txt"
+      out_file: str = "abilist.txt"
 
       # TODO(alan): more robust library check
-      ignore_bufs = []
+      ignore_bufs: List[bytes] = []
       for path in libpath:
         if not os.path.isfile(path):
           raise FuzzFrontendError(f"Library `{path}` to blackbox was not a valid library path.")
 
         # instantiate command to call, but store output to buffer
-        cmd = [os.environ.get("ANGORA") + "/tools/gen_library_abilist.sh", path, "discard"]
+        cmd: List[str] = [self.env + "/tools/gen_library_abilist.sh", path, "discard"]
         L.debug(f"Compilation command: {cmd}")
 
-        out = subprocess.check_output(cmd)
+        out: bytes = subprocess.check_output(cmd)
         ignore_bufs += [out]
 
 
@@ -100,26 +104,26 @@ class Angora(FuzzerFrontend):
 
 
     # make a binary with light instrumentation
-    fast_path= "/usr/local/lib/libdeepstate_fast.a"
+    fast_path: str = "/usr/local/lib/libdeepstate_fast.a"
     L.debug(f"Static library path: {fast_path}")
 
-    fast_flags = ["-ldeepstate_fast"]
+    fast_flags: List[str] = ["-ldeepstate_fast"]
     if self.compiler_args:
       fast_flags += [arg for arg in self.compiler_args.split(" ")]
     L.info(f"Compiling {self.compile_test} for Angora with light instrumentation")
     super().compile(fast_path, fast_flags, self.out_test_name + ".fast", env=env)
 
     # initialize envvar for instrumentation framework
-    if self.mode == "pin":
+    if self.mode == "pin": # type: ignore
       env["USE_PIN"] = "1"
     else:
       env["USE_TRACK"] = "1"
 
     # make a binary with taint tracking information
-    taint_path = "/usr/local/lib/libdeepstate_taint.a"
+    taint_path: str = "/usr/local/lib/libdeepstate_taint.a"
     L.debug(f"Static library path: {taint_path}")
 
-    taint_flags = ["-ldeepstate_taint"]
+    taint_flags: List[str] = ["-ldeepstate_taint"]
     if self.compiler_args:
       taint_flags += [arg for arg in self.compiler_args.split(' ')]
     L.info(f"Compiling {self.compile_test} for Angora with taint tracking")
@@ -137,7 +141,7 @@ class Angora(FuzzerFrontend):
     if not self.input_seeds:
       raise FuzzFrontendError("Must provide -i/--input_seeds option for Angora.")
 
-    seeds = os.path.abspath(self.input_seeds)
+    seeds: str = os.path.abspath(self.input_seeds)
     L.debug(f"Seed path: {seeds}")
 
     if not os.path.exists(seeds):
@@ -174,26 +178,33 @@ class Angora(FuzzerFrontend):
 
 
   @property
-  def stats(self):
+  def stats(self) -> Optional[Dict[str, str]]:
     """
     Parses Angora output JSON config to dict for reporting.
     """
-    stat_file = self.output_test_dir + "/chart_stat.json"
+    stat_file: str = self.output_test_dir + "/chart_stat.json"
 
     if not hasattr(self, "prev_stats"):
-      self.prev_stats = None
+      self.prev_stats: Optional[Dict[str, str]] = None
 
     try:
       with open(stat_file, "r") as handle:
-        stats = json.loads(handle.read())
+        stats: Optional[Dict[str, str]] = json.loads(handle.read())
         self.prev_stats = stats
+
+    # fallback on initially parsed stats if failed to decode
     except json.decoder.JSONDecodeError:
       stats = self.prev_stats
 
     return stats
 
 
-  def reporter(self):
+  def reporter(self) -> Optional[Dict[str, Any]]:
+
+    # included to silence mypy error
+    if self.stats is None:
+      return None
+
     return dict({
       "Execs Done": self.stats["num_exec"],
       "Unique Crashes": self.stats["num_crashes"],
