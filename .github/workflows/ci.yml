@@ -73,5 +73,5 @@ jobs:
           registry: docker.pkg.github.com
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-          dockerfile: provision/Dockerfile
+          dockerfile: docker/Dockerfile
           tag_names: true

@@ -17,10 +17,10 @@ Vagrant.configure(2) do |config|
   end
 
   config.vm.network "private_network", type: "dhcp"
-  config.vm.synced_folder "..", GUEST_PATH
+  config.vm.synced_folder ".", GUEST_PATH
 
   # TODO: allow users to configure a dockerized vagrant build or a local one
   # configure scripts to run to provision environment
-  config.vm.provision "shell", path: "./deps", privileged: true
-  config.vm.provision "shell", path: "./install", privileged: false
+  config.vm.provision "shell", path: "./docker/deps", privileged: true
+  config.vm.provision "shell", path: "./docker/install", privileged: false
 end
