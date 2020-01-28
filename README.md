@@ -640,6 +640,14 @@ binary compatible with other settings for swarm, due to the added coin flips.
 
 All accepted PRs are awarded bounties by Trail of Bits. Join the #deepstate channel on the [Empire Hacking Slack](https://empireslacking.herokuapp.com/) to discuss ongoing development and claim bounties. Check the [good first issue](https://github.com/trailofbits/deepstate/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) label for suggested contributions.
 
+## Trophy case
+
+DeepState has not yet been applied to many targets, but was responsible finding for the following confirmed bugs (serious faults are in bold):
+
+- https://github.com/Blosc/c-blosc2/issues/93
+- https://github.com/Blosc/c-blosc2/issues/94
+- **https://github.com/Blosc/c-blosc2/issues/95** (bug causing compression engine to return incorrect uncompressed data)
+
 ## License
 
 DeepState is released under [The Apache License 2.0](LICENSE).
