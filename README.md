@@ -392,7 +392,7 @@ only when things aren't working without that option).
 ## Fuzzing with libFuzzer
 
 If you install clang 6.0 or later, and run `cmake` when you install
-with the `BUILD_LIBFUZZER` environment variable defined, you can
+with the `DEEPSTATE_LIBFUZZER` environment variable defined, you can
 generate tests using libFuzzer.  Because both DeepState and libFuzzer
 want to be `main`, this requires building a different executable for
 libFuzzer.  The `examples` directory shows how this can be done: just
@@ -428,7 +428,7 @@ supports libFuzzer (which the Apple built-in probably won't); this can be as sim
 
 ```shell
 brew install llvm@7
-CC=/usr/local/opt/llvm\@7/bin/clang CXX=/usr/local/opt/llvm\@7/bin/clang++ BUILD_LIBFUZZER=TRUE cmake ..
+CC=/usr/local/opt/llvm\@7/bin/clang CXX=/usr/local/opt/llvm\@7/bin/clang++ DEEPSTATE_LIBFUZZER=TRUE cmake ..
 make install
 ```
 
