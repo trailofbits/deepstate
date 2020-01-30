@@ -642,11 +642,11 @@ All accepted PRs are awarded bounties by Trail of Bits. Join the #deepstate chan
 
 ## Trophy case
 
-DeepState has not yet been applied to many targets, but was responsible finding for the following confirmed bugs (serious faults are in bold):
+DeepState has not yet been applied to many targets, but was responsible for finding the following confirmed bugs (serious faults are in bold):
 
 - https://github.com/Blosc/c-blosc2/issues/93
 - https://github.com/Blosc/c-blosc2/issues/94
-- **https://github.com/Blosc/c-blosc2/issues/95** (bug causing compression engine to return incorrect uncompressed data)
+- **https://github.com/Blosc/c-blosc2/issues/95** (bug causing compression engine to return incorrect uncompressed data) **FIXED**
 
 ## License
 
