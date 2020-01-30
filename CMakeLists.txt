@@ -20,6 +20,11 @@ if(DEFINED ENV{DEEPSTATE_LIBFUZZER})
   set(DEEPSTATE_LIBFUZZER ON)
 endif()
 
+option(DEEPSTATE_HONGGFUZZ, OFF)
+if(DEFINED ENV{DEEPSTATE_HONGGFUZZ})
+  set(DEEPSTATE_HONGGFUZZ ON)
+endif()
+
 option(DEEPSTATE_AFL, OFF)
 if(DEFINED ENV{DEEPSTATE_AFL})
   set(DEEPSTATE_AFL ON)
@@ -158,6 +163,27 @@ if (DEEPSTATE_LIBFUZZER)
 
     install(
        TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_LF
+       LIBRARY DESTINATION lib
+       ARCHIVE DESTINATION lib
+    )
+endif()
+
+if (DEEPSTATE_HONGGFUZZ)
+    add_library(${PROJECT_NAME}_HFUZZ STATIC
+       src/lib/DeepState.c
+       src/lib/Log.c
+       src/lib/Option.c
+       src/lib/Stream.c
+    )
+
+    target_compile_options(${PROJECT_NAME}_HFUZZ PUBLIC)
+
+    target_include_directories(${PROJECT_NAME}_HFUZZ
+       PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
+    )
+
+    install(
+       TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_HFUZZ
        LIBRARY DESTINATION lib
        ARCHIVE DESTINATION lib
     )
