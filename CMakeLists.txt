@@ -16,9 +16,29 @@ project(deepstate)
 cmake_minimum_required(VERSION 2.8)
 
 option(DEEPSTATE_LIBFUZZER, OFF)
+if(DEFINED ENV{DEEPSTATE_LIBFUZZER})
+  set(DEEPSTATE_LIBFUZZER ON)
+endif()
+
+option(DEEPSTATE_HONGGFUZZ, OFF)
+if(DEFINED ENV{DEEPSTATE_HONGGFUZZ})
+  set(DEEPSTATE_HONGGFUZZ ON)
+endif()
+
 option(DEEPSTATE_AFL, OFF)
+if(DEFINED ENV{DEEPSTATE_AFL})
+  set(DEEPSTATE_AFL ON)
+endif()
+
 option(DEEPSTATE_ANGORA, OFF)
+if(DEFINED ENV{DEEPSTATE_ANGORA})
+  set(DEEPSTATE_ANGORA ON)
+endif()
+
 option(DEEPSTATE_NOSTATIC, OFF)
+if(DEFINED ENV{DEEPSTATE_NOSTATIC})
+  set(DEEPSTATE_NOSTATIC ON)
+endif()
 
 if (DEEPSTATE_LIBFUZZER)
   if(NOT DEFINED CMAKE_C_COMPILER)
@@ -143,6 +163,27 @@ if (DEEPSTATE_LIBFUZZER)
 
     install(
        TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_LF
+       LIBRARY DESTINATION lib
+       ARCHIVE DESTINATION lib
+    )
+endif()
+
+if (DEEPSTATE_HONGGFUZZ)
+    add_library(${PROJECT_NAME}_HFUZZ STATIC
+       src/lib/DeepState.c
+       src/lib/Log.c
+       src/lib/Option.c
+       src/lib/Stream.c
+    )
+
+    target_compile_options(${PROJECT_NAME}_HFUZZ PUBLIC)
+
+    target_include_directories(${PROJECT_NAME}_HFUZZ
+       PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
+    )
+
+    install(
+       TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_HFUZZ
        LIBRARY DESTINATION lib
        ARCHIVE DESTINATION lib
     )
