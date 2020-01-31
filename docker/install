@@ -31,27 +31,29 @@ cd deepstate \
     && rm -Rf build \
     && mkdir -p build \
     && cd build \
-
+    \
     && rm -rf CMakeFiles CMakeCache.txt \
     && CXX=clang++ CC=clang cmake -DDEEPSTATE_LIBFUZZER=ON ../ \
     && sudo make install \
-
+    \
     && rm -rf CMakeFiles CMakeCache.txt \
     && CXX=afl-clang++ CC=afl-clang cmake -DDEEPSTATE_AFL=ON ../ \
     && sudo make install \
-
+    \
     && rm -rf CMakeFiles CMakeCache.txt \
     && CXX=hfuzz-clang++ CC=hfuzz-clang cmake -DDEEPSTATE_HFUZZ=ON ../ \
     && sudo make install \
-
+    \
     && rm -rf CMakeFiles CMakeCache.txt \
-    && USE_TRACK=1 CXX=$ANGORA/bin/angora-clang++ CC=$ANGORA/bin/angora-clang cmake -DDEEPSTATE_ANGORA=ON ../ \
-    && export USE_TRACK=1 && sudo -E sh -c 'make -i install' \
+    && export USE_TRACK=1 \
+    && CXX=$ANGORA/bin/angora-clang++ CC=$ANGORA/bin/angora-clang cmake -DDEEPSTATE_ANGORA=ON ../ \
+    && sudo make -i install \
     && make clean \
     && rm -rf CMakeFiles CMakeCache.txt \
+    && unset USE_TRACK && export USE_FAST=1 \
     && CXX=$ANGORA/bin/angora-clang++ CC=$ANGORA/bin/angora-clang cmake -DDEEPSTATE_ANGORA=ON ../ \
-    && export USE_FAST=1 && sudo -E sh -c 'make install' \
-
+    && sudo make install \
+    \
     && cd .. \
     && pip3 install 'z3-solver==4.5.1.0.post2' angr git+git://github.com/trailofbits/manticore.git --user \
     && python3 ./build/setup.py install
