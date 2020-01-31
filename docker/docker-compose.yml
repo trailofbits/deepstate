@@ -1,0 +1,40 @@
+version: "3"
+services:
+  deepstate-base:
+    image: deepstate-base
+    build:
+      context: ./base
+
+  deepstate:
+    image: deepstate
+    command: tail -f /dev/null
+    build:
+      context: ../src
+      dockerfile: $PWD/deepstate/Dockerfile
+      args:
+        DEPS_HOME: ${DEPS_HOME}
+        AFL_HOME: ${AFL_HOME}
+    volumes:
+      - deps_volume:${DEPS_HOME}
+    depends_on:
+      - deepstate-base
+      - afl
+
+  afl:
+    image: deepstate-afl
+    build:
+      context: ./afl
+      args:
+        DEPS_HOME: ${DEPS_HOME}
+        AFL_HOME: ${AFL_HOME}
+    volumes:
+      - deps_volume:${DEPS_HOME}
+    depends_on:
+      - deepstate-base
+
+volumes:
+  deps_volume:
+    driver_opts:
+      type: none
+      device: /tmp/lol
+      o: bind
