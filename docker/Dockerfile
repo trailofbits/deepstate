@@ -15,13 +15,14 @@ COPY . /home/user/deepstate
 
 # Switch to permissioned user
 RUN chown -R user:user /home/user
-USER user
 
 # Install dependencies
-RUN sudo ./deepstate/docker/deps
+RUN ./deepstate/docker/deps
 
 # Install fuzzers needed by DeepState, and build instances of DeepState with those fuzzers
-RUN sudo ./deepstate/docker/install
+RUN ./deepstate/docker/install
+
+USER user
 
 # Reset compilers to clang
 ENV CC=clang
