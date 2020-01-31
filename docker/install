@@ -31,7 +31,7 @@ cd deepstate \
     && rm -Rf build \
     && mkdir -p build \
     && cd build \
-
+    \
     && rm -rf CMakeFiles CMakeCache.txt \
     && CXX=clang++ CC=clang cmake -DDEEPSTATE_LIBFUZZER=ON ../ \
     && sudo make install \
