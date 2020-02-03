@@ -12,8 +12,8 @@ sudo apt-get install -y rustc \
 
 # set proper LLVM version
 export LLVM_VER=7.0.0
-export PATH="$(pwd)/Angora/clang+llvm/bin:$PATH"
-export LD_LIBRARY_PATH="$(pwd)/Angora/clang+llvm/lib:$LD_LIBRARY_PATH"
+export PATH="$(pwd)/clang+llvm/bin:$PATH"
+export LD_LIBRARY_PATH="$(pwd)/clang+llvm/lib:$LD_LIBRARY_PATH"
 
 # Install Angora
 git clone https://github.com/AngoraFuzzer/Angora \

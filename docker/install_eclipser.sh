@@ -21,4 +21,4 @@ sudo rm -rf /var/lib/apt/lists/*
 # Install Eclipser
 git clone https://github.com/SoftSec-KAIST/Eclipser \
     && cd Eclipser \
-    && make -j7
+    && make -j $1

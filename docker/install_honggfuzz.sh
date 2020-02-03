@@ -9,4 +9,4 @@ sudo apt-get install -y binutils-dev \
 # Install Honggfuzz
 git clone https://github.com/google/honggfuzz \
     && cd honggfuzz \
-    && make
+    && make -j $1
