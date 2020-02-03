@@ -60,48 +60,6 @@ if (DEEPSTATE_LIBFUZZER)
   endif()
 endif()
 
-if (DEEPSTATE_HONGGFUZZ)
-  if (NOT DEFINED ENV{HONGGFUZZ_HOME})
-    message(FATAL_ERROR "Compiling Honggfuzz requires setting $HONGGFUZZ_HOME to its project root.")
-  endif()
-
-  if (NOT DEFINED CMAKE_C_COMPILER)
-    set(CMAKE_C_COMPILER "$ENV{HONGGFUZZ_HOME}/hfuzz_cc/hfuzz-clang")
-  endif()
-
-  if (NOT DEFINED CMAKE_CXX_COMPILER)
-    set(CMAKE_CXX_COMPILER "$ENV{HONGGFUZZ_HOME}/hfuzz_cc/hfuzz-clang++")
-  endif()
-endif()
-
-if (DEEPSTATE_AFL)
-  if (NOT DEFINED ENV{AFL_HOME})
-    message(FATAL_ERROR "Compiling AFL requires setting $AFL_HOME to its project root.")
-  endif()
-
-  if (NOT DEFINED CMAKE_C_COMPILER)
-    set(CMAKE_C_COMPILER "$ENV{AFL_HOME}/afl-clang")
-  endif()
-
-  if (NOT DEFINED CMAKE_CXX_COMPILER)
-    set(CMAKE_CXX_COMPILER "$ENV{AFL_HOME}/afl-clang++")
-  endif()
-endif()
-
-if (DEEPSTATE_ANGORA)
-  if (NOT DEFINED ENV{ANGORA_HOME})
-    message(FATAL_ERROR "Compiling Angora requires setting $ANGORA_HOME to its project root.")
-  endif()
-
-  if (NOT DEFINED CMAKE_C_COMPILER)
-	  set(CMAKE_C_COMPILER "$ENV{ANGORA_HOME}/bin/angora-clang")
-  endif()
-
-  if (NOT DEFINED CMAKE_CXX_COMPILER)
-	  set(CMAKE_CXX_COMPILER "$ENV{ANGORA_HOME}/bin/angora-clang++")
-  endif()
-endif()
-
 # --- settings and flags
 enable_language(C)
 enable_language(CXX)
