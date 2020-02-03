@@ -80,7 +80,7 @@ RUN echo 'Building deepstate with Angora - taint' \
     && export USE_TRACK=1 \
     && export ANGORA_HOME="$DEPS_DIR/angora" \
     && cmake -DDEEPSTATE_ANGORA=ON ../ \
-    && make -j $make_j -i \
+    && make -j $make_j -i \  # ignore errors, because Angora doesn't support 32bit builds
     && sudo mv ./libdeepstate_taint.a /usr/local/lib/ \
     && cd ../ && sudo rm -rf build
 
