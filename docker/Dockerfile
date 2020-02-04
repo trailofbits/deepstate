@@ -95,6 +95,10 @@ RUN echo 'Building deepstate with Angora - fast' \
     && make -j $make_j -i \
     && sudo cp ./libdeepstate_fast.a /usr/local/lib/
 
+# Angr, Manticore
+RUN echo 'Installing angr and manticore' \
+    && pip3 install z3-solver angr git+git://github.com/trailofbits/manticore.git --user
+
 ENV CXX=clang++ CC=clang
 
 CMD ["/bin/bash"]
