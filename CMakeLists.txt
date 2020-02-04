@@ -15,6 +15,7 @@
 project(deepstate)
 cmake_minimum_required(VERSION 2.8)
 
+# --- options
 option(DEEPSTATE_LIBFUZZER, OFF)
 if(DEFINED ENV{DEEPSTATE_LIBFUZZER})
   set(DEEPSTATE_LIBFUZZER ON)
@@ -40,6 +41,7 @@ if(DEFINED ENV{DEEPSTATE_NOSTATIC})
   set(DEEPSTATE_NOSTATIC ON)
 endif()
 
+# --- compilers
 if (DEEPSTATE_LIBFUZZER)
   if(NOT DEFINED CMAKE_C_COMPILER)
     set(CMAKE_C_COMPILER clang)
@@ -58,20 +60,7 @@ if (DEEPSTATE_LIBFUZZER)
   endif()
 endif()
 
-if (DEEPSTATE_ANGORA)
-  if (NOT DEFINED ENV{ANGORA})
-    message(FATAL_ERROR "Compiling Angora requires setting $ANGORA to its project root.")
-  endif()
-
-  if (NOT DEFINED CMAKE_C_COMPILER)
-	set(CMAKE_C_COMPILER "$ENV{ANGORA}/bin/angora-clang")
-  endif()
-
-  if (NOT DEFINED CMAKE_CXX_COMPILER)
-	set(CMAKE_CXX_COMPILER "$ENV{ANGORA}/bin/angora-clang++")
-  endif()
-endif()
-
+# --- settings and flags
 enable_language(C)
 enable_language(CXX)
 
@@ -142,8 +131,8 @@ install(
   ARCHIVE DESTINATION lib
 )
 
+# --- build with fuzzer
 if (DEEPSTATE_LIBFUZZER)
-
     if(CMAKE_CXX_COMPILE_VERSION LESS 6.0)
       message(WARNING "libFuzzer is not built-in for your Clang version. If fails, recompile with clang-6.0 or above")
     endif()
@@ -211,7 +200,6 @@ if (DEEPSTATE_AFL)
 endif()
 
 if (DEEPSTATE_ANGORA)
-
 	if(DEFINED ENV{USE_TRACK})
 		set(PROJECT_NAME ${PROJECT_NAME}_taint)
 	else()
@@ -253,7 +241,6 @@ add_custom_command(
 add_custom_target(target ALL DEPENDS ${OUTPUT})
 
 # Install DeepState via PIP.
-
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     #if an install prefix is not set, assume a global install
     install(CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} install)")
