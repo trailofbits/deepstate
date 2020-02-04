@@ -65,6 +65,12 @@ RUN echo 'Building deepstate with Honggfuzz' \
 
 # Eclipser
 COPY --from=Eclipser /home/user/Eclipser $DEPS_DIR/eclipser
+RUN echo 'Eclipser - installing dotnet' \
+    && wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb \
+    && sudo dpkg -i packages-microsoft-prod.deb \
+    && sudo apt-get update \
+    && sudo apt-get install -y dotnet-sdk-2.2
+COPY --from=Eclipser /home/user/.nuget /home/user/.nuget
 
 # Angora
 COPY --from=Angora /home/user/Angora $DEPS_DIR/angora
