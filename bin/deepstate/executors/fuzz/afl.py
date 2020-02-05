@@ -229,16 +229,9 @@ class AFL(FuzzerFrontend):
         print(f"{fstat}:\t\t\t{val}")
 
 
-
 def main():
   fuzzer = AFL()
-
-  # parse user arguments and build object
-  fuzzer.parse_args()
-
-  # run fuzzer with parsed attributes
-  fuzzer.run()
-  return 0
+  return fuzzer.main()
 
 
 if __name__ == "__main__":

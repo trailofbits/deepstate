@@ -214,13 +214,7 @@ class Angora(FuzzerFrontend):
 
 def main():
   fuzzer = Angora(envvar="ANGORA")
-
-  # parse user arguments and build object
-  fuzzer.parse_args()
-
-  # run fuzzer with parsed attributes
-  fuzzer.run()
-  return 0
+  return fuzzer.main()
 
 
 if __name__ == "__main__":

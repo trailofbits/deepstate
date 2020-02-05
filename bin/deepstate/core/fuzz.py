@@ -401,6 +401,19 @@ class FuzzerFrontend(AnalysisBackend):
     return cmd_dict
 
 
+  def main(self):
+    """
+    Helper method for calling fuzzer methods in correct order
+    """
+    try:
+      self.parse_args()
+      self.run()
+      return 0
+    except FuzzFrontendError as e:
+      L.error(e)
+      return 1
+
+
   ##############################################
   # Fuzzer process execution methods
   ##############################################

@@ -141,10 +141,14 @@ class Eclipser(FuzzerFrontend):
 
 
 def main():
-  fuzzer = Eclipser(envvar="ECLIPSER_HOME")
-  fuzzer.parse_args()
-  fuzzer.run(compiler="dotnet")
-  return 0
+  try:
+    fuzzer = Eclipser(envvar="ECLIPSER_HOME")
+    fuzzer.parse_args()
+    fuzzer.run(compiler="dotnet")
+    return 0
+  except FuzzFrontendError as e:
+    L.error(e)
+    return 1
 
 
 if __name__ == "__main__":

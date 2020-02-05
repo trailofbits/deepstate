@@ -194,9 +194,7 @@ class Honggfuzz(FuzzerFrontend):
 
 def main():
   fuzzer = Honggfuzz()
-  fuzzer.parse_args()
-  fuzzer.run()
-  return 0
+  return fuzzer.main()
 
 
 if __name__ == "__main__":
