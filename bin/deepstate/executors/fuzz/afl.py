@@ -91,6 +91,13 @@ class AFL(FuzzerFrontend):
       if not "core" in f.read():
         raise FuzzFrontendError("No core dump pattern set. Execute 'echo core | sudo tee /proc/sys/kernel/core_pattern'")
 
+    with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor") as f:
+      if not "perf" in f.read(4):
+        with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq") as f_min:
+          with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq") as f_max:
+            if f_min.read() != f_max.read():
+              raise FuzzFrontendError("Suboptimal CPU scaling governor. Execute 'echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'")
+
     super().pre_exec()
 
     # require input seeds if we aren't in dumb mode, or we are using crash mode
