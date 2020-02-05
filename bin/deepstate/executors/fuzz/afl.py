@@ -16,8 +16,9 @@
 import os
 import logging
 import argparse
+import shutil
 
-from typing import ClassVar, List, Dict, Any, Optional
+from typing import ClassVar, List, Dict, Any, Optional, Tuple
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
 from deepstate.core.base import AnalysisBackend
@@ -38,33 +39,6 @@ class AFL(FuzzerFrontend):
   def parse_args(cls) -> None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
       description="Use AFL as a backend for DeepState")
-
-    # Execution options
-    parser.add_argument("--dictionary", type=str,
-      help="Optional fuzzer dictionary for AFL.")
-
-    parser.add_argument("--run_timeout", type=int, default=50,
-      help="Timeout for each instance of a run in ms (default is 50ms).")
-
-    parser.add_argument("--mem_limit", type=int, default=50,
-      help="Child process memory limit in MB (default is 50).")
-
-    parser.add_argument("--file", type=str,
-      help="Input file read by fuzzed program, if any.")
-
-
-    # AFL execution modes
-    parser.add_argument("--dirty_mode", action="store_true",
-      help="Fuzz without deterministic steps.")
-
-    parser.add_argument("--dumb_mode", action="store_true",
-      help="Fuzz without instrumentation.")
-
-    parser.add_argument("--qemu_mode", action="store_true",
-      help="Fuzz with QEMU mode.")
-
-    parser.add_argument("--crash_explore", action="store_true",
-      help="Fuzz with crash exploration.")
 
     cls.parser = parser
     super(AFL, cls).parse_args()
@@ -100,8 +74,12 @@ class AFL(FuzzerFrontend):
 
     super().pre_exec()
 
+    if 'Q' in self.fuzzer_args or self.blackbox == True:
+      if not shutil.which('afl-qemu-trace'):
+        raise FuzzFrontendError("Must provide `afl-qemu-trace` executable in PATH")
+
     # require input seeds if we aren't in dumb mode, or we are using crash mode
-    if not self.dumb_mode or self.crash_mode:
+    if 'Q' not in self.fuzzer_args or 'C' in self.fuzzer_args:
       if self.input_seeds is None:
         raise FuzzFrontendError("Must provide -i/--input_seeds option for AFL.")
 
@@ -122,36 +100,37 @@ class AFL(FuzzerFrontend):
 
   @property
   def cmd(self):
-    cmd_dict = {
-      "-o": self.output_test_dir,
-      "-m": str(self.mem_limit)
-    }
+    cmd_list: List[str] = list()
 
-    # since this is optional for AFL's dumb fuzzing
+    # guaranteed arguments
+    cmd_list.extend([
+      "-o", self.output_test_dir,
+      "-m", str(self.mem_limit)
+    ])
+
+    for key, val in self.fuzzer_args:
+      if len(key) == 1:
+        cmd_list.append('-{}'.format(key))
+      else:
+        cmd_list.append('--{}'.format(key))
+      if val is not None:
+        cmd_list.append(val)
+
+    # QEMU mode
+    if self.blackbox == True:
+      cmd_list.append('-Q')
+
+    # optional arguments:
     if self.input_seeds:
-      cmd_dict["-i"] = self.input_seeds
+      cmd_list.extend(["-i", self.input_seeds])
 
-    # AFL's timeout affects run cycle rather than the whole process
-    if self.run_timeout:
-      cmd_dict["-t"] = str(self.run_timeout)
+    if self.exec_timeout:
+      cmd_list.extend(["-t", str(self.exec_timeout)])
 
-    # check if we are using one of AFL's many "modes"
-    if self.dirty_mode:
-      cmd_dict["-d"] = None
-    if self.dumb_mode:
-      cmd_dict["-n"] = None
-    if self.qemu_mode:
-      cmd_dict["-Q"] = None
-    if self.crash_explore:
-      cmd_dict["-C"] = None
-
-    # other misc arguments
     if self.dictionary:
-      cmd_dict["-x"] = self.dictionary
-    if self.file:
-      cmd_dict["-f"] = self.file
+      cmd_list.extend(["-x", self.dictionary])
 
-    return self.build_cmd(cmd_dict)
+    return self.build_cmd(cmd_list)
 
 
   @property

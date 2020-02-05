@@ -32,40 +32,21 @@ class Honggfuzz(FuzzerFrontend):
 
   @classmethod
   def parse_args(cls) -> None:
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(description="Use Honggfuzz as a backend for DeepState")
-
-    # Execution options
-    parser.add_argument("--dictionary", type=str, help="Optional fuzzer dictionary for honggfuzz.")
-    parser.add_argument("--iterations", type=int, help="Number of iterations to fuzz for.")
-    parser.add_argument("--keep_output", action="store_true", help="Output fuzzing feedback during execution.")
-    parser.add_argument("--clear_env", action="store_true", help="Clear envvars before execution.")
-    parser.add_argument("--save_all", action="store_true", help="Save all test-cases prepended with timestamps.")
-    parser.add_argument("--sanitizers", action="store_true", help="Enable sanitizers when fuzzing.")
-
-    # Instrumentation options
-    parser.add_argument("--no_inst", type=str, help="Black-box fuzzing with honggfuzz without compile-time instrumentation.")
-    parser.add_argument("--persistent", action="store_true", help="Set persistent mode when fuzzing.")
-
-    # Hardware-related features for branch counting/coverage, etc.
-    parser.add_argument("--keep_aslr", action="store_true", help="Don't disable ASLR randomization during execution.")
-    parser.add_argument("--perf_instr", action="store_true", help="Allow PERF_COUNT_HW_INSTRUCTIONS.")
-    parser.add_argument("--perf_branch", action="store_true", help="Allow PERF_COUNT_BRANCH_INSTRUCTIONS.")
-
-    # Misc. options
-    parser.add_argument("--post_stats", action="store_true", help="Output post-fuzzing stats.")
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+      description="Use Honggfuzz as a backend for DeepState")
 
     cls.parser = parser
     super(Honggfuzz, cls).parse_args()
 
 
   def compile(self) -> None: # type: ignore
-    lib_path: str = "/usr/local/lib/libdeepstate_hfuzz.a"
+    lib_path: str = "/usr/local/lib/libdeepstate_HFUZZ.a"
 
     # check if we should fallback to default static library
     if not os.path.isfile(lib_path):
       flags: List[str] = ["-ldeepstate"]
     else:
-      flags = ["-ldeepstate_hfuzz"]
+      flags = ["-ldeepstate_HFUZZ"]
 
     if self.compiler_args:
       flags += [arg for arg in self.compiler_args.split(" ")]
@@ -75,7 +56,7 @@ class Honggfuzz(FuzzerFrontend):
   def pre_exec(self):
     super().pre_exec()
 
-    if not self.no_inst:
+    if self.blackbox != True:
       if not self.input_seeds:
         raise FuzzFrontendError("No -i/--input_seeds provided.")
 
@@ -89,40 +70,40 @@ class Honggfuzz(FuzzerFrontend):
 
   @property
   def cmd(self):
-    cmd_dict = {
-      "--input": self.input_seeds,
-      "--workspace": self.output_test_dir,
-    }
+    cmd_list: List[str] = list()
 
-    if self.timeout != 0:
-      cmd_dict["--timeout"] = str(self.timeout)
+    # guaranteed arguments
+    cmd_list.extend([
+      "--workspace", self.output_test_dir,
+      "--rlimit_rss", str(self.mem_limit),
+      "--max_file_size", str(self.max_input_size)
+    ])
+
+    if self.blackbox == True:
+      cmd_list.append("--noinst")
+
+    for key, val in self.fuzzer_args:
+      if len(key) == 1:
+        cmd_list.append('-{}'.format(key))
+      else:
+        cmd_list.append('--{}'.format(key))
+      if val is not None:
+        cmd_list.append(val)
+
+    # optional arguments:
+    if self.input_seeds:
+      cmd_list.extend(["--input", self.input_seeds])
+
+    if self.exec_timeout:
+      cmd_list.extend(["--timeout", str(self.exec_timeout  / 1000)])
+
     if self.dictionary:
-      cmd_dict["--dict"] = self.dictionary
-    if self.iterations:
-      cmd_dict["--iterations"] = str(self.iterations)
-
-    if self.persistent:
-      cmd_dict["--persistent"] = None
-    if self.no_inst:
-      cmd_dict["--noinst"] = None
-    if self.keep_output:
-      cmd_dict["--keep_output"] = None
-    if self.sanitizers:
-      cmd_dict["--sanitizers"] = None
-    if self.clear_env:
-      cmd_dict["--clear_env"] = None
-    if self.save_all:
-      cmd_dict["--save_all"] = None
-    if self.keep_aslr:
-      cmd_dict["--linux_keep_aslr"] = None
+      cmd_list.extend(["--dict", self.dictionary])
 
     # TODO: autodetect hardware features
-    if self.perf_instr:
-      cmd_dict["--linux_perf_instr"] = None
-    if self.perf_branch:
-      cmd_dict["--linux_perf_branch"] = None
+    cmd_list.append("--linux_keep_aslr")
 
-    return self.build_cmd(cmd_dict, input_symbol="___FILE___")
+    return self.build_cmd(cmd_list, input_symbol="___FILE___")
 
 
   @property

@@ -33,19 +33,8 @@ class LibFuzzer(FuzzerFrontend):
 
   @classmethod
   def parse_args(cls) -> None:
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(description="Use libFuzzer as a backend for DeepState")
-
-    # Execution options
-    parser.add_argument("--mem_limit", type=int, default=50, help="Child process memory limit in MB (default is 50).")
-    parser.add_argument("--runtime", type=int, default=0, help="Total time to run fuzzer for (default is 0 for indefinite).")
-    parser.add_argument("--dictionary", type=str, help="Optional fuzzer dictionary for libFuzzer.")
-    parser.add_argument("--use_counters", action="store_true", help="Use perf counters.")
-    parser.add_argument("--use_ascii", action="store_true", help="Use only ASCII characters for generated input seeds.")
-    parser.add_argument("--print_pcs", action="store_true", help="Print program counters during fuzzer execution.")
-
-    # Misc. post-processing
-    parser.add_argument("--minimize_crash", action="store_true", help="Automatically minimize crashing testcases after fuzzer execution.")
-    parser.add_argument("--post_stats", action="store_true", help="Output post-fuzzing stats.")
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+      description="Use libFuzzer as a backend for DeepState")
 
     cls.parser = parser
     super(LibFuzzer, cls).parse_args()
@@ -83,34 +72,39 @@ class LibFuzzer(FuzzerFrontend):
     Initializes a command for an in-process libFuzzer instance that runs
     indefinitely until an interrupt.
     """
-    cmd_dict: Dict[str, str] = dict()
+    cmd_list: List[str] = list()
+
+    # guaranteed arguments
+    cmd_list.extend([
+      "-rss_limit_mb={}".format(self.mem_limit),
+      "-max_len={}".format(self.max_input_size)
+    ])
+
+    for key, val in self.fuzzer_args:
+      if val is not None:
+        cmd_list.append('-{}={}'.format(key, val))
+      else:
+        cmd_list.append('-{}'.format(key))
+
+    # optional arguments:
+    if self.dictionary:
+      cmd_list.append("-dict={}".format(self.dictionary))
+
+    if self.exec_timeout:
+      cmd_list.append("-timeout={}".format(self.exec_timeout / 1000))
+
+    if self.post_stats:
+      cmd_list.append("-print_final_stats={}".format(1))
+
+    cmd_list.append("-artifact_prefix={}".format("deepstate_"))
+
+    # must be here, this are positional args
+    cmd_list.append(self.output_test_dir)
 
     if self.input_seeds:
-      cmd_dict[""] = self.input_seeds
+      cmd_list.append(self.input_seeds)
 
-    # preserve timeout, since libfuzzer exits after crash
-    cmd_dict.update({
-      "-max_len": str(self.max_input_size),
-      "-timeout": str(self.timeout),
-      "-rss_limit_mb": str(self.mem_limit),
-      "-max_total_time": str(self.runtime),
-      "-artifact_prefix": "deepstate_"
-    })
-
-    if self.dictionary:
-      cmd_dict["-dict"] = self.dictionary
-    if self.use_counters:
-      cmd_dict["-use_counters"] = self.use_counters
-    if self.use_ascii:
-      cmd_dict["-only_ascii"] = "1"
-    if self.print_pcs:
-      cmd_dict["-print_pcs"] = "1"
-    if self.post_stats:
-      cmd_dict["-print_final_stats"] = "1"
-    if self.minimize_crash:
-      cmd_dict["-minimize_crash"] = "1"
-
-    return cmd_dict
+    return cmd_list
 
 
 def main():

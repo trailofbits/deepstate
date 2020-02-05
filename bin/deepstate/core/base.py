@@ -111,6 +111,8 @@ class AnalysisBackend(object):
       "-w", "--num_workers", default=1, type=int,
       help="Number of worker jobs to spawn for analysis (default is 1).")
 
+    parser.add_argument("--mem_limit", type=int, default=50,
+      help="Child process memory limit in MB (default is 50).")
 
     # DeepState-related options
     exec_group = parser.add_argument_group("DeepState Test Configuration")
@@ -119,13 +121,24 @@ class AnalysisBackend(object):
       help="DeepState unit test to run (equivalent to `--input_which_test`).")
 
     exec_group.add_argument(
-      "--prog_args", default=[], nargs=argparse.REMAINDER,
-      help="Other DeepState flags to pass to harness before execution, in format `--arg=val`.")
+      "--target_args", default=[], nargs='*',
+      help="Other DeepState flags to pass to harness before execution. Format: `a arg=val` -> `-a --arg1 val`.")
 
     args = parser.parse_args()
 
     # from parsed arguments, modify dict copy if configuration is specified
     _args: Dict[str, str] = vars(args)
+
+    # parse target_args
+    target_args_parsed: List[Tuple[str, Optional[str]]] = []
+    for arg in _args['target_args']:
+      vals = arg.split("=", 1)
+      key = vals[0]
+      val = None
+      if len(vals) == 2:
+        val = vals[1]
+      target_args_parsed.append((key, val))
+    _args['target_args'] = target_args_parsed
 
     # if configuration is specified, parse and replace argument instantiations
     if args.config:

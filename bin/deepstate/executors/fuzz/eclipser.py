@@ -76,34 +76,49 @@ class Eclipser(FuzzerFrontend):
 
   @property
   def cmd(self):
+    cmd_list: List[str] = list()
 
-    # initialize DeepState flags
-    deepargs = ["--input_test_file", "eclipser.input",
-   		"--no_fork", "--abort_on_fail"]
+    # get deepstate args and remove "-- binary"
+    deepstate_args = self.build_cmd([], input_symbol='eclipser.input')
+    binary_index = deepstate_args.index('--')
+    deepstate_args.pop(binary_index)
+    deepstate_args.pop(binary_index)
 
-    if self.which_test is not None:
-      deepargs += ["--input_which_test", self.which_test]
+    # guaranteed arguments
+    cmd_list.extend([
+      "fuzz",
+      "--program", self.binary,
+      "--outputdir", self.output_test_dir,
+      "--src", "file",
+      "--fixfilepath", "eclipser.input",
+      "--initarg", " ".join(deepstate_args),
+      "--maxfilelen", str(self.max_input_size)
+    ])
 
-    cmd_dict = {
-      "fuzz": None,
-      "-p": self.binary,
-      "-o": self.output_test_dir,
-      "--src": "file",
-      "--fixfilepath": "eclipser.input",
-      "--initarg": " ".join(deepargs),
-      "--maxfilelen": str(self.max_input_size),
-    }
+    # some timeout is required by eclipser
+    if self.timeout and self.timeout != 0:
+      timeout = self.timeout
+    else:
+      timeout = 99999
+    cmd_list.extend(["--timelimit", str(timeout)])
 
-    # check for indefinite run
-    if self.timeout != 0:
-      cmd_dict["-t"] = str(self.timeout)
+    for key, val in self.fuzzer_args:
+      if len(key) == 1:
+        cmd_list.append('-{}'.format(key))
+      else:
+        cmd_list.append('--{}'.format(key))
+      if val is not None:
+        cmd_list.append(val)
 
-    # use initial corpus to explore with
-    if self.input_seeds is not None:
-      cmd_dict["--initseedsdir"] = self.input_seeds
+    # optional arguments:
+    if self.exec_timeout:
+      cmd_list.extend(["--exectimeout", str(self.exec_timeout)])
+
+    if self.input_seeds:
+      cmd_list.extend(["--initseedsdir", self.input_seeds])
 
     # no call to helper build_cmd
-    return cmd_dict
+    return cmd_list
 
 
   def ensemble(self) -> None: # type: ignore

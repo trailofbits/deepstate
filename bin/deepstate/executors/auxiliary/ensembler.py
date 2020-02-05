@@ -284,7 +284,7 @@ class Ensembler(FuzzerFrontend):
         "max_input_size": self.max_input_size if self.max_input_size else 8192,
         "mem_limit": 50,
         "which_test": self.which_test,
-        "prog_args": self.prog_args,
+        "target_args": self.target_args,
 
         # set sync options for all fuzzers (TODO): configurable exec cycle
         # set sync_out to output global fuzzer stats, set as default

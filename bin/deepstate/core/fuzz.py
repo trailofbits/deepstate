@@ -24,7 +24,7 @@ import argparse
 import functools
 import multiprocessing
 
-from typing import ClassVar, Optional, Dict, List, Any
+from typing import ClassVar, Optional, Dict, List, Any, Tuple
 
 from deepstate.core.base import AnalysisBackend
 
@@ -58,7 +58,7 @@ class FuzzerFrontend(AnalysisBackend):
 
     fuzzer_name: Optional[str] = self.NAME
     if fuzzer_name is None:
-      raise FuzzFrontendError("FuzzerFrontend.FUZZER not set")
+      raise FuzzFrontendError("FuzzerFrontend.NAME not set")
 
     compiler: Optional[str] = self.COMPILER
 
@@ -126,7 +126,7 @@ class FuzzerFrontend(AnalysisBackend):
 
     # parsed argument attributes
     self.binary: Optional[str] = None
-    self.prog_args: List[str] = []
+    self.target_args: List[str] = []
     self.output_test_dir: str = "{}_out".format(str(self))
     self.timeout: int = 0
     self.num_workers: int = 1
@@ -154,6 +154,25 @@ class FuzzerFrontend(AnalysisBackend):
     Default base argument parser for DeepState frontends. Comprises of default arguments all
     frontends must implement to maintain consistency in executables. Users can inherit this
     method to extend and add own arguments or override for outstanding deviations in fuzzer CLIs.
+
+    Arguments provided by this method and usable in fuzzers' functions.
+    Guaranteed arguments:
+      - output_test_dir (default: out)
+      - mem_limit (default: 50MB)
+      - max_input_size (default: 8192)
+      - fuzzer_args (default: {})
+      - blackbox (default: False)
+      - post_stats (default: False)
+
+    Optional arguments:
+      - input_seeds
+      - dictionary
+      - exec_timeout
+
+    Arguments that should not be used by child class:
+      - timeout (default: 0)
+      - num_workers (default: 1)
+      - target_args (default: {})
     """
 
     L.debug("Parsing arguments with internal base class routine")
@@ -178,6 +197,21 @@ class FuzzerFrontend(AnalysisBackend):
     parser.add_argument(
       "-s", "--max_input_size", type=int, default=8192,
       help="Maximum input size for input generator (default is 8192).")
+
+    parser.add_argument("--dictionary", type=str,
+      help="Optional fuzzer dictionary.")
+
+    parser.add_argument(
+      "--exec_timeout", type=int,
+      help="Timeout for one test-case (fuzz run) in milliseconds.")
+
+    parser.add_argument(
+      "--blackbox", action="store_true",
+      help="Black-box fuzzing without compile-time instrumentation.")
+
+    parser.add_argument(
+      "--fuzzer_args", default=[], nargs='*',
+      help="Flags to pass to the fuzzer. Format: `a arg1=val` -> `-a --arg val`.")
 
 
     # Parallel / Ensemble Fuzzing
@@ -210,10 +244,25 @@ class FuzzerFrontend(AnalysisBackend):
       "--fuzzer_help", action="store_true",
       help="Show fuzzer command line interface's help options.")
 
+
     # finalize building up parser by passing to superclass, and instantiate object attributes
     # the base `parse_args` sets state with _ARGS, so we do need to return a namespace
     cls.parser = parser
     super(FuzzerFrontend, cls).parse_args()
+
+
+    # parse fuzzer_args
+    _args: Dict[str, str] = vars(cls._ARGS)
+
+    fuzzer_args_parsed: List[Tuple[str, Optional[str]]] = []
+    for arg in _args['fuzzer_args']:
+      vals = arg.split("=", 1)
+      key = vals[0]
+      val = None
+      if len(vals) == 2:
+        val = vals[1]
+      fuzzer_args_parsed.append((key, val))
+    _args['fuzzer_args'] = fuzzer_args_parsed
 
     return None
 
@@ -337,68 +386,49 @@ class FuzzerFrontend(AnalysisBackend):
 
 
   @property
-  def cmd(self) -> Dict[str, Optional[str]]:
+  def cmd(self) -> List[str]:
     """
     Property method that implements the logic for constructing a valid command
     for fuzzing, which is then bootstrapped and consumed by subprocess. User must
-    implement functionality that can construct a valid dict of flags (key) to values,
+    implement functionality that can construct a valid list of flags (key-value tuples),
     and then returns it to build_cmd().
     """
     raise NotImplementedError("Must implement in frontend subclass.")
 
 
-  @staticmethod
-  def _dict_to_cmd(cmd_dict: Dict[str, Optional[str]]) -> List[Optional[str]]:
-    """
-    Helper that provides an interface for constructing proper command to be passed
-    to fuzzer executable. This takes a dict that maps a str argument flag to a value,
-    and transforms it into list.
-
-    :param cmd_dict: dict with keys as cli flags and values as arguments
-    """
-
-    # explicit lambda def to deal with mypy-lambda relations
-    concat = lambda key, val: key + val
-    cmd_args: List[Optional[str]] = list(functools.reduce(concat, cmd_dict.items()))
-    cmd_args = [arg for arg in cmd_args if arg is not None]
-
-    L.debug(f"Fuzzer arguments: `{str(cmd_args)}`")
-    return cmd_args
-
-
-  def build_cmd(self, cmd_dict: Dict[str, Any], input_symbol: str = "@@") -> Dict[str, Optional[str]]:
+  def build_cmd(self, cmd_list: List[str], input_symbol: str = "@@") -> List[str]:
     """
     Helper method to be invoked by child fuzzer class's cmd() property method in order
     to finalize command called by the fuzzer executable with appropriate arguments for the
     test harness. Should NOT be called if a fuzzer gets invoked differently (ie arguments necessary
     that deviate from how standard fuzzers invoke binaries).
 
-    :param cmd_dict: incomplete dict to complete with harness argument information
+    :param cmd_list: incomplete dict to complete with harness argument information
     :param input_symbol: symbol recognized by fuzzer to replace when conducting file-based fuzzing
     """
 
     # initialize command with harness binary and DeepState flags to pass to it
-    cmd_dict.update({
-      "--": self.binary,
-      "--input_test_file": input_symbol,
-      "--abort_on_fail": None,
-      "--no_fork": None
-    })
+    cmd_list.extend([
+      "--", self.binary,
+      "--input_test_file", input_symbol,
+      "--abort_on_fail",
+      "--no_fork"
+    ])
 
     # append any other DeepState flags
-    if self.prog_args:
-      for arg in self.prog_args:
-        vals = arg.split("=")
-        if len(vals) == 1:
-          cmd_dict.update({ vals[0] : None })
-        else:
-          cmd_dict.update({ vals[0] : vals[1] })
+    for key, val in self.target_args:
+      if len(key) == 1:
+        cmd_list.append('-{}'.format(key))
+      else:
+        cmd_list.append('--{}'.format(key))
+      if val is not None:
+        cmd_list.append(val)
 
     # test selection
     if self.which_test:
-      cmd_dict["--input_which_test"] = self.which_test
+      cmd_list.extend(["--input_which_test", self.which_test])
 
-    return cmd_dict
+    return cmd_list
 
 
   def main(self):
@@ -437,7 +467,7 @@ class FuzzerFrontend(AnalysisBackend):
       self.pre_exec()
 
     # initialize cmd from property
-    command = [self.fuzzer] + self._dict_to_cmd(self.cmd) # type: ignore
+    command = [self.fuzzer] + self.cmd # type: ignore
 
     # prepend compiler that invokes fuzzer
     if compiler:
@@ -535,6 +565,13 @@ class FuzzerFrontend(AnalysisBackend):
       print(f"Killing fuzzer {self.name} with PID {self.proc.pid}")
       self._kill()
       return 1
+
+    except FuzzFrontendError as e:
+      raise e
+
+    except Exception as e:
+      import traceback
+      L.error(traceback.format_exc())
 
     finally:
       self._kill()

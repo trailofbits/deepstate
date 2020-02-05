@@ -45,19 +45,18 @@ class Angora(FuzzerFrontend):
     compile_group.add_argument("--ignore_calls", type=str,
       help="Path to static/shared libraries (colon seperated) for functions to blackbox for taint analysis.")
 
-
     # Angora-specific test execution options
     parser.add_argument("taint_binary", nargs="?", type=str,
       help="Path to binary compiled with taint tracking.")
 
-    parser.add_argument("--mode", type=str, default="llvm", choices=["llvm", "pin"],
-      help="Specifies binary instrumentation framework used (either llvm or pin).")
+    # parser.add_argument("--mode", type=str, default="llvm", choices=["llvm", "pin"],
+    #   help="Specifies binary instrumentation framework used (either llvm or pin).")
 
-    parser.add_argument("--no_afl", action='store_true',
-      help="Disables AFL mutation strategies being used.")
+    # parser.add_argument("--no_afl", action='store_true',
+    #   help="Disables AFL mutation strategies being used.")
 
-    parser.add_argument("--no_exploration", action='store_true',
-      help="Disables context-sensitive input bytes mutation.")
+    # parser.add_argument("--no_exploration", action='store_true',
+    #   help="Disables context-sensitive input bytes mutation.")
 
     cls.parser = parser
     super(Angora, cls).parse_args()
@@ -138,18 +137,19 @@ class Angora(FuzzerFrontend):
       self.parser.print_help()
       raise FuzzFrontendError("Must provide taint binary for Angora.")
 
+    if not os.path.exists(self.taint_binary):
+      raise FuzzFrontendError("Taint binary doesn't exist")
+
     if not self.input_seeds:
-      raise FuzzFrontendError("Must provide -i/--input_seeds option for Angora.")
+      raise FuzzFrontendError("Seed path not set.")
+    if not os.path.exists(self.input_seeds):
+      raise FuzzFrontendError("Seed path doesn't exist.")
 
-    seeds: str = os.path.abspath(self.input_seeds)
-    L.debug(f"Seed path: {seeds}")
+    if len([name for name in os.listdir(self.input_seeds)]) == 0:
+      raise FuzzFrontendError(f"No seeds present in directory {self.input_seeds}.")
 
-    if not os.path.exists(seeds):
-      os.mkdir(seeds)
-      raise FuzzFrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
-
-    if len([name for name in os.listdir(seeds)]) == 0:
-      raise FuzzFrontendError(f"No seeds present in directory {seeds}")
+    if self.blackbox == True:
+      raise FuzzFrontendError("Blackbox fuzzing is not supported by Angora.")
 
     if os.path.exists(self.output_test_dir):
       raise FuzzFrontendError(f"Remove previous `{self.output_test_dir}` output directory before running Angora.")
@@ -157,24 +157,35 @@ class Angora(FuzzerFrontend):
 
   @property
   def cmd(self):
-    cmd_dict = {
-      "--mode": self.mode,
-      "--input": self.input_seeds,
-      "--output": self.output_test_dir,
-      "--track": os.path.abspath(self.taint_binary),
-    }
+    cmd_list: List[str] = list()
 
-    # check for indefinite run
-    if self.timeout != 0:
-      cmd_dict["--time_limit"] = str(self.timeout)
+    # guaranteed arguments
+    cmd_list.extend([
+      "--mode", "llvm",  # TODO, add pin support
+      "--track", os.path.abspath(self.taint_binary),
+      "--output", self.output_test_dir,
+      "--memory_limit", str(self.mem_limit)
+    ])
 
-    # execution options
-    if self.no_afl:
-      cmd_dict["--disable_afl_mutation"] = None
-    if self.no_exploration:
-      cmd_dict["--disable_exploitation"] = None
+    for key, val in self.fuzzer_args:
+      if len(key) == 1:
+        cmd_list.append('-{}'.format(key))
+      else:
+        cmd_list.append('--{}'.format(key))
+      if val is not None:
+        cmd_list.append(val)
 
-    return self.build_cmd(cmd_dict)
+    # optional arguments:
+    if self.input_seeds:
+      cmd_list.extend(["--input", self.input_seeds])
+
+    if self.exec_timeout:
+      cmd_list.extend(["--time_limit", str(self.exec_timeout / 1000)])
+
+    # autodetect
+    cmd_list.append("--disable_exploitation")
+
+    return self.build_cmd(cmd_list)
 
 
   @property
