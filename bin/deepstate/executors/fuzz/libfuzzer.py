@@ -57,13 +57,23 @@ class LibFuzzer(FuzzerFrontend):
 
     # first, redefine and override fuzzer as harness executable
     self.fuzzer = self.binary # type: ignore
-    seeds: str = self.input_seeds # type: ignore
 
-    # check if seeds are present if specified
-    if seeds:
-      if os.path.exists(seeds):
-        if len([name for name in os.listdir(seeds)]) == 0:
-          raise FuzzFrontendError(f"Seeds path specified but none present in directory.")
+    # require output directory
+    if not self.output_test_dir:
+      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
+
+    if not os.path.exists(self.output_test_dir):
+      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) doesn't exist.")
+
+    if not os.path.isdir(self.output_test_dir):
+      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
+
+    if self.blackbox == True:
+      raise FuzzFrontendError("Blackbox fuzzing is not supported by libFuzzer.")
+
+    if self.input_seeds:
+      if not os.path.exists(self.input_seeds):
+        raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
 
 
   @property
@@ -99,8 +109,9 @@ class LibFuzzer(FuzzerFrontend):
     cmd_list.append("-artifact_prefix={}".format("deepstate_"))
 
     # must be here, this are positional args
-    cmd_list.append(self.output_test_dir)
+    cmd_list.append(self.output_test_dir)  # no auto-create, reusable
 
+    # not required, if provided: not auto-create and not require any files inside
     if self.input_seeds:
       cmd_list.append(self.input_seeds)
 

@@ -141,18 +141,26 @@ class Angora(FuzzerFrontend):
       raise FuzzFrontendError("Taint binary doesn't exist")
 
     if not self.input_seeds:
-      raise FuzzFrontendError("Seed path not set.")
-    if not os.path.exists(self.input_seeds):
-      raise FuzzFrontendError("Seed path doesn't exist.")
+      raise FuzzFrontendError("Must provide -i/--input_seeds option for Angora.")
 
-    if len([name for name in os.listdir(self.input_seeds)]) == 0:
-      raise FuzzFrontendError(f"No seeds present in directory {self.input_seeds}.")
+    if not os.path.exists(self.input_seeds):
+      raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
+
+    if len(os.listdir(self.input_seeds)) == 0:
+      raise FuzzFrontendError(f"No seeds present in directory `{self.input_seeds}`.")
 
     if self.blackbox == True:
       raise FuzzFrontendError("Blackbox fuzzing is not supported by Angora.")
 
+    if self.dictionary:
+      L.error("Angora can't use dictionaries.")
+
+    # require output directory
+    if not self.output_test_dir:
+      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
+
     if os.path.exists(self.output_test_dir):
-      raise FuzzFrontendError(f"Remove previous `{self.output_test_dir}` output directory before running Angora.")
+      raise FuzzFrontendError(f"Remove previous output directory (`{self.output_test_dir}`) before running Angora.")
 
 
   @property
@@ -163,8 +171,8 @@ class Angora(FuzzerFrontend):
     cmd_list.extend([
       "--mode", "llvm",  # TODO, add pin support
       "--track", os.path.abspath(self.taint_binary),
-      "--output", self.output_test_dir,
-      "--memory_limit", str(self.mem_limit)
+      "--memory_limit", str(self.mem_limit),
+      "--output", self.output_test_dir  # auto-create, not reusable
     ])
 
     for key, val in self.fuzzer_args:
@@ -176,6 +184,7 @@ class Angora(FuzzerFrontend):
         cmd_list.append(val)
 
     # optional arguments:
+    # required, if provided: not auto-create and require any file inside
     if self.input_seeds:
       cmd_list.extend(["--input", self.input_seeds])
 

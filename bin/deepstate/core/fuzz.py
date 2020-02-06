@@ -155,15 +155,15 @@ class FuzzerFrontend(AnalysisBackend):
     method to extend and add own arguments or override for outstanding deviations in fuzzer CLIs.
 
     Arguments provided by this method and usable in fuzzers' functions.
-    Guaranteed arguments:
+    Guaranteed arguments (have default value):
       - output_test_dir (default: out)
-      - mem_limit (default: 50MB)
-      - max_input_size (default: 8192)
+      - mem_limit (default: 50MiB)
+      - max_input_size (default: 8192B)
       - fuzzer_args (default: {})
       - blackbox (default: False)
       - post_stats (default: False)
 
-    Optional arguments:
+    Optional arguments (may be None):
       - input_seeds
       - dictionary
       - exec_timeout
@@ -195,7 +195,7 @@ class FuzzerFrontend(AnalysisBackend):
 
     parser.add_argument(
       "-s", "--max_input_size", type=int, default=8192,
-      help="Maximum input size for input generator (default is 8192).")
+      help="Maximum input size for input generator in bytes (default is 8192). 0 for unlimited.")
 
     parser.add_argument("--dictionary", type=str,
       help="Optional fuzzer dictionary.")

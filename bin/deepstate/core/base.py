@@ -112,7 +112,7 @@ class AnalysisBackend(object):
       help="Number of worker jobs to spawn for analysis (default is 1).")
 
     parser.add_argument("--mem_limit", type=int, default=50,
-      help="Child process memory limit in MB (default is 50).")
+      help="Child process memory limit in MiB (default is 50). 0 for unlimited.")
 
     # DeepState-related options
     exec_group = parser.add_argument_group("DeepState Test Configuration")
@@ -128,7 +128,6 @@ class AnalysisBackend(object):
 
     # from parsed arguments, modify dict copy if configuration is specified
     _args: Dict[str, Any] = vars(args)
-    print(_args)
 
     # parse target_args
     target_args_parsed: List[Tuple[str, Optional[str]]] = []

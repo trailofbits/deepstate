@@ -58,21 +58,30 @@ class Eclipser(FuzzerFrontend):
   def pre_exec(self) -> None:
     super().pre_exec()
 
-    out: str = self.output_test_dir
-    L.debug(f"Output test directory: {out}")
+    # TODO handle that somehow
+    L.warning("Eclipser doesn't limit child processes memory.")
 
-    if not os.path.exists(out):
-      print("Creating output directory.")
-      os.mkdir(out)
+    if self.blackbox == True:
+      L.info("Blackbox option is redundant. Eclipser works on non-instrumented binaries using QEMU by default.")
 
-    seeds: str = self.input_seeds # type: ignore
-    if seeds:
-      if os.path.exists(seeds):
-        if len([name for name in os.listdir(seeds)]) == 0:
-          raise FuzzFrontendError(f"Seeds path specified but none present in directory.")
-      else:
-        raise FuzzFrontendError(f"Seeds path `{seeds}` not found.")
+    if self.dictionary:
+      L.error("Angora can't use dictionaries.")
 
+    # require output directory
+    if not self.output_test_dir:
+      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
+
+    if os.path.exists(self.output_test_dir):
+      if not os.path.isdir(self.output_test_dir):
+        raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
+
+    if self.input_seeds:
+      if not os.path.exists(self.input_seeds):
+        raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
+
+      if len(os.listdir(self.input_seeds)) == 0:
+        raise FuzzFrontendError(f"No seeds present in directory `{self.input_seeds}`.")
+        
 
   @property
   def cmd(self):
@@ -88,12 +97,16 @@ class Eclipser(FuzzerFrontend):
     cmd_list.extend([
       "fuzz",
       "--program", self.binary,
-      "--outputdir", self.output_test_dir,
       "--src", "file",
       "--fixfilepath", "eclipser.input",
       "--initarg", " ".join(deepstate_args),
-      "--maxfilelen", str(self.max_input_size)
+      "--outputdir", self.output_test_dir, # auto-create, reusable
     ])
+
+    if self.max_input_size == 0:
+      cmd_list.extend(["--maxfilelen", "1099511627776"])  # use 1TiB as unlimited
+    else:
+      cmd_list.extend(["--maxfilelen", str(self.max_input_size)])
 
     # some timeout is required by eclipser
     if self.timeout and self.timeout != 0:
@@ -114,6 +127,7 @@ class Eclipser(FuzzerFrontend):
     if self.exec_timeout:
       cmd_list.extend(["--exectimeout", str(self.exec_timeout)])
 
+    # not required, if provided: not auto-create and require any file inside
     if self.input_seeds:
       cmd_list.extend(["--initseedsdir", self.input_seeds])
 

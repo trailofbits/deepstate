@@ -64,6 +64,7 @@ class AFL(FuzzerFrontend):
       if not "core" in f.read():
         raise FuzzFrontendError("No core dump pattern set. Execute 'echo core | sudo tee /proc/sys/kernel/core_pattern'")
 
+    # check if CPU scaling governor is set to `performance`
     with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor") as f:
       if not "perf" in f.read(4):
         with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq") as f_min:
@@ -73,28 +74,33 @@ class AFL(FuzzerFrontend):
 
     super().pre_exec()
 
+    # require output directory
+    if not self.output_test_dir:
+      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
+
+    if not os.path.exists(self.output_test_dir):
+      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) doesn't exist.")
+
+    if not os.path.isdir(self.output_test_dir):
+      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
+
+    # check for afl-qemu if in QEMU mode 
     if 'Q' in self.fuzzer_args or self.blackbox == True:
       if not shutil.which('afl-qemu-trace'):
         raise FuzzFrontendError("Must provide `afl-qemu-trace` executable in PATH")
 
     # require input seeds if we aren't in dumb mode, or we are using crash mode
-    if 'Q' not in self.fuzzer_args or 'C' in self.fuzzer_args:
+    if 'n' not in self.fuzzer_args or 'C' in self.fuzzer_args:
       if self.input_seeds is None:
         raise FuzzFrontendError("Must provide -i/--input_seeds option for AFL.")
 
-      seeds: str = self.input_seeds
-      L.debug(f"Fuzzing with seed directory: {seeds}.")
-
       # AFL uses "-" to tell it to resume fuzzing, don't treat as a real seed dir
-      if seeds != "-":
-        # check if seeds dir exists
-        if not os.path.exists(seeds):
-          os.mkdir(seeds)
-          raise FuzzFrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
+      if self.input_seeds != "-":
+        if not os.path.exists(self.input_seeds):
+          raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
 
-        # check if seeds dir is empty
-        if len([name for name in os.listdir(seeds)]) == 0:
-          raise FuzzFrontendError(f"No seeds present in directory {seeds}.")
+        if len(os.listdir(self.input_seeds)) == 0:
+          raise FuzzFrontendError(f"No seeds present in directory `{self.input_seeds}`.")
 
 
   @property
@@ -102,10 +108,12 @@ class AFL(FuzzerFrontend):
     cmd_list: List[str] = list()
 
     # guaranteed arguments
-    cmd_list.extend([
-      "-o", self.output_test_dir,
-      "-m", str(self.mem_limit)
-    ])
+    cmd_list.extend(["-o", self.output_test_dir])  # auto-create, reusable
+
+    if self.mem_limit == 0:
+      cmd_list.extend(["-m", "1099511627776"])  # use 1TiB as unlimited
+    else:
+      cmd_list.extend(["-m", str(self.mem_limit)])
 
     for key, val in self.fuzzer_args:
       if len(key) == 1:
@@ -120,6 +128,7 @@ class AFL(FuzzerFrontend):
       cmd_list.append('-Q')
 
     # optional arguments:
+    # required, if provided: not auto-create and require any file inside
     if self.input_seeds:
       cmd_list.extend(["-i", self.input_seeds])
 

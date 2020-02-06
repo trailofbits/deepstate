@@ -56,16 +56,19 @@ class Honggfuzz(FuzzerFrontend):
   def pre_exec(self):
     super().pre_exec()
 
-    if self.blackbox != True:
-      if not self.input_seeds:
-        raise FuzzFrontendError("No -i/--input_seeds provided.")
+    # require output directory
+    if not self.output_test_dir:
+      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
 
-      if not os.path.exists(self.input_seeds):
-        os.mkdir(self.input_seeds)
-        raise FuzzFrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
+    if os.path.exists(self.output_test_dir):
+      if not os.path.isdir(self.output_test_dir):
+        raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
 
-      if len([name for name in os.listdir(self.input_seeds)]) == 0:
-        raise FuzzFrontendError(f"No seeds present in directory {self.input_seeds}.")
+    if not self.input_seeds:
+      raise FuzzFrontendError("Must provide -i/--input_seeds option for Honggfuzz.")
+
+    if not os.path.exists(self.input_seeds):
+      raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
 
 
   @property
@@ -74,11 +77,17 @@ class Honggfuzz(FuzzerFrontend):
 
     # guaranteed arguments
     cmd_list.extend([
+      "--output", self.output_test_dir,  # auto-create, reusable
       "--workspace", self.output_test_dir,
       "--rlimit_rss", str(self.mem_limit),
-      "--max_file_size", str(self.max_input_size)
     ])
 
+    if self.max_input_size == 0:
+      cmd_list.extend(["--max_file_size", "1099511627776"])  # use 1TiB as unlimited
+    else:
+      cmd_list.extend(["--max_file_size", str(self.max_input_size)])
+
+    # TODO add qemu mode
     if self.blackbox == True:
       cmd_list.append("--noinst")
 
@@ -91,6 +100,7 @@ class Honggfuzz(FuzzerFrontend):
         cmd_list.append(val)
 
     # optional arguments:
+    # required, if provided: not auto-create and not require any files inside
     if self.input_seeds:
       cmd_list.extend(["--input", self.input_seeds])
 
