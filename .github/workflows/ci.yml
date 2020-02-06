@@ -66,6 +66,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Build deepstate-base image locally
+        run: |
+          docker build -t deepstate-base -f docker/base/Dockerfile docker/base
       - name: Build and publish container
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
@@ -75,3 +78,4 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           dockerfile: docker/Dockerfile
           tag_names: true
+          cache: ${{ github.event_name != 'schedule' }}
