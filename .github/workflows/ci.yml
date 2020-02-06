@@ -23,8 +23,8 @@ jobs:
           pip install pyflakes mypy
       - name: Lint
         run: |
-          pyflakes bin/deepstate/*.py
-          pyflakes tests/*.py
+          find ./bin -name '*.py' -exec pyflakes "{}" \;
+          find ./tests -name '*.py' -exec pyflakes "{}" \;
           mypy --strict-optional --config-file mypy.ini bin/deepstate
   build:
     strategy:
