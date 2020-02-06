@@ -19,7 +19,7 @@ import shutil
 import logging
 import subprocess
 
-from typing import ClassVar, List, Dict, Optional
+from typing import ClassVar, List, Dict
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
 

@@ -20,7 +20,7 @@ import os
 import argparse
 import configparser
 
-from typing import Dict, ClassVar, Optional, Union, List, Any
+from typing import Dict, ClassVar, Optional, Union, List, Any, Tuple
 
 
 L = logging.getLogger("deepstate.core.base")
@@ -127,7 +127,8 @@ class AnalysisBackend(object):
     args = parser.parse_args()
 
     # from parsed arguments, modify dict copy if configuration is specified
-    _args: Dict[str, str] = vars(args)
+    _args: Dict[str, Any] = vars(args)
+    print(_args)
 
     # parse target_args
     target_args_parsed: List[Tuple[str, Optional[str]]] = []
@@ -153,10 +154,8 @@ class AnalysisBackend(object):
     return cls._ARGS
 
 
-  ConfigType = Dict[str, Dict[str, Any]]
-
   @staticmethod
-  def build_from_config(config: str, allowed_keys: Optional[List[str]] = None, include_sections: bool = False) -> Union[ConfigType, Dict[str, Any]]:
+  def build_from_config(config: str, allowed_keys: Optional[List[str]] = None, include_sections: bool = False) -> Union[Dict[str, Dict[str, Any]], Dict[str, Any]]:
     """
     Simple auxiliary helper that does safe and correct parsing of DeepState configurations. This can be used
     in the following manners:
@@ -167,10 +166,10 @@ class AnalysisBackend(object):
 
     :param config: path to configuration file
     :param allowed_keys: contains allowed keys that should be parsed
-    :param include_sections: if true, parse all sections, and return a ConfigType where keys are section names
+    :param include_sections: if true, parse all sections, and return a Dict[str, Dict[str, Any]] where keys are section names
     """
 
-    context: ConfigType = dict() # type: ignore
+    context: Dict[str, Dict[str, Any]] = dict() # type: ignore
 
     # reserved sections are ignored by executors, but can be used by other auxiliary tools
     # to reason about with.

@@ -18,10 +18,9 @@ import logging
 import argparse
 import shutil
 
-from typing import ClassVar, List, Dict, Any, Optional, Tuple
+from typing import ClassVar, List, Dict, Optional
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
-from deepstate.core.base import AnalysisBackend
 
 
 L = logging.getLogger("deepstate.frontend.afl")

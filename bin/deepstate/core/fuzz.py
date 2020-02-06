@@ -21,10 +21,9 @@ import time
 import sys
 import subprocess
 import argparse
-import functools
 import multiprocessing
 
-from typing import ClassVar, Optional, Dict, List, Any, Tuple
+from typing import Optional, Dict, List, Any, Tuple
 
 from deepstate.core.base import AnalysisBackend
 
@@ -252,7 +251,7 @@ class FuzzerFrontend(AnalysisBackend):
 
 
     # parse fuzzer_args
-    _args: Dict[str, str] = vars(cls._ARGS)
+    _args: Dict[str, Any] = vars(cls._ARGS)
 
     fuzzer_args_parsed: List[Tuple[str, Optional[str]]] = []
     for arg in _args['fuzzer_args']:
@@ -396,7 +395,7 @@ class FuzzerFrontend(AnalysisBackend):
     raise NotImplementedError("Must implement in frontend subclass.")
 
 
-  def build_cmd(self, cmd_list: List[str], input_symbol: str = "@@") -> List[str]:
+  def build_cmd(self, cmd_list: List[Optional[str]], input_symbol: str = "@@") -> List[Optional[str]]:
     """
     Helper method to be invoked by child fuzzer class's cmd() property method in order
     to finalize command called by the fuzzer executable with appropriate arguments for the
@@ -569,7 +568,7 @@ class FuzzerFrontend(AnalysisBackend):
     except FuzzFrontendError as e:
       raise e
 
-    except Exception as e:
+    except Exception:
       import traceback
       L.error(traceback.format_exc())
 

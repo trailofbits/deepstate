@@ -17,7 +17,7 @@ import os
 import logging
 import argparse
 
-from typing import ClassVar, List, Dict, Optional
+from typing import ClassVar, List
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
