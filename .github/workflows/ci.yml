@@ -78,3 +78,4 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           dockerfile: docker/Dockerfile
           tag_names: true
+          cache: ${{ github.event_name != 'schedule' }}
