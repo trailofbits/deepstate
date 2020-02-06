@@ -48,7 +48,20 @@ class AnalysisBackend(object):
 
 
   def __init__(self):
-    pass
+    # parsed argument attributes
+    self.binary: Optional[str] = None
+    self.output_test_dir: str = "{}_out".format(str(self))
+    self.timeout: int = 0
+    self.num_workers: int = 1
+    self.mem_limit: int = 50
+
+    self.compile_test: Optional[str] = None
+    self.compiler_args: Optional[str] = None
+    self.out_test_name: str = "out"
+
+    self.no_exit_compile: bool = False
+    self.which_test: Optional[str] = None
+    self.target_args: List[Any] = []
 
 
   @classmethod
