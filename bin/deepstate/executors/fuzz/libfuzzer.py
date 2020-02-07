@@ -17,7 +17,7 @@ import os
 import logging
 import argparse
 
-from typing import ClassVar, List, Dict
+from typing import List
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
@@ -25,10 +25,10 @@ L = logging.getLogger(__name__)
 
 class LibFuzzer(FuzzerFrontend):
 
-  NAME: ClassVar[str] = "libFuzzer"
-  EXECUTABLES: ClassVar[Dict[str,str]] = {"FUZZER": "placeholder_replace_with_binary",
-                                          "COMPILER": "clang++"
-                                          }
+  NAME = "libFuzzer"
+  EXECUTABLES = {"FUZZER": "placeholder_replace_with_binary",
+                  "COMPILER": "clang++"
+                  }
 
   @classmethod
   def parse_args(cls) -> None:

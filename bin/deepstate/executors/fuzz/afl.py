@@ -18,7 +18,7 @@ import logging
 import argparse
 import shutil
 
-from typing import ClassVar, List, Dict, Optional
+from typing import List, Dict, Optional
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
@@ -29,10 +29,10 @@ L = logging.getLogger(__name__)
 class AFL(FuzzerFrontend):
   """ Defines AFL fuzzer frontend """
 
-  NAME: ClassVar[str] = "AFL"
-  EXECUTABLES: ClassVar[Dict[str,str]] = {"FUZZER": "afl-fuzz",
-                                          "COMPILER": "afl-clang++"
-                                          }
+  NAME = "AFL"
+  EXECUTABLES = {"FUZZER": "afl-fuzz",
+                  "COMPILER": "afl-clang++"
+                  }
 
   @classmethod
   def parse_args(cls) -> None:

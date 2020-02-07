@@ -4,7 +4,7 @@ import logging
 from sys import exit
 
 
-class DeepStateLogger(logging.getLoggerClass()):
+class DeepStateLogger(logging.getLoggerClass()): # type: ignore
     def __init__(self, name: str) -> None:
         logging.Logger.__init__(self, name=name)
         self.trace = functools.partial(self.log, 15) # type: ignore
@@ -46,7 +46,7 @@ LOG_LEVEL_INT_TO_LOGGER = {
   LOG_LEVEL_CRITICAL: logger.critical
 }
 
-log_level_from_env: str = os.environ.get("DEEPSTATE_LOG", 2)
+log_level_from_env: str = os.environ.get("DEEPSTATE_LOG", "2")
 try:
   logger.setLevel(LOG_LEVEL_INT_TO_STR[int(log_level_from_env)])
 except ValueError:

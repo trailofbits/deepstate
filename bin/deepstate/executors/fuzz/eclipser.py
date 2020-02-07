@@ -19,7 +19,7 @@ import shutil
 import logging
 import subprocess
 
-from typing import ClassVar, List, Dict
+from typing import List, Dict
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
@@ -33,11 +33,11 @@ class Eclipser(FuzzerFrontend):
   in order to interface the executable DLL for greybox concolic testing.
   """
 
-  NAME: ClassVar[str] = "Eclipser"
-  SEARCH_DIRS: ClassVar[List[str]] = ["build"]
-  EXECUTABLES: ClassVar[Dict[str,str]] = {"FUZZER": "Eclipser.dll",
-                                          "COMPILER": "clang++"  # for regular compilation
-                                          }
+  NAME = "Eclipser"
+  SEARCH_DIRS = ["build"]
+  EXECUTABLES = {"FUZZER": "Eclipser.dll",
+                  "COMPILER": "clang++"  # for regular compilation
+                  }
 
 
   def print_help(self):

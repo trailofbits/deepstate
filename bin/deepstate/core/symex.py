@@ -19,7 +19,8 @@ import struct
 import argparse
 import hashlib
 
-from deepstate import *
+from deepstate import (DeepStateLogger, LOG_LEVEL_INT_TO_STR, LOG_LEVEL_INT_TO_LOGGER,
+                        LOG_LEVEL_TRACE, LOG_LEVEL_ERROR, LOG_LEVEL_CRITICAL)
 from deepstate.core.base import AnalysisBackend
 
 
@@ -232,7 +233,7 @@ class SymexFrontend(AnalysisBackend):
     if os.environ.get("DEEPSTATE_LOG", None) is None:
       LOGGER.setLevel(LOG_LEVEL_INT_TO_STR[args.min_log_level])
     else:
-      L.info("Using log level from $DEEPSTATE_LOG.")
+      LOGGER.info("Using log level from $DEEPSTATE_LOG.")
 
     if args.output_test_dir is not None:
       test_dir = os.path.join(args.output_test_dir,

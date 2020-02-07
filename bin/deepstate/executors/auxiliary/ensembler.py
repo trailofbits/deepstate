@@ -44,7 +44,7 @@ class Ensembler(FuzzerFrontend):
   seed synchronization between them.
   """
 
-  FUZZER = "deepstate-ensembler"
+  EXECUTABLES = {"FUZZER": "deepstate-ensembler"}
 
   @classmethod
   def parse_args(cls):

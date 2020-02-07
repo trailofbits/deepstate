@@ -54,15 +54,18 @@ class FuzzerFrontend(AnalysisBackend):
     Inherits:
       - name (name for pretty printing)
 
-    User must define NAME, FUZZER and COMPILER (if compiling) members in inherited fuzzer class.
+    User must define in inherited fuzzer class:
+      - NAME str
+      - EXECUTABLES dict with keys:
+          FUZZER, COMPILER (if compiling) and any executable it will use
 
     :param envvar: name of envvar to discover executables.
     """
     super(FuzzerFrontend, self).__init__()
 
-    self.fuzzer_exe: str = self.EXECUTABLES.pop("FUZZER", None)
-    if self.fuzzer_exe is None:
+    if "FUZZER" not in self.EXECUTABLES:
       raise FuzzFrontendError("FuzzerFrontend.EXECUTABLES[\"FUZZER\"] not set.")
+    self.fuzzer_exe: str = self.EXECUTABLES.pop("FUZZER")
 
     self.compiler_exe: Optional[str] = self.EXECUTABLES.pop("COMPILER", None)
 

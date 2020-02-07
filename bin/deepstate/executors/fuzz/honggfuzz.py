@@ -16,7 +16,7 @@ import os
 import logging
 import argparse
 
-from typing import ClassVar, List, Dict, Optional
+from typing import List, Dict, Optional
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
@@ -25,11 +25,11 @@ L = logging.getLogger(__name__)
 
 class Honggfuzz(FuzzerFrontend):
 
-  NAME: ClassVar[str] = "HonggFuzz"
-  SEARCH_DIRS: ClassVar[List[str]] = ["hfuzz_cc"]
-  EXECUTABLES: ClassVar[Dict[str,str]] = {"FUZZER": "honggfuzz",
-                                          "COMPILER": "hfuzz-clang++"
-                                          }
+  NAME = "HonggFuzz"
+  SEARCH_DIRS = ["hfuzz_cc"]
+  EXECUTABLES = {"FUZZER": "honggfuzz",
+                  "COMPILER": "hfuzz-clang++"
+                  }
 
 
   @classmethod

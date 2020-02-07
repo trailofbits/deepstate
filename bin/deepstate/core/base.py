@@ -17,7 +17,6 @@ import logging
 import os
 import argparse
 import configparser
-import functools
 
 from typing import Dict, ClassVar, Optional, Union, List, Any, Tuple
 
@@ -42,10 +41,10 @@ class AnalysisBackend(object):
   """
 
   # name of tool executable, should be implemented by subclass
-  NAME: ClassVar[Optional[str]] = None
+  NAME: ClassVar[str] = ''
 
   # name of compiler executable, should be implemented by subclass
-  COMPILER: ClassVar[Optional[str]] = None
+  EXECUTABLES: ClassVar[Dict[str,str]] = {}
 
   # temporary attribute for argparsing, and should be used to build up object attributes
   _ARGS: ClassVar[Optional[argparse.Namespace]] = None
@@ -63,8 +62,8 @@ class AnalysisBackend(object):
     """
 
     # in case name supplied as `bin/fuzzer`, strip executable name
-    self.name: Optional[str] = self.NAME
-    if self.name is None:
+    self.name: str = self.NAME
+    if self.name == '':
       raise AnalysisBackendError("AnalysisBackend.NAME not set")
     L.debug(f"Analysis backend name: {self.name}")
 
@@ -74,6 +73,7 @@ class AnalysisBackend(object):
     self.timeout: int = 0
     self.num_workers: int = 1
     self.mem_limit: int = 50
+    self.min_log_level: int = 2
 
     self.compile_test: Optional[str] = None
     self.compiler_args: Optional[str] = None
@@ -105,7 +105,7 @@ class AnalysisBackend(object):
     # Compilation/instrumentation support, only if COMPILER is set
     # TODO: extends compilation interface for symex engines that "compile" source to
     # binary, IR format, or boolean expressions for symbolic VM to reason with
-    if cls.COMPILER:
+    if cls.EXECUTABLES.get("COMPILER", None):
       L.debug("Adding compilation support since a compiler was specified")
 
       # type: ignore
@@ -117,8 +117,8 @@ class AnalysisBackend(object):
       compile_group.add_argument("--compiler_args", type=str,
         help="Linker flags (space seperated) to include for external libraries.")
 
-      compile_group.add_argument("--out_test_name", type=str, default="out",
-        help="Set name of generated instrumented binary (default is `out.{FUZZER}`).")
+      compile_group.add_argument("--out_test_name", type=str,
+        help="Set name of generated instrumented binary.")
 
       compile_group.add_argument("--no_exit_compile", action="store_true",
         help="Continue execution after compiling a harness (set as default if `--config` is set).")

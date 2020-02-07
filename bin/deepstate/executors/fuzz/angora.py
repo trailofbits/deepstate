@@ -19,7 +19,7 @@ import logging
 import argparse
 import subprocess
 
-from typing import ClassVar, List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
@@ -30,12 +30,12 @@ L = logging.getLogger(__name__)
 class Angora(FuzzerFrontend):
 
   # these classvars are set under the assumption that $ANGORA_PATH is set to the built source
-  NAME: ClassVar[str] = "Angora"
-  SEARCH_DIRS: ClassVar[List[str]] = ["bin", "clang+llvm", "tools"]
-  EXECUTABLES: ClassVar[Dict[str,str]] = {"FUZZER": "angora_fuzzer",
-                                          "COMPILER": "angora-clang++",
-                                          "GEN_LIB_ABILIST": "gen_library_abilist.sh"
-                                          }
+  NAME = "Angora"
+  SEARCH_DIRS = ["bin", "clang+llvm", "tools"]
+  EXECUTABLES = {"FUZZER": "angora_fuzzer",
+                  "COMPILER": "angora-clang++",
+                  "GEN_LIB_ABILIST": "gen_library_abilist.sh"
+                  }
 
 
   @classmethod
