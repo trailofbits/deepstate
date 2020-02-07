@@ -22,17 +22,18 @@ import sys
 import subprocess
 import argparse
 import multiprocessing
+import shutil
 
 from typing import Optional, Dict, List, Any, Tuple
 
-from deepstate.core.base import AnalysisBackend
+from deepstate.core.base import AnalysisBackend, AnalysisBackendError
 
 
 L = logging.getLogger("deepstate.core.fuzz")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
-class FuzzFrontendError(Exception):
+class FuzzFrontendError(AnalysisBackendError):
   """
   Defines our custom exception class for FuzzerFrontend
   """
@@ -44,81 +45,33 @@ class FuzzerFrontend(AnalysisBackend):
   Defines a base front-end object for using DeepState to interact with fuzzers.
   """
 
-  def __init__(self, envvar: str = "PATH") -> None:
+  def __init__(self, envvar: str) -> None:
     """
-    Initializes base object with fuzzer executable and path, and checks to see if fuzzer
-    executable exists in supplied environment variable (default is $PATH). Optionally also
-    sets path to compiler executable for compile-time instrumentation, for those fuzzers that support it.
+    Create and store variables:
+      - fuzzer_exe (fuzzer executable file)
+      - compiler_exe (fuzzer compiler file, optional)
+      - env (environment variable name)
+      - search_dirs (directories inside fuzzer home dir where to look for executables)
 
-    User must define NAME and COMPILER (if compiling) members in inherited fuzzer class.
+    Inherits:
+      - name (name for pretty printing)
 
-    :param envvar: name of envvar to discover executables. Default is $PATH.
+    User must define NAME, FUZZER and COMPILER (if compiling) members in inherited fuzzer class.
+
+    :param envvar: name of envvar to discover executables.
     """
+    super(FuzzerFrontend, self).__init__()
 
-    fuzzer_name: Optional[str] = self.NAME
-    if fuzzer_name is None:
-      raise FuzzFrontendError("FuzzerFrontend.NAME not set")
+    self.fuzzer_exe: str = self.EXECUTABLES.pop("FUZZER", None)
+    if self.fuzzer_exe is None:
+      raise FuzzFrontendError("FuzzerFrontend.EXECUTABLES[\"FUZZER\"] not set.")
 
-    compiler: Optional[str] = self.COMPILER
+    self.compiler_exe: Optional[str] = self.EXECUTABLES.pop("COMPILER", None)
 
-    # work-around for mypy type-checking
-    _env = os.environ.get(envvar)
-    if _env is None:
-      raise FuzzFrontendError(f"${envvar} does not contain any known paths.")
-    env: str = str(_env)
+    self.envvar: str = envvar
+    self.env: Optional[str] = os.environ.get(envvar, None)
 
-    # collect paths from envvar, and check to see if fuzzer executable is present in paths
-    potential_paths: List[str] = [var for var in env.split(":")]
-    fuzzer_paths: List[str] = [f"{path}/{fuzzer_name}" for path in potential_paths if os.path.isfile(path + '/' + fuzzer_name)]
-    if len(fuzzer_paths) == 0:
-      raise FuzzFrontendError(f"${envvar} does not contain supplied fuzzer executable for `{self.NAME}`.")
-
-    L.debug(fuzzer_paths)
-
-    # if supplied, check if compiler exists in potential_paths
-    if compiler is not None:
-
-      compiler_paths: List[str] = [f"{path}/{compiler}" for path in potential_paths if os.path.isfile(path + '/' + compiler)]
-      if len(compiler_paths) == 0:
-
-        # if not in earlier envvar, check to see if user supplied absolute path
-        if os.path.isfile(compiler):
-          self.compiler: str = compiler
-
-        # .. or check if in $PATH before tossing exception
-        else:
-          path_env: Optional[str] = os.environ.get("PATH")
-          if path_env is None:
-            raise FuzzFrontendError("$PATH envvar is not defined.")
-
-          for path in path_env.split(os.pathsep):
-            compiler_path: str = os.path.join(path, compiler)
-
-            L.debug(f"Checking if `{compiler_path}` is a valid compiler path")
-            if os.path.isfile(compiler_path) and os.access(compiler_path, os.X_OK):
-              self.compiler = compiler_path
-              break
-
-      # use first compiler executable if multiple exists
-      else:
-        self.compiler = compiler_paths[0]
-
-      # toss exception if compiler still could not be found
-      if not hasattr(self, "compiler"):
-        raise FuzzFrontendError(f"{compiler} does not exist as absolute path, or in ${envvar} or $PATH")
-
-      L.debug(f"Initialized compiler: {self.compiler}")
-
-    # store envvar for re-use across API
-    self.env: str = env
-
-    # in case name supplied as `bin/fuzzer`, strip executable name
-    self.name: str = fuzzer_name.split('/')[-1] if '/' in fuzzer_name else fuzzer_name
-    L.debug(f"Fuzzer name: {self.name}")
-
-    # use first fuzzer executable path if multiple exists
-    self.fuzzer = fuzzer_paths[0]
-    L.debug(f"Initialized fuzzer path: {self.fuzzer}")
+    self.search_dirs: List[str] = getattr(self, "SEARCH_DIRS", [])
 
     # flag to ensure fuzzer processes do not persist
     self._on: bool = False
@@ -137,6 +90,7 @@ class FuzzerFrontend(AnalysisBackend):
     self.sync_dir: str = "out_sync"
 
     self.post_stats: bool = False
+    self.home_path: Optional[str] = None
 
 
   def __repr__(self) -> str:
@@ -239,12 +193,14 @@ class FuzzerFrontend(AnalysisBackend):
       "--fuzzer_help", action="store_true",
       help="Show fuzzer command line interface's help options.")
 
+    parser.add_argument(
+      "--home_path", type=str,
+      help="Path to fuzzer home directory. Will search executables there and in PATH.")
 
     # finalize building up parser by passing to superclass, and instantiate object attributes
     # the base `parse_args` sets state with _ARGS, so we do need to return a namespace
     cls.parser = parser
     super(FuzzerFrontend, cls).parse_args()
-
 
     # parse fuzzer_args
     _args: Dict[str, Any] = vars(cls._ARGS)
@@ -266,12 +222,76 @@ class FuzzerFrontend(AnalysisBackend):
     """
     Calls fuzzer to print executable help menu.
     """
-    subprocess.call([self.fuzzer, "--help"])
+    subprocess.call([self.fuzzer_exe, "--help"])
 
 
   ##############################################
   # Fuzzer pre-execution methods
   ##############################################
+
+
+  def _search_for_executable(self, exe_name):
+    # exe as absolute name
+    if os.path.isabs(exe_name):
+      if not os.path.isfile(exe_name):
+        raise FuzzFrontendError(f"File `{exe_name}` doesn't exists.")
+      if not os.access(exe_name, os.X_OK):
+        raise FuzzFrontendError(f"File `{exe_name}` is not executable.")
+      return exe_name
+
+    # search in env, add search_dirs
+    if self.env:
+      for one_env_path in self.env.split(":"):
+        for search_dir in [""] + self.search_dirs:
+          exe_path: Optional[str] = shutil.which(exe_name, path=os.path.join(one_env_path, search_dir))
+          if exe_path is not None:
+            return exe_path
+
+    # search in current dir and $PATH
+    where_to_search = ['.', None]
+    for search_env in where_to_search:
+      exe_path: Optional[str] = shutil.which(exe_name, path=search_env)
+      if exe_path is not None:
+        return exe_path
+
+    raise FuzzFrontendError(f"Executable file `{exe_name}` not found in neither `{self.env}` nor $PATH.\n"
+                            f"Please add path to {self.name} in {self.envvar} env var or in --home_path argument.")
+
+
+  def _set_executables(self):
+    """
+    Search for required executables in ${env} (envvar from child class),
+    then in --home_path CLI argument, then in current dir and then in $PATH.
+
+    Except if executable is given as an absolute path, then just check if it exists
+    and if permissions are correct.
+
+    Update variables:
+      - fuzzer_exe
+      - compiler_exe
+    
+    Throws exception if some executable couldn't be found
+    """
+
+    # add path from argument to env
+    if self.home_path:
+      if self.env:
+        self.env += f":{self.home_path}"
+      else:
+        self.env = self.home_path
+
+    # set fuzzer_exe 
+    self.fuzzer_exe = self._search_for_executable(self.fuzzer_exe)
+    L.debug(f"Will use {self.fuzzer_exe} as fuzzer executable.")
+
+    # set compiler_exe
+    if self.compiler_exe:
+      self.compiler_exe = self._search_for_executable(self.compiler_exe)
+      L.debug(f"Will use {self.compiler_exe} as fuzzer compiler.")
+
+    # set additional executables
+    for exe_name, exe_file in self.EXECUTABLES.items():
+      self.EXECUTABLES[exe_name] = self._search_for_executable(exe_file)
 
 
   def compile(self, lib_path: str, flags: List[str], _out_bin: str, env = os.environ.copy()) -> None:
@@ -290,7 +310,7 @@ class FuzzerFrontend(AnalysisBackend):
     :param env: optional envvars to set during compilation
     """
 
-    if self.compiler is None:
+    if self.compiler_exe is None:
       raise FuzzFrontendError(f"No compiler specified for compile-time instrumentation.")
 
     if self.binary is not None:
@@ -301,21 +321,21 @@ class FuzzerFrontend(AnalysisBackend):
     L.debug(f"Static library path: {lib_path}")
 
     # initialize compiler envvars
-    env["CC"] = self.compiler
-    env["CXX"] = self.compiler
+    env["CC"] = self.compiler_exe
+    env["CXX"] = self.compiler_exe
     L.debug(f"CC={env['CC']} and CXX={env['CXX']}")
 
     # initialize command with prepended compiler
     compiler_args: List[str] = ["-std=c++11", self.compile_test] + flags + ["-o", _out_bin] # type: ignore
-    compile_cmd = [self.compiler] + compiler_args
+    compile_cmd = [self.compiler_exe] + compiler_args
     L.debug(f"Compilation command: {str(compile_cmd)}")
 
     # call compiler, and deal with exceptions accordingly
-    L.info(f"Compiling test harness `{self.compile_test}` with {self.compiler}")
+    L.info(f"Compiling test harness `{self.compile_test}` with {self.compiler_exe}")
     try:
       subprocess.Popen(compile_cmd, env=env).communicate()
     except BaseException as e:
-      raise FuzzFrontendError(f"{self.compiler} interrupted due to exception:", e)
+      raise FuzzFrontendError(f"{self.compiler_exe} interrupted due to exception:", e)
 
     # extra check if target binary was successfully compiled, and set that as target binary
     out_bin = os.path.join(os.getcwd(), _out_bin)
@@ -337,6 +357,9 @@ class FuzzerFrontend(AnalysisBackend):
       self.print_help()
       sys.exit(0)
 
+    # search for executables and set proper variables
+    self._set_executables()
+
     # if compile_test is set, call compile for user
     if self.compile_test:
       self.compile()
@@ -356,9 +379,9 @@ class FuzzerFrontend(AnalysisBackend):
       sys.exit(1)
 
     # check if binary exists and contains an absolute path
-    if not os.path.isabs(self.binary):
-      self.binary = os.path.abspath(self.binary)
-
+    self.binary = os.path.abspath(self.binary)
+    if not os.path.isfile(self.binary):
+      raise FuzzFrontendError(f"Binary {self.binary} doesn't exists.")
     L.debug(f"Target binary: {self.binary}")
 
     # no sanity check, since some fuzzers require optional input seeds
@@ -462,7 +485,7 @@ class FuzzerFrontend(AnalysisBackend):
       self.pre_exec()
 
     # initialize cmd from property
-    command = [self.fuzzer] + self.cmd # type: ignore
+    command = [self.fuzzer_exe] + self.cmd # type: ignore
 
     # prepend compiler that invokes fuzzer
     if compiler:
@@ -518,9 +541,9 @@ class FuzzerFrontend(AnalysisBackend):
         self._kill()
         if self.enable_sync:
           err = stdout if stderr is None else stderr
-          raise FuzzFrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Message: {err.decode('utf-8')}")
+          raise FuzzFrontendError(f"{self.name} run interrupted with non-zero return status. Message: {err.decode('utf-8')}")
         else:
-          raise FuzzFrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Error code: {self.proc.returncode}")
+          raise FuzzFrontendError(f"{self.name} run interrupted with non-zero return status. Error code: {self.proc.returncode}")
 
       # invoke ensemble if seed synchronization option is set
       if self.enable_sync:
@@ -553,7 +576,7 @@ class FuzzerFrontend(AnalysisBackend):
     # any OS-specific errors encountered
     except OSError as e:
       self._kill()
-      raise FuzzFrontendError(f"{self.fuzzer} run interrupted due to exception {e}.")
+      raise FuzzFrontendError(f"{self.name} run interrupted due to exception {e}.")
 
     # SIGINT stops fuzzer, but continues execution
     except KeyboardInterrupt:
@@ -681,7 +704,7 @@ class FuzzerFrontend(AnalysisBackend):
     try:
       subprocess.Popen(rsync_cmd)
     except subprocess.CalledProcessError as e:
-      raise FuzzFrontendError(f"{self.fuzzer} run interrupted due to exception {e}.")
+      raise FuzzFrontendError(f"{self.name} run interrupted due to exception {e}.")
 
 
   @staticmethod

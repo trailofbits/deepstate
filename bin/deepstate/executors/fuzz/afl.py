@@ -30,14 +30,15 @@ L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 class AFL(FuzzerFrontend):
   """ Defines AFL fuzzer frontend """
 
-  NAME: ClassVar[str] = "afl-fuzz"
-  COMPILER: ClassVar[str] = "afl-clang++"
-
+  NAME: ClassVar[str] = "AFL"
+  EXECUTABLES: ClassVar[Dict[str,str]] = {"FUZZER": "afl-fuzz",
+                                          "COMPILER": "afl-clang++"
+                                          }
 
   @classmethod
   def parse_args(cls) -> None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
-      description="Use AFL as a backend for DeepState")
+      description=f"Use AFL as a backend for DeepState")
 
     cls.parser = parser
     super(AFL, cls).parse_args()
@@ -58,6 +59,7 @@ class AFL(FuzzerFrontend):
     """
     Perform argparse and environment-related sanity checks.
     """
+    super().pre_exec()
 
     # check if core dump pattern is set as `core`
     with open("/proc/sys/kernel/core_pattern") as f:
@@ -71,8 +73,6 @@ class AFL(FuzzerFrontend):
           with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq") as f_max:
             if f_min.read() != f_max.read():
               raise FuzzFrontendError("Suboptimal CPU scaling governor. Execute 'echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'")
-
-    super().pre_exec()
 
     # require output directory
     if not self.output_test_dir:
@@ -92,7 +92,7 @@ class AFL(FuzzerFrontend):
     # require input seeds if we aren't in dumb mode, or we are using crash mode
     if 'n' not in self.fuzzer_args or 'C' in self.fuzzer_args:
       if self.input_seeds is None:
-        raise FuzzFrontendError("Must provide -i/--input_seeds option for AFL.")
+        raise FuzzFrontendError(f"Must provide -i/--input_seeds option for {self.name}.")
 
       # AFL uses "-" to tell it to resume fuzzing, don't treat as a real seed dir
       if self.input_seeds != "-":
@@ -210,14 +210,14 @@ class AFL(FuzzerFrontend):
     both sync_dir and local queue.
     """
     if self.post_stats:
-      print("\nAFL RUN STATS:\n")
+      print(f"\n{self.name} RUN STATS:\n")
       for stat, val in self.stats.items():
         fstat: str = stat.replace("_", " ").upper()
         print(f"{fstat}:\t\t\t{val}")
 
 
 def main():
-  fuzzer = AFL()
+  fuzzer = AFL(envvar="AFL_HOME")
   return fuzzer.main()
 
 

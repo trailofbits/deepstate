@@ -34,12 +34,15 @@ class Eclipser(FuzzerFrontend):
   in order to interface the executable DLL for greybox concolic testing.
   """
 
-  NAME: ClassVar[str] = "Eclipser.dll"
-  COMPILER: ClassVar[str] = "clang++" 	 # for regular compilation
+  NAME: ClassVar[str] = "Eclipser"
+  SEARCH_DIRS: ClassVar[List[str]] = ["build"]
+  EXECUTABLES: ClassVar[Dict[str,str]] = {"FUZZER": "Eclipser.dll",
+                                          "COMPILER": "clang++"  # for regular compilation
+                                          }
 
 
   def print_help(self):
-    subprocess.call(["dotnet", self.fuzzer, "fuzz", "--help"])
+    subprocess.call(["dotnet", self.fuzzer_exe, "fuzz", "--help"])
 
 
   def compile(self) -> None: # type: ignore
@@ -150,8 +153,8 @@ class Eclipser(FuzzerFrontend):
     out: str = self.output_test_dir
 
     L.info("Performing post-processing decoding on testcases and crashes")
-    subprocess.call(["dotnet", self.fuzzer, "decode", "-i", out + "/testcase", "-o", out + "/decoded"])
-    subprocess.call(["dotnet", self.fuzzer, "decode", "-i", out + "/crash", "-o", out + "/decoded"])
+    subprocess.call(["dotnet", self.fuzzer_exe, "decode", "-i", out + "/testcase", "-o", out + "/decoded"])
+    subprocess.call(["dotnet", self.fuzzer_exe, "decode", "-i", out + "/crash", "-o", out + "/decoded"])
     for f in glob.glob(out + "/decoded/decoded_files/*"):
       shutil.copy(f, out)
     shutil.rmtree(out + "/decoded")

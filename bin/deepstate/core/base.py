@@ -27,6 +27,13 @@ L = logging.getLogger("deepstate.core.base")
 L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 
+class AnalysisBackendError(Exception):
+  """
+  Defines our custom exception class for AnalysisBackend
+  """
+  pass
+
+
 class AnalysisBackend(object):
   """
   Defines the root base object to inherit attributes and methods for any frontends that
@@ -48,8 +55,21 @@ class AnalysisBackend(object):
 
 
   def __init__(self):
+    """
+    Create and store variables:
+      - name (name for pretty printing)
+
+    User must define NAME members in inherited class.
+    """
+
+    # in case name supplied as `bin/fuzzer`, strip executable name
+    self.name: Optional[str] = self.NAME
+    if self.name is None:
+      raise AnalysisBackendError("AnalysisBackend.NAME not set")
+    L.debug(f"Analysis backend name: {self.name}")
+
     # parsed argument attributes
-    self.binary: Optional[str] = None
+    self.binary: str = None
     self.output_test_dir: str = "{}_out".format(str(self))
     self.timeout: int = 0
     self.num_workers: int = 1

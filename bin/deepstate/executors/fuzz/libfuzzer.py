@@ -17,7 +17,7 @@ import os
 import logging
 import argparse
 
-from typing import ClassVar, List
+from typing import ClassVar, List, Dict
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
@@ -27,9 +27,10 @@ L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 class LibFuzzer(FuzzerFrontend):
 
-  NAME: ClassVar[str] = "clang++"    # placeholder, set as harness binary later
-  COMPILER: ClassVar[str] = "clang++"
-
+  NAME: ClassVar[str] = "libFuzzer"
+  EXECUTABLES: ClassVar[Dict[str,str]] = {"FUZZER": "placeholder_replace_with_binary",
+                                          "COMPILER": "clang++"
+                                          }
 
   @classmethod
   def parse_args(cls) -> None:
@@ -53,10 +54,11 @@ class LibFuzzer(FuzzerFrontend):
     """
     Perform argparse and environment-related sanity checks.
     """
-    super().pre_exec()
-
     # first, redefine and override fuzzer as harness executable
-    self.fuzzer = self.binary # type: ignore
+    self.binary = os.path.abspath(self.binary)
+    self.fuzzer_exe = self.binary # type: ignore
+
+    super().pre_exec()
 
     # require output directory
     if not self.output_test_dir:
@@ -119,7 +121,7 @@ class LibFuzzer(FuzzerFrontend):
 
 
 def main():
-  fuzzer = LibFuzzer()
+  fuzzer = LibFuzzer(envvar="LIBFUZZER_HOME")
   return fuzzer.main()
 
 

@@ -26,8 +26,11 @@ L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
 
 class Honggfuzz(FuzzerFrontend):
 
-  NAME: ClassVar[str] = "honggfuzz"
-  COMPILER: ClassVar[str] = "hfuzz-clang++"
+  NAME: ClassVar[str] = "HonggFuzz"
+  SEARCH_DIRS: ClassVar[List[str]] = ["hfuzz_cc"]
+  EXECUTABLES: ClassVar[Dict[str,str]] = {"FUZZER": "honggfuzz",
+                                          "COMPILER": "hfuzz-clang++"
+                                          }
 
 
   @classmethod
@@ -65,7 +68,7 @@ class Honggfuzz(FuzzerFrontend):
         raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
 
     if not self.input_seeds:
-      raise FuzzFrontendError("Must provide -i/--input_seeds option for Honggfuzz.")
+      raise FuzzFrontendError(f"Must provide -i/--input_seeds option for {self.name}.")
 
     if not os.path.exists(self.input_seeds):
       raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
@@ -184,7 +187,7 @@ class Honggfuzz(FuzzerFrontend):
 
 
 def main():
-  fuzzer = Honggfuzz()
+  fuzzer = Honggfuzz(envvar="HONGGFUZZ_HOME")
   return fuzzer.main()
 
 
