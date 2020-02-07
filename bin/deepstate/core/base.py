@@ -14,17 +14,17 @@
 # limitations under the License.
 
 import logging
-logging.basicConfig()
-
 import os
 import argparse
 import configparser
+import functools
 
 from typing import Dict, ClassVar, Optional, Union, List, Any, Tuple
 
+from deepstate import LOG_LEVEL_INT_TO_STR
 
-L = logging.getLogger("deepstate.core.base")
-L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
+
+L = logging.getLogger(__name__)
 
 
 class AnalysisBackendError(Exception):
@@ -147,6 +147,10 @@ class AnalysisBackend(object):
     parser.add_argument("--mem_limit", type=int, default=50,
       help="Child process memory limit in MiB (default is 50). 0 for unlimited.")
 
+    parser.add_argument(
+        "--min_log_level", default=2, type=int,
+        help="Minimum DeepState log level to print (default: 2), 0-6 (debug, trace, info, warning, error, external, critical).")
+
     # DeepState-related options
     exec_group = parser.add_argument_group("DeepState Test Configuration")
     exec_group.add_argument(
@@ -182,6 +186,17 @@ class AnalysisBackend(object):
       _args["no_exit_compile"] = True # type: ignore
       del _args["config"]
 
+    # log level fixing
+    if os.environ.get("DEEPSTATE_LOG", None) is None:
+      if _args["min_log_level"] < 0 or _args["min_log_level"] > 6:
+        raise AnalysisBackendError(f"`--min_log_level` is in invalid range, should be in 0-6 "
+                                    "(debug, trace, info, warning, error, external, critical).")
+
+      logger = logging.getLogger("deepstate")
+      logger.setLevel(LOG_LEVEL_INT_TO_STR[_args["min_log_level"]])
+    else:
+      L.info("Using log level from $DEEPSTATE_LOG.")
+      
     cls._ARGS = args
     return cls._ARGS
 

@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import logging
-logging.basicConfig()
 
 import sys
 try:
@@ -35,8 +34,7 @@ from manticore.native.manticore import _make_initial_state
 
 from deepstate.core import SymexFrontend, TestInfo
 
-L = logging.getLogger("deepstate.mcore")
-L.setLevel(logging.INFO)
+L = logging.getLogger(__name__)
 
 OUR_TERMINATION_REASON = "I DeepState'd it"
 

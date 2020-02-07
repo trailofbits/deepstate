@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import logging
-logging.basicConfig()
 
 import os
 import sys
@@ -34,8 +33,7 @@ from deepstate.executors.fuzz.angora import Angora
 from deepstate.executors.fuzz.eclipser import Eclipser
 
 
-L = logging.getLogger("deepstate.ensembler")
-L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
+L = logging.getLogger(__name__)
 
 
 class Ensembler(FuzzerFrontend):

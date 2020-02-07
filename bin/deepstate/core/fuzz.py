@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import logging
-logging.basicConfig()
 
 import os
 import time
@@ -29,8 +28,7 @@ from typing import Optional, Dict, List, Any, Tuple
 from deepstate.core.base import AnalysisBackend, AnalysisBackendError
 
 
-L = logging.getLogger("deepstate.core.fuzz")
-L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
+L = logging.getLogger(__name__)
 
 
 class FuzzFrontendError(AnalysisBackendError):
@@ -430,7 +428,8 @@ class FuzzerFrontend(AnalysisBackend):
       "--", self.binary,
       "--input_test_file", input_symbol,
       "--abort_on_fail",
-      "--no_fork"
+      "--no_fork",
+      "--min_log_level", str(self.min_log_level)
     ])
 
     # append any other DeepState flags
@@ -457,7 +456,7 @@ class FuzzerFrontend(AnalysisBackend):
       self.parse_args()
       self.run()
       return 0
-    except FuzzFrontendError as e:
+    except AnalysisBackendError as e:
       L.error(e)
       return 1
 

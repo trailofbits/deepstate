@@ -24,8 +24,7 @@ from typing import ClassVar, List, Dict
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
 
-L = logging.getLogger("deepstate.frontend.eclipser")
-L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
+L = logging.getLogger(__name__)
 
 
 class Eclipser(FuzzerFrontend):

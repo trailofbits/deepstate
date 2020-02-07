@@ -20,8 +20,7 @@ import traceback
 
 from deepstate.core import SymexFrontend, TestInfo
 
-L = logging.getLogger("deepstate.angr")
-L.setLevel(logging.INFO)
+L = logging.getLogger(__name__)
 
 
 class DeepAngr(SymexFrontend):
