@@ -77,6 +77,8 @@ jobs:
           context: docker/base
           tag_names: true
           cache: ${{ github.event_name != 'schedule' }}
+      - name: Pull deepstate-base image
+        run: docker pull "docker.pkg.github.com/trailofbits/deepstate/deepstate-base"
       - name: Build and publish container
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
