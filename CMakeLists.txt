@@ -41,6 +41,11 @@ if(DEFINED ENV{DEEPSTATE_NOSTATIC})
   set(DEEPSTATE_NOSTATIC ON)
 endif()
 
+option(EXAMPLES_ONLY, OFF)
+if(DEFINED ENV{EXAMPLES_ONLY})
+  set(EXAMPLES_ONLY ON)
+endif()
+
 # --- compilers
 if (DEEPSTATE_LIBFUZZER)
   if(NOT DEFINED CMAKE_C_COMPILER)
@@ -75,6 +80,12 @@ set(CMAKE_C_FLAGS_RELEASE "-O3")
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O3")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
+# compile only examples
+if(EXAMPLES_ONLY)
+  add_subdirectory(examples)
+  return()
+endif()
 
 find_program(PYTHON "python3")
 
