@@ -26,7 +26,7 @@ L = logging.getLogger(__name__)
 class LibFuzzer(FuzzerFrontend):
 
   NAME = "libFuzzer"
-  EXECUTABLES = {"FUZZER": "placeholder_replace_with_binary",
+  EXECUTABLES = {"FUZZER": "clang++",  # placeholder
                   "COMPILER": "clang++"
                   }
 
@@ -42,7 +42,7 @@ class LibFuzzer(FuzzerFrontend):
   def compile(self) -> None: # type: ignore
     lib_path: str = "/usr/local/lib/libdeepstate_LF.a"
 
-    flags: List[str] = ["-ldeepstate_LF"]
+    flags: List[str] = ["-ldeepstate_LF", "-fsanitize=fuzzer,undefined"]
     if self.compiler_args:
       flags += [arg for arg in self.compiler_args.split(" ")]
     super().compile(lib_path, flags, self.out_test_name + ".lfuzz")
@@ -53,10 +53,15 @@ class LibFuzzer(FuzzerFrontend):
     Perform argparse and environment-related sanity checks.
     """
     # first, redefine and override fuzzer as harness executable
-    self.binary = os.path.abspath(self.binary)
-    self.fuzzer_exe = self.binary # type: ignore
+    if self.binary:
+      self.binary = os.path.abspath(self.binary)
+      self.fuzzer_exe = self.binary # type: ignore
 
     super().pre_exec()
+
+    # again, because we may had run compiler
+    self.binary = os.path.abspath(self.binary)
+    self.fuzzer_exe = self.binary # type: ignore
 
     # require output directory
     if not self.output_test_dir:
