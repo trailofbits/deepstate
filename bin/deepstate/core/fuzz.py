@@ -47,12 +47,12 @@ class FuzzerFrontend(AnalysisBackend):
     """
     Create and store variables:
       - fuzzer_exe (fuzzer executable file)
-      - compiler_exe (fuzzer compiler file, optional)
       - env (environment variable name)
       - search_dirs (directories inside fuzzer home dir where to look for executables)
 
     Inherits:
       - name (name for pretty printing)
+      - compiler_exe (fuzzer compiler file, optional)
 
     User must define in inherited fuzzer class:
       - NAME str
@@ -66,8 +66,6 @@ class FuzzerFrontend(AnalysisBackend):
     if "FUZZER" not in self.EXECUTABLES:
       raise FuzzFrontendError("FuzzerFrontend.EXECUTABLES[\"FUZZER\"] not set.")
     self.fuzzer_exe: str = self.EXECUTABLES.pop("FUZZER")
-
-    self.compiler_exe: Optional[str] = self.EXECUTABLES.pop("COMPILER", None)
 
     self.envvar: str = envvar
     self.env: Optional[str] = os.environ.get(envvar, None)
@@ -322,7 +320,7 @@ class FuzzerFrontend(AnalysisBackend):
     L.debug(f"Static library path: {lib_path}")
 
     # initialize compiler envvars
-    env["CC"] = self.compiler_exe
+    env["CC"] = self.compiler_exe.replace('++', '')
     env["CXX"] = self.compiler_exe
     L.debug(f"CC={env['CC']} and CXX={env['CXX']}")
 

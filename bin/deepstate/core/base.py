@@ -43,8 +43,11 @@ class AnalysisBackend(object):
   # name of tool executable, should be implemented by subclass
   NAME: ClassVar[str] = ''
 
-  # name of compiler executable, should be implemented by subclass
+  # dict of executable files, should be implemented by subclass
   EXECUTABLES: ClassVar[Dict[str,str]] = {}
+
+  # compiler executable
+  compiler_exe: ClassVar[Optional[str]] = None
 
   # temporary attribute for argparsing, and should be used to build up object attributes
   _ARGS: ClassVar[Optional[argparse.Namespace]] = None
@@ -57,6 +60,7 @@ class AnalysisBackend(object):
     """
     Create and store variables:
       - name (name for pretty printing)
+      - compiler_exe (compiler executable, optional)
 
     User must define NAME members in inherited class.
     """
@@ -66,6 +70,8 @@ class AnalysisBackend(object):
     if self.name == '':
       raise AnalysisBackendError("AnalysisBackend.NAME not set")
     L.debug(f"Analysis backend name: {self.name}")
+
+    AnalysisBackend.compiler_exe = self.EXECUTABLES.pop("COMPILER", None)
 
     # parsed argument attributes
     self.binary: str = None
@@ -102,10 +108,10 @@ class AnalysisBackend(object):
     else:
       parser = argparse.ArgumentParser(description="Use {} as a backend for DeepState".format(cls.NAME))
 
-    # Compilation/instrumentation support, only if COMPILER is set
+    # Compilation/instrumentation support, only if COMPILER is set in EXECUTABLES
     # TODO: extends compilation interface for symex engines that "compile" source to
     # binary, IR format, or boolean expressions for symbolic VM to reason with
-    if cls.EXECUTABLES.get("COMPILER", None):
+    if cls.compiler_exe:
       L.debug("Adding compilation support since a compiler was specified")
 
       # type: ignore
