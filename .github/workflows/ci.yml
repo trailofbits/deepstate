@@ -75,7 +75,8 @@ jobs:
           image_tag: latest
           context: docker/base
           dockerfile: Dockerfile
-          push_image_and_stages: false  # because we run workflow on PRs
+          push_image_and_stages: true  # because we run workflow on PRs
+          build_extra_args: "--tag deepstate-base"
       - uses: whoan/docker-build-with-cache-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -85,5 +86,5 @@ jobs:
           image_tag: latest
           context: .
           dockerfile: docker/Dockerfile
-          push_image_and_stages: false  # because we run workflow on PRs
-          build_extra_args: "--cache-from=docker.pkg.github.com/trailofbits/deepstate/deepstate-base:latest"
+          push_image_and_stages: true  # because we run workflow on PRs
+          build_extra_args: "--cache-from=deepstate-base"
