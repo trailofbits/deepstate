@@ -251,3 +251,4 @@ else()
 endif()
 
 add_subdirectory(examples)
+add_subdirectory(Team22)
