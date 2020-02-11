@@ -20,9 +20,10 @@ import time
 import sys
 import subprocess
 import argparse
-import multiprocessing
 import shutil
+import multiprocessing as mp
 
+from multiprocessing.pool import ApplyResult
 from typing import Optional, Dict, List, Any, Tuple
 
 from deepstate.core.base import AnalysisBackend, AnalysisBackendError
@@ -491,14 +492,14 @@ class FuzzerFrontend(AnalysisBackend):
     if compiler:
       command.insert(0, compiler)
 
-    results: List[int] = []
-    pool = multiprocessing.Pool(processes=self.num_workers)
-    results = pool.apply_async(self._run, args=(command,)) # type: ignore
+    results: List[ApplyResult[int]]
+    results_outputs: List[int]
+    mp.set_start_method('fork')
+    with mp.Pool(processes=self.num_workers) as pool:
+      results = [pool.apply_async(self._run, args=(command,)) for _ in range(self.num_workers)]
+      results_outputs = [result.get() for result in results]
 
-    pool.close()
-    pool.join()
-
-    L.debug(results)
+    L.debug(results_outputs)
 
     # TODO: check results for failures
 
@@ -525,7 +526,7 @@ class FuzzerFrontend(AnalysisBackend):
     try:
 
       # if we are syncing seeds, we background the process and all of the output generated
-      if self.enable_sync:
+      if self.enable_sync or self.num_workers > 1:
         self.proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         L.info("Starting fuzzer with seed synchronization with PID `%d`", self.proc.pid)
       else:

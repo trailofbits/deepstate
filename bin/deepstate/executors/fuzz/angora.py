@@ -114,7 +114,7 @@ class Angora(FuzzerFrontend):
 
     # make a binary with taint tracking information
     taint_path: str = "/usr/local/lib/libdeepstate_taint.a"
-    L.debu("Static library path: %s", taint_path)
+    L.debug("Static library path: %s", taint_path)
 
     taint_flags: List[str] = ["-ldeepstate_taint"]
     if self.compiler_args:

@@ -19,7 +19,7 @@ import struct
 import argparse
 import hashlib
 
-from deepstate import (DeepStateLogger, LOG_LEVEL_INT_TO_STR, LOG_LEVEL_INT_TO_LOGGER,
+from deepstate import (DeepStateLogger, LOG_LEVEL_INT_TO_LOGGER,
                         LOG_LEVEL_TRACE, LOG_LEVEL_ERROR, LOG_LEVEL_CRITICAL)
 from deepstate.core.base import AnalysisBackend
 

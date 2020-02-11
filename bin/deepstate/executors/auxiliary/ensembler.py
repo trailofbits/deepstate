@@ -178,7 +178,7 @@ class Ensembler(FuzzerFrontend):
 
     # initialize target - test str if user specified a harness, or a list to already-compiled binaries
     target = self.test if not self.test_dir else list([f for f in os.listdir(self.test_dir)])
-    L.info("Provisioning environment with target `%s`", fuzz_map)
+    L.info("Provisioning environment with target `%s`", target)
 
     self.fuzzers = list(self._init_fuzzers())
     L.debug("Fuzzers for ensembling: %s", self.fuzzers)
