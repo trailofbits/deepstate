@@ -14,17 +14,23 @@
 # limitations under the License.
 
 import logging
-logging.basicConfig()
-
 import os
 import argparse
 import configparser
 
-from typing import Dict, ClassVar, Optional, Union, List, Any
+from typing import Dict, ClassVar, Optional, Union, List, Any, Tuple
+
+from deepstate import LOG_LEVEL_INT_TO_STR
 
 
-L = logging.getLogger("deepstate.core.base")
-L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
+L = logging.getLogger(__name__)
+
+
+class AnalysisBackendError(Exception):
+  """
+  Defines our custom exception class for AnalysisBackend
+  """
+  pass
 
 
 class AnalysisBackend(object):
@@ -35,10 +41,13 @@ class AnalysisBackend(object):
   """
 
   # name of tool executable, should be implemented by subclass
-  NAME: ClassVar[Optional[str]] = None
+  NAME: ClassVar[str] = ''
 
-  # name of compiler executable, should be implemented by subclass
-  COMPILER: ClassVar[Optional[str]] = None
+  # dict of executable files, should be implemented by subclass
+  EXECUTABLES: ClassVar[Dict[str,str]] = {}
+
+  # compiler executable
+  compiler_exe: ClassVar[Optional[str]] = None
 
   # temporary attribute for argparsing, and should be used to build up object attributes
   _ARGS: ClassVar[Optional[argparse.Namespace]] = None
@@ -48,7 +57,37 @@ class AnalysisBackend(object):
 
 
   def __init__(self):
-    pass
+    """
+    Create and store variables:
+      - name (name for pretty printing)
+      - compiler_exe (compiler executable, optional)
+
+    User must define NAME members in inherited class.
+    """
+
+    # in case name supplied as `bin/fuzzer`, strip executable name
+    self.name: str = self.NAME
+    if not self.name:
+      raise AnalysisBackendError("AnalysisBackend.NAME not set")
+    L.debug("Analysis backend name: %s", self.name)
+
+    AnalysisBackend.compiler_exe = self.EXECUTABLES.pop("COMPILER", None)
+
+    # parsed argument attributes
+    self.binary: str = None
+    self.output_test_dir: str = f"{self}_out"
+    self.timeout: int = 0
+    self.num_workers: int = 1
+    self.mem_limit: int = 50
+    self.min_log_level: int = 2
+
+    self.compile_test: Optional[str] = None
+    self.compiler_args: Optional[str] = None
+    self.out_test_name: str = "out"
+
+    self.no_exit_compile: bool = False
+    self.which_test: Optional[str] = None
+    self.target_args: List[Any] = []
 
 
   @classmethod
@@ -69,10 +108,10 @@ class AnalysisBackend(object):
     else:
       parser = argparse.ArgumentParser(description="Use {} as a backend for DeepState".format(cls.NAME))
 
-    # Compilation/instrumentation support, only if COMPILER is set
+    # Compilation/instrumentation support, only if COMPILER is set in EXECUTABLES
     # TODO: extends compilation interface for symex engines that "compile" source to
     # binary, IR format, or boolean expressions for symbolic VM to reason with
-    if cls.COMPILER:
+    if cls.compiler_exe:
       L.debug("Adding compilation support since a compiler was specified")
 
       # type: ignore
@@ -84,8 +123,8 @@ class AnalysisBackend(object):
       compile_group.add_argument("--compiler_args", type=str,
         help="Linker flags (space seperated) to include for external libraries.")
 
-      compile_group.add_argument("--out_test_name", type=str, default="out",
-        help="Set name of generated instrumented binary (default is `out.{FUZZER}`).")
+      compile_group.add_argument("--out_test_name", type=str,
+        help="Set name of generated instrumented binary.")
 
       compile_group.add_argument("--no_exit_compile", action="store_true",
         help="Continue execution after compiling a harness (set as default if `--config` is set).")
@@ -111,6 +150,12 @@ class AnalysisBackend(object):
       "-w", "--num_workers", default=1, type=int,
       help="Number of worker jobs to spawn for analysis (default is 1).")
 
+    parser.add_argument("--mem_limit", type=int, default=50,
+      help="Child process memory limit in MiB (default is 50). 0 for unlimited.")
+
+    parser.add_argument(
+        "--min_log_level", default=2, type=int,
+        help="Minimum DeepState log level to print (default: 2), 0-6 (debug, trace, info, warning, error, external, critical).")
 
     # DeepState-related options
     exec_group = parser.add_argument_group("DeepState Test Configuration")
@@ -119,13 +164,24 @@ class AnalysisBackend(object):
       help="DeepState unit test to run (equivalent to `--input_which_test`).")
 
     exec_group.add_argument(
-      "--prog_args", default=[], nargs=argparse.REMAINDER,
-      help="Other DeepState flags to pass to harness before execution, in format `--arg=val`.")
+      "--target_args", default=[], nargs='*',
+      help="Other DeepState flags to pass to harness before execution. Format: `a arg=val` -> `-a --arg1 val`.")
 
     args = parser.parse_args()
 
     # from parsed arguments, modify dict copy if configuration is specified
-    _args: Dict[str, str] = vars(args)
+    _args: Dict[str, Any] = vars(args)
+
+    # parse target_args
+    target_args_parsed: List[Tuple[str, Optional[str]]] = []
+    for arg in _args['target_args']:
+      vals = arg.split("=", 1)
+      key = vals[0]
+      val = None
+      if len(vals) == 2:
+        val = vals[1]
+      target_args_parsed.append((key, val))
+    _args['target_args'] = target_args_parsed
 
     # if configuration is specified, parse and replace argument instantiations
     if args.config:
@@ -136,14 +192,23 @@ class AnalysisBackend(object):
       _args["no_exit_compile"] = True # type: ignore
       del _args["config"]
 
+    # log level fixing
+    if os.environ.get("DEEPSTATE_LOG", None) is None:
+      if _args["min_log_level"] < 0 or _args["min_log_level"] > 6:
+        raise AnalysisBackendError(f"`--min_log_level` is in invalid range, should be in 0-6 "
+                                    "(debug, trace, info, warning, error, external, critical).")
+
+      logger = logging.getLogger("deepstate")
+      logger.setLevel(LOG_LEVEL_INT_TO_STR[_args["min_log_level"]])
+    else:
+      L.info("Using log level from $DEEPSTATE_LOG.")
+      
     cls._ARGS = args
     return cls._ARGS
 
 
-  ConfigType = Dict[str, Dict[str, Any]]
-
   @staticmethod
-  def build_from_config(config: str, allowed_keys: Optional[List[str]] = None, include_sections: bool = False) -> Union[ConfigType, Dict[str, Any]]:
+  def build_from_config(config: str, allowed_keys: Optional[List[str]] = None, include_sections: bool = False) -> Union[Dict[str, Dict[str, Any]], Dict[str, Any]]:
     """
     Simple auxiliary helper that does safe and correct parsing of DeepState configurations. This can be used
     in the following manners:
@@ -154,10 +219,10 @@ class AnalysisBackend(object):
 
     :param config: path to configuration file
     :param allowed_keys: contains allowed keys that should be parsed
-    :param include_sections: if true, parse all sections, and return a ConfigType where keys are section names
+    :param include_sections: if true, parse all sections, and return a Dict[str, Dict[str, Any]] where keys are section names
     """
 
-    context: ConfigType = dict() # type: ignore
+    context: Dict[str, Dict[str, Any]] = dict() # type: ignore
 
     # reserved sections are ignored by executors, but can be used by other auxiliary tools
     # to reason about with.

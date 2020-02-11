@@ -19,13 +19,12 @@ import shutil
 import logging
 import subprocess
 
-from typing import ClassVar, List, Dict, Optional
+from typing import List, Dict
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
 
 
-L = logging.getLogger("deepstate.frontend.eclipser")
-L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
+L = logging.getLogger(__name__)
 
 
 class Eclipser(FuzzerFrontend):
@@ -34,12 +33,15 @@ class Eclipser(FuzzerFrontend):
   in order to interface the executable DLL for greybox concolic testing.
   """
 
-  NAME: ClassVar[str] = "Eclipser.dll"
-  COMPILER: ClassVar[str] = "clang++" 	 # for regular compilation
+  NAME = "Eclipser"
+  SEARCH_DIRS = ["build"]
+  EXECUTABLES = {"FUZZER": "Eclipser.dll",
+                  "COMPILER": "clang++"  # for regular compilation
+                  }
 
 
   def print_help(self):
-    subprocess.call(["dotnet", self.fuzzer, "fuzz", "--help"])
+    subprocess.call(["dotnet", self.fuzzer_exe, "fuzz", "--help"])
 
 
   def compile(self) -> None: # type: ignore
@@ -58,52 +60,81 @@ class Eclipser(FuzzerFrontend):
   def pre_exec(self) -> None:
     super().pre_exec()
 
-    out: str = self.output_test_dir
-    L.debug(f"Output test directory: {out}")
+    # TODO handle that somehow
+    L.warning("Eclipser doesn't limit child processes memory.")
 
-    if not os.path.exists(out):
-      print("Creating output directory.")
-      os.mkdir(out)
+    if self.blackbox == True:
+      L.info("Blackbox option is redundant. Eclipser works on non-instrumented binaries using QEMU by default.")
 
-    seeds: str = self.input_seeds # type: ignore
-    if seeds:
-      if os.path.exists(seeds):
-        if len([name for name in os.listdir(seeds)]) == 0:
-          raise FuzzFrontendError(f"Seeds path specified but none present in directory.")
-      else:
-        raise FuzzFrontendError(f"Seeds path `{seeds}` not found.")
+    if self.dictionary:
+      L.error("Angora can't use dictionaries.")
 
+    # require output directory
+    if not self.output_test_dir:
+      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
+
+    if os.path.exists(self.output_test_dir):
+      if not os.path.isdir(self.output_test_dir):
+        raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
+
+    if self.input_seeds:
+      if not os.path.exists(self.input_seeds):
+        raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
+
+      if len(os.listdir(self.input_seeds)) == 0:
+        raise FuzzFrontendError(f"No seeds present in directory `{self.input_seeds}`.")
+        
 
   @property
   def cmd(self):
+    cmd_list: List[str] = list()
 
-    # initialize DeepState flags
-    deepargs = ["--input_test_file", "eclipser.input",
-   		"--no_fork", "--abort_on_fail"]
+    # get deepstate args and remove "-- binary"
+    deepstate_args = self.build_cmd([], input_symbol='eclipser.input')
+    binary_index = deepstate_args.index('--')
+    deepstate_args.pop(binary_index)
+    deepstate_args.pop(binary_index)
 
-    if self.which_test is not None:
-      deepargs += ["--input_which_test", self.which_test]
+    # guaranteed arguments
+    cmd_list.extend([
+      "fuzz",
+      "--program", self.binary,
+      "--src", "file",
+      "--fixfilepath", "eclipser.input",
+      "--initarg", " ".join(deepstate_args),
+      "--outputdir", self.output_test_dir, # auto-create, reusable
+    ])
 
-    cmd_dict = {
-      "fuzz": None,
-      "-p": self.binary,
-      "-o": self.output_test_dir,
-      "--src": "file",
-      "--fixfilepath": "eclipser.input",
-      "--initarg": " ".join(deepargs),
-      "--maxfilelen": str(self.max_input_size),
-    }
+    if self.max_input_size == 0:
+      cmd_list.extend(["--maxfilelen", "1099511627776"])  # use 1TiB as unlimited
+    else:
+      cmd_list.extend(["--maxfilelen", str(self.max_input_size)])
 
-    # check for indefinite run
-    if self.timeout != 0:
-      cmd_dict["-t"] = str(self.timeout)
+    # some timeout is required by eclipser
+    if self.timeout and self.timeout != 0:
+      timeout = self.timeout
+    else:
+      timeout = 99999
+    cmd_list.extend(["--timelimit", str(timeout)])
 
-    # use initial corpus to explore with
-    if self.input_seeds is not None:
-      cmd_dict["--initseedsdir"] = self.input_seeds
+    for key, val in self.fuzzer_args:
+      if len(key) == 1:
+        cmd_list.append('-{}'.format(key))
+      else:
+        cmd_list.append('--{}'.format(key))
+      if val is not None:
+        cmd_list.append(val)
+
+    # optional arguments:
+    if self.exec_timeout:
+      cmd_list.extend(["--exectimeout", str(self.exec_timeout)])
+
+    # not required, if provided: not auto-create and require any file inside
+    if self.input_seeds:
+      cmd_list.extend(["--initseedsdir", self.input_seeds])
 
     # no call to helper build_cmd
-    return cmd_dict
+    return cmd_list
 
 
   def ensemble(self) -> None: # type: ignore
@@ -121,8 +152,8 @@ class Eclipser(FuzzerFrontend):
     out: str = self.output_test_dir
 
     L.info("Performing post-processing decoding on testcases and crashes")
-    subprocess.call(["dotnet", self.fuzzer, "decode", "-i", out + "/testcase", "-o", out + "/decoded"])
-    subprocess.call(["dotnet", self.fuzzer, "decode", "-i", out + "/crash", "-o", out + "/decoded"])
+    subprocess.call(["dotnet", self.fuzzer_exe, "decode", "-i", out + "/testcase", "-o", out + "/decoded"])
+    subprocess.call(["dotnet", self.fuzzer_exe, "decode", "-i", out + "/crash", "-o", out + "/decoded"])
     for f in glob.glob(out + "/decoded/decoded_files/*"):
       shutil.copy(f, out)
     shutil.rmtree(out + "/decoded")
@@ -141,10 +172,14 @@ class Eclipser(FuzzerFrontend):
 
 
 def main():
-  fuzzer = Eclipser(envvar="ECLIPSER_HOME")
-  fuzzer.parse_args()
-  fuzzer.run(compiler="dotnet")
-  return 0
+  try:
+    fuzzer = Eclipser(envvar="ECLIPSER_HOME")
+    fuzzer.parse_args()
+    fuzzer.run(compiler="dotnet")
+    return 0
+  except FuzzFrontendError as e:
+    L.error(e)
+    return 1
 
 
 if __name__ == "__main__":

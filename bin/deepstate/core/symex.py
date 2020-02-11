@@ -13,39 +13,19 @@
 # limitations under the License.
 
 import logging
-logging.basicConfig()
 
 import os
 import struct
 import argparse
 import hashlib
-import functools
 
+from deepstate import (DeepStateLogger, LOG_LEVEL_INT_TO_LOGGER,
+                        LOG_LEVEL_TRACE, LOG_LEVEL_ERROR, LOG_LEVEL_CRITICAL)
 from deepstate.core.base import AnalysisBackend
 
 
-LOGGER = logging.getLogger("deepstate")
-LOGGER.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
-
-LOG_LEVEL_DEBUG = 0
-LOG_LEVEL_TRACE = 1
-LOG_LEVEL_INFO = 2
-LOG_LEVEL_WARNING = 3
-LOG_LEVEL_ERROR = 4
-LOG_LEVEL_EXTERNAL = 5
-LOG_LEVEL_FATAL = 6
-
-LOGGER.trace = functools.partial(LOGGER.log, 15) # type: ignore
-logging.TRACE = 15 # type: ignore
-
-LOG_LEVEL_TO_LOGGER = {
-  LOG_LEVEL_DEBUG: LOGGER.debug,
-  LOG_LEVEL_TRACE: LOGGER.trace, # type: ignore
-  LOG_LEVEL_INFO: LOGGER.info,
-  LOG_LEVEL_WARNING: LOGGER.warning,
-  LOG_LEVEL_ERROR: LOGGER.error,
-  LOG_LEVEL_FATAL: LOGGER.critical
-}
+logging.setLoggerClass(DeepStateLogger)  # fails without it, don't know why
+LOGGER = logging.getLogger(__name__)
 
 
 class TestInfo(object):
@@ -132,10 +112,6 @@ class SymexFrontend(AnalysisBackend):
     parser.add_argument(
         "--verbosity", default=1, type=int,
         help="Verbosity level for symbolic execution tool (default: 1, lower means less output).")
-
-    parser.add_argument(
-        "--min_log_level", default=2, type=int,
-        help="Minimum DeepState log level to print (default: 2), 0-6 (debug, trace, info, warning, error, external, critical).")
 
     cls.parser = parser
     return super(SymexFrontend, cls).parse_args()
@@ -233,7 +209,7 @@ class SymexFrontend(AnalysisBackend):
     self.context['crashed'] = False
     self.context['abandoned'] = False
     self.context['log'] = []
-    for level in LOG_LEVEL_TO_LOGGER:
+    for level in LOG_LEVEL_INT_TO_LOGGER:
       self.context['stream_{}'.format(level)] = []
 
     self.context['info'] = info
@@ -254,16 +230,6 @@ class SymexFrontend(AnalysisBackend):
     # Create the output directory for this test case.
     args = self.parse_args()
 
-    logging_levels = {
-      LOG_LEVEL_DEBUG: logging.DEBUG,
-      LOG_LEVEL_TRACE: logging.TRACE,
-      LOG_LEVEL_INFO: logging.INFO,
-      LOG_LEVEL_WARNING: logging.WARNING,
-      LOG_LEVEL_ERROR: logging.ERROR,
-      LOG_LEVEL_FATAL: logging.CRITICAL
-    }
-    LOGGER.setLevel(logging_levels[args.min_log_level])
-
     if args.output_test_dir is not None:
       test_dir = os.path.join(args.output_test_dir,
                               os.path.basename(info.file_name),
@@ -274,15 +240,14 @@ class SymexFrontend(AnalysisBackend):
         pass
 
       if not os.path.isdir(test_dir):
-        LOGGER.critical("Cannot create test output directory: {}".format(
-            test_dir))
+        LOGGER.critical("Cannot create test output directory: %s", test_dir)
 
       self.context['test_dir'] = test_dir
 
   def log_message(self, level, message):
     """Add `message` to the `level`-specific log as a `Stream` object for
     deferred logging (at the end of the state)."""
-    assert level in LOG_LEVEL_TO_LOGGER
+    assert level in LOG_LEVEL_INT_TO_LOGGER
     log = list(self.context['log'])  # Make a shallow copy (needed for Angr).
 
     if isinstance(message, (str, list, tuple)):
@@ -365,12 +330,12 @@ class SymexFrontend(AnalysisBackend):
       with open(test_file, "wb") as f:
         f.write(input_bytes)
     except:
-      LOGGER.critical("Error saving input to {}".format(test_file))
+      LOGGER.critical("Error saving input to %s", test_file)
 
     if not passing:
-      LOGGER.info("Saved test case in file {}".format(test_file))
+      LOGGER.info("Saved test case in file %s", test_file)
     else:
-      LOGGER.trace("Saved test case in file {}".format(test_file))
+      LOGGER.trace("Saved test case in file %s", test_file)
 
   def report(self):
     """Report on the pass/fail status of a test case, and dump its log."""
@@ -395,15 +360,15 @@ class SymexFrontend(AnalysisBackend):
 
     # Print out each log entry.
     for level, stream in self.context['log']:
-      logger = LOG_LEVEL_TO_LOGGER[level]
+      logger = LOG_LEVEL_INT_TO_LOGGER[level]
       logger(self._stream_to_message(stream))
 
     # Print out the first few input bytes to be helpful.
     lots_of_bytes = len(input_bytes) > 20 and " ..." or ""
     bytes_to_show = min(20, len(input_bytes))
-    LOGGER.trace("Input: {}{}".format(
+    LOGGER.trace("Input: %s%s", 
         " ".join("{:02x}".format(b) for b in input_bytes[:bytes_to_show]),
-        lots_of_bytes))
+        lots_of_bytes)
 
     self._save_test(info, input_bytes)
 
@@ -468,7 +433,7 @@ class SymexFrontend(AnalysisBackend):
       file, _ = self.read_c_string(file_ea, concretize=False)
       line = self.concretize(line, constrain=True)
       self.log_message(
-        LOG_LEVEL_FATAL, "Failed to add assumption {} in {}:{}".format(
+        LOG_LEVEL_CRITICAL, "Failed to add assumption {} in {}:{}".format(
             expr, file, line))
       self.abandon_test()
 
@@ -480,7 +445,7 @@ class SymexFrontend(AnalysisBackend):
     end_ea = self.concretize(end_ea, constrain=True)
     if end_ea < begin_ea:
       self.log_message(
-          LOG_LEVEL_FATAL,
+          LOG_LEVEL_CRITICAL,
           "Invalid range [{:x}, {:x}) to McTest_Concretize".format(
               begin_ea, end_ea))
       self.abandon_test()
@@ -539,8 +504,8 @@ class SymexFrontend(AnalysisBackend):
     as having aborted due to some unrecoverable error."""
     info = self.context['info']
     ea = self.concretize(arg, constrain=True)
-    self.log_message(LOG_LEVEL_FATAL, self.read_c_string(ea)[0])
-    self.log_message(LOG_LEVEL_FATAL, "Abandoned: {}".format(info.name))
+    self.log_message(LOG_LEVEL_CRITICAL, self.read_c_string(ea)[0])
+    self.log_message(LOG_LEVEL_CRITICAL, "Abandoned: {}".format(info.name))
     self.abandon_test()
 
   def api_log(self, level, ea):
@@ -550,10 +515,10 @@ class SymexFrontend(AnalysisBackend):
 
     level = self.concretize(level, constrain=True)
     ea = self.concretize(ea, constrain=True)
-    assert level in LOG_LEVEL_TO_LOGGER
+    assert level in LOG_LEVEL_INT_TO_LOGGER
     self.log_message(level, self.read_c_string(ea, concretize=False)[0])
 
-    if level == LOG_LEVEL_FATAL:
+    if level == LOG_LEVEL_CRITICAL:
       self.api_fail()
     elif level == LOG_LEVEL_ERROR:
       self.api_soft_fail()
@@ -563,7 +528,7 @@ class SymexFrontend(AnalysisBackend):
     """Read the format information and int or float value data from memory
     and record it into a stream."""
     level = self.concretize(level, constrain=True)
-    assert level in LOG_LEVEL_TO_LOGGER
+    assert level in LOG_LEVEL_INT_TO_LOGGER
 
     format_ea = self.concretize(format_ea, constrain=True)
     unpack_ea = self.concretize(unpack_ea, constrain=True)
@@ -597,7 +562,7 @@ class SymexFrontend(AnalysisBackend):
     """Implements the `_DeepState_StreamString`, which streams a C-string into a
     holding buffer for the log."""
     level = self.concretize(level, constrain=True)
-    assert level in LOG_LEVEL_TO_LOGGER
+    assert level in LOG_LEVEL_INT_TO_LOGGER
 
     format_ea = self.concretize(format_ea, constrain=True)
     str_ea = self.concretize(str_ea, constrain=True)
@@ -613,7 +578,7 @@ class SymexFrontend(AnalysisBackend):
     """Implements DeepState_ClearStream, which clears the contents of a stream
     for level `level`."""
     level = self.concretize(level, constrain=True)
-    assert level in LOG_LEVEL_TO_LOGGER
+    assert level in LOG_LEVEL_INT_TO_LOGGER
     stream_id = 'stream_{}'.format(level)
     self.context[stream_id] = []
 
@@ -621,14 +586,14 @@ class SymexFrontend(AnalysisBackend):
     """Implements DeepState_LogStream, which converts the contents of a stream
     for level `level` into a log for level `level`."""
     level = self.concretize(level, constrain=True)
-    assert level in LOG_LEVEL_TO_LOGGER
+    assert level in LOG_LEVEL_INT_TO_LOGGER
     stream_id = 'stream_{}'.format(level)
     stream = self.context[stream_id]
     if len(stream):
       self.context[stream_id] = []
       self.log_message(level, Stream(stream))
 
-      if level == LOG_LEVEL_FATAL:
+      if level == LOG_LEVEL_CRITICAL:
         self.api_fail()
       elif level == LOG_LEVEL_ERROR:
         self.api_soft_fail()

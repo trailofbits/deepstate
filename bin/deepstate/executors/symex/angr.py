@@ -20,8 +20,7 @@ import traceback
 
 from deepstate.core import SymexFrontend, TestInfo
 
-L = logging.getLogger("deepstate.angr")
-L.setLevel(logging.INFO)
+L = logging.getLogger(__name__)
 
 
 class DeepAngr(SymexFrontend):
@@ -301,7 +300,7 @@ def do_run_test(project, test, apis, run_state, should_call_state):
   try:
     test_manager.run()
   except Exception as e:
-    L.error("Uncaught exception: {}\n{}".format(e, traceback.format_exc()))
+    L.error("Uncaught exception: %s\n%s", e, traceback.format_exc())
 
   for state in test_manager.deadended:
     DeepAngr(state=state).report()
@@ -316,7 +315,7 @@ def run_test(project, test, apis, run_state, should_call_state=True):
   try:
     do_run_test(project, test, apis, run_state, should_call_state)
   except Exception as e:
-    L.error("Uncaught exception: {}\n{}".format(e, traceback.format_exc()))
+    L.error("Uncaught exception: %s\n%s", e, traceback.format_exc())
 
 
 def find_symbol_ea(project, name):
@@ -342,7 +341,7 @@ def hook_apis(args, project, run_state):
   # use it.
   ea_of_api_table = find_symbol_ea(project, 'DeepState_API')
   if not ea_of_api_table:
-    L.critical("Could not find API table in binary {}", args.binary)
+    L.critical("Could not find API table in binary %s", args.binary)
     return 1
 
   mc = DeepAngr(state=run_state)
@@ -377,8 +376,8 @@ def main_take_over(args, project, takeover_symbol):
       hook_function(project, takeover_ea, TakeOver)
 
   if not takeover_ea:
-    L.critical("Cannot find symbol `{}` in binary `{}`".format(
-        takeover_symbol, args.binary))
+    L.critical("Cannot find symbol `%s` in binary `%s`",
+        takeover_symbol, args.binary)
     return 1
 
   entry_state = project.factory.entry_state(
@@ -396,17 +395,17 @@ def main_take_over(args, project, takeover_symbol):
   try:
     takeover_state = concrete_manager.found[0]
   except:
-    L.critical("Execution never hit `{}` in binary `{}`".format(
+    L.critical("Execution never hit `%s` in binary `%s`",
         takeover_symbol,
-        args.binary))
+        args.binary)
     return 1
 
   try:
     run_state = takeover_state.step().successors[0]
   except:
-    L.critical("Unable to exit from `{}` in binary `{}`".format(
+    L.critical("Unable to exit from `%s` in binary `%s`",
         takeover_symbol,
-        args.binary))
+        args.binary)
     return 1
 
   # Read the API table, which will tell us about the location of various
@@ -415,7 +414,7 @@ def main_take_over(args, project, takeover_symbol):
   # use it.
   ea_of_api_table = find_symbol_ea(project, 'DeepState_API')
   if not ea_of_api_table:
-    L.critical("Could not find API table in binary `{}`".format(args.binary))
+    L.critical("Could not find API table in binary `%s`", args.binary)
     return 1
 
   _, apis = hook_apis(args, project, run_state)
@@ -427,8 +426,7 @@ def main_take_over(args, project, takeover_symbol):
 def main_unit_test(args, project):
   setup_ea = find_symbol_ea(project, 'DeepState_Setup')
   if not setup_ea:
-    L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
-        args.binary))
+    L.critical("Cannot find symbol `DeepState_Setup` in binary `%s`", args.binary)
     return 1
 
   entry_state = project.factory.entry_state(
@@ -446,8 +444,7 @@ def main_unit_test(args, project):
   try:
     run_state = concrete_manager.found[0]
   except:
-    L.critical("Execution never hit `DeepState_Setup` in binary `{}`".format(
-        args.binary))
+    L.critical("Execution never hit `DeepState_Setup` in binary `%s`", args.binary)
     return 1
 
   # Hook the DeepState API functions.
@@ -458,8 +455,7 @@ def main_unit_test(args, project):
   del mc
 
   if not args.which_test:
-    L.info("Running {} tests across {} workers".format(
-        len(tests), args.num_workers))
+    L.info("Running %d tests across %d workers", len(tests), args.num_workers)
 
     pool = multiprocessing.Pool(processes=max(1, args.num_workers))
     result = []
@@ -483,8 +479,7 @@ def main_unit_test(args, project):
       L.error()
       exit(1)
 
-    L.info("Running `{}` test across {} workers".format(
-      test, args.num_workers))
+    L.info("Running `%s` test across %d workers", test, args.num_workers)
     run_test(project, test[0], apis, run_state)
 
   return 0
@@ -508,8 +503,7 @@ def main():
                                      'puts', 'abort', '__assert_fail',
                                      '__stack_chk_fail'])
   except Exception as e:
-    L.critical("Cannot create Angr instance on binary {}: {}".format(
-        args.binary, e))
+    L.critical("Cannot create Angr instance on binary %s: %s", args.binary, e)
     return 1
 
   if args.take_over:

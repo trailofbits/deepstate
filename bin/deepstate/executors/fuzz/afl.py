@@ -16,55 +16,28 @@
 import os
 import logging
 import argparse
+import shutil
 
-from typing import ClassVar, List, Dict, Any, Optional
+from typing import List, Dict, Optional
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
-from deepstate.core.base import AnalysisBackend
 
 
-L = logging.getLogger("deepstate.frontend.afl")
-L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
+L = logging.getLogger(__name__)
 
 
 class AFL(FuzzerFrontend):
   """ Defines AFL fuzzer frontend """
 
-  NAME: ClassVar[str] = "afl-fuzz"
-  COMPILER: ClassVar[str] = "afl-clang++"
-
+  NAME = "AFL"
+  EXECUTABLES = {"FUZZER": "afl-fuzz",
+                  "COMPILER": "afl-clang++"
+                  }
 
   @classmethod
   def parse_args(cls) -> None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
-      description="Use AFL as a backend for DeepState")
-
-    # Execution options
-    parser.add_argument("--dictionary", type=str,
-      help="Optional fuzzer dictionary for AFL.")
-
-    parser.add_argument("--run_timeout", type=int, default=50,
-      help="Timeout for each instance of a run in ms (default is 50ms).")
-
-    parser.add_argument("--mem_limit", type=int, default=50,
-      help="Child process memory limit in MB (default is 50).")
-
-    parser.add_argument("--file", type=str,
-      help="Input file read by fuzzed program, if any.")
-
-
-    # AFL execution modes
-    parser.add_argument("--dirty_mode", action="store_true",
-      help="Fuzz without deterministic steps.")
-
-    parser.add_argument("--dumb_mode", action="store_true",
-      help="Fuzz without instrumentation.")
-
-    parser.add_argument("--qemu_mode", action="store_true",
-      help="Fuzz with QEMU mode.")
-
-    parser.add_argument("--crash_explore", action="store_true",
-      help="Fuzz with crash exploration.")
+      description=f"Use AFL as a backend for DeepState")
 
     cls.parser = parser
     super(AFL, cls).parse_args()
@@ -85,66 +58,86 @@ class AFL(FuzzerFrontend):
     """
     Perform argparse and environment-related sanity checks.
     """
+    super().pre_exec()
 
     # check if core dump pattern is set as `core`
     with open("/proc/sys/kernel/core_pattern") as f:
       if not "core" in f.read():
         raise FuzzFrontendError("No core dump pattern set. Execute 'echo core | sudo tee /proc/sys/kernel/core_pattern'")
 
-    super().pre_exec()
+    # check if CPU scaling governor is set to `performance`
+    with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor") as f:
+      if not "perf" in f.read(4):
+        with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq") as f_min:
+          with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq") as f_max:
+            if f_min.read() != f_max.read():
+              raise FuzzFrontendError("Suboptimal CPU scaling governor. Execute 'echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'")
+
+    # require output directory
+    if not self.output_test_dir:
+      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
+
+    if not os.path.exists(self.output_test_dir):
+      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) doesn't exist.")
+
+    if not os.path.isdir(self.output_test_dir):
+      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
+
+    # check for afl-qemu if in QEMU mode 
+    if 'Q' in self.fuzzer_args or self.blackbox == True:
+      if not shutil.which('afl-qemu-trace'):
+        raise FuzzFrontendError("Must provide `afl-qemu-trace` executable in PATH")
 
     # require input seeds if we aren't in dumb mode, or we are using crash mode
-    if not self.dumb_mode or self.crash_mode:
+    if 'n' not in self.fuzzer_args or 'C' in self.fuzzer_args:
       if self.input_seeds is None:
-        raise FuzzFrontendError("Must provide -i/--input_seeds option for AFL.")
-
-      seeds: str = self.input_seeds
-      L.debug(f"Fuzzing with seed directory: {seeds}.")
+        raise FuzzFrontendError(f"Must provide -i/--input_seeds option for {self.name}.")
 
       # AFL uses "-" to tell it to resume fuzzing, don't treat as a real seed dir
-      if seeds != "-":
-        # check if seeds dir exists
-        if not os.path.exists(seeds):
-          os.mkdir(seeds)
-          raise FuzzFrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
+      if self.input_seeds != "-":
+        if not os.path.exists(self.input_seeds):
+          raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
 
-        # check if seeds dir is empty
-        if len([name for name in os.listdir(seeds)]) == 0:
-          raise FuzzFrontendError(f"No seeds present in directory {seeds}.")
+        if len(os.listdir(self.input_seeds)) == 0:
+          raise FuzzFrontendError(f"No seeds present in directory `{self.input_seeds}`.")
 
 
   @property
   def cmd(self):
-    cmd_dict = {
-      "-o": self.output_test_dir,
-      "-m": str(self.mem_limit)
-    }
+    cmd_list: List[str] = list()
 
-    # since this is optional for AFL's dumb fuzzing
+    # guaranteed arguments
+    cmd_list.extend(["-o", self.output_test_dir])  # auto-create, reusable
+
+    if self.mem_limit == 0:
+      cmd_list.extend(["-m", "1099511627776"])  # use 1TiB as unlimited
+    else:
+      cmd_list.extend(["-m", str(self.mem_limit)])
+
+    for key, val in self.fuzzer_args:
+      if len(key) == 1:
+        cmd_list.append('-{}'.format(key))
+      else:
+        cmd_list.append('--{}'.format(key))
+      if val is not None:
+        cmd_list.append(val)
+
+    # QEMU mode
+    if self.blackbox == True:
+      cmd_list.append('-Q')
+
+    # optional arguments:
+    # required, if provided: not auto-create and require any file inside
     if self.input_seeds:
-      cmd_dict["-i"] = self.input_seeds
+      cmd_list.extend(["-i", self.input_seeds])
 
-    # AFL's timeout affects run cycle rather than the whole process
-    if self.run_timeout:
-      cmd_dict["-t"] = str(self.run_timeout)
+    if self.exec_timeout:
+      cmd_list.extend(["-t", str(self.exec_timeout)])
 
-    # check if we are using one of AFL's many "modes"
-    if self.dirty_mode:
-      cmd_dict["-d"] = None
-    if self.dumb_mode:
-      cmd_dict["-n"] = None
-    if self.qemu_mode:
-      cmd_dict["-Q"] = None
-    if self.crash_explore:
-      cmd_dict["-C"] = None
-
-    # other misc arguments
     if self.dictionary:
-      cmd_dict["-x"] = self.dictionary
-    if self.file:
-      cmd_dict["-f"] = self.file
+      cmd_list.extend(["-x", self.dictionary])
 
-    return self.build_cmd(cmd_dict)
+    return self.build_cmd(cmd_list)
 
 
   @property
@@ -216,22 +209,15 @@ class AFL(FuzzerFrontend):
     both sync_dir and local queue.
     """
     if self.post_stats:
-      print("\nAFL RUN STATS:\n")
+      print(f"\n{self.name} RUN STATS:\n")
       for stat, val in self.stats.items():
         fstat: str = stat.replace("_", " ").upper()
         print(f"{fstat}:\t\t\t{val}")
 
 
-
 def main():
-  fuzzer = AFL()
-
-  # parse user arguments and build object
-  fuzzer.parse_args()
-
-  # run fuzzer with parsed attributes
-  fuzzer.run()
-  return 0
+  fuzzer = AFL(envvar="AFL_HOME")
+  return fuzzer.main()
 
 
 if __name__ == "__main__":
