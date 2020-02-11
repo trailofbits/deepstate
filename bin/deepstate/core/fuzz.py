@@ -29,7 +29,7 @@ from typing import Optional, Dict, List, Any, Tuple
 from deepstate.core.base import AnalysisBackend, AnalysisBackendError
 
 
-L = logging.getLogger(__name__) # tmp
+L = logging.getLogger(__name__)
 
 
 class FuzzFrontendError(AnalysisBackendError):
