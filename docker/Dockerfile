@@ -69,7 +69,7 @@ WORKDIR ./deepstate
 # general
 RUN echo 'Building deepstate' \
     && mkdir -p ./build_deepstate && cd ./build_deepstate \
-    && CXX=clang++ CC=clang cmake ../ \
+    && CXX=g++ CC=gcc cmake ../ \
     && make -j $make_j \
     && sudo make install
 
@@ -85,7 +85,7 @@ COPY --from=AFL /home/user/afl-2.52b $DEPS_DIR/afl
 RUN echo 'Building deepstate with AFL' \
     && mkdir -p build_afl && cd build_afl \
     && export AFL_HOME="$DEPS_DIR/afl" \
-    && CXX="$AFL_HOME/afl-clang++" CC="$AFL_HOME/afl-clang" cmake -DDEEPSTATE_AFL=ON ../ \
+    && CXX="$AFL_HOME/afl-g++" CC="$AFL_HOME/afl-gcc" cmake -DDEEPSTATE_AFL=ON ../ \
     && make -j $make_j \
     && sudo cp ./libdeepstate_AFL.a /usr/local/lib/
 
