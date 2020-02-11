@@ -73,7 +73,7 @@ class LibFuzzer(FuzzerFrontend):
     if not os.path.isdir(self.output_test_dir):
       raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
 
-    if self.blackbox == True:
+    if self.blackbox is True:
       raise FuzzFrontendError("Blackbox fuzzing is not supported by libFuzzer.")
 
     if self.input_seeds:

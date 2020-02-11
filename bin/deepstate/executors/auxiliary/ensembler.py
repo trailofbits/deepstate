@@ -104,11 +104,11 @@ class Ensembler(FuzzerFrontend):
     # initial path check
     _test = self.test if not self.test_dir else self.test_dir
     if not os.path.exists(_test):
-      L.error(f"Target path `{_test}` does not exist. Exiting.")
+      L.error("Target path `%s` does not exist. Exiting.", _test)
       sys.exit(1)
 
     if not os.path.isdir(self.input_seeds):
-      L.error(f"Input seeds directory `{self.input_seeds}` does not exist. Exiting.")
+      L.error("Input seeds directory `%s` does not exist. Exiting.", self.input_seeds)
       sys.exit(1)
 
     if not os.path.isdir(self.output_test_dir):
@@ -163,7 +163,7 @@ class Ensembler(FuzzerFrontend):
         if str(fuzzer).lower() == _get_fuzzer(test):
           fuzz_map[fuzzer].append(test)
 
-    L.debug(f"Fuzzer and corresponding test cases: {fuzz_map}")
+    L.debug("Fuzzer and corresponding test cases: %s", fuzz_map)
     return fuzz_map
 
 
@@ -178,10 +178,10 @@ class Ensembler(FuzzerFrontend):
 
     # initialize target - test str if user specified a harness, or a list to already-compiled binaries
     target = self.test if not self.test_dir else list([f for f in os.listdir(self.test_dir)])
-    L.info(f"Provisioning environment with target `{target}`")
+    L.info("Provisioning environment with target `%s`", fuzz_map)
 
     self.fuzzers = list(self._init_fuzzers())
-    L.debug(f"Fuzzers for ensembling: {self.fuzzers}")
+    L.debug("Fuzzers for ensembling: %s", self.fuzzers)
 
     # given a path to a DeepState harness, provision/compile, and retrieve test bins
     if isinstance(target, str):
@@ -193,7 +193,7 @@ class Ensembler(FuzzerFrontend):
       L.info("Detected workspace target. Retrieving harnesses from workspace.")
       self.targets = self._get_tests(target)
 
-    L.debug(f"Target for analysis: {self.targets}")
+    L.debug("Target for analysis: %s", self.targets)
 
 
   def _provision_workspace(self, test_case):
@@ -210,7 +210,7 @@ class Ensembler(FuzzerFrontend):
     for fuzzer in self.fuzzers:
 
       test_name = self.workspace + "/" + test_case.split(".")[0]
-      L.debug(f"Compiling `{test_name}` for fuzzer `{fuzzer}`")
+      L.debug("Compiling `%s` for fuzzer `%s`", test_name, fuzzer)
 
       cmd_map = {
         "compile_test": test_case,
@@ -224,7 +224,7 @@ class Ensembler(FuzzerFrontend):
 
       fuzzer.init_from_dict(cmd_map)
 
-      L.info(f"Compiling test case {test_case} as `{test_name}` with {fuzzer}")
+      L.info("Compiling test case %s as `%s` with %s", test_case, test_name, fuzzer)
       fuzzer.compile()
 
     return [test for test in os.listdir(self.workspace)]
@@ -341,7 +341,7 @@ class Ensembler(FuzzerFrontend):
         args = (None, True)
 
 
-      L.info(f"Initialized {fuzzer} for ensemble-fuzzing and spinning up child proc.")
+      L.info("Initialized %s for ensemble-fuzzing and spinning up child proc.", fuzzer)
 
       # initialize concurrent process and add to process pool
       proc = Process(target=fuzzer.run, args=args)

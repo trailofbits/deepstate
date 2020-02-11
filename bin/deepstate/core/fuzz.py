@@ -281,12 +281,12 @@ class FuzzerFrontend(AnalysisBackend):
 
     # set fuzzer_exe 
     self.fuzzer_exe = self._search_for_executable(self.fuzzer_exe)
-    L.debug(f"Will use {self.fuzzer_exe} as fuzzer executable.")
+    L.debug("Will use %s as fuzzer executable.", self.fuzzer_exe)
 
     # set compiler_exe
     if self.compiler_exe:
       self.compiler_exe = self._search_for_executable(self.compiler_exe)
-      L.debug(f"Will use {self.compiler_exe} as fuzzer compiler.")
+      L.debug("Will use %s as fuzzer compiler.", self.compiler_exe)
 
     # set additional executables
     for exe_name, exe_file in self.EXECUTABLES.items():
@@ -317,20 +317,20 @@ class FuzzerFrontend(AnalysisBackend):
 
     if not os.path.isfile(lib_path):
       raise FuzzFrontendError("No {}-instrumented DeepState static library found in {}".format(self, lib_path))
-    L.debug(f"Static library path: {lib_path}")
+    L.debug("Static library path: %s", lib_path)
 
     # initialize compiler envvars
     env["CC"] = self.compiler_exe.replace('++', '')
     env["CXX"] = self.compiler_exe
-    L.debug(f"CC={env['CC']} and CXX={env['CXX']}")
+    L.debug("CC=%s and CXX=%s", env['CC'], env['CXX'])
 
     # initialize command with prepended compiler
     compiler_args: List[str] = ["-std=c++11", self.compile_test] + flags + ["-o", _out_bin] # type: ignore
     compile_cmd = [self.compiler_exe] + compiler_args
-    L.debug(f"Compilation command: {str(compile_cmd)}")
+    L.debug("Compilation command: %s", compile_cmd)
 
     # call compiler, and deal with exceptions accordingly
-    L.info(f"Compiling test harness `{self.compile_test}` with {self.compiler_exe}")
+    L.info("Compiling test harness `%s` with %s", self.compile_test, self.compiler_exe)
     try:
       subprocess.Popen(compile_cmd, env=env).communicate()
     except BaseException as e:
@@ -381,20 +381,20 @@ class FuzzerFrontend(AnalysisBackend):
     self.binary = os.path.abspath(self.binary)
     if not os.path.isfile(self.binary):
       raise FuzzFrontendError(f"Binary {self.binary} doesn't exists.")
-    L.debug(f"Target binary: {self.binary}")
+    L.debug("Target binary: %s", self.binary)
 
     # no sanity check, since some fuzzers require optional input seeds
     if self.input_seeds:
-      L.debug(f"Input seeds directory: {self.input_seeds}")
+      L.debug("Input seeds directory: %s", self.input_seeds)
 
-    L.debug(f"Output directory: {self.output_test_dir}")
+    L.debug("Output directory: %s", self.output_test_dir)
 
     # check if we enabled seed synchronization, and initialize directory
     if self.enable_sync:
       if not os.path.isdir(self.sync_dir):
         L.info("Initializing sync directory for ensembling seeds.")
         os.mkdir(self.sync_dir)
-      L.debug(f"Sync directory: {self.sync_dir}")
+      L.debug("Sync directory: %s", self.sync_dir)
 
 
   ##################################
@@ -517,7 +517,7 @@ class FuzzerFrontend(AnalysisBackend):
     :param command: list of arguments representing fuzzer command to execute.
     """
 
-    L.info(f"Executing command `{str(command)}`")
+    L.info("Executing command `%s`", command)
 
     self._on = True
     self._start_time = int(time.time())
@@ -527,12 +527,12 @@ class FuzzerFrontend(AnalysisBackend):
       # if we are syncing seeds, we background the process and all of the output generated
       if self.enable_sync:
         self.proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        L.info(f"Starting fuzzer with seed synchronization with PID `{self.proc.pid}`")
+        L.info("Starting fuzzer with seed synchronization with PID `%d`", self.proc.pid)
       else:
         self.proc = subprocess.Popen(command)
-        L.info(f"Starting fuzzer  with PID `{self.proc.pid}`")
+        L.info("Starting fuzzer  with PID `%d`", self.proc.pid)
 
-      L.info(f"Fuzzer start time: {self._start_time}")
+      L.info("Fuzzer start time: %s", self._start_time)
 
       # while fuzzers may configure timeout, subprocess can ensure exit and is useful when parallelizing
       # processes or doing ensemble-based testing.
@@ -555,7 +555,7 @@ class FuzzerFrontend(AnalysisBackend):
         # ensemble "event" loop
         while self._is_alive():
 
-          L.debug(f"{self.name} - Performing sync cycle {self.sync_count}")
+          L.debug("%s - Performing sync cycle %s", self.name, self.sync_count)
 
           # sleep for execution cycle
           time.sleep(self.sync_cycle)
@@ -584,7 +584,7 @@ class FuzzerFrontend(AnalysisBackend):
       self._kill()
       return 1
 
-    except FuzzFrontendError as e:
+    except AnalysisBackendError as e:
       raise e
 
     except Exception:
@@ -596,7 +596,7 @@ class FuzzerFrontend(AnalysisBackend):
 
     # calculate total execution time
     exec_time: float = round(time.time() - self._start_time, 2)
-    L.info(f"Fuzzer exec time: {exec_time}s")
+    L.info("Fuzzer exec time: %ss", exec_time)
 
     return 0
 
@@ -629,7 +629,7 @@ class FuzzerFrontend(AnalysisBackend):
     self.proc.terminate()
     try:
       self.proc.wait(timeout=0.5)
-      L.info(f"Fuzzer subprocess exited with `{self.proc.returncode}`")
+      L.info("Fuzzer subprocess exited with `%d`", self.proc.returncode)
     except subprocess.TimeoutExpired:
       raise FuzzFrontendError("Subprocess could not terminate in time")
 
@@ -700,7 +700,7 @@ class FuzzerFrontend(AnalysisBackend):
     elif mode == "PUSH":
       rsync_cmd += [src, dest]
 
-    L.debug(f"rsync command: {rsync_cmd}")
+    L.debug("rsync command: %s", rsync_cmd)
     try:
       subprocess.Popen(rsync_cmd)
     except subprocess.CalledProcessError as e:
@@ -730,13 +730,13 @@ class FuzzerFrontend(AnalysisBackend):
       global_queue = self.sync_dir + "/"
 
     global_len: int = self._queue_len(global_queue)
-    L.debug(f"Global seed queue: {global_queue} with {global_len} files")
+    L.debug("Global seed queue: %s with %d files", global_queue, global_len)
 
     if local_queue is None:
       local_queue = self.output_test_dir + "/queue/"
 
     local_len: int = self._queue_len(local_queue)
-    L.debug(f"Fuzzer local seed queue: {local_queue} with {local_len} files")
+    L.debug("Fuzzer local seed queue: %s with %d files", local_queue, local_len)
 
     # sanity check: if global queue is empty, populate from local queue
     if (global_len == 0) and (local_len > 0):

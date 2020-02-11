@@ -298,19 +298,16 @@ def done_test(_, state, reason):
 
   if str(OUR_TERMINATION_REASON) != str(reason):
     if _is_program_crash(reason):
-      L.info("State {} terminated due to crashing program behavior: {}".format(
-        state._id, reason))
+      L.info("State %s terminated due to crashing program behavior: %s", state._id, reason)
 
       # Don't raise new `TerminateState` exception
       super(DeepManticore, mc).crash_test()
     elif _is_program_exit(reason):
-      L.info("State {} terminated due to program exit: {}".format(
-        state._id, reason))
+      L.info("State %s terminated due to program exit: %s", state._id, reason)
       super(DeepManticore, mc).pass_test()
       #super(DeepManticore, mc).abandon_test()
     else:
-      L.error("State {} terminated due to internal error: {}".format(state._id,
-                                                                     reason))
+      L.error("State %s terminated due to internal error: %s", state._id, reason)
 
       # Don't raise new `TerminateState` exception
       super(DeepManticore, mc).ubandon_test()
@@ -388,8 +385,7 @@ def run_test(state, apis, test, workspace, hook_test=False):
   try:
     do_run_test(state, apis, test, workspace, hook_test)
   except:
-    L.error("Uncaught exception: {}\n{}".format(
-      sys.exc_info()[0], traceback.format_exc()))
+    L.error("Uncaught exception: %s\n%s", sys.exc_info()[0], traceback.format_exc())
 
 
 def run_tests(args, state, apis, workspace):
@@ -398,8 +394,7 @@ def run_tests(args, state, apis, workspace):
   tests = mc.find_test_cases()
 
   if not args.which_test:
-    L.info("Running {} tests across {} workers".format(
-      len(tests), args.num_workers))
+    L.info("Running %d tests across %d workers", len(tests), args.num_workers)
 
     for test in tests:
       run_test(state, apis, test, workspace)
@@ -413,7 +408,7 @@ def run_tests(args, state, apis, workspace):
       L.error("Multiple tests found with same name.")
       exit(1)
 
-    L.info("Running `{}` test across {} workers".format(args.which_test, args.num_workers))
+    L.info("Running `%d` test across %d workers", args.which_test, args.num_workers)
     run_test(state, apis, test[0], workspace)
 
 
@@ -428,15 +423,14 @@ def get_base(m):
     else:
       return 0x555555554000
   else:
-    L.critical("Invalid binary type `{}`".format(e_type))
+    L.critical("Invalid binary type `%s`", e_type)
     exit(1)
 
 def main_takeover(m, args, takeover_symbol):
   takeover_ea = find_symbol_ea(m, takeover_symbol)
   if not takeover_ea:
-    L.critical("Cannot find symbol `{}` in binary `{}`".format(
-      takeover_symbol,
-      args.binary))
+    L.critical("Cannot find symbol `%s` in binary `%s`",
+                  takeover_symbol, args.binary)
     return 1
 
   takeover_state = _make_initial_state(m.binary_path)
@@ -445,7 +439,7 @@ def main_takeover(m, args, takeover_symbol):
 
   ea_of_api_table = find_symbol_ea(m, 'DeepState_API')
   if not ea_of_api_table:
-    L.critical("Could not find API table in binary `{}`".format(args.binary))
+    L.critical("Could not find API table in binary `%s`", args.binary)
     return 1
 
   base = get_base(m)
@@ -468,8 +462,7 @@ def main_takeover(m, args, takeover_symbol):
 def main_unit_test(m, args):
   setup_ea = find_symbol_ea(m, 'DeepState_Setup')
   if not setup_ea:
-    L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
-      args.binary))
+    L.critical("Cannot find symbol `DeepState_Setup` in binary `%s`", args.binary)
     return 1
 
   setup_state = _make_initial_state(m.binary_path)
@@ -478,7 +471,7 @@ def main_unit_test(m, args):
 
   ea_of_api_table = find_symbol_ea(m, 'DeepState_API')
   if not ea_of_api_table:
-    L.critical("Could not find API table in binary `{}`".format(args.binary))
+    L.critical("Could not find API table in binary `%s`", args.binary)
     return 1
 
   base = get_base(m)
@@ -503,8 +496,7 @@ def main():
   try:
     m = manticore.native.Manticore(args.binary)
   except Exception as e:
-    L.critical("Cannot create Manticore instance on binary {}: {}".format(
-      args.binary, e))
+    L.critical("Cannot create Manticore instance on binary %s: %s", args.binary, e)
     return 1
 
   log.set_verbosity(args.verbosity)

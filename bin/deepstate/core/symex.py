@@ -230,11 +230,6 @@ class SymexFrontend(AnalysisBackend):
     # Create the output directory for this test case.
     args = self.parse_args()
 
-    if os.environ.get("DEEPSTATE_LOG", None) is None:
-      LOGGER.setLevel(LOG_LEVEL_INT_TO_STR[args.min_log_level])
-    else:
-      LOGGER.info("Using log level from $DEEPSTATE_LOG.")
-
     if args.output_test_dir is not None:
       test_dir = os.path.join(args.output_test_dir,
                               os.path.basename(info.file_name),
@@ -245,8 +240,7 @@ class SymexFrontend(AnalysisBackend):
         pass
 
       if not os.path.isdir(test_dir):
-        LOGGER.critical("Cannot create test output directory: {}".format(
-            test_dir))
+        LOGGER.critical("Cannot create test output directory: %s", test_dir)
 
       self.context['test_dir'] = test_dir
 
@@ -336,12 +330,12 @@ class SymexFrontend(AnalysisBackend):
       with open(test_file, "wb") as f:
         f.write(input_bytes)
     except:
-      LOGGER.critical("Error saving input to {}".format(test_file))
+      LOGGER.critical("Error saving input to %s", test_file)
 
     if not passing:
-      LOGGER.info("Saved test case in file {}".format(test_file))
+      LOGGER.info("Saved test case in file %s", test_file)
     else:
-      LOGGER.trace("Saved test case in file {}".format(test_file))
+      LOGGER.trace("Saved test case in file %s", test_file)
 
   def report(self):
     """Report on the pass/fail status of a test case, and dump its log."""
@@ -372,9 +366,9 @@ class SymexFrontend(AnalysisBackend):
     # Print out the first few input bytes to be helpful.
     lots_of_bytes = len(input_bytes) > 20 and " ..." or ""
     bytes_to_show = min(20, len(input_bytes))
-    LOGGER.trace("Input: {}{}".format(
+    LOGGER.trace("Input: %s%s", 
         " ".join("{:02x}".format(b) for b in input_bytes[:bytes_to_show]),
-        lots_of_bytes))
+        lots_of_bytes)
 
     self._save_test(info, input_bytes)
 

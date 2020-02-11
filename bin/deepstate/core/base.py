@@ -67,15 +67,15 @@ class AnalysisBackend(object):
 
     # in case name supplied as `bin/fuzzer`, strip executable name
     self.name: str = self.NAME
-    if self.name == '':
+    if not self.name:
       raise AnalysisBackendError("AnalysisBackend.NAME not set")
-    L.debug(f"Analysis backend name: {self.name}")
+    L.debug("Analysis backend name: %s", self.name)
 
     AnalysisBackend.compiler_exe = self.EXECUTABLES.pop("COMPILER", None)
 
     # parsed argument attributes
     self.binary: str = None
-    self.output_test_dir: str = "{}_out".format(str(self))
+    self.output_test_dir: str = f"{self}_out"
     self.timeout: int = 0
     self.num_workers: int = 1
     self.mem_limit: int = 50

@@ -69,7 +69,7 @@ class Angora(FuzzerFrontend):
     if self.ignore_calls: # type: ignore
 
       libpath: List[str] = self.ignore_calls.split(":") # type: ignore
-      L.debug(f"Ignoring library objects: {libpath}")
+      L.debug("Ignoring library objects: %s", libpath)
 
       out_file: str = "abilist.txt"
 
@@ -81,7 +81,7 @@ class Angora(FuzzerFrontend):
 
         # instantiate command to call, but store output to buffer
         cmd: List[str] = [self.EXECUTABLES["GEN_LIB_ABILIST"], path, "discard"]
-        L.debug(f"Compilation command: {cmd}")
+        L.debug("Compilation command: %s", cmd)
 
         out: bytes = subprocess.check_output(cmd)
         ignore_bufs += [out]
@@ -98,12 +98,12 @@ class Angora(FuzzerFrontend):
 
     # make a binary with light instrumentation
     fast_path: str = "/usr/local/lib/libdeepstate_fast.a"
-    L.debug(f"Static library path: {fast_path}")
+    L.debug("Static library path: %s", fast_path)
 
     fast_flags: List[str] = ["-ldeepstate_fast"]
     if self.compiler_args:
       fast_flags += [arg for arg in self.compiler_args.split(" ")]
-    L.info(f"Compiling {self.compile_test} for {self.name} with light instrumentation")
+    L.info("Compiling %s for %s with light instrumentation.", self.compile_test, self.name)
     super().compile(fast_path, fast_flags, self.out_test_name + ".fast", env=env)
 
     # initialize envvar for instrumentation framework
@@ -114,12 +114,12 @@ class Angora(FuzzerFrontend):
 
     # make a binary with taint tracking information
     taint_path: str = "/usr/local/lib/libdeepstate_taint.a"
-    L.debug(f"Static library path: {taint_path}")
+    L.debu("Static library path: %s", taint_path)
 
     taint_flags: List[str] = ["-ldeepstate_taint"]
     if self.compiler_args:
       taint_flags += [arg for arg in self.compiler_args.split(' ')]
-    L.info(f"Compiling {self.compile_test} for {self.name} with taint tracking")
+    L.info("Compiling %s for %s with taint tracking", self.compile_test, self.name)
     super().compile(taint_path, taint_flags, self.out_test_name + ".taint", env=env)
 
 
@@ -143,11 +143,11 @@ class Angora(FuzzerFrontend):
     if len(os.listdir(self.input_seeds)) == 0:
       raise FuzzFrontendError(f"No seeds present in directory `{self.input_seeds}`.")
 
-    if self.blackbox == True:
+    if self.blackbox is True:
       raise FuzzFrontendError(f"Blackbox fuzzing is not supported by {self.name}.")
 
     if self.dictionary:
-      L.error(f"{self.name} can't use dictionaries.")
+      L.error("%s can't use dictionaries.", self.name)
 
     # require output directory
     if not self.output_test_dir:
