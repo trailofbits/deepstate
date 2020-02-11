@@ -66,16 +66,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Build deepstate-base image locally
-        run: |
-          docker build -t deepstate-base -f docker/base/Dockerfile docker/base
-      - name: Build and publish container
-        uses: elgohr/Publish-Docker-Github-Action@master
+      - uses: whoan/docker-build-with-cache-action@v3
         with:
-          name: trailofbits/deepstate/deepstate
-          registry: docker.pkg.github.com
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: docker.pkg.github.com
+          image_name: trailofbits/deepstate/deepstate-base
+          image_tag: latest
+          context: docker/base
+          dockerfile: docker/base/Dockerfile
+          push_image_and_stages: false  # because we run workflow on PRs
+      - uses: whoan/docker-build-with-cache-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: docker.pkg.github.com
+          image_name: trailofbits/deepstate/deepstate
+          image_tag: latest
+          context: .
           dockerfile: docker/Dockerfile
-          tag_names: true
-          cache: ${{ github.event_name != 'schedule' }}
+          push_image_and_stages: false  # because we run workflow on PRs
+          build_extra_args: "--cache-from=docker.pkg.github.com/trailofbits/deepstate/deepstate-base:latest"
