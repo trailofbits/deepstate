@@ -31,10 +31,11 @@ class Angora(FuzzerFrontend):
 
   # these classvars are set under the assumption that $ANGORA_PATH is set to the built source
   NAME = "Angora"
-  SEARCH_DIRS = ["bin", "tools"]
+  SEARCH_DIRS = ["clang+llvm/bin", "bin", "tools"]
   EXECUTABLES = {"FUZZER": "angora_fuzzer",
                   "COMPILER": "angora-clang++",
-                  "GEN_LIB_ABILIST": "gen_library_abilist.sh"
+                  "GEN_LIB_ABILIST": "gen_library_abilist.sh",
+                  "CLANG_COMPILER": "clang++"
                   }
 
 
@@ -126,9 +127,10 @@ class Angora(FuzzerFrontend):
 
   def pre_exec(self):
     # correct version of clang is required
-    if self.env:
-      os.environ["PATH"] = ":".join((self.env, os.environ.get("PATH", "")))
-      L.info(f"Adding `{self.env}` to $PATH.")
+    self._set_executables()
+    clang_for_angora_path = os.path.dirname(self.EXECUTABLES["CLANG_COMPILER"])
+    os.environ["PATH"] = ":".join((clang_for_angora_path, os.environ.get("PATH", "")))
+    L.info(f"Adding `{clang_for_angora_path}` to $PATH.")
 
     super().pre_exec()
 
@@ -140,9 +142,21 @@ class Angora(FuzzerFrontend):
     if not os.path.exists(self.taint_binary):
       raise FuzzFrontendError("Taint binary doesn't exist")
 
-    # require input seeds
-    if self.input_seeds is None:
-      self.create_fake_seeds()
+    # set input/output variables
+    self.require_seeds = True
+    sync_dir = os.path.join(self.output_test_dir, "sync_dir")
+    main_dir = os.path.join(self.output_test_dir, "angora")
+    self.push_dir = os.path.join(sync_dir, "queue")
+    self.pull_dir = os.path.join(main_dir, "queue")
+    self.crash_dir = os.path.join(main_dir, "crashes")
+
+    # resume fuzzing
+    if len(os.listdir(self.output_test_dir)) > 1:
+      self.check_required_directories([self.push_dir, self.pull_dir, self.crash_dir])
+      self.input_seeds = '-'
+      L.info(f"Resuming fuzzing using seeds from {self.pull_dir} (skipping --input_seeds option).")
+    else:
+      self.setup_new_session([self.push_dir])
 
     if self.blackbox is True:
       raise FuzzFrontendError(f"Blackbox fuzzing is not supported by {self.name}.")

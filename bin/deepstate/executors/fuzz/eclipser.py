@@ -64,6 +64,19 @@ class Eclipser(FuzzerFrontend):
     # TODO handle that somehow
     L.warning("Eclipser doesn't limit child processes memory.")
 
+    sync_dir = os.path.join(self.output_test_dir, "sync_dir")
+    main_dir = os.path.join(self.output_test_dir, "the_fuzzer")
+    self.push_dir = os.path.join(sync_dir, "queue")
+    self.pull_dir = os.path.join(main_dir, "testcase")
+    self.crash_dir = os.path.join(main_dir, "crash")
+
+    # resume fuzzing
+    if len(os.listdir(self.output_test_dir)) > 1:
+      self.check_required_directories([self.push_dir, self.pull_dir, self.crash_dir])
+      L.info(f"Resuming fuzzing using seeds from {self.pull_dir} (skipping --input_seeds option).")
+    else:
+      self.setup_new_session([main_dir, self.push_dir])
+
     if self.blackbox == True:
       L.info("Blackbox option is redundant. Eclipser works on non-instrumented binaries using QEMU by default.")
 
@@ -88,7 +101,7 @@ class Eclipser(FuzzerFrontend):
       "--src", "file",
       "--fixfilepath", "eclipser.input",
       "--initarg", " ".join(deepstate_args),
-      "--outputdir", self.output_test_dir, # auto-create, reusable
+      "--outputdir", os.path.join(self.output_test_dir, "the_fuzzer"), # auto-create, reusable
     ])
 
     if self.max_input_size == 0:

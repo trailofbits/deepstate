@@ -66,24 +66,19 @@ class LibFuzzer(FuzzerFrontend):
     if self.blackbox is True:
       raise FuzzFrontendError("Blackbox fuzzing is not supported by libFuzzer.")
 
-    self.push_dir = os.path.join(self.output_test_dir, "sync_dir")
+    sync_dir = os.path.join(self.output_test_dir, "sync_dir")
+    main_dir = os.path.join(self.output_test_dir, "the_fuzzer")
+    self.push_dir = os.path.join(sync_dir, "queue")
     self.pull_dir = self.push_dir
-    self.crash_dir = os.path.join(self.output_test_dir, "crashes")
+    self.crash_dir = os.path.join(main_dir, "crashes")
 
     # resuming fuzzing
     if len(os.listdir(self.output_test_dir)) > 0:
-      if not os.path.isdir(self.push_dir):
-        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
-                                  "No `sync_dir` directory inside.")
-      if not os.path.isdir(self.crash_dir):
-        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
-                                  "No `crashes` directory inside.")
-
+      self.check_required_directories([self.push_dir, self.pull_dir, self.crash_dir])
       self.input_seeds = None
       L.info(f"Resuming fuzzing using seeds from {self.push_dir} (skipping --input_seeds option).")
     else:
-      os.mkdir(self.push_dir)
-      os.mkdir(self.crash_dir)
+      self.setup_new_session([self.pull_dir, self.crash_dir])
 
 
   @property
@@ -100,7 +95,8 @@ class LibFuzzer(FuzzerFrontend):
       "-max_len={}".format(self.max_input_size),
       "-artifact_prefix={}".format(self.crash_dir + "/"),
       # "-jobs={}".format(2),  # crashes deepstate ;/
-      "-workers={}".format(1)
+      "-workers={}".format(1),
+      "-reload"
     ])
 
     for key, val in self.fuzzer_args:
@@ -127,6 +123,10 @@ class LibFuzzer(FuzzerFrontend):
       cmd_list.append(self.input_seeds)
 
     return cmd_list
+
+
+  def post_exec(self):
+    pass
 
 
 def main():

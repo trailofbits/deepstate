@@ -18,7 +18,6 @@ import logging
 import argparse
 import shutil
 
-from tempfile import mkdtemp 
 from typing import List, Dict, Optional
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
@@ -59,6 +58,10 @@ class AFL(FuzzerFrontend):
     """
     Perform argparse and environment-related sanity checks.
     """
+    # check for afl-qemu-trace if in QEMU mode 
+    if 'Q' in self.fuzzer_args or self.blackbox == True:
+      self.EXECUTABLES["AFL-QEMU-TRACE"] = "afl-qemu-trace"
+
     super().pre_exec()
 
     # check if core dump pattern is set as `core`
@@ -74,41 +77,24 @@ class AFL(FuzzerFrontend):
             if f_min.read() != f_max.read():
               raise FuzzFrontendError("Suboptimal CPU scaling governor. Execute 'echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'")
 
-    # check for afl-qemu if in QEMU mode 
-    if 'Q' in self.fuzzer_args or self.blackbox == True:
-      if not shutil.which('afl-qemu-trace'):
-        raise FuzzFrontendError("Must provide `afl-qemu-trace` executable in PATH")
+    # set input/output variables
+    # if we aren't in dumb mode, or we are using crash mode
+    if 'n' not in self.fuzzer_args or 'C' in self.fuzzer_args:
+      self.require_seeds = True
 
     sync_dir = os.path.join(self.output_test_dir, "sync_dir")
-    main_dir = os.path.join(self.output_test_dir, "the_afl")
+    main_dir = os.path.join(self.output_test_dir, "the_fuzzer")
     self.push_dir = os.path.join(sync_dir, "queue")
     self.pull_dir = os.path.join(main_dir, "queue")
     self.crash_dir = os.path.join(main_dir, "crashes")
 
-    # resuming fuzzing
+    # resume fuzzing
     if len(os.listdir(self.output_test_dir)) > 1:
-      if not os.path.isdir(sync_dir):
-        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
-                                  "No `sync_dir` directory inside.")
-      if not os.path.isdir(self.push_dir):
-        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
-                                  "No `sync_dir/queue` directory inside.")
-      if not os.path.isdir(main_dir):
-        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
-                                  "No `the_afl` directory inside.")
-
+      self.check_required_directories([self.push_dir, self.pull_dir, self.crash_dir])
       self.input_seeds = '-'
-      L.info(f"Resuming fuzzing using seeds from {self.output_test_dir}/the_afl/queue "
-              "(skipping --input_seeds option).")
-
+      L.info(f"Resuming fuzzing using seeds from {self.pull_dir} (skipping --input_seeds option).")
     else:
-      os.mkdir(sync_dir)
-      os.mkdir(self.push_dir)
-
-      # create fake input seeds if we aren't in dumb mode, or we are using crash mode
-      if self.input_seeds is None:
-        if 'n' not in self.fuzzer_args or 'C' in self.fuzzer_args:
-            self.create_fake_seeds()
+      self.setup_new_session([self.push_dir])
 
 
   @property
@@ -118,7 +104,7 @@ class AFL(FuzzerFrontend):
     # guaranteed arguments
     cmd_list.extend([
       "-o", self.output_test_dir,  # auto-create, reusable
-      "-S", "the_afl"
+      "-M", "the_fuzzer"  # TODO, detect when to use -S
     ])  
 
     if self.mem_limit == 0:
@@ -220,6 +206,7 @@ class AFL(FuzzerFrontend):
     and (TODO) performs crash triaging with seeds from
     both sync_dir and local queue.
     """
+    # TODO: merge output_test_dir/the_fuzzer/crashes* into one dir
     if self.post_stats:
       print(f"\n{self.name} RUN STATS:\n")
       for stat, val in self.stats.items():

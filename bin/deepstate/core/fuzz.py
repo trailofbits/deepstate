@@ -24,6 +24,7 @@ import shutil
 import multiprocessing as mp
 
 from tempfile import mkdtemp
+from pathlib import Path
 from multiprocessing.pool import ApplyResult
 from typing import Optional, Dict, List, Any, Tuple
 
@@ -51,6 +52,7 @@ class FuzzerFrontend(AnalysisBackend):
       - fuzzer_exe (fuzzer executable file)
       - env (environment variable name)
       - search_dirs (directories inside fuzzer home dir where to look for executables)
+      - require_seeds
 
     Inherits:
       - name (name for pretty printing)
@@ -76,6 +78,8 @@ class FuzzerFrontend(AnalysisBackend):
 
     # flag to ensure fuzzer processes do not persist
     self._on: bool = False
+
+    self.require_seeds: bool = False
 
     # parsed argument attributes
     self.input_seeds: Optional[str] = None
@@ -345,10 +349,27 @@ class FuzzerFrontend(AnalysisBackend):
 
 
   def create_fake_seeds(self):
-    self.input_seeds = mkdtemp()
+    if not self.input_seeds:
+      self.input_seeds = mkdtemp()
     with open(os.path.join(self.input_seeds, "fake_seed"), 'wb') as f:
       f.write(b'X')
-    L.info("Creating fake input seeds directory: %s", self.input_seeds)
+    L.info("Creating fake input seed file in directory `%s`", self.input_seeds)
+
+
+  def check_required_directories(self, required_dirs):
+    for required_dir in required_dirs:
+      if not os.path.isdir(required_dir):
+        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
+                                f"No `{required_dir}` directory inside.")
+
+
+  def setup_new_session(self, dirs_to_create=[]):
+    for dir_to_create in dirs_to_create:
+      Path(dir_to_create).mkdir(parents=True, exist_ok=True)
+      L.debug(f"Creating directory {dir_to_create}.")
+
+    if self.require_seeds is True and not self.input_seeds:
+        self.create_fake_seeds()
 
 
   def pre_exec(self):
@@ -356,6 +377,14 @@ class FuzzerFrontend(AnalysisBackend):
     Called before fuzzer execution in order to perform sanity checks. Base method contains
     default argument checks. Users should implement inherited method for any other environment
     checks or initializations before execution.
+
+    Do:
+      - search for executables (update self.EXECUTABLES)
+      - may print fuzzer help (and exit)
+      - may compile
+      - check for targets (self.binary)
+      - may check for input_seeds
+      - check for output directory
     """
 
     if self.parser is None:

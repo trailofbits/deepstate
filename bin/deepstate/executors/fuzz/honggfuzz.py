@@ -16,7 +16,6 @@ import os
 import logging
 import argparse
 
-from tempfile import mkdtemp
 from typing import List, Dict, Optional
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
@@ -57,31 +56,23 @@ class Honggfuzz(FuzzerFrontend):
 
 
   def pre_exec(self):
+    self.require_seeds = True
+
     super().pre_exec()
 
-    self.push_dir = os.path.join(self.output_test_dir, "sync_dir")
+    sync_dir = os.path.join(self.output_test_dir, "sync_dir")
+    main_dir = os.path.join(self.output_test_dir, "the_fuzzer")
+    self.push_dir = os.path.join(sync_dir, "queue")
     self.pull_dir = self.push_dir
-    self.crash_dir = os.path.join(self.output_test_dir, "crashes")
+    self.crash_dir = os.path.join(main_dir, "crashes")
 
-    # resuming fuzzing
+    # resume fuzzing
     if len(os.listdir(self.output_test_dir)) > 1:
-      if not os.path.isdir(self.push_dir):
-        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
-                                  "No `sync_dir` directory inside.")
-      if not os.path.isdir(self.crash_dir):
-        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
-                                  "No `crashes` directory inside.")
-
+      self.check_required_directories([self.push_dir, self.pull_dir, self.crash_dir])
       self.input_seeds = self.push_dir
-      L.info(f"Resuming fuzzing using seeds from {self.input_seeds} (skipping --input_seeds option).")
-
+      L.info(f"Resuming fuzzing using seeds from {self.push_dir} (skipping --input_seeds option).")
     else:
-      os.mkdir(self.push_dir)
-      os.mkdir(self.crash_dir)
-
-      # create fake input seeds
-      if self.input_seeds is None:
-        self.create_fake_seeds()
+      self.setup_new_session([self.pull_dir, self.crash_dir])
 
 
   @property
