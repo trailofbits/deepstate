@@ -23,6 +23,7 @@ import argparse
 import shutil
 import multiprocessing as mp
 
+from tempfile import mkdtemp
 from multiprocessing.pool import ApplyResult
 from typing import Optional, Dict, List, Any, Tuple
 
@@ -334,11 +335,8 @@ class FuzzerFrontend(AnalysisBackend):
     L.debug("Compilation command: %s", compile_cmd)
 
     # call compiler, and deal with exceptions accordingly
-    L.info("Compiling test harness `%s` with %s", self.compile_test, self.compiler_exe)
-    try:
-      subprocess.Popen(compile_cmd, env=env).communicate()
-    except BaseException as e:
-      raise FuzzFrontendError(f"{self.compiler_exe} interrupted due to exception:", e)
+    L.info("Compiling test harness `%s`", compile_cmd)
+    subprocess.Popen(compile_cmd, env=env).communicate()
 
     # extra check if target binary was successfully compiled, and set that as target binary
     out_bin = os.path.join(os.getcwd(), _out_bin)

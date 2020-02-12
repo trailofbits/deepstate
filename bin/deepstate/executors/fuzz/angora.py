@@ -19,7 +19,6 @@ import logging
 import argparse
 import subprocess
 
-from tempfile import mkdtemp
 from typing import List, Dict, Optional, Any
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
@@ -32,7 +31,7 @@ class Angora(FuzzerFrontend):
 
   # these classvars are set under the assumption that $ANGORA_PATH is set to the built source
   NAME = "Angora"
-  SEARCH_DIRS = ["bin", "clang+llvm", "tools"]
+  SEARCH_DIRS = ["bin", "tools"]
   EXECUTABLES = {"FUZZER": "angora_fuzzer",
                   "COMPILER": "angora-clang++",
                   "GEN_LIB_ABILIST": "gen_library_abilist.sh"
@@ -87,7 +86,6 @@ class Angora(FuzzerFrontend):
         out: bytes = subprocess.check_output(cmd)
         ignore_bufs += [out]
 
-
       # write all to final out_file
       with open(out_file, "wb") as f:
         for buf in ignore_bufs:
@@ -96,24 +94,10 @@ class Angora(FuzzerFrontend):
       # set envvar for fuzzer compilers
       env["ANGORA_TAINT_RULE_LIST"] = os.path.abspath(out_file)
 
-
-    # make a binary with light instrumentation
-    fast_path: str = "/usr/local/lib/libdeepstate_fast.a"
-    L.debug("Static library path: %s", fast_path)
-
-    fast_flags: List[str] = ["-ldeepstate_fast"]
-    if self.compiler_args:
-      fast_flags += [arg for arg in self.compiler_args.split(" ")]
-    L.info("Compiling %s for %s with light instrumentation.", self.compile_test, self.name)
-    super().compile(fast_path, fast_flags, self.out_test_name + ".fast", env=env)
-
-    # initialize envvar for instrumentation framework
-    if self.mode == "pin": # type: ignore
-      env["USE_PIN"] = "1"
-    else:
-      env["USE_TRACK"] = "1"
-
     # make a binary with taint tracking information
+    # env["USE_PIN"] = "1"  # TODO, add pin support
+    env["USE_TRACK"] = "1"
+
     taint_path: str = "/usr/local/lib/libdeepstate_taint.a"
     L.debug("Static library path: %s", taint_path)
 
@@ -123,8 +107,29 @@ class Angora(FuzzerFrontend):
     L.info("Compiling %s for %s with taint tracking", self.compile_test, self.name)
     super().compile(taint_path, taint_flags, self.out_test_name + ".taint", env=env)
 
+    self.taint_binary = self.binary
+    self.binary = None
+    env.pop("USE_TRACK")
+
+    # make a binary with light instrumentation
+    env["USE_FAST"] = "1"
+
+    fast_path: str = "/usr/local/lib/libdeepstate_fast.a"
+    L.debug("Static library path: %s", fast_path)
+
+    fast_flags: List[str] = ["-ldeepstate_fast"]
+    if self.compiler_args:
+      fast_flags += [arg for arg in self.compiler_args.split(" ")]
+    L.info("Compiling %s for %s with light instrumentation.", self.compile_test, self.name)
+    super().compile(fast_path, fast_flags, self.out_test_name + ".fast", env=env)
+
 
   def pre_exec(self):
+    # correct version of clang is required
+    if self.env:
+      os.environ["PATH"] = ":".join((self.env, os.environ.get("PATH", "")))
+      L.info(f"Adding `{self.env}` to $PATH.")
+
     super().pre_exec()
 
     # since base method checks for self.binary by default
@@ -137,10 +142,7 @@ class Angora(FuzzerFrontend):
 
     # require input seeds
     if self.input_seeds is None:
-      self.input_seeds = mkdtemp()
-      with open(os.path.join(self.input_seeds, "fake_seed"), 'wb') as f:
-        f.write(b'X')
-      L.info("Creating fake input seeds directory: %s", self.input_seeds)
+      self.create_fake_seeds()
 
     if self.blackbox is True:
       raise FuzzFrontendError(f"Blackbox fuzzing is not supported by {self.name}.")
@@ -158,7 +160,8 @@ class Angora(FuzzerFrontend):
       "--mode", "llvm",  # TODO, add pin support
       "--track", os.path.abspath(self.taint_binary),
       "--memory_limit", str(self.mem_limit),
-      "--output", self.output_test_dir  # auto-create, not reusable
+      "--output", self.output_test_dir,  # auto-create, not reusable
+      "--sync_afl"
     ])
 
     for key, val in self.fuzzer_args:
