@@ -79,13 +79,36 @@ class AFL(FuzzerFrontend):
       if not shutil.which('afl-qemu-trace'):
         raise FuzzFrontendError("Must provide `afl-qemu-trace` executable in PATH")
 
-    # require input seeds if we aren't in dumb mode, or we are using crash mode
-    if self.input_seeds is None:
-      if 'n' not in self.fuzzer_args or 'C' in self.fuzzer_args:
-        self.input_seeds = mkdtemp()
-        with open(os.path.join(self.input_seeds, "fake_seed"), 'wb') as f:
-          f.write(b'X')
-        L.info("Creating fake input seeds directory: %s", self.input_seeds)
+    sync_dir = os.path.join(self.output_test_dir, "sync_dir")
+    main_dir = os.path.join(self.output_test_dir, "the_afl")
+    self.push_dir = os.path.join(sync_dir, "queue")
+    self.pull_dir = os.path.join(main_dir, "queue")
+    self.crash_dir = os.path.join(main_dir, "crashes")
+
+    # resuming fuzzing
+    if len(os.listdir(self.output_test_dir)) > 1:
+      if not os.path.isdir(sync_dir):
+        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
+                                  "No `sync_dir` directory inside.")
+      if not os.path.isdir(self.push_dir):
+        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
+                                  "No `sync_dir/queue` directory inside.")
+      if not os.path.isdir(main_dir):
+        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
+                                  "No `the_afl` directory inside.")
+
+      self.input_seeds = '-'
+      L.info(f"Resuming fuzzing using seeds from {self.output_test_dir}/the_afl/queue "
+              "(skipping --input_seeds option).")
+
+    else:
+      os.mkdir(sync_dir)
+      os.mkdir(self.push_dir)
+
+      # create fake input seeds if we aren't in dumb mode, or we are using crash mode
+      if self.input_seeds is None:
+        if 'n' not in self.fuzzer_args or 'C' in self.fuzzer_args:
+            self.create_fake_seeds()
 
 
   @property
@@ -93,7 +116,10 @@ class AFL(FuzzerFrontend):
     cmd_list: List[str] = list()
 
     # guaranteed arguments
-    cmd_list.extend(["-o", self.output_test_dir])  # auto-create, reusable
+    cmd_list.extend([
+      "-o", self.output_test_dir,  # auto-create, reusable
+      "-S", "the_afl"
+    ])  
 
     if self.mem_limit == 0:
       cmd_list.extend(["-m", "1099511627776"])  # use 1TiB as unlimited

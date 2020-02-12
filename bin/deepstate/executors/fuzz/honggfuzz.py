@@ -59,12 +59,29 @@ class Honggfuzz(FuzzerFrontend):
   def pre_exec(self):
     super().pre_exec()
 
-    # require input seeds
-    if self.input_seeds is None:
-      self.input_seeds = mkdtemp()
-      with open(os.path.join(self.input_seeds, "fake_seed"), 'wb') as f:
-        f.write(b'X')
-      L.info("Creating fake input seeds directory: %s", self.input_seeds)
+    self.push_dir = os.path.join(self.output_test_dir, "sync_dir")
+    self.pull_dir = self.push_dir
+    self.crash_dir = os.path.join(self.output_test_dir, "crashes")
+
+    # resuming fuzzing
+    if len(os.listdir(self.output_test_dir)) > 1:
+      if not os.path.isdir(self.push_dir):
+        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
+                                  "No `sync_dir` directory inside.")
+      if not os.path.isdir(self.crash_dir):
+        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
+                                  "No `crashes` directory inside.")
+
+      self.input_seeds = self.push_dir
+      L.info(f"Resuming fuzzing using seeds from {self.input_seeds} (skipping --input_seeds option).")
+
+    else:
+      os.mkdir(self.push_dir)
+      os.mkdir(self.crash_dir)
+
+      # create fake input seeds
+      if self.input_seeds is None:
+        self.create_fake_seeds()
 
 
   @property
@@ -73,8 +90,11 @@ class Honggfuzz(FuzzerFrontend):
 
     # guaranteed arguments
     cmd_list.extend([
-      "--output", self.output_test_dir,  # auto-create, reusable
       "--workspace", self.output_test_dir,
+      "--output", self.push_dir,  # auto-create, reusable
+      "--crashdir", self.crash_dir,
+      # "--logfile", os.path.join(self.output_test_dir, "hfuzz_log.txt"),
+      "--verbose",
       "--rlimit_rss", str(self.mem_limit),
     ])
 

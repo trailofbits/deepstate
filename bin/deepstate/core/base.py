@@ -137,7 +137,7 @@ class AnalysisBackend(object):
     # Analysis-related configurations
     parser.add_argument(
       "-o", "--output_test_dir", type=str,
-      help="Output directory where tests will be saved. Must be empty. Required.")
+      help="Output directory where tests will be saved. Required. If not empty, will try to resume.")
 
     parser.add_argument(
       "-c", "--config", type=str,

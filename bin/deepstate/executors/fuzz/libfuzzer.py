@@ -66,6 +66,25 @@ class LibFuzzer(FuzzerFrontend):
     if self.blackbox is True:
       raise FuzzFrontendError("Blackbox fuzzing is not supported by libFuzzer.")
 
+    self.push_dir = os.path.join(self.output_test_dir, "sync_dir")
+    self.pull_dir = self.push_dir
+    self.crash_dir = os.path.join(self.output_test_dir, "crashes")
+
+    # resuming fuzzing
+    if len(os.listdir(self.output_test_dir)) > 0:
+      if not os.path.isdir(self.push_dir):
+        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
+                                  "No `sync_dir` directory inside.")
+      if not os.path.isdir(self.crash_dir):
+        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
+                                  "No `crashes` directory inside.")
+
+      self.input_seeds = None
+      L.info(f"Resuming fuzzing using seeds from {self.push_dir} (skipping --input_seeds option).")
+    else:
+      os.mkdir(self.push_dir)
+      os.mkdir(self.crash_dir)
+
 
   @property
   def cmd(self):
@@ -78,7 +97,10 @@ class LibFuzzer(FuzzerFrontend):
     # guaranteed arguments
     cmd_list.extend([
       "-rss_limit_mb={}".format(self.mem_limit),
-      "-max_len={}".format(self.max_input_size)
+      "-max_len={}".format(self.max_input_size),
+      "-artifact_prefix={}".format(self.crash_dir + "/"),
+      # "-jobs={}".format(2),  # crashes deepstate ;/
+      "-workers={}".format(1)
     ])
 
     for key, val in self.fuzzer_args:
@@ -97,10 +119,8 @@ class LibFuzzer(FuzzerFrontend):
     if self.post_stats:
       cmd_list.append("-print_final_stats={}".format(1))
 
-    cmd_list.append("-artifact_prefix={}".format("deepstate_"))
-
     # must be here, this are positional args
-    cmd_list.append(self.output_test_dir)  # no auto-create, reusable
+    cmd_list.append(self.push_dir)  # no auto-create, reusable
 
     # not required, if provided: not auto-create and not require any files inside
     if self.input_seeds:
