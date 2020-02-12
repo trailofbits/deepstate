@@ -522,12 +522,12 @@ class FuzzerFrontend(AnalysisBackend):
   # Fuzzer process execution methods
   ##############################################
 
-  def run(self, compiler: Optional[str] = None, no_exec: bool = False):
+  def run(self, runner: Optional[str] = None, no_exec: bool = False):
     """
     Interface for spawning and executing fuzzer jobs. Uses the configured `num_workers` in order to
     create a multiprocessing pool to parallelize fuzzers for execution in self._run.
 
-    :param compiler: if necessary, a compiler that is invoked before fuzzer executable (ie `dotnet`)
+    :param runner: if necessary, a runner that is invoked before fuzzer executable (ie `dotnet`)
     :param no_exec: skips pre- and post-processing steps during execution
 
     """
@@ -543,9 +543,9 @@ class FuzzerFrontend(AnalysisBackend):
     # initialize cmd from property
     command = [self.fuzzer_exe] + self.cmd # type: ignore
 
-    # prepend compiler that invokes fuzzer
-    if compiler:
-      command.insert(0, compiler)
+    # prepend runner that invokes fuzzer
+    if runner:
+      command.insert(0, runner)
 
     results: List[ApplyResult[int]]
     results_outputs: List[int]

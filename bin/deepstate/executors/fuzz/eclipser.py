@@ -174,7 +174,7 @@ def main():
   try:
     fuzzer = Eclipser(envvar="ECLIPSER_HOME")
     fuzzer.parse_args()
-    fuzzer.run(compiler=fuzzer.EXECUTABLES["RUNNER"])
+    fuzzer.run(runner=fuzzer.EXECUTABLES["RUNNER"])
     return 0
   except FuzzFrontendError as e:
     L.error(e)
