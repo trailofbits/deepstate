@@ -200,26 +200,58 @@ class Angora(FuzzerFrontend):
     return self.build_cmd(cmd_list)
 
 
-  @property
-  def stats(self) -> Optional[Dict[str, str]]:
+  def populate_stats(self):
     """
     Parses Angora output JSON config to dict for reporting.
     """
-    stat_file: str = self.output_test_dir + "/chart_stat.json"
+    stat_file_path: str = os.path.join(self.output_test_dir, "angora", "fuzzer_stats")
+    with open(stat_file_path, "r") as stat_file:
+      self.stats["fuzzer_pid"] = stat_file.read().split(":", 1)[1].strip()
 
-    if not hasattr(self, "prev_stats"):
-      self.prev_stats: Optional[Dict[str, str]] = None
-
+    stat_file_path = os.path.join(self.output_test_dir, "angora", "chart_stat.json")
+    new_stats: Dict[str, str] = {}
     try:
-      with open(stat_file, "r") as handle:
-        stats: Optional[Dict[str, str]] = json.loads(handle.read())
-        self.prev_stats = stats
+      with open(stat_file_path, "r") as stat_file:
+        new_stats = json.loads(stat_file.read())
+    except json.decoder.JSONDecodeError as e:
+      L.error(f"Error parsing {stat_file_path}: {e}.")
 
-    # fallback on initially parsed stats if failed to decode
-    except json.decoder.JSONDecodeError:
-      stats = self.prev_stats
+    previous_stats = self.stats.copy()
 
-    return stats
+    if new_stats.get("init_time"):
+      self.stats["start_time"] = str(time() - int(new_stats.get("init_time")))
+    elif self.proc:
+      self.stats["start_time"] = str(self._start_time)
+
+    self.stats["last_update"] = os.path.getmtime(stat_file_path)
+
+    self.stats["execs_done"] = new_stats.get("num_exec", None)
+    self.stats["execs_per_sec"] = new_stats.get("speed", None)
+    self.stats["paths_total"] = new_stats.get("num_inputs", None)
+
+    self.stats["unique_crashes"] = new_stats.get("num_crashes", None)
+    self.stats["unique_hangs"] = new_stats.get("num_hangs", None)
+
+    all_fuzz = []
+    for one_fuzz in new_stats.get("fuzz", []):
+      time_key = one_fuzz.pop("time", {})
+      s = time_key.get("secs", 0)
+      ns = time_key.get("nanos", 0)
+      t = float('{}.{:09d}'.format(s, ns))
+      all_fuzz.append((t, one_fuzz))
+    all_fuzz = sorted(all_fuzz, reversed=True)
+
+    if len(all_fuzz) >= 2:
+      last_crash_execs = 0
+      for one_fuzz in all_fuzz:
+        if one_fuzz.get("num_crashes") < self.stats["unique_crashes"]:
+          last_crash_execs = one_fuzz["num_exec"]
+      self.stats["execs_since_crash"] = self.stats["execs_done"] - last_crash_execs
+
+    self.stats["command_line"] = self._command
+    self.stats["unique_hangs"] = new_stats.get("num_hangs", None)
+    self.stats["unique_hangs"] = new_stats.get("num_hangs", None)
+    self.stats["unique_hangs"] = new_stats.get("num_hangs", None)
 
 
   def reporter(self) -> Optional[Dict[str, Any]]:

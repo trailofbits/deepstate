@@ -138,56 +138,24 @@ class AFL(FuzzerFrontend):
     return self.build_cmd(cmd_list)
 
 
-  @property
-  def stats(self) -> Dict[str, Optional[str]]:
+  def populate_stats(self):
     """
     Retrieves and parses the stats file produced by AFL
     """
-    stat_file: str = self.output_test_dir + "/fuzzer_stats"
-    with open(stat_file, "r") as sf:
-      lines = sf.readlines()
-
-    stats: Dict[str, Optional[str]] = {
-      "last_update": None,
-      "start_time": None,
-      "fuzzer_pid": None,
-      "cycles_done": None,
-      "execs_done": None,
-      "execs_per_sec": None,
-      "paths_total": None,
-      "paths_favored": None,
-      "paths_found": None,
-      "paths_imported": None,
-      "max_depth": None,
-      "cur_path": None,
-      "pending_favs": None,
-      "pending_total": None,
-      "variable_paths": None,
-      "stability": None,
-      "bitmap_cvg": None,
-      "unique_crashes": None,
-      "unique_hangs": None,
-      "last_path": None,
-      "last_crash": None,
-      "last_hang": None,
-      "execs_since_crash": None,
-      "exec_timeout": None,
-      "afl_banner": None,
-      "afl_version": None,
-      "command_line": None
-    }
-
-    for l in lines:
-      for k in stats.keys():
-        if k in l:
-          stats[k] = l[19:].strip(": %\r\n")
-    return stats
+    stat_file_path: str = os.path.join(self.output_test_dir, "the_fuzzer", "fuzzer_stats")
+    with open(stat_file_path, "r") as stat_file:
+      for line in stat_file:
+        key = line.split(":", 1)[0].strip()
+        value = line.split(":", 1)[1].strip()
+        if key in self.stats:
+          self.stats[key] = value
 
 
   def reporter(self) -> Dict[str, Optional[str]]:
     """
     Report a summarized version of statistics, ideal for ensembler output.
     """
+    self.populate_stats()
     return dict({
         "Execs Done": self.stats["execs_done"],
         "Cycle Completed": self.stats["cycles_done"],
