@@ -36,12 +36,13 @@ class Eclipser(FuzzerFrontend):
   NAME = "Eclipser"
   SEARCH_DIRS = ["build"]
   EXECUTABLES = {"FUZZER": "Eclipser.dll",
-                  "COMPILER": "clang++"  # for regular compilation
+                  "COMPILER": "clang++",  # for regular compilation
+                  "RUNNER": "dotnet"
                   }
 
 
   def print_help(self):
-    subprocess.call(["dotnet", self.fuzzer_exe, "fuzz", "--help"])
+    subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "fuzz", "--help"])
 
 
   def compile(self) -> None: # type: ignore
@@ -137,8 +138,8 @@ class Eclipser(FuzzerFrontend):
     out: str = self.output_test_dir
 
     L.info("Performing post-processing decoding on testcases and crashes")
-    subprocess.call(["dotnet", self.fuzzer_exe, "decode", "-i", out + "/testcase", "-o", out + "/decoded"])
-    subprocess.call(["dotnet", self.fuzzer_exe, "decode", "-i", out + "/crash", "-o", out + "/decoded"])
+    subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "decode", "-i", out + "/testcase", "-o", out + "/decoded"])
+    subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "decode", "-i", out + "/crash", "-o", out + "/decoded"])
     for f in glob.glob(out + "/decoded/decoded_files/*"):
       shutil.copy(f, out)
     shutil.rmtree(out + "/decoded")
@@ -160,7 +161,7 @@ def main():
   try:
     fuzzer = Eclipser(envvar="ECLIPSER_HOME")
     fuzzer.parse_args()
-    fuzzer.run(compiler="dotnet")
+    fuzzer.run(compiler=fuzzer.EXECUTABLES["RUNNER"])
     return 0
   except FuzzFrontendError as e:
     L.error(e)

@@ -247,14 +247,14 @@ class FuzzerFrontend(AnalysisBackend):
     if self.env:
       for one_env_path in self.env.split(":"):
         for search_dir in [""] + self.search_dirs:
-          exe_path: Optional[str] = shutil.which(exe_name, path=os.path.join(one_env_path, search_dir))
+          exe_path: Optional[str] = shutil.which(exe_name, mode=os.F_OK, path=os.path.join(one_env_path, search_dir))
           if exe_path is not None:
             return exe_path
 
     # search in current dir and $PATH
     where_to_search = ['.', None]
     for search_env in where_to_search:
-      exe_path: Optional[str] = shutil.which(exe_name, path=search_env)
+      exe_path: Optional[str] = shutil.which(exe_name, mode=os.F_OK, path=search_env)
       if exe_path is not None:
         return exe_path
 
@@ -361,12 +361,12 @@ class FuzzerFrontend(AnalysisBackend):
     if self.parser is None:
       raise FuzzFrontendError("No arguments parsed yet. Call parse_args() before pre_exec().")
 
+    # search for executables and set proper variables
+    self._set_executables()
+
     if self.fuzzer_help:
       self.print_help()
       sys.exit(0)
-
-    # search for executables and set proper variables
-    self._set_executables()
 
     # if compile_test is set, call compile for user
     if self.compile_test:
@@ -405,7 +405,7 @@ class FuzzerFrontend(AnalysisBackend):
       if len(os.listdir(self.input_seeds)) == 0:
         raise FuzzFrontendError(f"No seeds present in directory `{self.input_seeds}`.")
 
-    # require empty output directory
+    # require output directory
     L.debug("Output directory: %s", self.output_test_dir)
     if not self.output_test_dir:
       raise FuzzFrontendError("Must provide -o/--output_test_dir.")
