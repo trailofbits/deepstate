@@ -318,6 +318,8 @@ class FuzzerFrontend(AnalysisBackend):
     :param env: optional envvars to set during compilation
     """
 
+    _out_bin += f".{self.NAME.lower()}"
+
     if self.compiler_exe is None:
       raise FuzzFrontendError(f"No compiler specified for compile-time instrumentation.")
 

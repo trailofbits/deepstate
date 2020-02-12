@@ -45,7 +45,7 @@ class LibFuzzer(FuzzerFrontend):
     flags: List[str] = ["-ldeepstate_LF", "-fsanitize=fuzzer,undefined"]
     if self.compiler_args:
       flags += [arg for arg in self.compiler_args.split(" ")]
-    super().compile(lib_path, flags, self.out_test_name + ".lfuzz")
+    super().compile(lib_path, flags, self.out_test_name)
 
 
   def pre_exec(self) -> None:

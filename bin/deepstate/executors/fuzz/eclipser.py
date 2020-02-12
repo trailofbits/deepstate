@@ -55,7 +55,7 @@ class Eclipser(FuzzerFrontend):
     flags: List[str] = ["-ldeepstate"]
     if self.compiler_args:
       flags += [arg for arg in self.compiler_args.split(" ")]
-    super().compile(lib_path, flags, self.out_test_name + ".eclipser")
+    super().compile(lib_path, flags, self.out_test_name)
 
 
   def pre_exec(self) -> None:

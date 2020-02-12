@@ -125,7 +125,7 @@ class AnalysisBackend(object):
 
       compile_group.add_argument("--out_test_name", type=str,
         help=("Set name of generated instrumented binary. Default is `out`. "
-        "Automatically add `.frontend_name_lowercase` suffix."))
+        "Automatically adds `.frontend_name_lowercase` suffix."))
 
       compile_group.add_argument("--no_exit_compile", action="store_true",
         help="Continue execution after compiling a harness (set as default if `--config` is set).")

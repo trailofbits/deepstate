@@ -51,7 +51,7 @@ class AFL(FuzzerFrontend):
       flags += [arg for arg in self.compiler_args.split(" ")]
     flags.append("-ldeepstate_AFL")
 
-    super().compile(lib_path, flags, self.out_test_name + ".afl")
+    super().compile(lib_path, flags, self.out_test_name)
 
 
   def pre_exec(self):
