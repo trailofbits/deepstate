@@ -384,11 +384,34 @@ class FuzzerFrontend(AnalysisBackend):
       raise FuzzFrontendError(f"Binary {self.binary} doesn't exists.")
     L.debug("Target binary: %s", self.binary)
 
-    # no sanity check, since some fuzzers require optional input seeds
+    # if input_seeds is provided run checks
     if self.input_seeds:
       L.debug("Input seeds directory: %s", self.input_seeds)
 
+      # AFL uses "-" to tell it to resume fuzzing, don't treat as a real seed dir
+      if self.input_seeds != "-":
+        if not os.path.exists(self.input_seeds):
+          raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
+
+        if not os.path.isdir(self.input_seeds):
+          raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) is not a directory.")
+
+        if len(os.listdir(self.input_seeds)) == 0:
+          raise FuzzFrontendError(f"No seeds present in directory `{self.input_seeds}`.")
+
+    # require empty output directory
     L.debug("Output directory: %s", self.output_test_dir)
+    if not self.output_test_dir:
+      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
+
+    if not os.path.exists(self.output_test_dir):
+      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) doesn't exist.")
+
+    if not os.path.isdir(self.output_test_dir):
+      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
+
+    if len(os.listdir(self.output_test_dir)) != 0:
+      raise FuzzFrontendError(f"output_test_dir `{self.output_test_dir}` must be empty.")
 
     # check if we enabled seed synchronization, and initialize directory
     if self.enable_sync:

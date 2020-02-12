@@ -63,22 +63,8 @@ class LibFuzzer(FuzzerFrontend):
     self.binary = os.path.abspath(self.binary)
     self.fuzzer_exe = self.binary # type: ignore
 
-    # require output directory
-    if not self.output_test_dir:
-      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
-
-    if not os.path.exists(self.output_test_dir):
-      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) doesn't exist.")
-
-    if not os.path.isdir(self.output_test_dir):
-      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
-
     if self.blackbox is True:
       raise FuzzFrontendError("Blackbox fuzzing is not supported by libFuzzer.")
-
-    if self.input_seeds:
-      if not os.path.exists(self.input_seeds):
-        raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
 
 
   @property

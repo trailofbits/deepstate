@@ -18,6 +18,7 @@ import logging
 import argparse
 import shutil
 
+from tempfile import mkdtemp 
 from typing import List, Dict, Optional
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
@@ -73,33 +74,18 @@ class AFL(FuzzerFrontend):
             if f_min.read() != f_max.read():
               raise FuzzFrontendError("Suboptimal CPU scaling governor. Execute 'echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'")
 
-    # require output directory
-    if not self.output_test_dir:
-      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
-
-    if not os.path.exists(self.output_test_dir):
-      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) doesn't exist.")
-
-    if not os.path.isdir(self.output_test_dir):
-      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
-
     # check for afl-qemu if in QEMU mode 
     if 'Q' in self.fuzzer_args or self.blackbox == True:
       if not shutil.which('afl-qemu-trace'):
         raise FuzzFrontendError("Must provide `afl-qemu-trace` executable in PATH")
 
     # require input seeds if we aren't in dumb mode, or we are using crash mode
-    if 'n' not in self.fuzzer_args or 'C' in self.fuzzer_args:
-      if self.input_seeds is None:
-        raise FuzzFrontendError(f"Must provide -i/--input_seeds option for {self.name}.")
-
-      # AFL uses "-" to tell it to resume fuzzing, don't treat as a real seed dir
-      if self.input_seeds != "-":
-        if not os.path.exists(self.input_seeds):
-          raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
-
-        if len(os.listdir(self.input_seeds)) == 0:
-          raise FuzzFrontendError(f"No seeds present in directory `{self.input_seeds}`.")
+    if self.input_seeds is None:
+      if 'n' not in self.fuzzer_args or 'C' in self.fuzzer_args:
+        self.input_seeds = mkdtemp()
+        with open(os.path.join(self.input_seeds, "fake_seed"), 'wb') as f:
+          f.write(b'X')
+        L.info("Creating fake input seeds directory: %s", self.input_seeds)
 
 
   @property

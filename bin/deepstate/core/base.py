@@ -75,7 +75,7 @@ class AnalysisBackend(object):
 
     # parsed argument attributes
     self.binary: str = None
-    self.output_test_dir: str = f"{self}_out"
+    self.output_test_dir: Optional[str] = None
     self.timeout: int = 0
     self.num_workers: int = 1
     self.mem_limit: int = 50
@@ -124,7 +124,8 @@ class AnalysisBackend(object):
         help="Linker flags (space seperated) to include for external libraries.")
 
       compile_group.add_argument("--out_test_name", type=str,
-        help="Set name of generated instrumented binary.")
+        help=("Set name of generated instrumented binary. Default is `out`. "
+        "Automatically add `.frontend_name_lowercase` suffix."))
 
       compile_group.add_argument("--no_exit_compile", action="store_true",
         help="Continue execution after compiling a harness (set as default if `--config` is set).")
@@ -135,8 +136,8 @@ class AnalysisBackend(object):
 
     # Analysis-related configurations
     parser.add_argument(
-      "-o", "--output_test_dir", type=str, default="out",
-      help="Output directory where tests will be saved (default is `out`).")
+      "-o", "--output_test_dir", type=str,
+      help="Output directory where tests will be saved. Must be empty. Required.")
 
     parser.add_argument(
       "-c", "--config", type=str,

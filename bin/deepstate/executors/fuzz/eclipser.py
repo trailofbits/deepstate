@@ -68,21 +68,6 @@ class Eclipser(FuzzerFrontend):
 
     if self.dictionary:
       L.error("Angora can't use dictionaries.")
-
-    # require output directory
-    if not self.output_test_dir:
-      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
-
-    if os.path.exists(self.output_test_dir):
-      if not os.path.isdir(self.output_test_dir):
-        raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
-
-    if self.input_seeds:
-      if not os.path.exists(self.input_seeds):
-        raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
-
-      if len(os.listdir(self.input_seeds)) == 0:
-        raise FuzzFrontendError(f"No seeds present in directory `{self.input_seeds}`.")
         
 
   @property

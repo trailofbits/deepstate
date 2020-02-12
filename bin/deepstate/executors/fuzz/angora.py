@@ -19,6 +19,7 @@ import logging
 import argparse
 import subprocess
 
+from tempfile import mkdtemp
 from typing import List, Dict, Optional, Any
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
@@ -134,27 +135,18 @@ class Angora(FuzzerFrontend):
     if not os.path.exists(self.taint_binary):
       raise FuzzFrontendError("Taint binary doesn't exist")
 
-    if not self.input_seeds:
-      raise FuzzFrontendError(f"Must provide -i/--input_seeds option for {self.name}.")
-
-    if not os.path.exists(self.input_seeds):
-      raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
-
-    if len(os.listdir(self.input_seeds)) == 0:
-      raise FuzzFrontendError(f"No seeds present in directory `{self.input_seeds}`.")
+    # require input seeds
+    if self.input_seeds is None:
+      self.input_seeds = mkdtemp()
+      with open(os.path.join(self.input_seeds, "fake_seed"), 'wb') as f:
+        f.write(b'X')
+      L.info("Creating fake input seeds directory: %s", self.input_seeds)
 
     if self.blackbox is True:
       raise FuzzFrontendError(f"Blackbox fuzzing is not supported by {self.name}.")
 
     if self.dictionary:
       L.error("%s can't use dictionaries.", self.name)
-
-    # require output directory
-    if not self.output_test_dir:
-      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
-
-    if os.path.exists(self.output_test_dir):
-      raise FuzzFrontendError(f"Remove previous output directory (`{self.output_test_dir}`) before running {self.name}.")
 
 
   @property

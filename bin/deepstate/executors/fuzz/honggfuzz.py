@@ -16,6 +16,7 @@ import os
 import logging
 import argparse
 
+from tempfile import mkdtemp
 from typing import List, Dict, Optional
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
@@ -58,19 +59,12 @@ class Honggfuzz(FuzzerFrontend):
   def pre_exec(self):
     super().pre_exec()
 
-    # require output directory
-    if not self.output_test_dir:
-      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
-
-    if os.path.exists(self.output_test_dir):
-      if not os.path.isdir(self.output_test_dir):
-        raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
-
-    if not self.input_seeds:
-      raise FuzzFrontendError(f"Must provide -i/--input_seeds option for {self.name}.")
-
-    if not os.path.exists(self.input_seeds):
-      raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
+    # require input seeds
+    if self.input_seeds is None:
+      self.input_seeds = mkdtemp()
+      with open(os.path.join(self.input_seeds, "fake_seed"), 'wb') as f:
+        f.write(b'X')
+      L.info("Creating fake input seeds directory: %s", self.input_seeds)
 
 
   @property
