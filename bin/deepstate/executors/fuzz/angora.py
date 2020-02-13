@@ -267,6 +267,10 @@ class Angora(FuzzerFrontend):
     })
 
 
+  def post_exec(self):
+    pass
+
+
 def main():
   fuzzer = Angora(envvar="ANGORA_HOME")
   return fuzzer.main()
