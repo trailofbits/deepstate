@@ -16,7 +16,6 @@
 import os
 import logging
 import argparse
-import shutil
 
 from typing import List, Dict, Optional
 

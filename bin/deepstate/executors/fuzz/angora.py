@@ -18,6 +18,8 @@ import json
 import logging
 import argparse
 import subprocess
+import operator
+import time
 
 from typing import List, Dict, Optional, Any
 
@@ -216,21 +218,21 @@ class Angora(FuzzerFrontend):
     except json.decoder.JSONDecodeError as e:
       L.error(f"Error parsing {stat_file_path}: {e}.")
 
-    previous_stats = self.stats.copy()
+    # previous_stats = self.stats.copy()
 
     if new_stats.get("init_time"):
-      self.stats["start_time"] = str(time() - int(new_stats.get("init_time")))
+      self.stats["start_time"] = str(int(time.time() - int(new_stats.get("init_time"))))
     elif self.proc:
-      self.stats["start_time"] = str(self._start_time)
+      self.stats["start_time"] = str(int(self.start_time))
 
-    self.stats["last_update"] = os.path.getmtime(stat_file_path)
+    self.stats["last_update"] = str(int(os.path.getmtime(stat_file_path)))
 
-    self.stats["execs_done"] = new_stats.get("num_exec", None)
-    self.stats["execs_per_sec"] = new_stats.get("speed", None)
-    self.stats["paths_total"] = new_stats.get("num_inputs", None)
+    self.stats["execs_done"] = new_stats.get("num_exec", 0)
+    self.stats["execs_per_sec"] = new_stats.get("speed", [0])[0]
+    self.stats["paths_total"] = new_stats.get("num_inputs", 0)
 
-    self.stats["unique_crashes"] = new_stats.get("num_crashes", None)
-    self.stats["unique_hangs"] = new_stats.get("num_hangs", None)
+    self.stats["unique_crashes"] = new_stats.get("num_crashes", 0)
+    self.stats["unique_hangs"] = new_stats.get("num_hangs", 0)
 
     all_fuzz = []
     for one_fuzz in new_stats.get("fuzz", []):
@@ -239,19 +241,16 @@ class Angora(FuzzerFrontend):
       ns = time_key.get("nanos", 0)
       t = float('{}.{:09d}'.format(s, ns))
       all_fuzz.append((t, one_fuzz))
-    all_fuzz = sorted(all_fuzz, reversed=True)
+    all_fuzz = sorted(all_fuzz, key=operator.itemgetter(0), reverse=True)
 
-    if len(all_fuzz) >= 2:
-      last_crash_execs = 0
-      for one_fuzz in all_fuzz:
-        if one_fuzz.get("num_crashes") < self.stats["unique_crashes"]:
-          last_crash_execs = one_fuzz["num_exec"]
-      self.stats["execs_since_crash"] = self.stats["execs_done"] - last_crash_execs
+    # if len(all_fuzz) >= 2:
+    #   last_crash_execs = 0
+    #   for one_fuzz in all_fuzz:
+    #     if one_fuzz.get("num_crashes") < self.stats["unique_crashes"]:
+    #       last_crash_execs = one_fuzz["num_exec"]
+    #   self.stats["execs_since_crash"] = self.stats["execs_done"] - last_crash_execs
 
-    self.stats["command_line"] = self._command
-    self.stats["unique_hangs"] = new_stats.get("num_hangs", None)
-    self.stats["unique_hangs"] = new_stats.get("num_hangs", None)
-    self.stats["unique_hangs"] = new_stats.get("num_hangs", None)
+    self.stats["command_line"] = self.command
 
 
   def reporter(self) -> Optional[Dict[str, Any]]:

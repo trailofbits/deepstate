@@ -74,7 +74,7 @@ class AnalysisBackend(object):
     AnalysisBackend.compiler_exe = self.EXECUTABLES.pop("COMPILER", None)
 
     # parsed argument attributes
-    self.binary: str = None
+    self.binary: Optional[str] = None
     self.output_test_dir: str
     self.timeout: int = 0
     self.num_workers: int = 1

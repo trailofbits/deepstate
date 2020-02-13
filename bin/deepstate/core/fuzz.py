@@ -19,15 +19,13 @@ import os
 import time
 import sys
 import subprocess
-import psutil
+import psutil  # type: ignore
 import argparse
 import shutil
-import multiprocessing as mp
+import traceback
 
-from contextlib import contextmanager
 from tempfile import mkdtemp
 from pathlib import Path
-from multiprocessing.pool import ApplyResult
 from typing import Optional, Dict, List, Any, Tuple
 
 from deepstate.core.base import AnalysisBackend, AnalysisBackendError
@@ -115,7 +113,7 @@ class FuzzerFrontend(AnalysisBackend):
       "execs_since_crash": None,
       "slowest_exec_ms": None,
       "peak_rss_mb": None,
-      "command_line": None,
+      "command_line": None
     }
 
     # parsed argument attributes
@@ -125,10 +123,12 @@ class FuzzerFrontend(AnalysisBackend):
     self.exec_timeout: Optional[int] = None
     self.blackbox: Optional[bool] = None
     self.fuzzer_args: List[Any] = []
+    self.fuzzer_out: bool = False
 
     self.enable_sync: bool = False
     self.sync_cycle: int = 5
     self.sync_out: bool = True
+    self.sync_dir: Optional[str] = None
 
     self.push_dir: str = ''  # push testcases from external sources here
     self.pull_dir: str = ''  # pull new testcases from this dir
@@ -202,6 +202,10 @@ class FuzzerFrontend(AnalysisBackend):
     parser.add_argument(
       "--blackbox", action="store_true",
       help="Black-box fuzzing without compile-time instrumentation.")
+
+    parser.add_argument(
+      "--fuzzer_out", action="store_true",
+      help="Show fuzzer-specific output (graphical interface) instead of deepstate one.")
 
     parser.add_argument(
       "--fuzzer_args", default=[], nargs='*',
@@ -566,15 +570,49 @@ class FuzzerFrontend(AnalysisBackend):
   ##############################################
 
 
-  @contextmanager
-  def process(*args, **kwargs):
-      proc = subprocess.Popen(*args, **kwargs)
+  def manage(self):
+    # print and save statistics
+    if not self.fuzzer_out:
+      self.populate_stats()
+      self.print_stats()
+
+    # invoke ensemble if seed synchronization option is set
+    if self.enable_sync:
+      L.debug("%s - Performing sync cycle %s", self.name, self.sync_count)
+
+      # call ensemble to perform seed synchronization
+      self.ensemble()
+
+      # if sync_out argument set, output individual fuzzer statistics
+      # rather than have our ensembler report global stats
+      if self.sync_out:
+        print(f"\n{self.name} Fuzzer Stats\n")
+        for head, stat in self.reporter().items():
+          print(f"{head}\t:\t{stat}")
+
+      self.sync_count += 1
+
+
+  def cleanup(self):
+    if not self.proc:
+      return
+    
+    L.info(f"Killing process {self.proc.pid} and childs.")
+
+    # terminate
+    for some_proc in psutil.Process(self.proc.pid).children(recursive=True) + [self.proc]:
+      some_proc.terminate()
+
+    # hard kill
+    for some_proc in psutil.Process(self.proc.pid).children(recursive=True) + [self.proc]:
       try:
-          yield proc
-      finally:
-          for child in psutil.Process(proc.pid).children(recursive=True):
-              child.kill()
-          proc.kill()
+        some_proc.communicate(timeout=1)
+        L.info("Fuzzer subprocess (PID %d) exited with `%d`", some_proc.pid, some_proc.returncode)
+      except subprocess.TimeoutExpired:
+        L.warning("Subprocess (PID %d) could not terminate in time, killing.", some_proc.pid)
+        some_proc.kill()
+
+    self.proc = None
 
 
   def run(self, runner: Optional[str] = None, no_exec: bool = False):
@@ -604,33 +642,110 @@ class FuzzerFrontend(AnalysisBackend):
     L.info("Executing command `%s`", command)
     self.start_time: int = int(time.time())
     self.command: str = ' '.join(command)
+    self.sync_count = 0
 
-    # TODO: will need to restart the fuzzer in some cases
-    # like libFuzzer (stops on first crash found) or hoggfuzz (for synchronization)
-    while True:
+    total_execution_time: int = 0
+    wait_time: int = self.sync_cycle
+    run_fuzzer: bool = True
+    prev_log_level = L.level
+
+    # run or resume fuzzer process as long as it is needed
+    # may create new processes continuously
+    while run_fuzzer:
+      run_one_fuzzer_process: bool = False
       try:
-        result = self._run(command)
+        if self.fuzzer_out:
+          # disable deepstate output
+          L.setLevel("ERROR")
+          self.proc = subprocess.Popen(command)
+        else:
+          self.proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-      # any OS-specific errors encountered
-      except OSError as e:
-        raise FuzzFrontendError(f"{self.name} run interrupted due to OSError: {e}.")
+        run_one_fuzzer_process = True
+        L.info("Started fuzzer process with PID %d.", self.proc.pid)
 
-      # SIGINT stops fuzzer, but continues frontend execution
-      except KeyboardInterrupt:
-        print(f"Stopped the {self.name} fuzzer.")
-
-      # our exception, handle it somewhere ruther
-      except AnalysisBackendError as e:
-        raise e
-
-      # bad things happed, inform user and proceed
-      except Exception:
-        import traceback
-        L.error("Exception catched during fuzzer run:")
+      except (OSError, ValueError):
+        L.setLevel(prev_log_level)
         L.error(traceback.format_exc())
+        raise FuzzFrontendError("Exception during fuzzer startup.")
 
-      # TODO: check results for failures
-      L.debug(result)
+      # run-manage loop, until somethings happens (error, interrupt, fuzzer exits)
+      # use only one process
+      while run_one_fuzzer_process:
+        # general timeout
+        time_left = float('inf')
+        total_execution_time = int(time.time() - self.start_time)
+        if self.timeout != 0:
+          time_left = self.timeout - total_execution_time
+          if time_left < 0:
+            run_one_fuzzer_process = False
+            run_fuzzer = False
+            wait_time = 0
+            L.info("Timeout")
+
+        try:
+          # sleep/communicate for `self.sync_cycle` time
+          timeout_one_cycle: int = wait_time
+          if wait_time > time_left:
+            timeout_one_cycle = int(time_left)
+
+          L.debug("One cycle `communicate` with timeout %d.", timeout_one_cycle)
+          stdout, stderr = self.proc.communicate(timeout=timeout_one_cycle)
+
+          # fuzzer process exited, check return code
+          if self.proc.returncode != 0:
+            if stdout:
+              L.error(stdout.decode('utf8'))
+            if stderr:
+              L.error(stderr.decode('utf8'))
+            raise FuzzFrontendError(f"Fuzzer {self.name} (PID {self.proc.pid}) exited "
+                                    f"with return code {self.proc.returncode}.")
+          else:
+            L.info("Fuzzer %s (PID %d) exited with return code %d.",
+                      self.name, self.proc.pid, self.proc.returncode)
+            run_one_fuzzer_process = False
+
+        # Timeout, just continue to management step
+        except subprocess.TimeoutExpired:
+          L.debug("Once cycle timeout.")
+
+        # Any OS-specific errors encountered
+        except OSError as e:
+          L.error("%s run interrupted due to OSError: %s.", self.name, e)
+          run_one_fuzzer_process = False
+
+        # SIGINT stops fuzzer, but continues frontend execution
+        except KeyboardInterrupt:
+          L.info("Stopped the %s fuzzer.", self.name)
+          run_one_fuzzer_process = False
+          run_fuzzer = False
+
+        # bad things happed, inform user and exit
+        except Exception:
+          L.error(traceback.format_exc())      
+          L.error("Exception during fuzzer %s run.", self.name)
+          run_one_fuzzer_process = False
+          run_fuzzer = False
+
+        # manage
+        if run_one_fuzzer_process:
+          try:
+            L.debug("Management cycle starts after %ss.", total_execution_time)
+            self.manage()
+
+          # error in management, exit
+          except Exception:
+            L.error(traceback.format_exc())      
+            L.error("Exception during fuzzer %s run.", self.name)
+            run_one_fuzzer_process = False
+            run_fuzzer = False
+
+      # cleanup
+      try:
+        L.setLevel(prev_log_level)
+        self.cleanup()
+      except:
+        pass
 
       # TODO: resume if needed
       break
@@ -643,95 +758,6 @@ class FuzzerFrontend(AnalysisBackend):
     if not no_exec:
       L.info("Calling post-exec for fuzzer post-processing")
       self.post_exec()
-
-
-  def _run(self, command: List[str]) -> int:
-    """
-    Spawns a singular fuzzer process for execution.
-
-    :param command: list of arguments representing fuzzer command to execute.
-    """
-    self._start_time_one: int = int(time.time())
-
-    with process(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as self.proc:
-      L.info("Starting fuzzer with PID `%d`", self.proc.pid)
-      L.info("Fuzzer one session start time: %s", self._start_time_one)
-
-      # while fuzzers may configure timeout, subprocess can ensure exit and is useful when parallelizing
-      # processes or doing ensemble-based testing.
-      stdout, stderr = self.proc.communicate(timeout=self.timeout if self.timeout != 0 else None)
-
-    # calculate total execution time
-    exec_time: float = round(time.time() - self._start_time_one, 2)
-    L.info("Fuzzer one session exec time: %ss", exec_time)
-
-    return stdout, stderr
-
-    # invoke ensemble if seed synchronization option is set
-    # if self.enable_sync:
-
-    #   # do not ensemble as fuzzer initializes
-    #   time.sleep(5)
-    #   self.sync_count = 0
-
-    #   # ensemble "event" loop
-    #   while self._is_alive():
-
-    #     L.debug("%s - Performing sync cycle %s", self.name, self.sync_count)
-
-    #     # sleep for execution cycle
-    #     time.sleep(self.sync_cycle)
-
-    #     # call ensemble to perform seed synchronization
-    #     self.ensemble()
-
-    #     # if sync_out argument set, output individual fuzzer statistics
-    #     # rather than have our ensembler report global stats
-    #     if self.sync_out:
-    #       print(f"\n{self.name} Fuzzer Stats\n")
-    #       for head, stat in self.reporter().items():
-    #         print(f"{head}\t:\t{stat}")
-
-    #     self.sync_count += 1
-
-
-  def _is_alive(self) -> bool:
-    """
-    Checks to see if fuzzer PID is running, but tossing SIGT (0) to see if we can
-    interact. Ideally used in an event loop during a running process.
-    """
-
-    if self._on:
-      return True
-
-    try:
-      os.kill(self.proc.pid, 0)
-    except (OSError, ProcessLookupError):
-      return False
-
-    return True
-
-
-  def _kill(self) -> None:
-    """
-    Kills running fuzzer process. Can be used forcefully if
-    KeyboardInterrupt signal falls through and process continues execution.
-    """
-    if not hasattr(self, "proc"):
-      raise FuzzFrontendError("Attempted to kill non-running PID.")
-
-    if not self.proc or self._on is False:
-      return
-
-    self.proc.terminate()
-    try:
-      self.proc.communicate(timeout=1)
-      L.info("Fuzzer subprocess exited with `%d`", self.proc.returncode)
-    except subprocess.TimeoutExpired:
-      L.warning("Subprocess could not terminate in time, killing.")
-      self.proc.terminate()
-
-    self._on = False
 
 
   ############################################
@@ -754,6 +780,12 @@ class FuzzerFrontend(AnalysisBackend):
     feedback.
     """
     raise NotImplementedError("Must implement in frontend subclass.")
+
+
+  def print_stats(self):
+    for key, value in self.stats.items():
+      if value:
+        print(f"{key}: {value}")
 
 
   def post_exec(self):
@@ -822,6 +854,9 @@ class FuzzerFrontend(AnalysisBackend):
     Base method for implementing ensemble fuzzing with seed synchronization. User should
     implement any additional logic for determining whether to sync/get seeds as if in event loop.
     """
+
+    if not self.sync_dir:
+      return
 
     if global_queue is None:
       global_queue = self.sync_dir + "/"

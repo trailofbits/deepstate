@@ -60,6 +60,8 @@ class LibFuzzer(FuzzerFrontend):
     super().pre_exec()
 
     # again, because we may had run compiler
+    if not self.binary:
+      raise FuzzFrontendError("Binary not set.")
     self.binary = os.path.abspath(self.binary)
     self.fuzzer_exe = self.binary # type: ignore
 
@@ -96,7 +98,8 @@ class LibFuzzer(FuzzerFrontend):
       "-artifact_prefix={}".format(self.crash_dir + "/"),
       # "-jobs={}".format(2),  # crashes deepstate ;/
       "-workers={}".format(1),
-      "-reload"
+      "-reload=1",
+      "-runs=-1"
     ])
 
     for key, val in self.fuzzer_args:
@@ -123,6 +126,10 @@ class LibFuzzer(FuzzerFrontend):
       cmd_list.append(self.input_seeds)
 
     return cmd_list
+
+
+  def populate_stats(self):
+    pass
 
 
   def post_exec(self):

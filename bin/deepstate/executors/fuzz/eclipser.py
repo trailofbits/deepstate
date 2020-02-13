@@ -151,11 +151,16 @@ class Eclipser(FuzzerFrontend):
     out: str = self.output_test_dir
 
     L.info("Performing post-processing decoding on testcases and crashes")
-    subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "decode", "-i", out + "/testcase", "-o", out + "/decoded"])
-    subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "decode", "-i", out + "/crash", "-o", out + "/decoded"])
+    subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "decode", "-i", self.pull_dir, "-o", out + "/decoded"])
+    subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "decode", "-i", self.crash_dir, "-o", out + "/decoded"])
     for f in glob.glob(out + "/decoded/decoded_files/*"):
       shutil.copy(f, out)
     shutil.rmtree(out + "/decoded")
+
+
+  def populate_stats(self):
+    crashes: int = len(os.listdir(self.crash_dir))
+    self.stats["unique_crashes"] = str(crashes)
 
 
   def reporter(self) -> Dict[str, int]:
