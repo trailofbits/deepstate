@@ -18,7 +18,6 @@ import json
 import logging
 import argparse
 import subprocess
-import operator
 import time
 
 from typing import List, Dict, Optional, Any

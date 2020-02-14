@@ -23,7 +23,6 @@ import psutil  # type: ignore
 import argparse
 import shutil
 import traceback
-import fcntl
 
 from tempfile import mkdtemp
 from pathlib import Path
