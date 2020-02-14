@@ -87,12 +87,8 @@ jobs:
           context: .
           dockerfile: docker/Dockerfile
           push_image_and_stages: true  # because we run workflow on PRs
-          build_extra_args: "--cache-from=deepstate-base"
-  fuzzer:
-    runs-on: ubuntu-latest
-    needs: container
-    container: deepstate
-    steps:
-      - name: Test
+          build_extra_args: "--cache-from=deepstate-base --build-arg=make_j=4"
+      - name: Test fuzzers
+        container: deepstate
         run: |
-          nosetests tests/test_fuzzers.py
+          sudo pip3 install nose && nosetests tests/test_fuzzers.py
