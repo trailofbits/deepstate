@@ -874,8 +874,8 @@ class FuzzerFrontend(AnalysisBackend):
       L.warning("Called `ensemble`, but `--sync_dir` not provided.")
       return
 
-    global_queue: str = self.sync_dir
-    local_queue: str = self.push_dir
+    global_queue = self.sync_dir
+    local_queue = self.push_dir
 
     # check global queue
     global_len: int = len(os.listdir(self.crash_dir))

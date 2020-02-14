@@ -70,9 +70,6 @@ class Eclipser(FuzzerFrontend):
     # TODO handle that somehow
     L.warning("Eclipser doesn't limit child processes memory.")
 
-    sync_dir = os.path.join(self.output_test_dir, "sync_dir")
-    main_dir = os.path.join(self.output_test_dir, "the_fuzzer")
-
     self.encoded_testcases_dir: str = os.path.join(self.output_test_dir, "the_fuzzer", "testcase")
     self.encoded_crash_dir: str = os.path.join(self.output_test_dir, "the_fuzzer", "crash")
 
