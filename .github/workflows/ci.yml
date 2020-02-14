@@ -88,3 +88,10 @@ jobs:
           dockerfile: docker/Dockerfile
           push_image_and_stages: true  # because we run workflow on PRs
           build_extra_args: "--cache-from=deepstate-base"
+  fuzzer:
+    needs: container
+    container: deepstate
+    steps:
+      - name: Test
+        run: |
+          nosetests tests/test_fuzzers.py
