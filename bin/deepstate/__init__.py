@@ -48,7 +48,9 @@ LOG_LEVEL_INT_TO_LOGGER = {
 
 log_level_from_env: str = os.environ.get("DEEPSTATE_LOG", "2")
 try:
-  logger.setLevel(LOG_LEVEL_INT_TO_STR[int(log_level_from_env)])
+  log_level_from_env_int: int = int(log_level_from_env)
+  logger.setLevel(LOG_LEVEL_INT_TO_STR[log_level_from_env_int])
+  logger.info("Setting log level from DEEPSTATE_LOG: %d", log_level_from_env_int)
 except ValueError:
   print("$DEEPSTATE_LOG contains invalid value `%s`, "
         "should be int in 0-6 (debug, trace, info, warning, error, external, critical).",

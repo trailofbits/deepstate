@@ -184,6 +184,7 @@ class AnalysisBackend(object):
       target_args_parsed.append((key, val))
     _args['target_args'] = target_args_parsed
 
+
     # if configuration is specified, parse and replace argument instantiations
     if args.config:
       _args.update(cls.build_from_config(args.config)) # type: ignore
@@ -194,15 +195,16 @@ class AnalysisBackend(object):
       del _args["config"]
 
     # log level fixing
-    if os.environ.get("DEEPSTATE_LOG", None) is None:
+    if not os.environ.get("DEEPSTATE_LOG"):
       if _args["min_log_level"] < 0 or _args["min_log_level"] > 6:
         raise AnalysisBackendError(f"`--min_log_level` is in invalid range, should be in 0-6 "
                                     "(debug, trace, info, warning, error, external, critical).")
 
+      L.warning("Setting log level from --min_log_level: %d", _args["min_log_level"])
       logger = logging.getLogger("deepstate")
       logger.setLevel(LOG_LEVEL_INT_TO_STR[_args["min_log_level"]])
     else:
-      L.info("Using log level from $DEEPSTATE_LOG.")
+      L.debug("Using log level from $DEEPSTATE_LOG.")
       
     cls._ARGS = args
     return cls._ARGS
