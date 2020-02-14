@@ -206,6 +206,8 @@ class Angora(FuzzerFrontend):
     """
     Parses Angora output JSON config to dict for reporting.
     """
+    super().populate_stats()
+
     stat_file_path: str = os.path.join(self.output_test_dir, "angora", "fuzzer_stats")
     with open(stat_file_path, "r") as stat_file:
       self.stats["fuzzer_pid"] = stat_file.read().split(":", 1)[1].strip()
@@ -231,17 +233,18 @@ class Angora(FuzzerFrontend):
     self.stats["execs_per_sec"] = new_stats.get("speed", [0])[0]
     self.stats["paths_total"] = new_stats.get("num_inputs", 0)
 
-    self.stats["unique_crashes"] = new_stats.get("num_crashes", 0)
+    if new_stats.get("num_crashes"):
+      self.stats["unique_crashes"] = new_stats.get("num_crashes")
     self.stats["unique_hangs"] = new_stats.get("num_hangs", 0)
 
-    all_fuzz = []
-    for one_fuzz in new_stats.get("fuzz", []):
-      time_key = one_fuzz.pop("time", {})
-      s = time_key.get("secs", 0)
-      ns = time_key.get("nanos", 0)
-      t = float('{}.{:09d}'.format(s, ns))
-      all_fuzz.append((t, one_fuzz))
-    all_fuzz = sorted(all_fuzz, key=operator.itemgetter(0), reverse=True)
+    # all_fuzz = []
+    # for one_fuzz in new_stats.get("fuzz", []):
+    #   time_key = one_fuzz.pop("time", {})
+    #   s = time_key.get("secs", 0)
+    #   ns = time_key.get("nanos", 0)
+    #   t = float('{}.{:09d}'.format(s, ns))
+    #   all_fuzz.append((t, one_fuzz))
+    # all_fuzz = sorted(all_fuzz, key=operator.itemgetter(0), reverse=True)
 
     # if len(all_fuzz) >= 2:
     #   last_crash_execs = 0
@@ -250,7 +253,7 @@ class Angora(FuzzerFrontend):
     #       last_crash_execs = one_fuzz["num_exec"]
     #   self.stats["execs_since_crash"] = self.stats["execs_done"] - last_crash_execs
 
-    self.stats["command_line"] = self.command
+    # self.stats["command_line"] = self.command
 
 
   def reporter(self) -> Optional[Dict[str, Any]]:

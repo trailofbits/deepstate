@@ -40,7 +40,7 @@ class CrashFuzzerTest(deepstate_base.DeepStateFuzzerTestCase):
       return compiled_files
 
 
-    def break_callback(output):
+    def crash_found(output):
       """
       Check if some crash were found assuming that
         fuzzer output is the deepstate one (--fuzzer_out == False)
@@ -67,10 +67,10 @@ class CrashFuzzerTest(deepstate_base.DeepStateFuzzerTestCase):
 
       # run command
       (r, output) = logrun.logrun([deepstate] + arguments, output_log_file, 
-                                    180, break_callback=break_callback)
+                                    180, break_callback=crash_found)
 
       # check output
-      self.assertEqual(r, "CALLBACK_BREAK")
+      self.assertTrue(crash_found(output))
 
 
     test_source_file = "examples/SimpleCrash.cpp"

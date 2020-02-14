@@ -129,7 +129,38 @@ class LibFuzzer(FuzzerFrontend):
 
 
   def populate_stats(self):
-    pass
+    super().populate_stats()
+    if not self.proc or self.proc.stderr.closed:
+      return
+
+    # libFuzzer under DeepState have broken output
+    # splitted into multiple lines, preceeded with "EXTERNAL:"
+    done_reading: bool = False
+    for line in self.proc.stderr.readlines(100):
+      if done_reading:
+        break
+
+      if line.startswith(b"EXTERNAL: "):
+        line = line.split(b":", 1)[1].strip()
+        if line.startswith(b"#"):
+          # new event code
+          self.stats["execs_done"] = line.split()[0].strip(b"#").decode()
+
+          for line in self.proc.stderr.readlines(100):
+            line = line.split(b":", 1)[1].strip()
+            if not line or line == b'\n':
+              done_reading = True
+              break
+
+            if b": " in line:
+              key, value = line.split(b": ", 1)
+              if key == b"exec/s":
+                self.stats["execs_per_sec"] = value.decode()
+              elif key == b"units":
+                self.stats["paths_total"] = value.decode()
+              elif key == b"cov":
+                self.stats["bitmap_cvg"] = value.decode()
+
 
 
   def post_exec(self):

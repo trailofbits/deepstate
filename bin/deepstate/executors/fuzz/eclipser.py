@@ -67,15 +67,18 @@ class Eclipser(FuzzerFrontend):
     sync_dir = os.path.join(self.output_test_dir, "sync_dir")
     main_dir = os.path.join(self.output_test_dir, "the_fuzzer")
     self.push_dir = os.path.join(sync_dir, "queue")
-    self.pull_dir = os.path.join(main_dir, "testcase")
-    self.crash_dir = os.path.join(main_dir, "crash")
+    self.pull_dir = self.push_dir
+    self.crash_dir = os.path.join(main_dir, "crashes")
 
     # resume fuzzing
     if len(os.listdir(self.output_test_dir)) > 1:
-      self.check_required_directories([self.push_dir, self.pull_dir, self.crash_dir])
+      self.check_required_directories([self.push_dir, self.crash_dir,
+                                        os.path.join(main_dir, "crash"), os.path.join(main_dir, "testcase")])
       L.info(f"Resuming fuzzing using seeds from {self.pull_dir} (skipping --input_seeds option).")
+      self.decode_testcases()
+      self.input_seeds = self.push_dir
     else:
-      self.setup_new_session([main_dir, self.push_dir])
+      self.setup_new_session([self.crash_dir, self.push_dir])
 
     if self.blackbox == True:
       L.info("Blackbox option is redundant. Eclipser works on non-instrumented binaries using QEMU by default.")
@@ -144,23 +147,41 @@ class Eclipser(FuzzerFrontend):
     super().ensemble(local_queue)
 
 
+  def decode_testcases(self):
+    L.info("Performing decoding on testcases and crashes")
+    encoded_testcases_path: str = os.path.join(self.output_test_dir, "the_fuzzer", "testcase")
+    encoded_crashes_path: str = os.path.join(self.output_test_dir, "the_fuzzer", "crash")
+    decoded_path: str = os.path.join(self.output_test_dir, "decoded")
+
+    subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "decode",
+                        "-i", encoded_crashes_path, "-o", decoded_path],
+                    stdout=subprocess.PIPE)
+    for f in glob.glob(os.path.join(decoded_path, "decoded_files", "*")):
+      shutil.copy(f, self.crash_dir)
+    shutil.rmtree(decoded_path)
+
+    subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "decode",
+                        "-i", encoded_testcases_path, "-o", decoded_path],
+                    stdout=subprocess.PIPE)
+    for f in glob.glob(os.path.join(decoded_path, "decoded_files", "*")):
+      shutil.copy(f, self.pull_dir)
+    shutil.rmtree(decoded_path)
+
+
+  def manage(self):
+    self.decode_testcases()
+    super().manage()
+
+
   def post_exec(self) -> None:
     """
     Decode and minimize testcases after fuzzing.
     """
-    out: str = self.output_test_dir
-
-    L.info("Performing post-processing decoding on testcases and crashes")
-    subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "decode", "-i", self.pull_dir, "-o", out + "/decoded"])
-    subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "decode", "-i", self.crash_dir, "-o", out + "/decoded"])
-    for f in glob.glob(out + "/decoded/decoded_files/*"):
-      shutil.copy(f, out)
-    shutil.rmtree(out + "/decoded")
+    self.decode_testcases()
 
 
   def populate_stats(self):
-    crashes: int = len(os.listdir(self.crash_dir))
-    self.stats["unique_crashes"] = str(crashes)
+    super().populate_stats()
 
 
   def reporter(self) -> Dict[str, int]:

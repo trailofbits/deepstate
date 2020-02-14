@@ -141,6 +141,7 @@ class AFL(FuzzerFrontend):
     """
     Retrieves and parses the stats file produced by AFL
     """
+    super().populate_stats()
     stat_file_path: str = os.path.join(self.output_test_dir, "the_fuzzer", "fuzzer_stats")
     with open(stat_file_path, "r") as stat_file:
       for line in stat_file:

@@ -59,6 +59,10 @@ def logrun(cmd, file, timeout, break_callback=None):
   totalTime = time.time() - start
   sys.stderr.write("\n")
 
+  inf.seek(oldContentLen, 0)
+  newContent = inf.read()
+  sys.stderr.write(newContent)
+  sys.stderr.flush()
   inf.seek(0, 0)
   contents = inf.read()
   inf.close()

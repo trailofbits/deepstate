@@ -85,7 +85,7 @@ class Honggfuzz(FuzzerFrontend):
       "--output", self.push_dir,  # auto-create, reusable
       "--crashdir", self.crash_dir,
       # "--logfile", os.path.join(self.output_test_dir, "hfuzz_log.txt"),
-      "--verbose",
+      # "--verbose",
       "--rlimit_rss", str(self.mem_limit),
     ])
 
@@ -127,44 +127,7 @@ class Honggfuzz(FuzzerFrontend):
     """
     Retrieves and parses the stats file produced by Honggfuzz
     """
-    # add crash metrics
-    crashes: int = len(os.listdir(self.crash_dir))
-    self.stats["unique_crashes"] = str(crashes)
-
-    stat_file_path: str = os.path.join(self.output_test_dir, "HONGGFUZZ.REPORT.TXT")
-    if not os.path.isfile(stat_file_path):
-      return
-
-    with open(stat_file_path, "r") as stat_file:
-      lines = stat_file.readlines()
-
-    stats: Dict[str, Optional[str]] = {
-      "mutationsPerRun": None,
-      "externalCmd": None,
-      "fuzzStdin": None,
-      "timeout": None,
-      "ignoreAddr": None,
-      "ASLimit": None,
-      "RSSLimit": None,
-      "DATALimit": None,
-      "wordlistFile": None,
-      "fuzzTarget": None,
-      "ORIG_FNAME": None,
-      "FUZZ_FNAME": None,
-      "PID": None,
-      "SIGNAL": None,
-      "FAULT ADDRESS": None,
-      "INSTRUCTION": None,
-      "STACK HASH": None,
-    }
-
-    # strip first 4 and last 5 lines to make a parseable file
-    lines = lines[4:][:-5]
-
-    for l in lines:
-      for k in stats.keys():
-        if k in l:
-          stats[k] = l.split(":")[1].strip()
+    super().populate_stats()
 
 
   def reporter(self) -> Dict[str, Optional[str]]:
