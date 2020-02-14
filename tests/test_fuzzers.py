@@ -35,7 +35,7 @@ class CrashFuzzerTest(deepstate_base.DeepStateFuzzerTestCase):
 
       # return compiled file(s)
       # if Angora fuzzer, file.taint should be before file.fast 
-      if any([compiled_file.endswith('.taint') for compiled_file in compiled_files]):
+      if any([compiled_file.endswith('.taint.angora') for compiled_file in compiled_files]):
         compiled_files = sorted(compiled_files, reverse=True) 
       return compiled_files
 

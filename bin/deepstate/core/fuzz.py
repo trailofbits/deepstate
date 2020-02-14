@@ -46,6 +46,12 @@ class FuzzerFrontend(AnalysisBackend):
   Defines a base front-end object for using DeepState to interact with fuzzers.
   """
 
+  REQUIRE_SEEDS: bool = False
+
+  PUSH_DIR: str
+  PULL_DIR: str
+  CRASH_DIR: str
+
   def __init__(self, envvar: str) -> None:
     """
     Create and store variables:
@@ -56,6 +62,10 @@ class FuzzerFrontend(AnalysisBackend):
       - stats (dict that frontend should populate in populate_stats method)
       - stats_file (file where to put stats from fuzzer in common format)
       - proc (handler to fuzzer process)
+
+      - push_dir (push testcases from external sources here)
+      - pull_dir (pull new testcases from this dir)
+      - crash_dir (crashes will be in this dir)
 
     Inherits:
       - name (name for pretty printing)
@@ -113,7 +123,7 @@ class FuzzerFrontend(AnalysisBackend):
       "execs_since_crash": None,
       "slowest_exec_ms": None,
       "peak_rss_mb": None,
-      "command_line": None
+      "sync_dir_size": None
     }
 
     # parsed argument attributes
@@ -125,16 +135,14 @@ class FuzzerFrontend(AnalysisBackend):
     self.fuzzer_args: List[Any] = []
     self.fuzzer_out: bool = False
 
-    self.enable_sync: bool = False
     self.sync_cycle: int = 5
     self.sync_out: bool = True
     self.sync_dir: Optional[str] = None
 
-    self.push_dir: str = ''  # push testcases from external sources here
-    self.pull_dir: str = ''  # pull new testcases from this dir
-    self.crash_dir: str = ''  # crashes will be in this dir
+    self.push_dir: str = ''
+    self.pull_dir: str = ''
+    self.crash_dir: str = ''
 
-    self.post_stats: bool = False
     self.home_path: Optional[str] = None
 
 
@@ -156,7 +164,6 @@ class FuzzerFrontend(AnalysisBackend):
       - max_input_size (default: 8192B)
       - fuzzer_args (default: {})
       - blackbox (default: False)
-      - post_stats (default: False)
 
     Optional arguments (may be None):
       - input_seeds
@@ -215,27 +222,12 @@ class FuzzerFrontend(AnalysisBackend):
     # Parallel / Ensemble Fuzzing
     ensemble_group = parser.add_argument_group("Parallel/Ensemble Fuzzing")
     ensemble_group.add_argument(
-      "--enable_sync", action="store_true",
-      help="Enable seed synchronization to another seed queue directory.")
-
-    ensemble_group.add_argument(
-      "--sync_out", action="store_true",
-      help="When set, output individual fuzzer stat summary, instead of a global summary from the ensembler")
-
-    ensemble_group.add_argument(
-      "--sync_dir", type=str, default="out_sync",
-      help="Directory representing seed queue for synchronization between local queue.")
+      "--sync_dir", type=str,
+      help="Directory representing seed queue for synchronization between fuzzers.")
 
     ensemble_group.add_argument(
       "--sync_cycle", type=int, default=5,
       help="Time in seconds the executor should sync to sync directory (default is 5 seconds).")
-
-
-    # Post-processing
-    post_group = parser.add_argument_group("Execution Post-processing")
-    post_group.add_argument("--post_stats", action="store_true",
-      help="Output post-fuzzing statistics to user (if any).")
-
 
     # Miscellaneous options
     parser.add_argument(
@@ -428,6 +420,7 @@ class FuzzerFrontend(AnalysisBackend):
       - check for targets (self.binary)
       - may check for input_seeds
       - check for output directory
+      - check for sync_dir
       - update stats_file path
     """
 
@@ -492,12 +485,23 @@ class FuzzerFrontend(AnalysisBackend):
     # update stats file
     self.stats_file = os.path.join(self.output_test_dir, self.stats_file)
 
+    # require seeds flag
+    self.require_seeds = self.REQUIRE_SEEDS
+
+    # push/pull/crash paths
+    self.push_dir = os.path.join(self.output_test_dir, self.PUSH_DIR)
+    self.pull_dir = os.path.join(self.output_test_dir, self.PULL_DIR)
+    self.crash_dir = os.path.join(self.output_test_dir, self.CRASH_DIR)
+
     # check if we enabled seed synchronization, and initialize directory
-    if self.enable_sync:
+    if self.sync_dir:
+      if not os.path.exists(self.sync_dir):
+        raise FuzzFrontendError(f"Seed synchronization dir (`{self.sync_dir}`) doesn't exist.")
+
       if not os.path.isdir(self.sync_dir):
-        L.info("Initializing sync directory for ensembling seeds.")
-        os.mkdir(self.sync_dir)
-      L.debug("Sync directory: %s", self.sync_dir)
+        raise FuzzFrontendError(f"Seed synchronization dir (`{self.sync_dir}`) is not a directory.")
+
+      L.info("Will synchronize seed using `%s` directory.", self.sync_dir)
 
 
   ##################################
@@ -572,23 +576,20 @@ class FuzzerFrontend(AnalysisBackend):
 
   def manage(self):
     # print and save statistics
+    self.populate_stats()
+    self.save_stats()
     if not self.fuzzer_out:
-      self.populate_stats()
       self.print_stats()
 
-    # invoke ensemble if seed synchronization option is set
-    if self.enable_sync:
-      L.debug("%s - Performing sync cycle %s", self.name, self.sync_count)
+    # invoke ensemble if sync_dir is provided
+    if self.sync_dir:
+      L.info("%s - Performing sync cycle %s", self.name, self.sync_count)
 
       # call ensemble to perform seed synchronization
       self.ensemble()
 
-      # if sync_out argument set, output individual fuzzer statistics
-      # rather than have our ensembler report global stats
-      if self.sync_out:
-        print(f"\n{self.name} Fuzzer Stats\n")
-        for head, stat in self.reporter().items():
-          print(f"{head}\t:\t{stat}")
+      # update global statistics
+      self.stats["sync_dir_size"] = str(len(os.listdir(self.sync_dir)))
 
       self.sync_count += 1
 
@@ -804,6 +805,13 @@ class FuzzerFrontend(AnalysisBackend):
     L.fuzz_stats("-"*30)
 
 
+  def save_stats(self):
+    with open(self.stats_file, 'w') as f:
+      for key, value in self.stats.items():
+        if value:
+          f.write(f"{key}:{value}\n")
+
+
   def post_exec(self):
     """
     Performs user-specified post-processing execution logic. Should be implemented by user, and can implement
@@ -813,59 +821,47 @@ class FuzzerFrontend(AnalysisBackend):
     # make sure that child processes are killed
     self.cleanup()
 
-    raise NotImplementedError("Must implement in frontend subclass.")
-
 
   ###################################
   # Ensemble/Parallel Fuzzing methods
   ###################################
 
 
-  def _sync_seeds(self, mode: str, src: str, dest: str, excludes: List[str] = []) -> None:
+  def _sync_seeds(self, src: str, dest: str, excludes: List[str] = []) -> None:
     """
     Helper that invokes rsync for convenient file syncing between two files.
 
     TODO(alan): implement functionality for syncing across servers.
     TODO(alan): consider implementing "native" syncing alongside current "rsync mode".
 
-    :param mode: str representing mode (either 'GET' or 'PUSH')
     :param src: path to source queue
     :param dest: path to destination queue
     :param excludes: list of string patterns for paths to ignore when rsync-ing
     """
 
-    if not mode in ["GET", "PUSH"]:
-      raise FuzzFrontendError(f"Unknown mode for seed syncing: `{mode}`")
-
-    rsync_cmd: List[str] = ["rsync", "-racz", "--ignore-existing"]
+    rsync_cmd: List[str] = [
+      "rsync",
+      "--recursive",
+      "--archive",
+      "--checksum",
+      "--compress",
+      "--ignore-existing"
+    ]
 
     # subclass should invoke with list of pattern ignores
     if len(excludes) > 0:
       rsync_cmd += [f"--exclude={e}" for e in excludes]
 
-    if mode == "GET":
-      rsync_cmd += [dest, src]
-    elif mode == "PUSH":
-      rsync_cmd += [src, dest]
+    rsync_cmd += [
+      os.path.join(src, ""),  # append trailing / 
+      dest
+    ]
 
     L.debug("rsync command: %s", rsync_cmd)
     try:
       subprocess.Popen(rsync_cmd)
     except subprocess.CalledProcessError as e:
-      raise FuzzFrontendError(f"{self.name} run interrupted due to exception {e}.")
-
-
-  @staticmethod
-  def _queue_len(queue_path: str) -> int:
-    """
-    Helper that checks the number of seeds in queue, returns 0 if path doesn't
-    exist yet.
-
-    :param queue_path: path to queue (ie AFL_out/queue/)
-    """
-    if not os.path.exists(queue_path):
-      return 0
-    return len([path for path in os.listdir(queue_path)])
+      raise FuzzFrontendError(f"{self.name} rsync interrupted due to exception {e}.")
 
 
   def ensemble(self, local_queue: Optional[str] = None, global_queue: Optional[str] = None):
@@ -875,28 +871,25 @@ class FuzzerFrontend(AnalysisBackend):
     """
 
     if not self.sync_dir:
+      L.warning("Called `ensemble`, but `--sync_dir` not provided.")
       return
 
-    if global_queue is None:
-      global_queue = self.sync_dir + "/"
+    global_queue: str = self.sync_dir
+    local_queue: str = self.push_dir
 
-    global_len: int = self._queue_len(global_queue)
-    L.debug("Global seed queue: %s with %d files", global_queue, global_len)
+    # check global queue
+    global_len: int = len(os.listdir(self.crash_dir))
+    L.debug("Global seed queue: `%s` with %d files", global_queue, global_len)
 
-    if local_queue is None:
-      local_queue = self.output_test_dir + "/queue/"
+    # update local queue with new findings
+    self._sync_seeds(src=self.pull_dir, dest=self.push_dir)
 
-    local_len: int = self._queue_len(local_queue)
-    L.debug("Fuzzer local seed queue: %s with %d files", local_queue, local_len)
-
-    # sanity check: if global queue is empty, populate from local queue
-    if (global_len == 0) and (local_len > 0):
-      L.info("Nothing in global queue, pushing seeds from local queue")
-      self._sync_seeds("PUSH", local_queue, global_queue)
-      return
+    # check local queue
+    local_len: int = len(os.listdir(self.push_dir))
+    L.debug("Fuzzer local seed queue: `%s` with %d files", local_queue, local_len)
 
     # get seeds from local to global queue, rsync will deal with duplicates
-    self._sync_seeds("GET", global_queue, local_queue)
+    self._sync_seeds(src=local_queue, dest=global_queue)
 
     # push seeds from global queue to local, rsync will deal with duplicates
-    self._sync_seeds("PUSH", global_queue, local_queue)
+    self._sync_seeds(src=global_queue, dest=local_queue)

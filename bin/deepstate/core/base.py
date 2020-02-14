@@ -147,10 +147,6 @@ class AnalysisBackend(object):
       "-t", "--timeout", default=0, type=int,
       help="Time to kill analysis worker processes, in seconds (default is 0 for none).")
 
-    parser.add_argument(
-      "-w", "--num_workers", default=1, type=int,
-      help="Number of worker jobs to spawn for analysis (default is 1).")
-
     parser.add_argument("--mem_limit", type=int, default=50,
       help="Child process memory limit in MiB (default is 50). 0 for unlimited.")
 

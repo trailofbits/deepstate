@@ -33,6 +33,12 @@ class AFL(FuzzerFrontend):
                   "COMPILER": "afl-clang++"
                   }
 
+  REQUIRE_SEEDS = True
+
+  PUSH_DIR = os.path.join("sync_dir", "queue")
+  PULL_DIR = os.path.join("the_fuzzer", "queue")
+  CRASH_DIR = os.path.join("the_fuzzer", "crashes")
+
   @classmethod
   def parse_args(cls) -> None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
@@ -76,16 +82,9 @@ class AFL(FuzzerFrontend):
             if f_min.read() != f_max.read():
               raise FuzzFrontendError("Suboptimal CPU scaling governor. Execute 'echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'")
 
-    # set input/output variables
-    # if we aren't in dumb mode, or we are using crash mode
-    if 'n' not in self.fuzzer_args or 'C' in self.fuzzer_args:
-      self.require_seeds = True
-
-    sync_dir = os.path.join(self.output_test_dir, "sync_dir")
-    main_dir = os.path.join(self.output_test_dir, "the_fuzzer")
-    self.push_dir = os.path.join(sync_dir, "queue")
-    self.pull_dir = os.path.join(main_dir, "queue")
-    self.crash_dir = os.path.join(main_dir, "crashes")
+    # if we are in dumb mode and we are not using crash mode
+    if 'n' in self.fuzzer_args and 'C' not in self.fuzzer_args:
+      self.require_seeds = False
 
     # resume fuzzing
     if len(os.listdir(self.output_test_dir)) > 1:
@@ -164,8 +163,8 @@ class AFL(FuzzerFrontend):
     })
 
 
-  def _sync_seeds(self, mode, src, dest, excludes=["*.cur_input"]) -> None:
-    super()._sync_seeds(mode, src, dest, excludes=excludes)
+  def _sync_seeds(self, src, dest, excludes=["*.cur_input", ".state"]) -> None:
+    super()._sync_seeds(src, dest, excludes=excludes)
 
 
   def post_exec(self) -> None:
@@ -175,11 +174,7 @@ class AFL(FuzzerFrontend):
     both sync_dir and local queue.
     """
     # TODO: merge output_test_dir/the_fuzzer/crashes* into one dir
-    if self.post_stats:
-      print(f"\n{self.name} RUN STATS:\n")
-      for stat, val in self.stats.items():
-        fstat: str = stat.replace("_", " ").upper()
-        print(f"{fstat}:\t\t\t{val}")
+    super().post_exec()
 
 
 def main():

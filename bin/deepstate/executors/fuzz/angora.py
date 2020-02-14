@@ -39,6 +39,12 @@ class Angora(FuzzerFrontend):
                   "CLANG_COMPILER": "clang++"
                   }
 
+  REQUIRE_SEEDS = True
+
+  PUSH_DIR = os.path.join("sync_dir", "queue")
+  PULL_DIR = os.path.join("angora", "queue")
+  CRASH_DIR = os.path.join("angora", "crashes")
+
 
   @classmethod
   def parse_args(cls) -> None:
@@ -142,14 +148,6 @@ class Angora(FuzzerFrontend):
 
     if not os.path.exists(self.taint_binary):
       raise FuzzFrontendError("Taint binary doesn't exist")
-
-    # set input/output variables
-    self.require_seeds = True
-    sync_dir = os.path.join(self.output_test_dir, "sync_dir")
-    main_dir = os.path.join(self.output_test_dir, "angora")
-    self.push_dir = os.path.join(sync_dir, "queue")
-    self.pull_dir = os.path.join(main_dir, "queue")
-    self.crash_dir = os.path.join(main_dir, "crashes")
 
     # resume fuzzing
     if len(os.listdir(self.output_test_dir)) > 1:

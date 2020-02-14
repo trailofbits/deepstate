@@ -30,6 +30,12 @@ class LibFuzzer(FuzzerFrontend):
                   "COMPILER": "clang++"
                   }
 
+  REQUIRE_SEEDS = False
+
+  PUSH_DIR = os.path.join("sync_dir", "queue")
+  PULL_DIR = os.path.join("sync_dir", "queue")
+  CRASH_DIR = os.path.join("the_fuzzer", "crashes")
+
   @classmethod
   def parse_args(cls) -> None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
@@ -68,12 +74,6 @@ class LibFuzzer(FuzzerFrontend):
     if self.blackbox is True:
       raise FuzzFrontendError("Blackbox fuzzing is not supported by libFuzzer.")
 
-    sync_dir = os.path.join(self.output_test_dir, "sync_dir")
-    main_dir = os.path.join(self.output_test_dir, "the_fuzzer")
-    self.push_dir = os.path.join(sync_dir, "queue")
-    self.pull_dir = self.push_dir
-    self.crash_dir = os.path.join(main_dir, "crashes")
-
     # resuming fuzzing
     if len(os.listdir(self.output_test_dir)) > 0:
       self.check_required_directories([self.push_dir, self.pull_dir, self.crash_dir])
@@ -99,7 +99,8 @@ class LibFuzzer(FuzzerFrontend):
       # "-jobs={}".format(2),  # crashes deepstate ;/
       "-workers={}".format(1),
       "-reload=1",
-      "-runs=-1"
+      "-runs=-1",
+      "-print_final_stats=1"
     ])
 
     for key, val in self.fuzzer_args:
@@ -115,9 +116,6 @@ class LibFuzzer(FuzzerFrontend):
     if self.exec_timeout:
       cmd_list.append("-timeout={}".format(self.exec_timeout / 1000))
 
-    if self.post_stats:
-      cmd_list.append("-print_final_stats={}".format(1))
-
     # must be here, this are positional args
     cmd_list.append(self.push_dir)  # no auto-create, reusable
 
@@ -130,7 +128,7 @@ class LibFuzzer(FuzzerFrontend):
 
   def populate_stats(self):
     super().populate_stats()
-    if not self.proc or self.proc.stderr.closed:
+    if not self.proc or not self.proc.stderr or self.proc.stderr.closed:
       return
 
     # libFuzzer under DeepState have broken output
@@ -146,21 +144,16 @@ class LibFuzzer(FuzzerFrontend):
           # new event code
           self.stats["execs_done"] = line.split()[0].strip(b"#").decode()
 
-          for line in self.proc.stderr.readlines(100):
-            line = line.split(b":", 1)[1].strip()
-            if not line or line == b'\n':
-              done_reading = True
-              break
-
-            if b": " in line:
-              key, value = line.split(b": ", 1)
-              if key == b"exec/s":
-                self.stats["execs_per_sec"] = value.decode()
-              elif key == b"units":
-                self.stats["paths_total"] = value.decode()
-              elif key == b"cov":
-                self.stats["bitmap_cvg"] = value.decode()
-
+        elif ":" in line:
+          line = line.split(b":", 1)[1].strip()
+          if b": " in line:
+            key, value = line.split(b": ", 1)
+            if key == b"exec/s":
+              self.stats["execs_per_sec"] = value.decode()
+            elif key == b"units":
+              self.stats["paths_total"] = value.decode()
+            elif key == b"cov":
+              self.stats["bitmap_cvg"] = value.decode()
 
 
   def post_exec(self):

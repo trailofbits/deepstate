@@ -31,6 +31,12 @@ class Honggfuzz(FuzzerFrontend):
                   "COMPILER": "hfuzz-clang++"
                   }
 
+  REQUIRE_SEEDS = True
+
+  PUSH_DIR = os.path.join("sync_dir", "queue")
+  PULL_DIR = os.path.join("sync_dir", "queue")
+  CRASH_DIR = os.path.join("the_fuzzer", "crashes")
+
 
   @classmethod
   def parse_args(cls) -> None:
@@ -56,15 +62,7 @@ class Honggfuzz(FuzzerFrontend):
 
 
   def pre_exec(self):
-    self.require_seeds = True
-
     super().pre_exec()
-
-    sync_dir = os.path.join(self.output_test_dir, "sync_dir")
-    main_dir = os.path.join(self.output_test_dir, "the_fuzzer")
-    self.push_dir = os.path.join(sync_dir, "queue")
-    self.pull_dir = self.push_dir
-    self.crash_dir = os.path.join(main_dir, "crashes")
 
     # resume fuzzing
     if len(os.listdir(self.output_test_dir)) > 1:
@@ -141,10 +139,7 @@ class Honggfuzz(FuzzerFrontend):
 
 
   def post_exec(self) -> None:
-    if self.post_stats:
-      print("\n")
-      for k, v in self.stats.items():
-        print(f"{k} : {v}")
+    super().post_exec()
 
 
 def main():

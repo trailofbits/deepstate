@@ -40,6 +40,12 @@ class Eclipser(FuzzerFrontend):
                   "RUNNER": "dotnet"
                   }
 
+  REQUIRE_SEEDS = False
+
+  PUSH_DIR = os.path.join("sync_dir", "queue")
+  PULL_DIR = os.path.join("sync_dir", "queue")
+  CRASH_DIR = os.path.join("the_fuzzer", "crashes")
+
 
   def print_help(self):
     subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "fuzz", "--help"])
@@ -66,14 +72,14 @@ class Eclipser(FuzzerFrontend):
 
     sync_dir = os.path.join(self.output_test_dir, "sync_dir")
     main_dir = os.path.join(self.output_test_dir, "the_fuzzer")
-    self.push_dir = os.path.join(sync_dir, "queue")
-    self.pull_dir = self.push_dir
-    self.crash_dir = os.path.join(main_dir, "crashes")
+
+    self.encoded_testcases_dir: str = os.path.join(self.output_test_dir, "the_fuzzer", "testcase")
+    self.encoded_crash_dir: str = os.path.join(self.output_test_dir, "the_fuzzer", "crash")
 
     # resume fuzzing
     if len(os.listdir(self.output_test_dir)) > 1:
       self.check_required_directories([self.push_dir, self.crash_dir,
-                                        os.path.join(main_dir, "crash"), os.path.join(main_dir, "testcase")])
+                                       self.encoded_crash_dir, self.encoded_testcases_dir])
       L.info(f"Resuming fuzzing using seeds from {self.pull_dir} (skipping --input_seeds option).")
       self.decode_testcases()
       self.input_seeds = self.push_dir
@@ -149,19 +155,17 @@ class Eclipser(FuzzerFrontend):
 
   def decode_testcases(self):
     L.info("Performing decoding on testcases and crashes")
-    encoded_testcases_path: str = os.path.join(self.output_test_dir, "the_fuzzer", "testcase")
-    encoded_crashes_path: str = os.path.join(self.output_test_dir, "the_fuzzer", "crash")
     decoded_path: str = os.path.join(self.output_test_dir, "decoded")
 
     subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "decode",
-                        "-i", encoded_crashes_path, "-o", decoded_path],
+                        "-i", self.encoded_crash_dir, "-o", decoded_path],
                     stdout=subprocess.PIPE)
     for f in glob.glob(os.path.join(decoded_path, "decoded_files", "*")):
       shutil.copy(f, self.crash_dir)
     shutil.rmtree(decoded_path)
 
     subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "decode",
-                        "-i", encoded_testcases_path, "-o", decoded_path],
+                        "-i", self.encoded_testcases_dir, "-o", decoded_path],
                     stdout=subprocess.PIPE)
     for f in glob.glob(os.path.join(decoded_path, "decoded_files", "*")):
       shutil.copy(f, self.pull_dir)
