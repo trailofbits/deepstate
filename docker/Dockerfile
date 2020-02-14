@@ -27,8 +27,12 @@ FROM deepstate-base
 ENV DEPS_DIR /home/user/deps
 ARG make_j
 
+# Angr, Manticore
+RUN echo 'Installing angr and manticore' \
+    && pip3 install z3-solver angr git+git://github.com/trailofbits/manticore.git --user
+
 # Eclipser - not deepstate dependent
-COPY --from=Eclipser /home/user/Eclipser $DEPS_DIR/eclipser
+COPY --from=Eclipser /home/user/Eclipser/build $DEPS_DIR/eclipser
 RUN echo 'Eclipser - installing dotnet' \
     && wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb \
     && sudo dpkg -i packages-microsoft-prod.deb \
@@ -98,10 +102,8 @@ RUN echo 'Building deepstate with Honggfuzz' \
     && make -j $make_j \
     && sudo cp ./libdeepstate_HFUZZ.a /usr/local/lib/
 
-# Angr, Manticore
-RUN echo 'Installing angr and manticore' \
-    && pip3 install z3-solver angr git+git://github.com/trailofbits/manticore.git --user
-
 ENV CXX=clang++ CC=clang
+ENV AFL_HOME="$DEPS_DIR/afl" HONGGFUZZ_HOME="$DEPS_DIR/honggfuzz" \
+    ANGORA_HOME="$DEPS_DIR/angora" ECLIPSER_HOME="$DEPS_DIR/eclipser"
 
 CMD ["/bin/bash"]
