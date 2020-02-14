@@ -242,6 +242,8 @@ class SymexFrontend(AnalysisBackend):
         LOGGER.critical("Cannot create test output directory: %s", test_dir)
 
       self.context['test_dir'] = test_dir
+    else:
+      LOGGER.warning("Argument `--output_test_dir` not given, will not save test cases.")
 
   def log_message(self, level, message):
     """Add `message` to the `level`-specific log as a `Stream` object for
