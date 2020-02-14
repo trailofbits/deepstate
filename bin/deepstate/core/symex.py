@@ -24,7 +24,6 @@ from deepstate import (DeepStateLogger, LOG_LEVEL_INT_TO_LOGGER,
 from deepstate.core.base import AnalysisBackend
 
 
-logging.setLoggerClass(DeepStateLogger)  # fails without it, don't know why
 LOGGER = logging.getLogger(__name__)
 
 
@@ -230,7 +229,7 @@ class SymexFrontend(AnalysisBackend):
     # Create the output directory for this test case.
     args = self.parse_args()
 
-    if args.output_test_dir is not None:
+    if args.output_test_dir:
       test_dir = os.path.join(args.output_test_dir,
                               os.path.basename(info.file_name),
                               info.name)

@@ -200,7 +200,7 @@ class AnalysisBackend(object):
         raise AnalysisBackendError(f"`--min_log_level` is in invalid range, should be in 0-6 "
                                     "(debug, trace, info, warning, error, external, critical).")
 
-      L.warning("Setting log level from --min_log_level: %d", _args["min_log_level"])
+      L.info("Setting log level from --min_log_level: %d", _args["min_log_level"])
       logger = logging.getLogger("deepstate")
       logger.setLevel(LOG_LEVEL_INT_TO_STR[_args["min_log_level"]])
     else:
