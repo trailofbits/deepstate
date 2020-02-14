@@ -9,11 +9,13 @@ class DeepStateLogger(logging.getLoggerClass()): # type: ignore
         logging.Logger.__init__(self, name=name)
         self.trace = functools.partial(self.log, 15) # type: ignore
         self.external = functools.partial(self.log, 45) # type: ignore
+        self.fuzz_stats = functools.partial(self.log, 46) # type: ignore
 
 
 logging.basicConfig()
 logging.addLevelName(15, "TRACE")
 logging.addLevelName(45, "EXTERNAL")
+logging.addLevelName(46, "FUZZ_STATS")
 logging.setLoggerClass(DeepStateLogger)
 
 logger = logging.getLogger(__name__)

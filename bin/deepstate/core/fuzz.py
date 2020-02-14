@@ -393,7 +393,7 @@ class FuzzerFrontend(AnalysisBackend):
 
   def create_fake_seeds(self):
     if not self.input_seeds:
-      self.input_seeds = mkdtemp()
+      self.input_seeds = mkdtemp(prefix="deepstate_fake_seed")
     with open(os.path.join(self.input_seeds, "fake_seed"), 'wb') as f:
       f.write(b'X')
     L.info("Creating fake input seed file in directory `%s`", self.input_seeds)
@@ -656,9 +656,11 @@ class FuzzerFrontend(AnalysisBackend):
       try:
         if self.fuzzer_out:
           # disable deepstate output
+          L.info("Using fuzzer output.")
           L.setLevel("ERROR")
           self.proc = subprocess.Popen(command)
         else:
+          L.info("Using DeepState output.")
           self.proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         run_one_fuzzer_process = True
@@ -785,7 +787,7 @@ class FuzzerFrontend(AnalysisBackend):
   def print_stats(self):
     for key, value in self.stats.items():
       if value:
-        print(f"{key}: {value}")
+        L.fuzz_stats("%s:%s", key, value)
 
 
   def post_exec(self):
