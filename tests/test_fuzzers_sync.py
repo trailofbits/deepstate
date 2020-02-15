@@ -216,7 +216,7 @@ class CrashFuzzerTest(TestCase):
 
     # config
     fuzzers_list = ["afl", "libfuzzer", "angora", "eclipser", "honggfuzz"]
-    output_from_fuzzer = "angora"  # or "afl" etc
+    output_from_fuzzer = None  # or "afl" etc
     timeout = None
 
     # init
