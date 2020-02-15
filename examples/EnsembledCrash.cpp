@@ -25,17 +25,16 @@ DEEPSTATE_NOINLINE static void segfault(char *first, char* second) {
   unsigned *p = NULL;
   if (hashed == 7169420828666634849U) {
     if (hashed2 == 10753164746288518855U) {
-      *(p+2) = 0xdeadbeef;  /* second crash */
+      *(p+2) = 0xdeadbeef;  /* crash */
     }
-    *(p+1) = 0xdeadbabe;  /* first crash */
+    printf("BOM\n");
   }
 }
 
 TEST(SimpleCrash, SegFault) {
-  char *first = (char*)DeepState_Malloc(9);
-  char *second = (char*)DeepState_Malloc(9);
-  read(0, first, 9);
-  read(0, second, 9);
+  char *first = (char*)DeepState_CStr_C(9, 0);
+  char *second = (char*)DeepState_CStr_C(9, 0);
+
   for (int i = 0; i < 9; ++i)
     printf("%02x", (unsigned char)first[i]);
   printf("\n");

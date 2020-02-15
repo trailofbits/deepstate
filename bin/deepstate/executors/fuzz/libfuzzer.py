@@ -96,8 +96,9 @@ class LibFuzzer(FuzzerFrontend):
       "-rss_limit_mb={}".format(self.mem_limit),
       "-max_len={}".format(self.max_input_size),
       "-artifact_prefix={}".format(self.crash_dir + "/"),
-      # "-jobs={}".format(2),  # crashes deepstate ;/
-      "-workers={}".format(1),
+      # "-jobs={}".format(0),
+      # "-workers={}".format(1),
+      # "-fork=1",
       "-reload=1",
       "-runs=-1",
       "-print_final_stats=1"
@@ -128,35 +129,39 @@ class LibFuzzer(FuzzerFrontend):
 
   def populate_stats(self):
     super().populate_stats()
-    if not self.proc or not self.proc.stderr or self.proc.stderr.closed:
+
+    if not os.path.isfile(self.output_file):
       return
 
-    # libFuzzer under DeepState have broken output
-    # splitted into multiple lines, preceeded with "EXTERNAL:"
-    done_reading: bool = False
-    for line in self.proc.stderr.readlines(100):
-      if done_reading:
-        break
-
-      if line.startswith(b"EXTERNAL: "):
-        line = line.split(b":", 1)[1].strip()
-        if line.startswith(b"#"):
-          # new event code
-          self.stats["execs_done"] = line.split()[0].strip(b"#").decode()
-
-        elif ":" in line:
+    with open(self.output_file, "rb") as f:
+      for line in f:
+        # libFuzzer under DeepState have broken output
+        # splitted into multiple lines, preceeded with "EXTERNAL:"
+        if line.startswith(b"EXTERNAL: "):
           line = line.split(b":", 1)[1].strip()
-          if b": " in line:
-            key, value = line.split(b": ", 1)
-            if key == b"exec/s":
-              self.stats["execs_per_sec"] = value.decode()
-            elif key == b"units":
-              self.stats["paths_total"] = value.decode()
-            elif key == b"cov":
-              self.stats["bitmap_cvg"] = value.decode()
+          if line.startswith(b"#"):
+            # new event code
+            self.stats["execs_done"] = line.split()[0].strip(b"#").decode()
+
+          elif b":" in line:
+            line = line.split(b":", 1)[1].strip()
+            if b":" in line:
+              key, value = line.split(b":", 1)
+              if key == b"exec/s":
+                self.stats["execs_per_sec"] = value.strip().decode()
+              elif key == b"units":
+                self.stats["paths_total"] = value.strip().decode()
+              elif key == b"cov":
+                self.stats["bitmap_cvg"] = value.strip().decode()
+
+
+  def _sync_seeds(self, src, dest, excludes=[]) -> None:
+    excludes += ["*.cur_input", ".state"]
+    super()._sync_seeds(src, dest, excludes=excludes)
 
 
   def post_exec(self):
+    # TODO: remove crashes from seeds dir and from sync_dir
     pass
 
 
