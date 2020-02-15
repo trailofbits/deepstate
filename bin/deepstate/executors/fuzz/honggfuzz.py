@@ -85,6 +85,7 @@ class Honggfuzz(FuzzerFrontend):
       # "--logfile", os.path.join(self.output_test_dir, "hfuzz_log.txt"),
       # "--verbose",
       "--rlimit_rss", str(self.mem_limit),
+      "--threads", "1"
     ])
 
     if self.max_input_size == 0:

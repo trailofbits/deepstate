@@ -206,8 +206,11 @@ class Angora(FuzzerFrontend):
     super().populate_stats()
 
     stat_file_path: str = os.path.join(self.output_test_dir, "angora", "fuzzer_stats")
-    with open(stat_file_path, "r") as stat_file:
-      self.stats["fuzzer_pid"] = stat_file.read().split(":", 1)[1].strip()
+    try:
+      with open(stat_file_path, "r") as stat_file:
+        self.stats["fuzzer_pid"] = stat_file.read().split(":", 1)[1].strip()
+    except:
+      pass
 
     stat_file_path = os.path.join(self.output_test_dir, "angora", "chart_stat.json")
     new_stats: Dict[str, str] = {}
@@ -216,6 +219,8 @@ class Angora(FuzzerFrontend):
         new_stats = json.loads(stat_file.read())
     except json.decoder.JSONDecodeError as e:
       L.error(f"Error parsing {stat_file_path}: {e}.")
+    except:
+      return
 
     # previous_stats = self.stats.copy()
 

@@ -75,7 +75,7 @@ class CrashFuzzerTest(TestCase):
       cmd = ' '.join([exe] + arguments)
       print(f"Running: `{cmd}`.")
       if output_from_fuzzer and output_from_fuzzer == fuzzer:
-        proc = subprocess.Popen([exe] + arguments + ["--fuzzer_out"])
+        proc = subprocess.Popen([exe] + arguments)
       else:
         proc = subprocess.Popen([exe] + arguments,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -95,14 +95,17 @@ class CrashFuzzerTest(TestCase):
       return 0
 
 
-    def wait_for_crashes(fuzzers, timeout, crashes_required):
-      fuzzers_done = set()
+    def wait_for_crashes(fuzzers, timeout):
+      for fuzzer in fuzzers:
+        fuzzers[fuzzer]["no_crashes"] = 0
+
       start_time = int(time.time())
 
-      while len(fuzzers_done) < len(fuzzers):
-        self.assertLess(time.time() - start_time, timeout)
-        for fuzzer, values in fuzzers.items():
+      while any([v["no_crashes"] < 1 for _, v in fuzzers.items()]):
+        if timeout:
+          self.assertLess(time.time() - start_time, timeout, msg="TIMEOUT")
 
+        for fuzzer, values in fuzzers.items():
           try:
             stats = dict()
             with open(values["stats_file"], "r") as f:
@@ -114,18 +117,28 @@ class CrashFuzzerTest(TestCase):
                 stats[k] = v
 
             print("{:10s}:".format(fuzzer), end="\t")
-            for stat in ["unique_crashes", "sync_dir_size", "execs_done", "paths_total"]:
-              if stat in stats:
-                print(f"{stat}: {stats[stat]}", end="\t|\t")
-            print("")
+            if values["proc"].poll() is None:
+              for stat in ["unique_crashes", "sync_dir_size", "execs_done", "paths_total"]:
+                if stat in stats:
+                  print("{}: {:10s}".format(stat, stats[stat]), end=" |\t")
+              print("")
+              fuzzers[fuzzer]["no_crashes"] = int(stats["unique_crashes"])
+            else:
+              if "unique_crashes" in stats:
+                print("unique_crashes: {:10s}".format(stats["unique_crashes"]), end=" |\t")
+              print("DEAD " + "OoOoo"*5 + "x...")
 
-            if int(stats["unique_crashes"]) >= crashes_required:
-              fuzzers_done.add(fuzzer)
           except FileNotFoundError:
-            print(f"Stats for {fuzzer} (`{values['stats_file']}`) - not found")
-          sleep(1)
+            print(f" - stats not found (`{values['stats_file']}`).")
 
-      print(f"CRASH {crashes_required} - done")
+        for _ in range(3):
+          print("~*~"*5, end=" - ")
+          sys.stderr.flush()
+          sys.stdout.flush()  
+          sleep(1)
+        print("")
+
+      print(f"CRASHING - done")
       print("-"*50)
 
 
@@ -144,18 +157,31 @@ class CrashFuzzerTest(TestCase):
       print(f"Adding deepstate python path: {deepstate_python}.")
       sys.path.append(deepstate_python)
 
-      from deepstate.executors.fuzz.afl import AFL
-      fuzzers["afl"]["class"] = AFL
-      # from deepstate.executors.fuzz.angora import Angora
-      # fuzzers["angora"]["class"] = Angora
-      # from deepstate.executors.fuzz.honggfuzz import Honggfuzz
-      # from deepstate.executors.fuzz.eclipser import Eclipser
-      from deepstate.executors.fuzz.libfuzzer import LibFuzzer
-      fuzzers["libfuzzer"]["class"] = LibFuzzer
+      if "afl" in fuzzers:
+        from deepstate.executors.fuzz.afl import AFL
+        fuzzers["afl"]["class"] = AFL
+      if "angora" in fuzzers:
+        from deepstate.executors.fuzz.angora import Angora
+        fuzzers["angora"]["class"] = Angora
+      if "honggfuzz" in fuzzers:
+        from deepstate.executors.fuzz.honggfuzz import Honggfuzz
+        fuzzers["honggfuzz"]["class"] = Honggfuzz
+      if "eclipser" in fuzzers:
+        from deepstate.executors.fuzz.eclipser import Eclipser
+        fuzzers["eclipser"]["class"] = Eclipser
+      if "libfuzzer" in fuzzers:
+        from deepstate.executors.fuzz.libfuzzer import LibFuzzer
+        fuzzers["libfuzzer"]["class"] = LibFuzzer
 
       # run them for a bit
-      print("Fuzzers started, waiting 5 seconds.")
-      sleep(2)
+      wait_for_start = 2
+      print(f"Fuzzers started, waiting {wait_for_start} seconds.")
+      for _ in range(wait_for_start):
+        sleep(1)
+        print('.', end="")
+        sys.stderr.flush()
+        sys.stdout.flush()
+      print("")
 
       # assert that all fuzzers started
       print("Checking if fuzzers are up and running")
@@ -164,37 +190,37 @@ class CrashFuzzerTest(TestCase):
           self.assertTrue(values["proc"].poll() is None)
         except Exception as e:
           print(f"Error for fuzzer {fuzzer}:")
-          print(values["proc"].stderr.read().decode('utf8'))
+          if values["proc"] and values["proc"].stderr:
+            print(values["proc"].stderr.read().decode('utf8'))
           raise e
         push_dir = os.path.join(values["output_dir"], values["class"].PUSH_DIR)
         self.assertTrue(os.path.isdir(push_dir))
 
-      # manually push first crashing seed to AFL local dir
-      push_dir = os.path.join(fuzzers["afl"]["output_dir"], fuzzers["afl"]["class"].PUSH_DIR)
-      print(f"Pushing seed 1 to AFL: `{push_dir}`")
-      with open(os.path.join(push_dir, "id:000101,first_crash"), "wb") as f:
-        f.write(b64decode("R3JvcyBwemRyQUFBQUFBQUFB"))
+      # manually push crashing seeds to fuzzers local dirs
+      seeds = [b64decode("R3JvcyBwemRyIGZyb20gUEwu")]
+      fuzzer_id = 0
+      for seed_no, seed in enumerate(seeds):
+        fuzzer_id %= len(fuzzers)
+        fuzzer = sorted(fuzzers.keys())[fuzzer_id]
+        values = fuzzers[fuzzer]
+        push_dir = os.path.join(values["output_dir"], values["class"].PUSH_DIR)
+        print(f"Pushing seed {seed_no} to {fuzzer}: `{push_dir}`")
+        with open(os.path.join(push_dir, f"id:000201,the_crash"), "wb") as f:
+          f.write(seed)
+        fuzzer_id += 1
 
-      # check if all fuzzers find first crash using afl's seed
-      wait_for_crashes(fuzzers, one_crash_sync_timeout, 1)
-
-      # # manually push second crashing seed to Angora local dir
-      # push_dir = os.path.join(fuzzers["angora"]["output_dir"], ANGORA_PUSH_DIR)
-      # print(f"Pushing seed 2 to Angora: `{push_dir}`")
-      # with open(os.path.join(push_dir, "id:000202,second_crash"), "wb") as f:
-      #   f.write(b64decode("R3JvcyBwemRyIGZyb20gUEwu"))
-
-      # # check if all fuzzers find first crash using afl's seed
-      # wait_for_crashes(fuzzers, one_crash_sync_timeout, 2)
+      # check if all fuzzers find at least two crashes
+      # that is: the one pushed to its local dir and at least one other
+      wait_for_crashes(fuzzers, timeout)
 
 
     # config
-    fuzzers_list = ["afl", "libfuzzer"]
-    output_from_fuzzer = None
+    fuzzers_list = ["afl", "libfuzzer", "angora", "eclipser", "honggfuzz"]
+    output_from_fuzzer = "angora"  # or "afl" etc
+    timeout = None
 
     # init
     fuzzers = dict()
-    one_crash_sync_timeout = 4*60
     test_source_file = "examples/EnsembledCrash.cpp"
     sync_dir = mkdtemp(prefix="syncing_")
     workspace_dir = mkdtemp(prefix="workspace_")
@@ -212,6 +238,7 @@ class CrashFuzzerTest(TestCase):
     except Exception as e:
       # cleanup
       # hard kill processes
+      print('Killing spawned processes.')
       for _, value in fuzzers.items():
         try:
           proc = value["proc"]
@@ -221,11 +248,13 @@ class CrashFuzzerTest(TestCase):
           pass
 
       # filesystem
+      print("Clearing tmp files.")
       try:
+        sleep(1)
         rmtree(workspace_dir, ignore_errors=True)
         rmtree(sync_dir, ignore_errors=True)
-      except:
-        pass
+      except Exception as e2:
+        print(f"Error clearing: {e2}")
 
       # now can raise
       raise e

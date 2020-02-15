@@ -87,7 +87,7 @@ class Eclipser(FuzzerFrontend):
       L.info("Blackbox option is redundant. Eclipser works on non-instrumented binaries using QEMU by default.")
 
     if self.dictionary:
-      L.error("Angora can't use dictionaries.")
+      L.error("Eclipser can't use dictionaries.")
         
 
   @property

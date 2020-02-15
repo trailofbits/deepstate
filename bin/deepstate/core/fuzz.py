@@ -25,6 +25,7 @@ import shutil
 import traceback
 
 from tempfile import mkdtemp
+from time import sleep
 from pathlib import Path
 from typing import Optional, Dict, List, Any, Tuple
 
@@ -61,6 +62,7 @@ class FuzzerFrontend(AnalysisBackend):
       - require_seeds
       - stats (dict that frontend should populate in populate_stats method)
       - stats_file (file where to put stats from fuzzer in common format)
+      - output_file (file where stdout of fuzzer will be redirected)
       - proc (handler to fuzzer process)
 
       - push_dir (push testcases from external sources here)
@@ -94,16 +96,22 @@ class FuzzerFrontend(AnalysisBackend):
 
     self.proc: subprocess.Popen[bytes]
     self.require_seeds: bool = False
-    self.stats_file: str = 'deepstate-stats.txt'
+    self.stats_file: str = "deepstate-stats.txt"
+    self.output_file: str = "fuzzer-output.txt"
 
     # same as AFL's (https://github.com/google/AFL/blob/master/docs/status_screen.txt)
     self.stats: Dict[str, Optional[str]] = {
-      "last_update": None,
-      "start_time": None,
+      # guaranteed
+      "unique_crashes": None,
       "fuzzer_pid": None,
-      "cycles_done": None,
+      "start_time": None,
+      "sync_dir_size": None,
+
+      # not guaranteed
       "execs_done": None,
       "execs_per_sec": None,
+      "last_update": None,
+      "cycles_done": None,
       "paths_total": None,
       "paths_favored": None,
       "paths_found": None,
@@ -115,7 +123,6 @@ class FuzzerFrontend(AnalysisBackend):
       "variable_paths": None,
       "stability": None,
       "bitmap_cvg": None,
-      "unique_crashes": None,
       "unique_hangs": None,
       "last_path": None,
       "last_crash": None,
@@ -123,7 +130,6 @@ class FuzzerFrontend(AnalysisBackend):
       "execs_since_crash": None,
       "slowest_exec_ms": None,
       "peak_rss_mb": None,
-      "sync_dir_size": None
     }
 
     # parsed argument attributes
@@ -482,8 +488,9 @@ class FuzzerFrontend(AnalysisBackend):
     if not os.path.isdir(self.output_test_dir):
       raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
 
-    # update stats file
+    # update stats and output file
     self.stats_file = os.path.join(self.output_test_dir, self.stats_file)
+    self.output_file = os.path.join(self.output_test_dir, self.output_file)
 
     # require seeds flag
     self.require_seeds = self.REQUIRE_SEEDS
@@ -584,13 +591,7 @@ class FuzzerFrontend(AnalysisBackend):
     # invoke ensemble if sync_dir is provided
     if self.sync_dir:
       L.info("%s - Performing sync cycle %s", self.name, self.sync_count)
-
-      # call ensemble to perform seed synchronization
       self.ensemble()
-
-      # update global statistics
-      self.stats["sync_dir_size"] = str(len(os.listdir(self.sync_dir)))
-
       self.sync_count += 1
 
 
@@ -657,6 +658,10 @@ class FuzzerFrontend(AnalysisBackend):
     run_fuzzer: bool = True
     prev_log_level = L.level
 
+    # for fuzzer output
+    if not self.fuzzer_out:
+      fuzzer_out_file = open(self.output_file, "wb")
+
     # run or resume fuzzer process as long as it is needed
     # may create new processes continuously
     while run_fuzzer:
@@ -672,7 +677,7 @@ class FuzzerFrontend(AnalysisBackend):
           L.info("Using DeepState output.")
           # TODO: frontends uses blocking read in `populate_stats`,
           # we may replace PIPE with normal file and do reads non-blocking
-          self.proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+          self.proc = subprocess.Popen(command, stdout=fuzzer_out_file, stderr=fuzzer_out_file)
 
         run_one_fuzzer_process = True
         L.info("Started fuzzer process with PID %d.", self.proc.pid)
@@ -755,16 +760,26 @@ class FuzzerFrontend(AnalysisBackend):
           run_one_fuzzer_process = False
           run_fuzzer = False
 
+        if self.do_restart():
+          L.info(f"Restarting fuzzer {self.name}.")
+          run_one_fuzzer_process = False
+
       # cleanup
       try:
-        L.setLevel(prev_log_level)
         self.cleanup()
+        sleep(10)  # wait so all fuzzer processes are killed
       except:
         pass
 
-      # TODO: resume if needed
-      break
+      if run_fuzzer:
+        self.post_exec()
 
+      # and... maybe loop again!
+
+    if not self.fuzzer_out:
+      fuzzer_out_file.close()
+
+    L.setLevel(prev_log_level)
     # calculate total execution time
     exec_time: float = round(time.time() - self.start_time, 2)
     L.info("Fuzzer exec time: %ss", exec_time)
@@ -789,13 +804,38 @@ class FuzzerFrontend(AnalysisBackend):
     return NotImplementedError("Must implement in frontend subclass.")
 
 
+  def do_restart(self):
+    """
+    Some fuzzers need restart to use seeds from external sources
+      (can't pull seeds in runtime).
+    This function should determine if the fuzzer should be restarted too look
+      for new seeds.
+    This may be based on time of last new path discovered or whatever.
+
+    Should return False if self.sync_dir is None.
+    """
+    if not self.sync_dir:
+      return False
+
+    if time.time() - self.start_time > 20:
+      return True
+    return False
+
+
   def populate_stats(self):
     """
     Parses out stats generated by fuzzer output. Should be implemented by user, and can return custom
     feedback.
     """
     crashes: int = len(os.listdir(self.crash_dir))
+    if os.path.isfile(os.path.join(self.crash_dir, "README.txt")):
+      crashes -= 1
     self.stats["unique_crashes"] = str(crashes)
+    self.stats["start_time"] = str(int(self.start_time))
+    if self.proc:
+      self.stats["fuzzer_pid"] = str(self.proc.pid)
+    if self.sync_dir:
+      self.stats["sync_dir_size"] = str(len(os.listdir(self.sync_dir)))
 
 
   def print_stats(self):
@@ -857,7 +897,8 @@ class FuzzerFrontend(AnalysisBackend):
       dest
     ]
 
-    L.debug("rsync command: %s", rsync_cmd)
+    # L.debug("rsync command: %s", rsync_cmd)
+    L.debug("rsync %s: from `%s` to `%s`.", self.name, src, dest)
     try:
       subprocess.Popen(rsync_cmd)
     except subprocess.CalledProcessError as e:
@@ -874,8 +915,10 @@ class FuzzerFrontend(AnalysisBackend):
       L.warning("Called `ensemble`, but `--sync_dir` not provided.")
       return
 
-    global_queue = self.sync_dir
+    global_queue = os.path.join(self.sync_dir, "queue")
+    global_crashes = os.path.join(self.sync_dir, "crashes")
     local_queue = self.push_dir
+    local_crashes = self.crash_dir
 
     # check global queue
     global_len: int = len(os.listdir(self.crash_dir))
@@ -890,6 +933,7 @@ class FuzzerFrontend(AnalysisBackend):
 
     # get seeds from local to global queue, rsync will deal with duplicates
     self._sync_seeds(src=local_queue, dest=global_queue)
+    self._sync_seeds(src=local_crashes, dest=global_crashes)
 
     # push seeds from global queue to local, rsync will deal with duplicates
     self._sync_seeds(src=global_queue, dest=local_queue)
