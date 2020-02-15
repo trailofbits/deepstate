@@ -46,7 +46,7 @@ class SymexFrontend(AnalysisBackend):
   """Wrapper around a symbolic executor for making it easy to do common DeepState-
   specific things."""
   def __init__(self):
-    pass
+    self.num_workers: int = 1
 
   def get_context(self):
     raise NotImplementedError("Must be implemented by engine.")
@@ -111,6 +111,10 @@ class SymexFrontend(AnalysisBackend):
     parser.add_argument(
         "--verbosity", default=1, type=int,
         help="Verbosity level for symbolic execution tool (default: 1, lower means less output).")
+
+    parser.add_argument(
+        "-w", "--num_workers", default=1, type=int,
+        help="Number of worker jobs to spawn for analysis (default is 1).")
 
     cls.parser = parser
     return super(SymexFrontend, cls).parse_args()

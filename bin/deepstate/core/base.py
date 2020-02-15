@@ -77,7 +77,6 @@ class AnalysisBackend(object):
     self.binary: Optional[str] = None
     self.output_test_dir: str
     self.timeout: int = 0
-    self.num_workers: int = 1
     self.mem_limit: int = 50
     self.min_log_level: int = 2
 
