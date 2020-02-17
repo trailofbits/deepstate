@@ -817,8 +817,8 @@ class FuzzerFrontend(AnalysisBackend):
     if not self.sync_dir:
       return False
 
-    if time.time() - self.start_time > 20:
-      return True
+    # if time.time() - self.start_time > 20:
+    #   return True
     return False
 
 
