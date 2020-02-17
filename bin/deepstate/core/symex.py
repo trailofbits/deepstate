@@ -296,6 +296,9 @@ class SymexFrontend(AnalysisBackend):
         data = struct.pack('BBBBBBBB', *val_bytes)
         val = struct.unpack(unpack_str, data[:struct.calcsize(unpack_str)])[0]
 
+        if type(val) == bytes:
+          val = val.decode('unicode_escape')
+
         # Remove length specifiers that are not supported.
         format_str = format_str.replace('l', '')
         format_str = format_str.replace('h', '')
