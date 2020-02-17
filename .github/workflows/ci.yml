@@ -90,4 +90,7 @@ jobs:
           build_extra_args: "--cache-from=deepstate-base --build-arg=make_j=2"
       - name: Test fuzzers
         run: |
-          docker run -it deepstate bash -c 'sudo pip3 install nose && nosetests tests/test_fuzzers.py'
+          docker run -it deepstate bash -c 'sudo pip3 install nose && \
+            echo core | sudo tee /proc/sys/kernel/core_pattern && \
+            echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor && \
+            nosetests tests/test_fuzzers.py'
