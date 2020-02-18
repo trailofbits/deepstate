@@ -50,6 +50,7 @@ RUN sudo chown user:user -R ./deepstate
 WORKDIR ./deepstate
 
 # Angora part 2
+# ignore errors in `make`, because Angora doesn't support 32bit builds
 RUN echo 'Building deepstate with Angora - taint' \
     && mkdir -p build_angora_taint && cd build_angora_taint \
     && export PATH="$DEPS_DIR/angora/clang+llvm/bin:$PATH" \
@@ -57,7 +58,7 @@ RUN echo 'Building deepstate with Angora - taint' \
     && export USE_TRACK=1 \
     && export ANGORA_HOME="$DEPS_DIR/angora" \
     && CXX="$ANGORA_HOME/bin/angora-clang++" CC="$ANGORA_HOME/bin/angora-clang" cmake -DDEEPSTATE_ANGORA=ON ../ \
-    && make -j $make_j -i  # ignore errors, because Angora doesn't support 32bit builds \
+    && make -j $make_j -i \
     && sudo cp ./libdeepstate_taint.a /usr/local/lib/
 
 RUN echo 'Building deepstate with Angora - fast' \
@@ -95,6 +96,7 @@ RUN echo 'Building deepstate with AFL' \
 
 # Honggfuzz
 COPY --from=Honggfuzz /home/user/honggfuzz $DEPS_DIR/honggfuzz
+RUN sudo apt-get -y install libunwind-dev
 RUN echo 'Building deepstate with Honggfuzz' \
     && mkdir -p build_honggfuzz && cd build_honggfuzz \
     && export HONGGFUZZ_HOME="$DEPS_DIR/honggfuzz" \
