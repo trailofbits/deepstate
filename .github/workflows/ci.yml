@@ -65,6 +65,14 @@ jobs:
   container:
     runs-on: ubuntu-latest
     steps:
+      - name: Clear cache
+        run: |
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p  ${{ secrets.DOCKER_PASSWORD }} docker.pkg.github.com
+          docker images
+          docker rmi -f trailofbits/deepstate/deepstate-base
+          docker rmi -f trailofbits/deepstate/deepstate
+          docker images | grep trailofbits/deepstate/deepstate-base | tr -s ' ' | cut -d ' ' -f 2 | xargs -I {} docker rmi trailofbits/deepstate/deepstate-base:{}
+          docker images | grep trailofbits/deepstate/deepstate | tr -s ' ' | cut -d ' ' -f 2 | xargs -I {} docker rmi trailofbits/deepstate/deepstate:{}
       - uses: actions/checkout@v2
       - uses: whoan/docker-build-with-cache-action@v3
         with:
