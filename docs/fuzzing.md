@@ -40,7 +40,8 @@ To use one of them as DeepState backend, you need to:
 * compile target test with it
 * run executor with location of installed files provided
 
-To install the fuzzer follow instructions on appropriate webpage.
+To install the fuzzer follow instructions on its website or
+run Deepstate via Docker, as described in [README.md](/README.md)
 
 To compile DeepState with the fuzzer, run `cmake` with
 `-DDEEPSTATE_FUZZERNAME=on` (like `-DDEEPSTATE_AFL=on`) option and
@@ -249,7 +250,7 @@ Dirs:
 * CRASH_DIR - out/angora/crashes
 
 
-## Replay
+## Tests replay
 
 To run saved inputs against some test, just run it with appropriate arguments:
 

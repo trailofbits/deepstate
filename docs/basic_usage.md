@@ -142,9 +142,14 @@ ERROR: Failed: Runlength_EncodeDecode
 
 ## Tests replay
 
-To run saved inputs against some test, just run the executable with appropriate arguments:
+To run saved inputs against the test, just run the executable with appropriate arguments:
 ```shell
 ./Runlen --input_test_dir ./out
+INFO: Ran 0 tests for Runlength_BoringUnitTest; 0 tests failed
+CRITICAL: /home/gros/studia/mgr/fuzzing/tools/deepstate/examples/Runlen.cpp(60): ORIGINAL: 'abbbbb', ENCODED: 'aAbA', ROUNDTRIP: 'ab'
+ERROR: Failed: Runlength_EncodeDecode
+...
+INFO: Ran 64 tests for Runlength_EncodeDecode; 31 tests failed
 ```
 
 ## Test case reduction
