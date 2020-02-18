@@ -65,16 +65,8 @@ jobs:
   container:
     runs-on: ubuntu-latest
     steps:
-      - name: Clear cache
-        run: |
-          docker login -u ${{ secrets.DOCKER_USERNAME }} -p  ${{ secrets.DOCKER_PASSWORD }} docker.pkg.github.com
-          docker images
-          docker rmi -f trailofbits/deepstate/deepstate-base
-          docker rmi -f trailofbits/deepstate/deepstate
-          docker images | grep trailofbits/deepstate/deepstate-base | tr -s ' ' | cut -d ' ' -f 2 | xargs -I {} docker rmi trailofbits/deepstate/deepstate-base:{}
-          docker images | grep trailofbits/deepstate/deepstate | tr -s ' ' | cut -d ' ' -f 2 | xargs -I {} docker rmi trailofbits/deepstate/deepstate:{}
       - uses: actions/checkout@v2
-      - uses: whoan/docker-build-with-cache-action@v3
+      - uses: GrosQuildu/docker-build-with-cache-action@master
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -85,7 +77,7 @@ jobs:
           dockerfile: Dockerfile
           push_image_and_stages: true  # because we run workflow on PRs
           build_extra_args: "--tag deepstate-base"
-      - uses: whoan/docker-build-with-cache-action@v3
+      - uses: GrosQuildu/docker-build-with-cache-action@master
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -94,6 +86,7 @@ jobs:
           image_tag: latest
           context: .
           dockerfile: docker/Dockerfile
+          pull_image_and_stages: false
           push_image_and_stages: true  # because we run workflow on PRs
           build_extra_args: "--cache-from=deepstate-base --build-arg=make_j=2"
       - name: Test fuzzers
