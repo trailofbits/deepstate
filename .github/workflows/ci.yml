@@ -92,4 +92,4 @@ jobs:
       - name: Test fuzzers
         run: |
           echo core | sudo tee /proc/sys/kernel/core_pattern
-          docker run deepstate sh -c 'sudo pip3 install nose && nosetests tests/test_fuzzers.py'
+          docker run trailofbits/deepstate/deepstate sh -c 'sudo pip3 install nose && nosetests tests/test_fuzzers.py'
