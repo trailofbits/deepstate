@@ -92,5 +92,4 @@ jobs:
       - name: Test fuzzers
         run: |
           echo core | sudo tee /proc/sys/kernel/core_pattern
-          echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
           docker run deepstate sh -c 'sudo pip3 install nose && nosetests tests/test_fuzzers.py'
