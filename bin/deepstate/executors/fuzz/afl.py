@@ -70,17 +70,19 @@ class AFL(FuzzerFrontend):
     super().pre_exec()
 
     # check if core dump pattern is set as `core`
-    with open("/proc/sys/kernel/core_pattern") as f:
-      if not "core" in f.read():
-        raise FuzzFrontendError("No core dump pattern set. Execute 'echo core | sudo tee /proc/sys/kernel/core_pattern'")
+    if os.path.isfile("/proc/sys/kernel/core_pattern"):
+      with open("/proc/sys/kernel/core_pattern") as f:
+        if not "core" in f.read():
+          raise FuzzFrontendError("No core dump pattern set. Execute 'echo core | sudo tee /proc/sys/kernel/core_pattern'")
 
     # check if CPU scaling governor is set to `performance`
-    with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor") as f:
-      if not "perf" in f.read(4):
-        with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq") as f_min:
-          with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq") as f_max:
-            if f_min.read() != f_max.read():
-              raise FuzzFrontendError("Suboptimal CPU scaling governor. Execute 'echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'")
+    if os.path.isfile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"):
+      with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor") as f:
+        if not "perf" in f.read(4):
+          with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq") as f_min:
+            with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq") as f_max:
+              if f_min.read() != f_max.read():
+                raise FuzzFrontendError("Suboptimal CPU scaling governor. Execute 'echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'")
 
     # if we are in dumb mode and we are not using crash mode
     if 'n' in self.fuzzer_args and 'C' not in self.fuzzer_args:
