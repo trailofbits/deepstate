@@ -92,9 +92,4 @@ jobs:
       - name: Test fuzzers
         run: |
           echo core | sudo tee /proc/sys/kernel/core_pattern
-          docker image ls
-          docker images ls
-          docker container ls
-          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login --username ${{ secrets.DOCKER_USERNAME }} --password-stdin docker.pkg.github.com
-          docker run trailofbits/deepstate/deepstate sh -c 'sudo pip3 install nose && nosetests tests/test_fuzzers.py'
-          docker logout docker.pkg.github.com
+          docker run docker.pkg.github.com/trailofbits/deepstate/deepstate sh -c 'sudo pip3 install nose && nosetests tests/test_fuzzers.py'
