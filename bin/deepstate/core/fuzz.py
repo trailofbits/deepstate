@@ -767,7 +767,7 @@ class FuzzerFrontend(AnalysisBackend):
       # cleanup
       try:
         self.cleanup()
-        sleep(10)  # wait so all fuzzer processes are killed
+        sleep(1)  # wait so all fuzzer processes are killed
       except:
         pass
 
