@@ -12,6 +12,17 @@ file and CMakeLists.txt show DeepState usage.  Another extensive
 example is a [differential tester that compares Google's leveldb and
 Facebook's rocksdb](https://github.com/agroce/testleveldb).
 
+
+Table of Contents
+=================
+
+  * [Writing test harness](#writing-test-harness)
+  * [Running the test](#running-the-test)
+  * [Tests replay](#tests-replay)
+  * [Test case reduction](#test-case-reduction)
+  * [Log Levels](#log-levels)
+
+
 ## Writing test harness
 
 ```cpp

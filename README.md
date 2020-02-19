@@ -12,6 +12,25 @@ included a
 [full tutorial](https://github.com/trailofbits/publications/tree/master/workshops/DeepState:%20Bringing%20vulnerability%20detection%20tools%20into%20the%20development%20lifecycle%20-%20SecDev%202018)
 on effective use of DeepState.
 
+
+Table of Contents
+=================
+
+  * [Articles describing DeepState](#articles-describing-deepstate)
+  * [Overview of Features](#overview-of-features)
+  * [Build'n'run](#buildnrun)
+     * [Supported Platforms](#supported-platforms)
+     * [Dependencies](#dependencies)
+     * [Building on Ubuntu 18.04 (Bionic)](#building-on-ubuntu-1804-bionic)
+     * [Installing](#installing)
+     * [Installation testing](#installation-testing)
+     * [Docker](#docker)
+  * [Documentation](#documentation)
+  * [Contributing](#contributing)
+  * [Trophy case](#trophy-case)
+  * [License](#license)
+
+
 ## Articles describing DeepState
 
 * [Fuzzing an API with DeepState (Part 1)](https://blog.trailofbits.com/2019/01/22/fuzzing-an-api-with-deepstate-part-1)
@@ -48,13 +67,15 @@ using fuzzing or symbolic execution as a back end to generate data, and saves th
 results so that what DeepState finds can easily be used in
 deterministic settings such as regression testing or CI.
 
-## Supported Platforms
+## Build'n'run
+
+### Supported Platforms
 
 DeepState currently targets Linux, with macOS support in progress
 (the fuzzers work fine, but symbolic execution is not well-supported
 yet, without a painful cross-compilation process).
 
-## Dependencies
+### Dependencies
 
 Build:
 
@@ -68,7 +89,7 @@ Runtime:
 - Python 3.6 (or newer)
 - Z3 (for the Manticore backend)
 
-## Building on Ubuntu 18.04 (Bionic)
+### Building on Ubuntu 18.04 (Bionic)
 
 First make sure you install [Python 3.6 or greater](https://askubuntu.com/a/865569). Then use this command line to install additional requirements and compile DeepState:
 
@@ -81,7 +102,7 @@ make
 sudo make install
 ```
 
-## Installing
+### Installing
 
 Assuming the DeepState build resides in `$DEEPSTATE`, run the following commands to install the DeepState python package:
 
@@ -96,7 +117,7 @@ The `virtualenv`-enabled `$PATH` should now include two executables: `deepstate`
 If you try using Manticore, and it doesn't work, but you definitely have the latest Manticore installed, check the `.travis.yml` file.  If that grabs a Manticore other than the master version, you can try using the version of Manticore we use in our CI tests.  Sometimes Manticore makes a breaking change, and we are behind for a short time.
 
 
-## Installation testing
+### Installation testing
 
 You can check your build using the test binaries that were (by default) built and emitted to `deepstate/build/examples`. For example, to use angr to symbolically execute the `IntegerOverflow` test harness with 4 workers, saving generated test cases in a directory called `out`, you would invoke:
 
@@ -164,7 +185,7 @@ user@a17bc44fd259:~/deepstate/build_afl/examples$ $AFL_HOME/afl-fuzz -i foo -o a
 user@a17bc44fd259:~/deepstate/build_afl/examples$ deepstate-afl -o afl_Runlen2 ./Runlen_AFL --fuzzer_out
 ```
 
-### Documentation
+## Documentation
 
 Check out [docs](/docs) folder:
 
