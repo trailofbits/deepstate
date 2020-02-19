@@ -86,5 +86,10 @@ jobs:
           image_tag: latest
           context: .
           dockerfile: docker/Dockerfile
+          # pull_image_and_stages: false  # if OOM error
           push_image_and_stages: true  # because we run workflow on PRs
-          build_extra_args: "--cache-from=deepstate-base"
+          build_extra_args: "--cache-from=deepstate-base --build-arg=make_j=2"
+      - name: Test fuzzers
+        run: |
+          echo core | sudo tee /proc/sys/kernel/core_pattern
+          docker run docker.pkg.github.com/trailofbits/deepstate/deepstate sh -c 'sudo pip3 install nose && nosetests tests/test_fuzzers.py'

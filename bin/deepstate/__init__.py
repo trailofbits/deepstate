@@ -9,11 +9,13 @@ class DeepStateLogger(logging.getLoggerClass()): # type: ignore
         logging.Logger.__init__(self, name=name)
         self.trace = functools.partial(self.log, 15) # type: ignore
         self.external = functools.partial(self.log, 45) # type: ignore
+        self.fuzz_stats = functools.partial(self.log, 46) # type: ignore
 
 
 logging.basicConfig()
 logging.addLevelName(15, "TRACE")
 logging.addLevelName(45, "EXTERNAL")
+logging.addLevelName(46, "FUZZ_STATS")
 logging.setLoggerClass(DeepStateLogger)
 
 logger = logging.getLogger(__name__)
@@ -48,7 +50,9 @@ LOG_LEVEL_INT_TO_LOGGER = {
 
 log_level_from_env: str = os.environ.get("DEEPSTATE_LOG", "2")
 try:
-  logger.setLevel(LOG_LEVEL_INT_TO_STR[int(log_level_from_env)])
+  log_level_from_env_int: int = int(log_level_from_env)
+  logger.setLevel(LOG_LEVEL_INT_TO_STR[log_level_from_env_int])
+  logger.info("Setting log level from DEEPSTATE_LOG: %d", log_level_from_env_int)
 except ValueError:
   print("$DEEPSTATE_LOG contains invalid value `%s`, "
         "should be int in 0-6 (debug, trace, info, warning, error, external, critical).",

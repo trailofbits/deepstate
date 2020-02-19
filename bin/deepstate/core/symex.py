@@ -19,12 +19,11 @@ import struct
 import argparse
 import hashlib
 
-from deepstate import (DeepStateLogger, LOG_LEVEL_INT_TO_LOGGER,
+from deepstate import (LOG_LEVEL_INT_TO_LOGGER,
                         LOG_LEVEL_TRACE, LOG_LEVEL_ERROR, LOG_LEVEL_CRITICAL)
 from deepstate.core.base import AnalysisBackend
 
 
-logging.setLoggerClass(DeepStateLogger)  # fails without it, don't know why
 LOGGER = logging.getLogger(__name__)
 
 
@@ -47,7 +46,7 @@ class SymexFrontend(AnalysisBackend):
   """Wrapper around a symbolic executor for making it easy to do common DeepState-
   specific things."""
   def __init__(self):
-    pass
+    self.num_workers: int = 1
 
   def get_context(self):
     raise NotImplementedError("Must be implemented by engine.")
@@ -112,6 +111,10 @@ class SymexFrontend(AnalysisBackend):
     parser.add_argument(
         "--verbosity", default=1, type=int,
         help="Verbosity level for symbolic execution tool (default: 1, lower means less output).")
+
+    parser.add_argument(
+        "-w", "--num_workers", default=1, type=int,
+        help="Number of worker jobs to spawn for analysis (default is 1).")
 
     cls.parser = parser
     return super(SymexFrontend, cls).parse_args()
@@ -230,7 +233,7 @@ class SymexFrontend(AnalysisBackend):
     # Create the output directory for this test case.
     args = self.parse_args()
 
-    if args.output_test_dir is not None:
+    if args.output_test_dir:
       test_dir = os.path.join(args.output_test_dir,
                               os.path.basename(info.file_name),
                               info.name)
@@ -243,6 +246,8 @@ class SymexFrontend(AnalysisBackend):
         LOGGER.critical("Cannot create test output directory: %s", test_dir)
 
       self.context['test_dir'] = test_dir
+    else:
+      LOGGER.warning("Argument `--output_test_dir` not given, will not save test cases.")
 
   def log_message(self, level, message):
     """Add `message` to the `level`-specific log as a `Stream` object for
@@ -290,6 +295,9 @@ class SymexFrontend(AnalysisBackend):
         # TODO(pag): I am pretty sure that this is wrong for big-endian.
         data = struct.pack('BBBBBBBB', *val_bytes)
         val = struct.unpack(unpack_str, data[:struct.calcsize(unpack_str)])[0]
+
+        if type(val) == bytes:
+          val = val.decode('unicode_escape')
 
         # Remove length specifiers that are not supported.
         format_str = format_str.replace('l', '')

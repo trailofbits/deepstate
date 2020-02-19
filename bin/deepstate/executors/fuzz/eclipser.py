@@ -36,12 +36,19 @@ class Eclipser(FuzzerFrontend):
   NAME = "Eclipser"
   SEARCH_DIRS = ["build"]
   EXECUTABLES = {"FUZZER": "Eclipser.dll",
-                  "COMPILER": "clang++"  # for regular compilation
+                  "COMPILER": "clang++",  # for regular compilation
+                  "RUNNER": "dotnet"
                   }
+
+  REQUIRE_SEEDS = False
+
+  PUSH_DIR = os.path.join("sync_dir", "queue")
+  PULL_DIR = os.path.join("sync_dir", "queue")
+  CRASH_DIR = os.path.join("the_fuzzer", "crashes")
 
 
   def print_help(self):
-    subprocess.call(["dotnet", self.fuzzer_exe, "fuzz", "--help"])
+    subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "fuzz", "--help"])
 
 
   def compile(self) -> None: # type: ignore
@@ -54,7 +61,7 @@ class Eclipser(FuzzerFrontend):
     flags: List[str] = ["-ldeepstate"]
     if self.compiler_args:
       flags += [arg for arg in self.compiler_args.split(" ")]
-    super().compile(lib_path, flags, self.out_test_name + ".eclipser")
+    super().compile(lib_path, flags, self.out_test_name)
 
 
   def pre_exec(self) -> None:
@@ -63,26 +70,24 @@ class Eclipser(FuzzerFrontend):
     # TODO handle that somehow
     L.warning("Eclipser doesn't limit child processes memory.")
 
+    self.encoded_testcases_dir: str = os.path.join(self.output_test_dir, "the_fuzzer", "testcase")
+    self.encoded_crash_dir: str = os.path.join(self.output_test_dir, "the_fuzzer", "crash")
+
+    # resume fuzzing
+    if len(os.listdir(self.output_test_dir)) > 1:
+      self.check_required_directories([self.push_dir, self.crash_dir,
+                                       self.encoded_crash_dir, self.encoded_testcases_dir])
+      L.info(f"Resuming fuzzing using seeds from {self.pull_dir} (skipping --input_seeds option).")
+      self.decode_testcases()
+      self.input_seeds = self.push_dir
+    else:
+      self.setup_new_session([self.crash_dir, self.push_dir])
+
     if self.blackbox == True:
       L.info("Blackbox option is redundant. Eclipser works on non-instrumented binaries using QEMU by default.")
 
     if self.dictionary:
-      L.error("Angora can't use dictionaries.")
-
-    # require output directory
-    if not self.output_test_dir:
-      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
-
-    if os.path.exists(self.output_test_dir):
-      if not os.path.isdir(self.output_test_dir):
-        raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
-
-    if self.input_seeds:
-      if not os.path.exists(self.input_seeds):
-        raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
-
-      if len(os.listdir(self.input_seeds)) == 0:
-        raise FuzzFrontendError(f"No seeds present in directory `{self.input_seeds}`.")
+      L.error("Eclipser can't use dictionaries.")
         
 
   @property
@@ -102,7 +107,7 @@ class Eclipser(FuzzerFrontend):
       "--src", "file",
       "--fixfilepath", "eclipser.input",
       "--initarg", " ".join(deepstate_args),
-      "--outputdir", self.output_test_dir, # auto-create, reusable
+      "--outputdir", os.path.join(self.output_test_dir, "the_fuzzer"), # auto-create, reusable
     ])
 
     if self.max_input_size == 0:
@@ -145,18 +150,39 @@ class Eclipser(FuzzerFrontend):
     super().ensemble(local_queue)
 
 
+  def decode_testcases(self):
+    L.info("Performing decoding on testcases and crashes")
+    decoded_path: str = os.path.join(self.output_test_dir, "decoded")
+
+    subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "decode",
+                        "-i", self.encoded_crash_dir, "-o", decoded_path],
+                    stdout=subprocess.PIPE)
+    for f in glob.glob(os.path.join(decoded_path, "decoded_files", "*")):
+      shutil.copy(f, self.crash_dir)
+    shutil.rmtree(decoded_path)
+
+    subprocess.call([self.EXECUTABLES["RUNNER"], self.fuzzer_exe, "decode",
+                        "-i", self.encoded_testcases_dir, "-o", decoded_path],
+                    stdout=subprocess.PIPE)
+    for f in glob.glob(os.path.join(decoded_path, "decoded_files", "*")):
+      shutil.copy(f, self.pull_dir)
+    shutil.rmtree(decoded_path)
+
+
+  def manage(self):
+    self.decode_testcases()
+    super().manage()
+
+
   def post_exec(self) -> None:
     """
     Decode and minimize testcases after fuzzing.
     """
-    out: str = self.output_test_dir
+    self.decode_testcases()
 
-    L.info("Performing post-processing decoding on testcases and crashes")
-    subprocess.call(["dotnet", self.fuzzer_exe, "decode", "-i", out + "/testcase", "-o", out + "/decoded"])
-    subprocess.call(["dotnet", self.fuzzer_exe, "decode", "-i", out + "/crash", "-o", out + "/decoded"])
-    for f in glob.glob(out + "/decoded/decoded_files/*"):
-      shutil.copy(f, out)
-    shutil.rmtree(out + "/decoded")
+
+  def populate_stats(self):
+    super().populate_stats()
 
 
   def reporter(self) -> Dict[str, int]:
@@ -175,7 +201,7 @@ def main():
   try:
     fuzzer = Eclipser(envvar="ECLIPSER_HOME")
     fuzzer.parse_args()
-    fuzzer.run(compiler="dotnet")
+    fuzzer.run(runner=fuzzer.EXECUTABLES["RUNNER"])
     return 0
   except FuzzFrontendError as e:
     L.error(e)

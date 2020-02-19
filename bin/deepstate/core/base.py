@@ -74,10 +74,9 @@ class AnalysisBackend(object):
     AnalysisBackend.compiler_exe = self.EXECUTABLES.pop("COMPILER", None)
 
     # parsed argument attributes
-    self.binary: str = None
-    self.output_test_dir: str = f"{self}_out"
+    self.binary: Optional[str] = None
+    self.output_test_dir: str
     self.timeout: int = 0
-    self.num_workers: int = 1
     self.mem_limit: int = 50
     self.min_log_level: int = 2
 
@@ -124,7 +123,8 @@ class AnalysisBackend(object):
         help="Linker flags (space seperated) to include for external libraries.")
 
       compile_group.add_argument("--out_test_name", type=str,
-        help="Set name of generated instrumented binary.")
+        help=("Set name of generated instrumented binary. Default is `out`. "
+        "Automatically adds `.frontend_name_lowercase` suffix."))
 
       compile_group.add_argument("--no_exit_compile", action="store_true",
         help="Continue execution after compiling a harness (set as default if `--config` is set).")
@@ -135,8 +135,8 @@ class AnalysisBackend(object):
 
     # Analysis-related configurations
     parser.add_argument(
-      "-o", "--output_test_dir", type=str, default="out",
-      help="Output directory where tests will be saved (default is `out`).")
+      "-o", "--output_test_dir", type=str,
+      help="Output directory where tests will be saved. Required. If not empty, will try to resume.")
 
     parser.add_argument(
       "-c", "--config", type=str,
@@ -145,10 +145,6 @@ class AnalysisBackend(object):
     parser.add_argument(
       "-t", "--timeout", default=0, type=int,
       help="Time to kill analysis worker processes, in seconds (default is 0 for none).")
-
-    parser.add_argument(
-      "-w", "--num_workers", default=1, type=int,
-      help="Number of worker jobs to spawn for analysis (default is 1).")
 
     parser.add_argument("--mem_limit", type=int, default=50,
       help="Child process memory limit in MiB (default is 50). 0 for unlimited.")
@@ -183,6 +179,7 @@ class AnalysisBackend(object):
       target_args_parsed.append((key, val))
     _args['target_args'] = target_args_parsed
 
+
     # if configuration is specified, parse and replace argument instantiations
     if args.config:
       _args.update(cls.build_from_config(args.config)) # type: ignore
@@ -193,15 +190,16 @@ class AnalysisBackend(object):
       del _args["config"]
 
     # log level fixing
-    if os.environ.get("DEEPSTATE_LOG", None) is None:
+    if not os.environ.get("DEEPSTATE_LOG"):
       if _args["min_log_level"] < 0 or _args["min_log_level"] > 6:
         raise AnalysisBackendError(f"`--min_log_level` is in invalid range, should be in 0-6 "
                                     "(debug, trace, info, warning, error, external, critical).")
 
+      L.info("Setting log level from --min_log_level: %d", _args["min_log_level"])
       logger = logging.getLogger("deepstate")
       logger.setLevel(LOG_LEVEL_INT_TO_STR[_args["min_log_level"]])
     else:
-      L.info("Using log level from $DEEPSTATE_LOG.")
+      L.debug("Using log level from $DEEPSTATE_LOG.")
       
     cls._ARGS = args
     return cls._ARGS

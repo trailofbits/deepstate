@@ -27,8 +27,12 @@ FROM deepstate-base
 ENV DEPS_DIR /home/user/deps
 ARG make_j
 
+# Angr, Manticore
+RUN echo 'Installing angr and manticore' \
+    && pip3 install z3-solver angr git+git://github.com/trailofbits/manticore.git --user
+
 # Eclipser - not deepstate dependent
-COPY --from=Eclipser /home/user/Eclipser $DEPS_DIR/eclipser
+COPY --from=Eclipser /home/user/Eclipser/build $DEPS_DIR/eclipser
 RUN echo 'Eclipser - installing dotnet' \
     && wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb \
     && sudo dpkg -i packages-microsoft-prod.deb \
@@ -46,6 +50,7 @@ RUN sudo chown user:user -R ./deepstate
 WORKDIR ./deepstate
 
 # Angora part 2
+# ignore errors in `make`, because Angora doesn't support 32bit builds
 RUN echo 'Building deepstate with Angora - taint' \
     && mkdir -p build_angora_taint && cd build_angora_taint \
     && export PATH="$DEPS_DIR/angora/clang+llvm/bin:$PATH" \
@@ -53,7 +58,7 @@ RUN echo 'Building deepstate with Angora - taint' \
     && export USE_TRACK=1 \
     && export ANGORA_HOME="$DEPS_DIR/angora" \
     && CXX="$ANGORA_HOME/bin/angora-clang++" CC="$ANGORA_HOME/bin/angora-clang" cmake -DDEEPSTATE_ANGORA=ON ../ \
-    && make -j $make_j -i  # ignore errors, because Angora doesn't support 32bit builds \
+    && make -j $make_j -i \
     && sudo cp ./libdeepstate_taint.a /usr/local/lib/
 
 RUN echo 'Building deepstate with Angora - fast' \
@@ -91,6 +96,7 @@ RUN echo 'Building deepstate with AFL' \
 
 # Honggfuzz
 COPY --from=Honggfuzz /home/user/honggfuzz $DEPS_DIR/honggfuzz
+RUN sudo apt-get -y install libunwind-dev
 RUN echo 'Building deepstate with Honggfuzz' \
     && mkdir -p build_honggfuzz && cd build_honggfuzz \
     && export HONGGFUZZ_HOME="$DEPS_DIR/honggfuzz" \
@@ -98,10 +104,8 @@ RUN echo 'Building deepstate with Honggfuzz' \
     && make -j $make_j \
     && sudo cp ./libdeepstate_HFUZZ.a /usr/local/lib/
 
-# Angr, Manticore
-RUN echo 'Installing angr and manticore' \
-    && pip3 install z3-solver angr git+git://github.com/trailofbits/manticore.git --user
-
 ENV CXX=clang++ CC=clang
+ENV AFL_HOME="$DEPS_DIR/afl" HONGGFUZZ_HOME="$DEPS_DIR/honggfuzz" \
+    ANGORA_HOME="$DEPS_DIR/angora" ECLIPSER_HOME="$DEPS_DIR/eclipser"
 
 CMD ["/bin/bash"]

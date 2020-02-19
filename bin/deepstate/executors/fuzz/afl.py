@@ -16,7 +16,6 @@
 import os
 import logging
 import argparse
-import shutil
 
 from typing import List, Dict, Optional
 
@@ -33,6 +32,12 @@ class AFL(FuzzerFrontend):
   EXECUTABLES = {"FUZZER": "afl-fuzz",
                   "COMPILER": "afl-clang++"
                   }
+
+  REQUIRE_SEEDS = True
+
+  PUSH_DIR = os.path.join("sync_dir", "queue")
+  PULL_DIR = os.path.join("the_fuzzer", "queue")
+  CRASH_DIR = os.path.join("the_fuzzer", "crashes")
 
   @classmethod
   def parse_args(cls) -> None:
@@ -51,55 +56,45 @@ class AFL(FuzzerFrontend):
       flags += [arg for arg in self.compiler_args.split(" ")]
     flags.append("-ldeepstate_AFL")
 
-    super().compile(lib_path, flags, self.out_test_name + ".afl")
+    super().compile(lib_path, flags, self.out_test_name)
 
 
   def pre_exec(self):
     """
     Perform argparse and environment-related sanity checks.
     """
+    # check for afl-qemu-trace if in QEMU mode 
+    if 'Q' in self.fuzzer_args or self.blackbox == True:
+      self.EXECUTABLES["AFL-QEMU-TRACE"] = "afl-qemu-trace"
+
     super().pre_exec()
 
     # check if core dump pattern is set as `core`
-    with open("/proc/sys/kernel/core_pattern") as f:
-      if not "core" in f.read():
-        raise FuzzFrontendError("No core dump pattern set. Execute 'echo core | sudo tee /proc/sys/kernel/core_pattern'")
+    if os.path.isfile("/proc/sys/kernel/core_pattern"):
+      with open("/proc/sys/kernel/core_pattern") as f:
+        if not "core" in f.read():
+          raise FuzzFrontendError("No core dump pattern set. Execute 'echo core | sudo tee /proc/sys/kernel/core_pattern'")
 
     # check if CPU scaling governor is set to `performance`
-    with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor") as f:
-      if not "perf" in f.read(4):
-        with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq") as f_min:
-          with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq") as f_max:
-            if f_min.read() != f_max.read():
-              raise FuzzFrontendError("Suboptimal CPU scaling governor. Execute 'echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'")
+    if os.path.isfile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"):
+      with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor") as f:
+        if not "perf" in f.read(4):
+          with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq") as f_min:
+            with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq") as f_max:
+              if f_min.read() != f_max.read():
+                raise FuzzFrontendError("Suboptimal CPU scaling governor. Execute 'echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'")
 
-    # require output directory
-    if not self.output_test_dir:
-      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
+    # if we are in dumb mode and we are not using crash mode
+    if 'n' in self.fuzzer_args and 'C' not in self.fuzzer_args:
+      self.require_seeds = False
 
-    if not os.path.exists(self.output_test_dir):
-      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) doesn't exist.")
-
-    if not os.path.isdir(self.output_test_dir):
-      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
-
-    # check for afl-qemu if in QEMU mode 
-    if 'Q' in self.fuzzer_args or self.blackbox == True:
-      if not shutil.which('afl-qemu-trace'):
-        raise FuzzFrontendError("Must provide `afl-qemu-trace` executable in PATH")
-
-    # require input seeds if we aren't in dumb mode, or we are using crash mode
-    if 'n' not in self.fuzzer_args or 'C' in self.fuzzer_args:
-      if self.input_seeds is None:
-        raise FuzzFrontendError(f"Must provide -i/--input_seeds option for {self.name}.")
-
-      # AFL uses "-" to tell it to resume fuzzing, don't treat as a real seed dir
-      if self.input_seeds != "-":
-        if not os.path.exists(self.input_seeds):
-          raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
-
-        if len(os.listdir(self.input_seeds)) == 0:
-          raise FuzzFrontendError(f"No seeds present in directory `{self.input_seeds}`.")
+    # resume fuzzing
+    if len(os.listdir(self.output_test_dir)) > 1:
+      self.check_required_directories([self.push_dir, self.pull_dir, self.crash_dir])
+      self.input_seeds = '-'
+      L.info(f"Resuming fuzzing using seeds from {self.pull_dir} (skipping --input_seeds option).")
+    else:
+      self.setup_new_session([self.push_dir])
 
 
   @property
@@ -107,7 +102,10 @@ class AFL(FuzzerFrontend):
     cmd_list: List[str] = list()
 
     # guaranteed arguments
-    cmd_list.extend(["-o", self.output_test_dir])  # auto-create, reusable
+    cmd_list.extend([
+      "-o", self.output_test_dir,  # auto-create, reusable
+      "-M", "the_fuzzer"  # TODO, detect when to use -S
+    ])  
 
     if self.mem_limit == 0:
       cmd_list.extend(["-m", "1099511627776"])  # use 1TiB as unlimited
@@ -140,56 +138,27 @@ class AFL(FuzzerFrontend):
     return self.build_cmd(cmd_list)
 
 
-  @property
-  def stats(self) -> Dict[str, Optional[str]]:
+  def populate_stats(self):
     """
     Retrieves and parses the stats file produced by AFL
     """
-    stat_file: str = self.output_test_dir + "/fuzzer_stats"
-    with open(stat_file, "r") as sf:
-      lines = sf.readlines()
-
-    stats: Dict[str, Optional[str]] = {
-      "last_update": None,
-      "start_time": None,
-      "fuzzer_pid": None,
-      "cycles_done": None,
-      "execs_done": None,
-      "execs_per_sec": None,
-      "paths_total": None,
-      "paths_favored": None,
-      "paths_found": None,
-      "paths_imported": None,
-      "max_depth": None,
-      "cur_path": None,
-      "pending_favs": None,
-      "pending_total": None,
-      "variable_paths": None,
-      "stability": None,
-      "bitmap_cvg": None,
-      "unique_crashes": None,
-      "unique_hangs": None,
-      "last_path": None,
-      "last_crash": None,
-      "last_hang": None,
-      "execs_since_crash": None,
-      "exec_timeout": None,
-      "afl_banner": None,
-      "afl_version": None,
-      "command_line": None
-    }
-
-    for l in lines:
-      for k in stats.keys():
-        if k in l:
-          stats[k] = l[19:].strip(": %\r\n")
-    return stats
+    stat_file_path: str = os.path.join(self.output_test_dir, "the_fuzzer", "fuzzer_stats")
+    # with open(stat_file_path, "r") as stat_file:
+      # for line in stat_file:
+    lines = open(stat_file_path, "r").readlines()
+    for line in lines:
+      key = line.split(":", 1)[0].strip()
+      value = line.split(":", 1)[1].strip()
+      if key in self.stats:
+        self.stats[key] = value
+    super().populate_stats()
 
 
   def reporter(self) -> Dict[str, Optional[str]]:
     """
     Report a summarized version of statistics, ideal for ensembler output.
     """
+    self.populate_stats()
     return dict({
         "Execs Done": self.stats["execs_done"],
         "Cycle Completed": self.stats["cycles_done"],
@@ -198,8 +167,9 @@ class AFL(FuzzerFrontend):
     })
 
 
-  def _sync_seeds(self, mode, src, dest, excludes=["*.cur_input"]) -> None:
-    super()._sync_seeds(mode, src, dest, excludes=excludes)
+  def _sync_seeds(self, src, dest, excludes=[]) -> None:
+    excludes += ["*.cur_input", ".state"]
+    super()._sync_seeds(src, dest, excludes=excludes)
 
 
   def post_exec(self) -> None:
@@ -208,11 +178,8 @@ class AFL(FuzzerFrontend):
     and (TODO) performs crash triaging with seeds from
     both sync_dir and local queue.
     """
-    if self.post_stats:
-      print(f"\n{self.name} RUN STATS:\n")
-      for stat, val in self.stats.items():
-        fstat: str = stat.replace("_", " ").upper()
-        print(f"{fstat}:\t\t\t{val}")
+    # TODO: merge output_test_dir/the_fuzzer/crashes* into one dir
+    super().post_exec()
 
 
 def main():
