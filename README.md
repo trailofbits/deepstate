@@ -190,6 +190,7 @@ user@a17bc44fd259:~/deepstate/build_afl/examples$ deepstate-afl -o afl_Runlen2 .
 Check out [docs](/docs) folder:
 
 * [Basic usage](/docs/basic_usage.md)
+* [Writing test harness](/docs/test_harness.md)
 * [Fuzzing](/docs/fuzzing.md)
 * [Swarm testing](/docs/swarm_testing.md)
 
