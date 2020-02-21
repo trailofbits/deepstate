@@ -136,6 +136,7 @@ will want to consider doing the work to use [persistent mode](http://lcamtuf.blo
 running inside a VM, due to AFL (unless in persistent mode) relying
 extensively on forks, which are very slow on macOS.
 
+
 ### AFL
 
 ```bash
@@ -153,20 +154,22 @@ Dirs:
 * CRASH_DIR - out/the_fuzzer/crashes
 
 Synchronization:
-* AFL executor runs the fuzzer in auto-sync mode (`-M`)
-* Test cases pushed to PUSH_DIR will be automatically used by the AFL
-* Files may need correct names (`id:000001` etc)
-* AFL's docs suggest to also share `fuzzer_stats` somehow
+* AFL executor (`deepstate-afl`) runs the fuzzer in auto-sync mode (`-M`)
+* Test cases pushed to `PUSH_DIR` will be automatically used by the AFL
+* Files may need correct names (`id:000001` etc), not implemented by the executor
+* AFL's docs suggest to share `fuzzer_stats`, not implemented by the executor
 
 Resuming:
-* Executor sets `--input` option to `-`
-* AFL creates multiple `out/the_fuzzer/crashes*` dirs
+* Executor sets `--input` option to `-`, which is AFL way to resume fuzzing
+* AFL creates multiple `out/the_fuzzer/crashes*` dirs, which is not handled by
+the executor at the moment
 
 Statistics:
 * AFL provides colorful, curses TUI
 * If stdout is redirected, then it automatically switches to
 more compact output
 * Creates `fuzzer_stats` file, which is updated from time to time
+* Executor uses the `fuzzer_stats` file
 
 
 ### libFuzzer
@@ -188,16 +191,17 @@ Dirs:
 
 Synchronization:
 * libFuzzer executor runs the fuzzer in auto-sync mode (`-reload=1`)
-* Test cases pushed to PUSH_DIR will be automatically used by the libFuzzer
-* Filenames may be arbitrary
+* Test cases pushed to `PUSH_DIR` will be automatically used by the libFuzzer
+* Filenames in `PUSH_DIR` may be arbitrary
 
 Resuming:
 * libFuzzer uses test cases from each specified dir,
-so the executor only needs to use PULL_DIR to resume fuzzing
+so the executor just uses `PULL_DIR` to resume fuzzing
 
 Statistics:
 * Informations are printed line-by-line
-* `-print_final_stats=1` makes the fuzzer output summary once finished 
+* `-print_final_stats=1` makes the fuzzer output summary once finished
+* Executor redirects libFuzzer's stdout to file and parses it
 
 Use the `LIBFUZZER_WHICH_TEST`
 environment variable to control which test libFuzzer runs, using a
@@ -229,6 +233,7 @@ you can see more about what DeepState under libFuzzer is doing by
 setting the `LIBFUZZER_LOUD` environment variable, and tell libFuzzer
 to stop upon finding a failing test using `LIBFUZZER_EXIT_ON_FAIL`.
 
+
 ### HonggFuzz
 
 ```bash
@@ -246,19 +251,21 @@ Dirs:
 * CRASH_DIR - out/the_fuzzer/crashes
 
 Synchronization:
-* [Not impemented](https://github.com/google/honggfuzz/issues/125)
-* New test cases are moved from `sync_dir` to `PUSH_DIR` by the executor
-So stopping and resuming the fuzzer will make it use new seeds
+* Is [not implemented](https://github.com/google/honggfuzz/issues/125)
+* New test cases are moved from `sync_dir` to `PUSH_DIR` by the executor,
+so stopping and resuming the fuzzer will make it use new seeds. This needs to
+be done manually (executor doesn't implement that at the moment)
 
 Resuming:
-* The executor sets `--input` to PUSH_DIR to resume fuzzing
+* Executor sets `--input` to `PUSH_DIR` to resume fuzzing
 
 Statistics:
 * HonggFuzz provides curses TUI
-* `--verbose` disables it
+* `--verbose` disables the TUI
 * Also prints some informations line-by-line
 * Produces HONGGFUZZ.REPORT.TXT (not too much info)
 * `--logfile` may redirect stdout to some file
+* Executor doesn't parse any of above at the moment
 
 
 ### Eclipser
@@ -278,15 +285,17 @@ Dirs:
 
 Synchronization:
 * [Probably not implemented](https://github.com/SoftSec-KAIST/Eclipser/issues/12)
-* New test cases are moved from `sync_dir` to `PUSH_DIR` by the executor
-So stopping and resuming the fuzzer will make it use new seeds
+* New test cases are moved from `sync_dir` to `PUSH_DIR` by the executor,
+so stopping and resuming the fuzzer will make it use new seeds. This needs to
+be done manually (executor doesn't implement that at the moment)
 
 Resuming:
-* The executor sets `--input` to PUSH_DIR to resume fuzzing
+* The executor sets `--input` to `PUSH_DIR` to resume fuzzing
 
 Statistics:
 * Prints some informations to stdout (rather mysterious)
 * Produces some files like `.coverage` (also mysterious)
+* Executor doesn't parse any of above at the momen
 
 
 ### Angora
@@ -332,20 +341,24 @@ Dirs:
 * CRASH_DIR - out/angora/crashes
 
 Synchronization:
-* Synchronization with AFL is implemented. The executor uses it by default
-(with `--sync_afl` option)
-* Requires correct filenames. Each file in `PUSH_DIR` has checked filename for
-correct format (`id:000001` etc) and compared the id (the number) with maximal id
+* Synchronization with AFL is implemented by the Angora. The executor uses it
+(with Angora's `--sync_afl` option)
+* Angora requires filenames to be appropriate to synchronize (use) them.
+Each file in `PUSH_DIR` before sync has checked filename for
+correct format (`id:000001` etc.) and compared the id (the number) with maximal id
 in local directory (`PULL_DIR`). If the id is higher than the maximal local one, then
 the test case is incorporated
 
 Resuming:
-* Executor sets `--input` option to `-`
-* Angora creates multiple `out/angora*` dirs
+* Executor sets `--input` option to `-`, which is Angora way to resume fuzzing
+* Angora creates multiple `out/angora*` dirs, which is not handled by
+the executor at the moment
 
 Statistics:
 * Angora provides TUI
 * Creates `chart_stat.json` and `angora.log` files with some stats
+* Executor uses limited amount of information from `chart_stat.json`
+at the moment
 
 
 ### Ensembler (fuzzers synchronization)

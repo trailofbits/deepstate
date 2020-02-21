@@ -77,7 +77,7 @@ TEST_F(MyTest, SomethingElse) {
 Executors need to know what variables are symbolic,
 that is which should be monitored and used by them in order to explore
 application state space. Symbolic variables will be used
-as an unknowns in equations during symbolic execution or populated
+as unknowns in equations during symbolic execution or populated
 with "random" data by fuzzers.
 
 There are few ways to declare symbolic variables.
