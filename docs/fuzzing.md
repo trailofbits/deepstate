@@ -1,4 +1,23 @@
-# Built-In Fuzzer
+# Fuzzing
+
+Table of Contents
+=================
+
+  * [Built-In Fuzzer](#built-in-fuzzer)
+  * [A Note on MacOS and Forking](#a-note-on-macos-and-forking)
+  * [External fuzzers](#external-fuzzers)
+     * [Fuzzer executors usage](#fuzzer-executors-usage)
+     * [AFL](#afl)
+     * [libFuzzer](#libfuzzer)
+     * [HonggFuzz](#honggfuzz)
+     * [Eclipser](#eclipser)
+     * [Angora](#angora)
+     * [Ensembler (fuzzers synchronization)](#ensembler-fuzzers-synchronization)
+  * [Tests replay](#tests-replay)
+  * [Which Fuzzer Should I Use?](#which-fuzzer-should-i-use)
+
+
+## Built-In Fuzzer
 
 Every DeepState executable provides a simple built-in fuzzer that
 generates tests using completely random data.  Using this fuzzer is as
@@ -25,7 +44,7 @@ replaying more than a few tests, it is highly recommended to add the `--no_fork`
 option on macOS, unless you need the added crash handling (that is,
 only when things aren't working without that option).
 
-# External fuzzers
+## External fuzzers
 
 DeepState currently support five external fuzzers:
 [libFuzzer](https://llvm.org/docs/LibFuzzer.html),
@@ -62,7 +81,7 @@ All that, rather complicated setup may be simplified with Docker.
 Just build the image (changing OS in `./docker/base/Dockerfile` if needed)
 and use it with your project. All the fuzzers and evironment variables will be there.
 
-## Fuzzer executors usage
+### Fuzzer executors usage
 
 Fuzzer executors (`deepstate-honggfuzz` etc.) are meant to be as uniform
 as possible, thus making it easy to compile and run tests.
@@ -107,12 +126,16 @@ and minimalize them.
 
 Also, there should not be crash-producing files inside input seeds directory.
 
+To resume stopped fuzzing session, just run executor again with the same
+output directory (`--input_seeds` argument will be ignored).
+
 Because AFL and other file-based fuzzers only rely on the DeepState
 native test executable, they should (like DeepState's built-in simple
 fuzzer) work fine on macOS and other Unix-like OSes.  On macOS, you
 will want to consider doing the work to use [persistent mode](http://lcamtuf.blogspot.com/2015/06/new-in-afl-persistent-mode.html), or even
 running inside a VM, due to AFL (unless in persistent mode) relying
 extensively on forks, which are very slow on macOS.
+
 
 ### AFL
 
@@ -129,6 +152,24 @@ Dirs:
 * PUSH_DIR  - out/sync_dir/queue
 * PULL_DIR  - out/the_fuzzer/queue
 * CRASH_DIR - out/the_fuzzer/crashes
+
+Synchronization:
+* AFL executor (`deepstate-afl`) runs the fuzzer in auto-sync mode (`-M`)
+* Test cases pushed to `PUSH_DIR` will be automatically used by the AFL
+* Files may need correct names (`id:000001` etc), not implemented by the executor
+* AFL's docs suggest to share `fuzzer_stats`, not implemented by the executor
+
+Resuming:
+* Executor sets `--input` option to `-`, which is AFL way to resume fuzzing
+* AFL creates multiple `out/the_fuzzer/crashes*` dirs, which is not handled by
+the executor at the moment
+
+Statistics:
+* AFL provides colorful, curses TUI
+* If stdout is redirected, then it automatically switches to
+more compact output
+* Creates `fuzzer_stats` file, which is updated from time to time
+* Executor uses the `fuzzer_stats` file
 
 
 ### libFuzzer
@@ -147,6 +188,20 @@ Dirs:
 * PUSH_DIR  - out/sync_dir/queue
 * PULL_DIR  - out/sync_dir/queue
 * CRASH_DIR - out/the_fuzzer/crashes
+
+Synchronization:
+* libFuzzer executor runs the fuzzer in auto-sync mode (`-reload=1`)
+* Test cases pushed to `PUSH_DIR` will be automatically used by the libFuzzer
+* Filenames in `PUSH_DIR` may be arbitrary
+
+Resuming:
+* libFuzzer uses test cases from each specified dir,
+so the executor just uses `PULL_DIR` to resume fuzzing
+
+Statistics:
+* Informations are printed line-by-line
+* `-print_final_stats=1` makes the fuzzer output summary once finished
+* Executor redirects libFuzzer's stdout to file and parses it
 
 Use the `LIBFUZZER_WHICH_TEST`
 environment variable to control which test libFuzzer runs, using a
@@ -178,6 +233,7 @@ you can see more about what DeepState under libFuzzer is doing by
 setting the `LIBFUZZER_LOUD` environment variable, and tell libFuzzer
 to stop upon finding a failing test using `LIBFUZZER_EXIT_ON_FAIL`.
 
+
 ### HonggFuzz
 
 ```bash
@@ -194,6 +250,23 @@ Dirs:
 * PULL_DIR  - out/sync_dir/queue
 * CRASH_DIR - out/the_fuzzer/crashes
 
+Synchronization:
+* Is [not implemented](https://github.com/google/honggfuzz/issues/125)
+* New test cases are moved from `sync_dir` to `PUSH_DIR` by the executor,
+so stopping and resuming the fuzzer will make it use new seeds. This needs to
+be done manually (executor doesn't implement that at the moment)
+
+Resuming:
+* Executor sets `--input` to `PUSH_DIR` to resume fuzzing
+
+Statistics:
+* HonggFuzz provides curses TUI
+* `--verbose` disables the TUI
+* Also prints some informations line-by-line
+* Produces HONGGFUZZ.REPORT.TXT (not too much info)
+* `--logfile` may redirect stdout to some file
+* Executor doesn't parse any of above at the moment
+
 
 ### Eclipser
 
@@ -201,10 +274,28 @@ Eclipser uses QEMU instrumentation and therefore doesn't require
 special DeepState compilation. You should just use `libdeepstate.a`
 (QEMU doesn't like special instrumentation).
 
+Eclipser stores new test cases and crashes in json and base64 encoding.
+Decoding to raw files is done automatically by the executor at the end of
+a fuzzing process.
+
 Dirs:
 * PUSH_DIR  - out/sync_dir/queue
 * PULL_DIR  - out/sync_dir/queue
 * CRASH_DIR - out/the_fuzzer/crashes
+
+Synchronization:
+* [Probably not implemented](https://github.com/SoftSec-KAIST/Eclipser/issues/12)
+* New test cases are moved from `sync_dir` to `PUSH_DIR` by the executor,
+so stopping and resuming the fuzzer will make it use new seeds. This needs to
+be done manually (executor doesn't implement that at the moment)
+
+Resuming:
+* The executor sets `--input` to `PUSH_DIR` to resume fuzzing
+
+Statistics:
+* Prints some informations to stdout (rather mysterious)
+* Produces some files like `.coverage` (also mysterious)
+* Executor doesn't parse any of above at the momen
 
 
 ### Angora
@@ -249,20 +340,28 @@ Dirs:
 * PULL_DIR  - out/angora/queue
 * CRASH_DIR - out/angora/crashes
 
+Synchronization:
+* Synchronization with AFL is implemented by the Angora. The executor uses it
+(with Angora's `--sync_afl` option)
+* Angora requires filenames to be appropriate to synchronize (use) them.
+Each file in `PUSH_DIR` before sync has checked filename for
+correct format (`id:000001` etc.) and compared the id (the number) with maximal id
+in local directory (`PULL_DIR`). If the id is higher than the maximal local one, then
+the test case is incorporated
 
-## Tests replay
+Resuming:
+* Executor sets `--input` option to `-`, which is Angora way to resume fuzzing
+* Angora creates multiple `out/angora*` dirs, which is not handled by
+the executor at the moment
 
-To run saved inputs against some test, just run it with appropriate arguments:
-
-```
-./Runlen --abort_on_fail --input_test_files_dir ./out/output_afl/the_fuzzer/queue
-```
-
-No need to use fuzzer specific compilation (so don't use `SimpleCrash_AFL` etc.
-They are slower due to instrumentation).
+Statistics:
+* Angora provides TUI
+* Creates `chart_stat.json` and `angora.log` files with some stats
+* Executor uses limited amount of information from `chart_stat.json`
+at the moment
 
 
-## Ensembler (fuzzers synchronization)
+### Ensembler (fuzzers synchronization)
 
 You may run as many executors as you want (and have resources). But to synchronize
 them, you need to specify `--sync_dir` option pointing to some shared directory.
@@ -275,6 +374,18 @@ Currently, there are some limitations in synchronization for the following fuzze
 * Angora - pulled files need to have correct, AFL format (`id:00003`) and the id must
 be greater that the biggest in Angora's local (pull) directory
 * libFuzzer - stops fuzzing after first crash found, so there should be no crashes in `sync_dir`  
+
+
+## Tests replay
+
+To run saved inputs against some test, just run it with appropriate arguments:
+
+```
+./Runlen --abort_on_fail --input_test_files_dir ./out/output_afl/the_fuzzer/queue
+```
+
+No need to use fuzzer specific compilation (so don't use `SimpleCrash_AFL` etc.
+They are slower due to instrumentation).
 
 
 ## Which Fuzzer Should I Use?
