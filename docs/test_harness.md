@@ -19,9 +19,9 @@ Table of Contents
 ## General structure
 
 
-Test can be defined using `TEST` macro.
-This macro takes two arguments: unit name (`PrimePolynomial`)
-and test name (`OnlyGeneratesPrimes`).
+Tests can be defined using `TEST` macro.
+This macro takes two arguments: a unit name (`PrimePolynomial`)
+and a test name (`OnlyGeneratesPrimes`).
 
 ```c
 #include <deepstate/DeepState.hpp>
@@ -72,11 +72,10 @@ TEST_F(MyTest, SomethingElse) {
 ```
 
 
-## Symbolic variables - inputs
+## Symbolic variables: Inputs
 
-Executors need to know what variables are symbolic,
-that is which should be monitored and used by them in order to explore
-application state space. Symbolic variables will be used
+Executors need to know which variables are symbolic,
+that is, which are controlled by a symbolic execution tool or fuzzer. Symbolic variables are used
 as unknowns in equations during symbolic execution or populated
 with "random" data by fuzzers.
 
@@ -107,27 +106,52 @@ Defined types:
 * symbolic_int64_t
 * symbolic_uint64_t
 
+#### Getting symbolic values
+
+Rather than declaring a special typed value, it is sometimes easier
+(when interfacing other code, or harnesses already using `rand` etc.)
+to just use the API to "ask" DeepState for a value.  DeepState defines
+functions returning most types of interest:
+
+* DeepState_Int()
+* DeepState_UInt()
+* DeepState_Size() (for `size_`)
+* DeepState_Bool()
+* DeepState_Char()
+* DeepState_Float()
+* DeepState_Double()
+
+The non-boolean types also allow you to request a value in a range, a
+frequent need and one not as well supported by `symbolic <type>` decls
+(you can use `ASSUME` to do it, but it's much more code, and will be
+far less efficient with fuzzers), e.g., `DeepState_IntInRange(low,
+high)`.  DeepState ranges are inclusive.
+
 #### Strings and bytes
 
-To create symbolic string you may use:
+To create a symbolic string you may use:
 
-`char* DeepState_CStr_C(size_t len, const char* allowed)` - 
-returns pointer to array of symbolic chars. `strlen` of returned data
-will always be `len`. If allowed characters are NULL, then all bytes except nullbyte
-will be allowed. **The same holds when fuzzing.**
+`char* DeepState_CStr_C(size_t len, const char* allowed)` which
+returns a pointer to an array of symbolic chars.  The`strlen` of returned data
+will always be `len`. If `allowed` is NULL, then all bytes except the
+null terminator 
+will be allowed, otherwise strings will be generated from the given
+character alphabet.
 
-`char* DeepState_CStrUpToLen(size_t maxLen, const char* allowed)` -
-same as `DeepState_CStr_C`, except length of returned string may vary.
-That is, it may have nullbyte at arbitrary position.
+`char* DeepState_CStrUpToLen(size_t maxLen, const char* allowed)` is the
+same as `DeepState_CStr_C`, except that the length of returned string
+may vary, up to `maxLen` (inclusive); the amount of memory allocated,
+and the position of a null terminator, are chosen by the
+fuzzer/symbolic execution tool.
 
-`void *DeepState_Malloc(size_t num_bytes)` -
-allocate `num_bytes` symbolic bytes. **Returned pointer
-must be `free`ed**.
+`void *DeepState_Malloc(size_t num_bytes)` just
+allocate `num_bytes` symbolic bytes, of any value.  **Failing to free
+this pointer will lead to a memory leak, it's just a normal pointer.**
 
 #### ForAll
-`ForAll` -
-Creates temporary variables which may be used in lambda expression.
-Here are declarations:
+`ForAll` 
+creates temporary variables which may be used in lambda expressions.
+It is declared thusly:
 ```cpp
 template <typename... Args>
 inline static void ForAll(void (*func)(Args...)) {
@@ -139,7 +163,9 @@ inline static void ForAll(Closure func) {
   func(Symbolic<Args>()...);
 }
 ```
-And examples:
+
+A usage example is:
+
 ```cpp
 ForAll<int, int>([] (int x, int y) {
   ASSERT_EQ(add(x, y), add(y, x))
@@ -157,19 +183,17 @@ ForAll<std::vector<int>>([] (const std::vector<int> &vec1) {
 
 #### Path to input file
 `const char *DeepState_InputPath(char *testcase_path)` -
-returns path to a file that is used as the input. That is,
-either `--input_test file` value or `testcase_path`
-(in that order). The path may be used with standard C++ file handling
+returns a path to a generated file. The path may be used with standard C++ file handling
 functions (like `open` and `read` etc). Useful for fuzzing (when
-some API takes path as an argument rather than raw data). Completely not
-useful for symbolic execution.
+some API takes a path as an argument rather than raw data). This is
+not useful for symbolic execution.
 
 
 #### OneOf
-`OneOf` -
-operator that takes as argument arbitrary amount of lambda
-expressions. In each call to it, random lambda is choosen
-and executed. This allows to non-deterministically execute
+`OneOf` is an
+operator that takes as argument an arbitrary number of lambda
+expressions. In each call to `OneOf`, a random lambda is choosen
+and executed. This allows you to non-deterministically execute
 chunks of code and apply [swarm testing](/docs/swarm_testing.md).
 
 Example:
@@ -201,10 +225,12 @@ TEST(OneOfTest, Basic) {
 
 ## Preconditions - constraints
 
-If you want to constraint symbolic variable, i.e. tell
+If you want to constrain a symbolic variable, i.e., tell the
 executor that it should be less than some value, then use
-`ASSUME_*` macros. This macros will reduce search space and
-enhance test efficiency. Use them like that:
+`ASSUME_*` macros. These macros reduce the search space and
+enhance test efficiency, and may be required to avoid invalid
+inputs. Usage is simple:
+
 ```c
 ASSUME_GT(x, 37);
 ASSUME_NE(strncmp(y, "hmm...", 7), 0);
@@ -214,7 +240,9 @@ Fuzzers will abort (but won't fail) if some assumption
 happen to be false, which should guide fuzzing to the
 expected values.
 
-DeepState provides following precondition macros:
+DeepState provides following the precondition macros, in addition to
+the generic `ASSUME` that takes a Boolean argument:
+
 * ASSUME_EQ
 * ASSUME_NE
 * ASSUME_LT
@@ -225,20 +253,21 @@ DeepState provides following precondition macros:
 
 ## Postconditions - checks
 
-Once symbolic variables are declared, constrained
+Once symbolic variables are declared, constrained,
 and used in functions that are tested, you may want
-to assert something about them. To do that use either
+to assert something about the results of testing, as in normal unit
+tests. To do that use either the
 `ASSERT_*` or `CHECK_*` family of macros.
 
 Macros from the first family will stop execution of the test if
-the assertion is false. Macros from the second one will
-mark the test as failed, but will let the test continue.
+the assertion is false. Macros from the second set will
+mark the test as failed, but allow the test to continue.
 
-Fuzzers will treat false `ASSERT`/`CHECK` as a crash
-if `--abort_on_fail` option is provided (which is by default
-when using executors).
+Fuzzers will treat false `ASSERT`/`CHECK` as crashes
+if the `--abort_on_fail` option is set (which is by default
+when using most executors).
 
-DeepState provides following postcondition asserts:
+DeepState provides the following postcondition asserts:
 * ASSERT_EQ
 * ASSERT_NE
 * ASSERT_LT
@@ -249,6 +278,7 @@ DeepState provides following postcondition asserts:
 * ASSERT_FALSE
 
 and checks:
+
 * CHECK_EQ
 * CHECK_NE
 * CHECK_LT
@@ -261,9 +291,15 @@ and checks:
 
 ## Logs
 
-Printing debug informations may be done with standard `printf`-like
-functions. They are reimplemented by DeepState, so they won't
-introduce space state explosion (see [the paper](https://www.trailofbits.com/reports/deepstate-bar18.pdf)). You may also use `LOG` macros (as a stream):
+Printing debug information is easy, and you can use standard `printf`-like
+functions. These are reimplemented by DeepState, so they won't
+introduce space state explosion (see
+[the paper](https://www.trailofbits.com/reports/deepstate-bar18.pdf)). You
+may also use `LOG` macros for streaming output to various logging
+levels (`printf` defaults to `TRACE` level).  Setting `-min_log_level`
+lets you control how much of this output DeepState shows when
+replaying tests, or fuzzing.
+
 ```c
 LOG(INFO) << "Hello " << name;
 ```
@@ -276,4 +312,4 @@ Log levels:
 * WARN
 * ERROR
 * FATAL
-* CRITICAl
+* CRITICAL

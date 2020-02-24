@@ -190,7 +190,7 @@ user@a17bc44fd259:~/deepstate/build_afl/examples$ deepstate-afl -o afl_Runlen2 .
 Check out [docs](/docs) folder:
 
 * [Basic usage](/docs/basic_usage.md)
-* [Writing test harness](/docs/test_harness.md)
+* [Writing a test harness](/docs/test_harness.md)
 * [Fuzzing](/docs/fuzzing.md)
 * [Swarm testing](/docs/swarm_testing.md)
 
@@ -201,7 +201,7 @@ All accepted PRs are awarded bounties by Trail of Bits. Join the #deepstate chan
 
 ## Trophy case
 
-DeepState has not yet been applied to many targets, but was responsible for finding the following confirmed bugs (serious faults are in bold):
+We have not yet applied DeepState to many targets, but it was responsible for finding the following confirmed bugs (serious faults are in bold):
 
 - https://github.com/Blosc/c-blosc2/issues/93
 - https://github.com/Blosc/c-blosc2/issues/94
