@@ -296,7 +296,7 @@ functions. These are reimplemented by DeepState, so they won't
 introduce space state explosion (see
 [the paper](https://www.trailofbits.com/reports/deepstate-bar18.pdf)). You
 may also use `LOG` macros for streaming output to various logging
-levels (`printf` defaults to `TRACE` level).  Setting `-min_log_level`
+levels (`printf` defaults to `TRACE` level).  Setting `--min_log_level`
 lets you control how much of this output DeepState shows when
 replaying tests, or fuzzing.
 
