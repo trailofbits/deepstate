@@ -26,7 +26,7 @@ The fuzzer also takes a `seed` and `timeout` (default of two minutes)
 to control the fuzzing.   By default fuzzing saves
 only failing and crashing tests, and these only when given an output
 directory.  If you want to actually save the test cases
-generated, you need to add a `--output_test_dir` argument to tell
+generated, you need to add the `--output_test_dir` argument to tell
 DeepState where to put the generated tests, and if you want the
 (totally random and unlikely to be high-quality) passing tests, you
 need to add `--fuzz_save_passing`.
@@ -42,7 +42,9 @@ in order to cleanly handle crashes of a test.  Unfortunately, `fork()`
 on macOS is _extremely_ slow.  When using the built-in fuzzer or
 replaying more than a few tests, it is highly recommended to add the `--no_fork`
 option on macOS, unless you need the added crash handling (that is,
-only when things aren't working without that option).
+only when things aren't working without that option).  Using
+`--no_fork` can provide a modest speedup on other OS platforms as
+well, in our experience.
 
 ## External fuzzers
 
@@ -50,38 +52,40 @@ DeepState currently support five external fuzzers:
 [libFuzzer](https://llvm.org/docs/LibFuzzer.html),
 [AFL](http://lcamtuf.coredump.cx/afl),
 [HonggFuzz](https://github.com/google/honggfuzz),
-[Eclipser](https://github.com/SoftSec-KAIST/Eclipser) and
+[Eclipser](https://github.com/SoftSec-KAIST/Eclipser), and
 [Angora](https://github.com/AngoraFuzzer/Angora).
 
-To use one of them as DeepState backend, you need to:
+To use one of them as a DeepState backend, you need to:
 * install it
 * compile DeepState with it
-* compile target test with it
+* compile the target library/codebase with it (this is probably the
+  hardest part)
+* compile the target test harness with it
 * run executor with location of installed files provided
 
-To install the fuzzer follow instructions on its website or
+To install a fuzzer follow the instructions on its website or
 run Deepstate via Docker, as described in [README.md](/README.md)
 
 To compile DeepState with the fuzzer, run `cmake` with
 `-DDEEPSTATE_FUZZERNAME=on` (like `-DDEEPSTATE_AFL=on`) option and
 `CC/CXX` variables set to the fuzzer's compiler. This will produce
-library called `libdeepstate_FUZZERNAME.a`, which you may put to
-standard location (`/usr/local/lib/`).
+library called `libdeepstate_FUZZERNAME.a`, which you may put in
+a standard location (`/usr/local/lib/`).
 
-To compile target test, use fuzzer's compiler and link with appropriate
+To compile a target test, use the fuzzer's compiler and link with the appropriate
 DeepState library (`-ldeepstate_FUZZERNAME`).
 
-To provide location of fuzzer's executables to python executor you may:
-* put the executables to some $PATH location
-* export `FUZZERNAME_HOME` environment variable (like `ANGORA_HOME`)
+To provide the location of a fuzzer's executables to the Python executor you may:
+* put the executables in some `$PATH` location
+* export a `FUZZERNAME_HOME` environment variable (like `ANGORA_HOME`)
 with value set to the location of fuzzer's executables
-* specify `--home_path` argument when running the executor
+* specify the `--home_path` argument when running the executor
 
-All that, rather complicated setup may be simplified with Docker.
+All this  rather complicated setup may be considerably simplified by using Docker.
 Just build the image (changing OS in `./docker/base/Dockerfile` if needed)
 and use it with your project. All the fuzzers and evironment variables will be there.
 
-### Fuzzer executors usage
+### Fuzzer executor usage
 
 Fuzzer executors (`deepstate-honggfuzz` etc.) are meant to be as uniform
 as possible, thus making it easy to compile and run tests.
@@ -90,7 +94,7 @@ Compilation: `deepstate-afl --compile_test ./SimpleCrash.cpp --out_test_name Sim
 
 Run: `mkdir out && deepstate-afl --output_test_dir out ./SimpleCrash.afl`
 
-The only required arguments are location of output directory and the test.
+The only required arguments are the location of output directory and the test.
 Optional arguments:
 ```
 --input_seeds     - location of directory with initial inputs 
@@ -100,7 +104,7 @@ Optional arguments:
 --fuzzer_out      - use fuzzer output rather that deepstate (uniform) one
 --mem_limit       - memory limit for the fuzzer
 --min_log_level   - how much to log (0=DEBUG, 6=CRITICAL)
---blackbox        - fuzz not-instrumented binary
+--blackbox        - fuzz non-instrumented binary
 --dictionary      - file with words that may enhance fuzzing (fuzzer dependent format)
 ```
 
@@ -114,20 +118,21 @@ Each fuzzer creates following files/directories under output directory:
 ```
 
 Failed tests are treated as crashes when using fuzzer executors
-(because of `--abort_on_fail` flag).
+(because of the `--abort_on_fail` flag).
 
-Note that some fuzzers (notably AFL) requires input seeds. When not provided,
-executor will create a dumb one, which may be not very efficient for fuzzing.
+Note that some fuzzers (notably AFL) require input seeds. When not
+provided, the executor will create a dumb one, which may be not very efficient for fuzzing.
 
 Input files need to be smaller than the DeepState input size limit (8192 bytes),
-which is the default limit in executors. But not all fuzzers support file size
+which is the default limit in executors. But not all fuzzers support a
+file size
 limitation, so if your test cases grown too large, you may need to stop fuzzing
-and minimalize them.
+and minimize them.
 
-Also, there should not be crash-producing files inside input seeds directory.
+Also, there should not be crash-producing files inside the input seeds directory.
 
-To resume stopped fuzzing session, just run executor again with the same
-output directory (`--input_seeds` argument will be ignored).
+To resume a stopped fuzzing session, just run executor again with the same
+output directory (the `--input_seeds` argument will be ignored).
 
 Because AFL and other file-based fuzzers only rely on the DeepState
 native test executable, they should (like DeepState's built-in simple
