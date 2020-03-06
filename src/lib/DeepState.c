@@ -34,8 +34,13 @@ DEEPSTATE_BEGIN_EXTERN_C
 /* Basic input and output options, specifies files for read/write before and after test analysis */
 DEFINE_string(input_test_dir, InputOutputGroup, "", "Directory of saved tests to run.");
 DEFINE_string(input_test_file, InputOutputGroup, "", "Saved test to run.");
+DEFINE_string(input_source_file, InputOutputGroup, "", "Name of source file to create standalone version of.");
 DEFINE_string(input_test_files_dir, InputOutputGroup, "", "Directory of saved test files to run (flat structure).");
+DEFINE_string(input_translation_config, InputOutputGroup, "", "Name of the file containing the translation "
+               "configuration for creating standalone tests."
+            );
 DEFINE_string(output_test_dir, InputOutputGroup, "", "Directory where tests will be saved.");
+DEFINE_string(output_standalone_test, InputOutputGroup, "", "Name of the file to write standalone test to.");
 
 /* Test execution-related options, configures how an execution run is carried out */
 DEFINE_bool(take_over, ExecutionGroup, false, "Replay test cases in take-over mode.");
