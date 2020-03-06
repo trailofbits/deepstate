@@ -35,11 +35,13 @@
 #include <time.h>
 #include <unistd.h>
 #include <fnmatch.h>
+#include <stdio.h>
 
 #include <deepstate/Log.h>
 #include <deepstate/Compiler.h>
 #include <deepstate/Option.h>
 #include <deepstate/Stream.h>
+#include <deepstate/GenTestBridge.h>
 
 #ifdef assert
 # undef assert
@@ -74,10 +76,13 @@
 DEEPSTATE_BEGIN_EXTERN_C
 
 DECLARE_string(input_test_dir);
+DECLARE_string(input_source_file);
+DECLARE_string(input_translation_config);
 DECLARE_string(input_test_file);
 DECLARE_string(input_test_files_dir);
 DECLARE_string(input_which_test);
 DECLARE_string(output_test_dir);
+DECLARE_string(output_standalone_test);
 DECLARE_string(test_filter);
 
 DECLARE_bool(take_over);
@@ -1011,6 +1016,14 @@ static int DeepState_Run(void) {
 
   if (HAS_FLAG_list_tests) {
 	return DeepState_RunListTests();
+  }
+
+  if (HAS_FLAG_output_standalone_test) {
+      return DeepStateCreateStandalone( FLAGS_output_standalone_test,
+                                        FLAGS_input_source_file,
+                                        FLAGS_input_test_file,
+                                        FLAGS_input_translation_config
+                                      );
   }
 
   if (HAS_FLAG_input_test_file) {
