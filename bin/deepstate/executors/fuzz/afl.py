@@ -17,54 +17,32 @@ import os
 import logging
 import argparse
 
-from typing import ClassVar, List, Dict, Any, Optional
+from typing import List, Dict, Optional
 
 from deepstate.core import FuzzerFrontend, FuzzFrontendError
-from deepstate.core.base import AnalysisBackend
 
 
-L = logging.getLogger("deepstate.frontend.afl")
-L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
+L = logging.getLogger(__name__)
 
 
 class AFL(FuzzerFrontend):
   """ Defines AFL fuzzer frontend """
 
-  NAME: ClassVar[str] = "afl-fuzz"
-  COMPILER: ClassVar[str] = "afl-clang++"
+  NAME = "AFL"
+  EXECUTABLES = {"FUZZER": "afl-fuzz",
+                  "COMPILER": "afl-clang++"
+                  }
 
+  REQUIRE_SEEDS = True
+
+  PUSH_DIR = os.path.join("sync_dir", "queue")
+  PULL_DIR = os.path.join("the_fuzzer", "queue")
+  CRASH_DIR = os.path.join("the_fuzzer", "crashes")
 
   @classmethod
   def parse_args(cls) -> None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
-      description="Use AFL as a backend for DeepState")
-
-    # Execution options
-    parser.add_argument("--dictionary", type=str,
-      help="Optional fuzzer dictionary for AFL.")
-
-    parser.add_argument("--run_timeout", type=int, default=50,
-      help="Timeout for each instance of a run in ms (default is 50ms).")
-
-    parser.add_argument("--mem_limit", type=int, default=50,
-      help="Child process memory limit in MB (default is 50).")
-
-    parser.add_argument("--file", type=str,
-      help="Input file read by fuzzed program, if any.")
-
-
-    # AFL execution modes
-    parser.add_argument("--dirty_mode", action="store_true",
-      help="Fuzz without deterministic steps.")
-
-    parser.add_argument("--dumb_mode", action="store_true",
-      help="Fuzz without instrumentation.")
-
-    parser.add_argument("--qemu_mode", action="store_true",
-      help="Fuzz with QEMU mode.")
-
-    parser.add_argument("--crash_explore", action="store_true",
-      help="Fuzz with crash exploration.")
+      description=f"Use AFL as a backend for DeepState")
 
     cls.parser = parser
     super(AFL, cls).parse_args()
@@ -78,125 +56,111 @@ class AFL(FuzzerFrontend):
       flags += [arg for arg in self.compiler_args.split(" ")]
     flags.append("-ldeepstate_AFL")
 
-    super().compile(lib_path, flags, self.out_test_name + ".afl")
+    super().compile(lib_path, flags, self.out_test_name)
 
 
   def pre_exec(self):
     """
     Perform argparse and environment-related sanity checks.
     """
-
-    # check if core dump pattern is set as `core`
-    with open("/proc/sys/kernel/core_pattern") as f:
-      if not "core" in f.read():
-        raise FuzzFrontendError("No core dump pattern set. Execute 'echo core | sudo tee /proc/sys/kernel/core_pattern'")
+    # check for afl-qemu-trace if in QEMU mode 
+    if 'Q' in self.fuzzer_args or self.blackbox == True:
+      self.EXECUTABLES["AFL-QEMU-TRACE"] = "afl-qemu-trace"
 
     super().pre_exec()
 
-    # require input seeds if we aren't in dumb mode, or we are using crash mode
-    if not self.dumb_mode or self.crash_mode:
-      if self.input_seeds is None:
-        raise FuzzFrontendError("Must provide -i/--input_seeds option for AFL.")
+    # check if core dump pattern is set as `core`
+    if os.path.isfile("/proc/sys/kernel/core_pattern"):
+      with open("/proc/sys/kernel/core_pattern") as f:
+        if not "core" in f.read():
+          raise FuzzFrontendError("No core dump pattern set. Execute 'echo core | sudo tee /proc/sys/kernel/core_pattern'")
 
-      seeds: str = self.input_seeds
-      L.debug(f"Fuzzing with seed directory: {seeds}.")
+    # check if CPU scaling governor is set to `performance`
+    if os.path.isfile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"):
+      with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor") as f:
+        if not "perf" in f.read(4):
+          with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq") as f_min:
+            with open("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq") as f_max:
+              if f_min.read() != f_max.read():
+                raise FuzzFrontendError("Suboptimal CPU scaling governor. Execute 'echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'")
 
-      # AFL uses "-" to tell it to resume fuzzing, don't treat as a real seed dir
-      if seeds != "-":
-        # check if seeds dir exists
-        if not os.path.exists(seeds):
-          os.mkdir(seeds)
-          raise FuzzFrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
+    # if we are in dumb mode and we are not using crash mode
+    if 'n' in self.fuzzer_args and 'C' not in self.fuzzer_args:
+      self.require_seeds = False
 
-        # check if seeds dir is empty
-        if len([name for name in os.listdir(seeds)]) == 0:
-          raise FuzzFrontendError(f"No seeds present in directory {seeds}.")
+    # resume fuzzing
+    if len(os.listdir(self.output_test_dir)) > 1:
+      self.check_required_directories([self.push_dir, self.pull_dir, self.crash_dir])
+      self.input_seeds = '-'
+      L.info(f"Resuming fuzzing using seeds from {self.pull_dir} (skipping --input_seeds option).")
+    else:
+      self.setup_new_session([self.push_dir])
 
 
   @property
   def cmd(self):
-    cmd_dict = {
-      "-o": self.output_test_dir,
-      "-m": str(self.mem_limit)
-    }
+    cmd_list: List[str] = list()
 
-    # since this is optional for AFL's dumb fuzzing
+    # guaranteed arguments
+    cmd_list.extend([
+      "-o", self.output_test_dir,  # auto-create, reusable
+      "-M", "the_fuzzer"  # TODO, detect when to use -S
+    ])  
+
+    if self.mem_limit == 0:
+      cmd_list.extend(["-m", "1099511627776"])  # use 1TiB as unlimited
+    else:
+      cmd_list.extend(["-m", str(self.mem_limit)])
+
+    for key, val in self.fuzzer_args:
+      if len(key) == 1:
+        cmd_list.append('-{}'.format(key))
+      else:
+        cmd_list.append('--{}'.format(key))
+      if val is not None:
+        cmd_list.append(val)
+
+    # QEMU mode
+    if self.blackbox == True:
+      cmd_list.append('-Q')
+
+    # optional arguments:
+    # required, if provided: not auto-create and require any file inside
     if self.input_seeds:
-      cmd_dict["-i"] = self.input_seeds
+      cmd_list.extend(["-i", self.input_seeds])
 
-    # AFL's timeout affects run cycle rather than the whole process
-    if self.run_timeout:
-      cmd_dict["-t"] = str(self.run_timeout)
+    if self.exec_timeout:
+      cmd_list.extend(["-t", str(self.exec_timeout)])
 
-    # check if we are using one of AFL's many "modes"
-    if self.dirty_mode:
-      cmd_dict["-d"] = None
-    if self.dumb_mode:
-      cmd_dict["-n"] = None
-    if self.qemu_mode:
-      cmd_dict["-Q"] = None
-    if self.crash_explore:
-      cmd_dict["-C"] = None
-
-    # other misc arguments
     if self.dictionary:
-      cmd_dict["-x"] = self.dictionary
-    if self.file:
-      cmd_dict["-f"] = self.file
+      cmd_list.extend(["-x", self.dictionary])
 
-    return self.build_cmd(cmd_dict)
+    return self.build_cmd(cmd_list)
 
 
-  @property
-  def stats(self) -> Dict[str, Optional[str]]:
+  def populate_stats(self):
     """
     Retrieves and parses the stats file produced by AFL
     """
-    stat_file: str = self.output_test_dir + "/fuzzer_stats"
-    with open(stat_file, "r") as sf:
-      lines = sf.readlines()
+    stat_file_path: str = os.path.join(self.output_test_dir, "the_fuzzer", "fuzzer_stats")
+    if not os.path.isfile(stat_file_path):
+      super().populate_stats()
+      return
 
-    stats: Dict[str, Optional[str]] = {
-      "last_update": None,
-      "start_time": None,
-      "fuzzer_pid": None,
-      "cycles_done": None,
-      "execs_done": None,
-      "execs_per_sec": None,
-      "paths_total": None,
-      "paths_favored": None,
-      "paths_found": None,
-      "paths_imported": None,
-      "max_depth": None,
-      "cur_path": None,
-      "pending_favs": None,
-      "pending_total": None,
-      "variable_paths": None,
-      "stability": None,
-      "bitmap_cvg": None,
-      "unique_crashes": None,
-      "unique_hangs": None,
-      "last_path": None,
-      "last_crash": None,
-      "last_hang": None,
-      "execs_since_crash": None,
-      "exec_timeout": None,
-      "afl_banner": None,
-      "afl_version": None,
-      "command_line": None
-    }
-
-    for l in lines:
-      for k in stats.keys():
-        if k in l:
-          stats[k] = l[19:].strip(": %\r\n")
-    return stats
+    with open(stat_file_path, "r") as stat_file:
+      for line in stat_file:
+        key = line.split(":", 1)[0].strip()
+        value = line.split(":", 1)[1].strip()
+        if key in self.stats:
+          self.stats[key] = value
+    super().populate_stats()
 
 
   def reporter(self) -> Dict[str, Optional[str]]:
     """
     Report a summarized version of statistics, ideal for ensembler output.
     """
+    self.populate_stats()
     return dict({
         "Execs Done": self.stats["execs_done"],
         "Cycle Completed": self.stats["cycles_done"],
@@ -205,8 +169,9 @@ class AFL(FuzzerFrontend):
     })
 
 
-  def _sync_seeds(self, mode, src, dest, excludes=["*.cur_input"]) -> None:
-    super()._sync_seeds(mode, src, dest, excludes=excludes)
+  def _sync_seeds(self, src, dest, excludes=[]) -> None:
+    excludes += ["*.cur_input", ".state"]
+    super()._sync_seeds(src, dest, excludes=excludes)
 
 
   def post_exec(self) -> None:
@@ -215,23 +180,13 @@ class AFL(FuzzerFrontend):
     and (TODO) performs crash triaging with seeds from
     both sync_dir and local queue.
     """
-    if self.post_stats:
-      print("\nAFL RUN STATS:\n")
-      for stat, val in self.stats.items():
-        fstat: str = stat.replace("_", " ").upper()
-        print(f"{fstat}:\t\t\t{val}")
-
+    # TODO: merge output_test_dir/the_fuzzer/crashes* into one dir
+    super().post_exec()
 
 
 def main():
-  fuzzer = AFL()
-
-  # parse user arguments and build object
-  fuzzer.parse_args()
-
-  # run fuzzer with parsed attributes
-  fuzzer.run()
-  return 0
+  fuzzer = AFL(envvar="AFL_HOME")
+  return fuzzer.main()
 
 
 if __name__ == "__main__":

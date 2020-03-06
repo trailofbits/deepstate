@@ -43,6 +43,11 @@ if(DEFINED ENV{DEEPSTATE_NOSTATIC})
   set(DEEPSTATE_NOSTATIC ON)
 endif()
 
+option(EXAMPLES_ONLY, OFF)
+if(DEFINED ENV{EXAMPLES_ONLY})
+  set(EXAMPLES_ONLY ON)
+endif()
+
 # --- compilers
 if (DEEPSTATE_LIBFUZZER)
   if(NOT DEFINED CMAKE_C_COMPILER)
@@ -62,6 +67,49 @@ if (DEEPSTATE_LIBFUZZER)
   endif()
 endif()
 
+if (DEEPSTATE_HONGGFUZZ)
+  string(FIND "${CMAKE_C_COMPILER}" "hfuzz-clang" _hfuzz_found)
+  if(_hfuzz_found EQUAL -1)
+    message(FATAL_ERROR "DeepState's HonggFuzz mode requires the hfuzz-clang C compiler.")
+  endif()
+
+  string(FIND "${CMAKE_CXX_COMPILER}" "hfuzz-clang++" _hfuzz_found)
+  if(_hfuzz_found EQUAL -1)
+    message(FATAL_ERROR "DeepState's HonggFuzz mode requires the hfuzz-clang++ C++ compiler.")
+  endif()
+endif()
+
+if (DEEPSTATE_AFL)
+  string(REGEX MATCH ".*(afl-gcc|afl-clang)" _afl_found "${CMAKE_C_COMPILER}")
+  if(NOT _afl_found)
+    message(FATAL_ERROR "DeepState's AFL mode requires the afl-gcc or afl-clang C compiler.")
+  endif()
+
+  string(REGEX MATCH ".*(afl-g\\+\\+|afl-clang\\+\\+)" _afl_found "${CMAKE_CXX_COMPILER}")
+  if(NOT _afl_found)
+    message(FATAL_ERROR "DeepState's AFL mode requires the afl-g++ or afl-clang++ C++ compiler.")
+  endif()
+endif()
+
+if (DEEPSTATE_ANGORA)
+  string(FIND "${CMAKE_C_COMPILER}" "angora-clang" _angora_found)
+  if(_angora_found EQUAL -1)
+    message(FATAL_ERROR "DeepState's Angora mode requires the angora-clang C compiler.")
+  elseif(CMAKE_C_COMPILER_VERSION VERSION_LESS "4.0.0" OR CMAKE_C_COMPILER_VERSION VERSION_GREATER "7.1.0")
+    message("X " ${CMAKE_C_COMPILER})
+    message(FATAL_ERROR "DeepState's Angora mode requires the main compiler to be clang 4.0.0-7.1.0\n"
+                        "export PATH to \"$ANGORA_HOME/clang+llvm/bin:$PATH\"")
+  endif()
+
+  string(FIND "${CMAKE_CXX_COMPILER}" "angora-clang++" _angora_found)
+  if(_angora_found EQUAL -1)
+    message(FATAL_ERROR "DeepState's Angora mode requires the angora-clang++ C++ compiler.")
+  elseif(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.0.0" OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "7.1.0")
+    message(FATAL_ERROR "DeepState's Angora mode requires the main compiler to be clang++ 4.0.0-7.1.0\n"
+                        "export PATH to \"$ANGORA_HOME/clang+llvm/bin:$PATH\"")
+  endif()
+endif()
+
 # --- settings and flags
 enable_language(C)
 enable_language(CXX)
@@ -77,6 +125,12 @@ set(CMAKE_C_FLAGS_RELEASE "-O3")
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
+# compile only examples
+if(EXAMPLES_ONLY)
+  add_subdirectory(examples)
+  return()
+endif()
 
 find_program(PYTHON "python3")
 
