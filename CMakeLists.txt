@@ -15,6 +15,8 @@
 project(deepstate)
 cmake_minimum_required(VERSION 2.8)
 
+add_subdirectory(Team22)
+
 # --- options
 option(DEEPSTATE_LIBFUZZER, OFF)
 if(DEFINED ENV{DEEPSTATE_LIBFUZZER})
@@ -70,10 +72,10 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_C_FLAGS_DEBUG "-O3")
+set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
 
-set(CMAKE_CXX_FLAGS_DEBUG "-O3")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 find_program(PYTHON "python3")
@@ -87,11 +89,16 @@ if (NOT WIN32)
   set(CMAKE_CXX_STANDARD 11)
 endif()
 
+file( GLOB gentest_header_files "${CMAKE_SOURCE_DIR}/Team22/include/modules/*" )
+file( GLOB gentest_files "${CMAKE_SOURCE_DIR}/Team22/src/modules/*/*.cpp" )
+
 add_library(${PROJECT_NAME} STATIC
   src/lib/DeepState.c
   src/lib/Log.c
   src/lib/Option.c
   src/lib/Stream.c
+  src/lib/GenTestBridge.cpp
+  ${gentest_files}
 )
 
 add_library(${PROJECT_NAME}32 STATIC
@@ -112,6 +119,7 @@ endif()
 
 target_include_directories(${PROJECT_NAME}
   PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
+  PUBLIC SYSTEM "${gentest_header_files}"
 )
 
 target_include_directories(${PROJECT_NAME}32
@@ -251,4 +259,3 @@ else()
 endif()
 
 add_subdirectory(examples)
-add_subdirectory(Team22)
