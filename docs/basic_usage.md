@@ -169,7 +169,7 @@ INFO: Ran 64 tests for Runlength_EncodeDecode; 31 tests failed
 
 Running tests not in a directory structure created by DeepState
 requires using the `--input_test_files_dir` option instead.  And, of
-course, a single test can be run using ``-input_test_file`.
+course, a single test can be run using `--input_test_file`.
 
 ## Test case reduction
 
