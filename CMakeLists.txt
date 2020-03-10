@@ -15,7 +15,7 @@
 project(deepstate)
 cmake_minimum_required(VERSION 2.8)
 
-add_subdirectory(Team22)
+add_subdirectory(GenTest)
 
 # --- options
 option(DEEPSTATE_LIBFUZZER, OFF)
@@ -143,9 +143,13 @@ if (NOT WIN32)
   set(CMAKE_CXX_STANDARD 11)
 endif()
 
+
 file( GLOB gentest_header_files "${CMAKE_SOURCE_DIR}/Team22/include/modules/*" )
 file( GLOB gentest_files "${CMAKE_SOURCE_DIR}/Team22/src/modules/*/*.cpp" )
 file( GLOB gentest_lib "${CMAKE_SOURCE_DIR}/Team22/lib/*.a" )
+file( GLOB gentest_header_files "${CMAKE_SOURCE_DIR}/GenTest/include/modules/*" )
+file( GLOB gentest_files "${CMAKE_SOURCE_DIR}/GenTest/src/modules/*/*.cpp" )
+
 
 add_library(${PROJECT_NAME} STATIC
   src/lib/DeepState.c
