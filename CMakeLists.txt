@@ -145,6 +145,7 @@ endif()
 
 file( GLOB gentest_header_files "${CMAKE_SOURCE_DIR}/Team22/include/modules/*" )
 file( GLOB gentest_files "${CMAKE_SOURCE_DIR}/Team22/src/modules/*/*.cpp" )
+file( GLOB gentest_lib "${CMAKE_SOURCE_DIR}/Team22/lib/*.a" )
 
 add_library(${PROJECT_NAME} STATIC
   src/lib/DeepState.c
@@ -161,6 +162,8 @@ add_library(${PROJECT_NAME}32 STATIC
   src/lib/Option.c
   src/lib/Stream.c
 )
+
+target_link_libraries( deepstate ${gentest_lib} )
 
 target_compile_options(${PROJECT_NAME} PUBLIC -mno-avx)
 
