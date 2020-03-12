@@ -145,8 +145,19 @@ and the position of a null terminator, are chosen by the
 fuzzer/symbolic execution tool.
 
 `void *DeepState_Malloc(size_t num_bytes)` just
-allocate `num_bytes` symbolic bytes, of any value.  **Failing to free
+allocates `num_bytes` symbolic bytes, with arbitrary value.  **Failing to free 
 this pointer will lead to a memory leak, it's just a normal pointer.**
+
+`void *DeepState_GCMalloc(size_t num_bytes)` also
+allocates `num_bytes` symbolic bytes, with arbitrary value, but
+DeepState will free the pointer after the test is finished, even if
+the test exits abnormally.  **Freeing THIS pointer will lead to a
+double-free error.**
+
+If you can be sure nothing you pass it to frees DeepState-allocated
+memory, `DeepState_GCMalloc` is probably your best bet; it will work
+much more nicely with libFuzzer and the `no_fork` option, where memory
+leaks in tests are a big problem.
 
 #### ForAll
 `ForAll` 
