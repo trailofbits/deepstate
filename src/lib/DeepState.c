@@ -68,10 +68,10 @@ int DeepState_UsingLibFuzzer = 0;
 /* To make libFuzzer louder on mac OS. */
 int DeepState_LibFuzzerLoud = 0;
 
-/* Array of DeepState generated strings.  Impossible for there to
+/* Array of DeepState generated allocations.  Impossible for there to
  * be more than there are input bytes.  Index stores where we are. */
-char* DeepState_GeneratedStrings[DeepState_InputSize];
-uint32_t DeepState_GeneratedStringsIndex = 0;
+char* DeepState_GeneratedAllocs[DeepState_InputSize];
+uint32_t DeepState_GeneratedAllocsIndex = 0;
 
 /* Pointer to the last registers DeepState_TestInfo data structure */
 struct DeepState_TestInfo *DeepState_LastTestInfo = NULL;
@@ -282,7 +282,7 @@ char *DeepState_CStr_C(size_t len, const char* allowed) {
   if (NULL == str) {
     DeepState_Abandon("Can't allocate memory");
   }
-  DeepState_GeneratedStrings[DeepState_GeneratedStringsIndex++] = str;
+  DeepState_GeneratedAllocs[DeepState_GeneratedAllocsIndex++] = str;
   if (len) {
     if (allowed == 0) {
       DeepState_SymbolizeDataNoNull(str, &(str[len]));
@@ -315,7 +315,7 @@ char *DeepState_SwarmCStr_C(const char* file, unsigned line, int stype,
     swarm_allowed[255] = 0;
     allowed = (const char*)&swarm_allowed;
   }
-  DeepState_GeneratedStrings[DeepState_GeneratedStringsIndex++] = str;
+  DeepState_GeneratedAllocs[DeepState_GeneratedAllocsIndex++] = str;
   if (len) {
     uint32_t allowed_size = strlen(allowed);
     struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(allowed_size, file, line, stype);
@@ -377,6 +377,15 @@ void *DeepState_Malloc(size_t num_bytes) {
   void *data = malloc(num_bytes);
   uintptr_t data_end = ((uintptr_t) data) + num_bytes;
   DeepState_SymbolizeData(data, (void *) data_end);
+  return data;
+}
+
+/* Allocate and return a pointer to `num_bytes` symbolic bytes. */
+void *DeepState_GCMalloc(size_t num_bytes) {
+  void *data = malloc(num_bytes);
+  uintptr_t data_end = ((uintptr_t) data) + num_bytes;
+  DeepState_SymbolizeData(data, (void *) data_end);
+  DeepState_GeneratedAllocs[DeepState_GeneratedAllocsIndex++] = data;
   return data;
 }
 
@@ -664,10 +673,10 @@ int32_t DeepState_MaxInt(int32_t v) {
 
 /* Function to clean up generated strings, and any other DeepState-managed data. */
 extern void DeepState_CleanUp() {
-  for (int i = 0; i < DeepState_GeneratedStringsIndex; i++) {
-    free(DeepState_GeneratedStrings[i]);
+  for (int i = 0; i < DeepState_GeneratedAllocsIndex; i++) {
+    free(DeepState_GeneratedAllocs[i]);
   }
-  DeepState_GeneratedStringsIndex = 0;
+  DeepState_GeneratedAllocsIndex = 0;
   
   for (int i = 0; i < DeepState_SwarmConfigsIndex; i++) {
     free(DeepState_SwarmConfigs[i]->file);
