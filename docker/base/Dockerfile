@@ -25,7 +25,7 @@ RUN wget https://apt.llvm.org/llvm.sh \
     && chmod +x llvm.sh \
     && sudo ./llvm.sh $LLVM_VER
 
-RUN sudo apt-get -y install libllvm-$LLVM_VER-ocaml-dev \
+RUN sudo apt-get update && sudo apt-get -y install libllvm-$LLVM_VER-ocaml-dev \
     libllvm$LLVM_VER llvm-$LLVM_VER llvm-$LLVM_VER-dev \
     llvm-$LLVM_VER-doc llvm-$LLVM_VER-examples llvm-$LLVM_VER-runtime \
     clang-$LLVM_VER clang-tools-$LLVM_VER clang-$LLVM_VER-doc \
