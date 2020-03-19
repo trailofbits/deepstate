@@ -16,6 +16,10 @@
 import os
 import logging
 import argparse
+import re
+import shutil
+from collections import defaultdict
+
 
 from typing import List, Dict, Optional
 
@@ -174,14 +178,44 @@ class AFL(FuzzerFrontend):
     super()._sync_seeds(src, dest, excludes=excludes)
 
 
+  def consolidate_crash_dirs(self) -> None:
+    regex = re.compile(".*crashes.*")
+    crash_files = defaultdict(set)
+    crash_files_path = os.path.join(self.output_test_dir, "the_fuzzer")
+    for directory in os.listdir(crash_files_path):
+        crash_dir = os.path.join(crash_files_path, directory)
+        L.debug("Inspecting AFL crash dir: %s", crash_dir)
+        if not os.path.isdir(crash_dir) or not regex.match(crash_dir):
+            continue
+        for f in os.listdir(crash_dir):
+            crash_path = os.path.join(crash_dir, f)
+            if f == "README.txt" or not os.path.isfile(crash_path):
+                continue
+            crash_files[f].add(directory)
+    dirs_to_delete = set()
+    for name, paths in crash_files.items():
+        for p in paths:
+            if p == "crashes":
+                continue
+            dirs_to_delete.add(os.path.join(crash_files_path, p))
+            old = os.path.join(crash_files_path, p, name)
+            new = os.path.join(crash_files_path, "crashes", name)
+            L.debug("Moving crash report %s to %s", old, new)
+            os.rename(old, new)
+    for d in dirs_to_delete:
+        L.debug("Deleting crash directory %s", d)
+        shutil.rmtree(d)
+
+
   def post_exec(self) -> None:
     """
     AFL post_exec outputs last updated fuzzer stats,
     and (TODO) performs crash triaging with seeds from
-    both sync_dir and local queue.
+    both sync_dir and local queue. Merges
+    output_test_dir/the_fuzzer/crashes* into one dir
     """
-    # TODO: merge output_test_dir/the_fuzzer/crashes* into one dir
     super().post_exec()
+    self.consolidate_crash_dirs()
 
 
 def main():
