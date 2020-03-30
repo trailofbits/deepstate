@@ -570,7 +570,7 @@ class FuzzerFrontend(AnalysisBackend):
     try:
       self.parse_args()
       self.run()
-      return 0
+      return self.fuzzer_return_code
     except AnalysisBackendError as e:
       L.error(e)
       return 1
@@ -716,6 +716,7 @@ class FuzzerFrontend(AnalysisBackend):
               (self.proc.returncode == 1 and self.name == "libFuzzer"):
             L.info("Fuzzer %s (PID %d) exited with return code %d.",
                       self.name, self.proc.pid, self.proc.returncode)
+            self.fuzzer_return_code = 0
             run_one_fuzzer_process = False
 
           else:
@@ -723,6 +724,7 @@ class FuzzerFrontend(AnalysisBackend):
               L.error(stdout.decode('utf8'))
             if stderr:
               L.error(stderr.decode('utf8'))
+            self.fuzzer_return_code = self.proc.returncode
             raise FuzzFrontendError(f"Fuzzer {self.name} (PID {self.proc.pid}) exited "
                                     f"with return code {self.proc.returncode}.")
 
