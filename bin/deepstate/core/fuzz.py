@@ -64,6 +64,7 @@ class FuzzerFrontend(AnalysisBackend):
       - stats_file (file where to put stats from fuzzer in common format)
       - output_file (file where stdout of fuzzer will be redirected)
       - proc (handler to fuzzer process)
+      - fuzzer_return_code (the exit status from the fuzzer process AND the return status of main)
 
       - push_dir (push testcases from external sources here)
       - pull_dir (pull new testcases from this dir)
@@ -95,6 +96,7 @@ class FuzzerFrontend(AnalysisBackend):
     self._on: bool = False
 
     self.proc: subprocess.Popen[bytes]
+    self.fuzzer_return_code = 0
     self.require_seeds: bool = False
     self.stats_file: str = "deepstate-stats.txt"
     self.output_file: str = "fuzzer-output.txt"
