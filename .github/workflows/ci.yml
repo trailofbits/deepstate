@@ -50,7 +50,8 @@ jobs:
           python-version: "3.6"
       - name: Install dependencies
         run: |
-          sudo apt install build-essential gcc-multilib cmake libffi-dev
+          sudo apt-get update
+          sudo apt-get install -y build-essential gcc-multilib cmake libffi-dev
           python -m pip install --upgrade pip
           pip install z3-solver angr nose
           pip install git+git://github.com/trailofbits/manticore.git
@@ -66,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: whoan/docker-build-with-cache-action@v3
+      - uses: whoan/docker-build-with-cache-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -75,9 +76,10 @@ jobs:
           image_tag: latest
           context: docker/base
           dockerfile: Dockerfile
+          pull_image_and_stages: false  # if OOM error
           push_image_and_stages: true  # because we run workflow on PRs
           build_extra_args: "--tag deepstate-base"
-      - uses: whoan/docker-build-with-cache-action@v3
+      - uses: whoan/docker-build-with-cache-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -86,7 +88,7 @@ jobs:
           image_tag: latest
           context: .
           dockerfile: docker/Dockerfile
-          # pull_image_and_stages: false  # if OOM error
+          pull_image_and_stages: false  # if OOM error
           push_image_and_stages: true  # because we run workflow on PRs
           build_extra_args: "--cache-from=deepstate-base --build-arg=make_j=2"
       - name: Test fuzzers
