@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: whoan/docker-build-with-cache-action@v3
+      - uses: whoan/docker-build-with-cache-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -78,7 +78,7 @@ jobs:
           dockerfile: Dockerfile
           push_image_and_stages: true  # because we run workflow on PRs
           build_extra_args: "--tag deepstate-base"
-      - uses: whoan/docker-build-with-cache-action@v3
+      - uses: whoan/docker-build-with-cache-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
