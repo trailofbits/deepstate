@@ -76,6 +76,7 @@ jobs:
           image_tag: latest
           context: docker/base
           dockerfile: Dockerfile
+          pull_image_and_stages: false  # if OOM error
           push_image_and_stages: true  # because we run workflow on PRs
           build_extra_args: "--tag deepstate-base"
       - uses: whoan/docker-build-with-cache-action@v4
