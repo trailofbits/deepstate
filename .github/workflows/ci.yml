@@ -50,7 +50,8 @@ jobs:
           python-version: "3.6"
       - name: Install dependencies
         run: |
-          sudo apt install build-essential gcc-multilib cmake libffi-dev
+          sudo apt-get update
+          sudo apt-get install -y build-essential gcc-multilib cmake libffi-dev
           python -m pip install --upgrade pip
           pip install z3-solver angr nose
           pip install git+git://github.com/trailofbits/manticore.git
