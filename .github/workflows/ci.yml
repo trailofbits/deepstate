@@ -87,7 +87,7 @@ jobs:
           image_tag: latest
           context: .
           dockerfile: docker/Dockerfile
-          # pull_image_and_stages: false  # if OOM error
+          pull_image_and_stages: false  # if OOM error
           push_image_and_stages: true  # because we run workflow on PRs
           build_extra_args: "--cache-from=deepstate-base --build-arg=make_j=2"
       - name: Test fuzzers
