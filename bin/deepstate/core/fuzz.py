@@ -64,6 +64,7 @@ class FuzzerFrontend(AnalysisBackend):
       - stats_file (file where to put stats from fuzzer in common format)
       - output_file (file where stdout of fuzzer will be redirected)
       - proc (handler to fuzzer process)
+      - fuzzer_return_code (the exit status from the fuzzer process AND the return status of main)
 
       - push_dir (push testcases from external sources here)
       - pull_dir (pull new testcases from this dir)
@@ -95,6 +96,7 @@ class FuzzerFrontend(AnalysisBackend):
     self._on: bool = False
 
     self.proc: subprocess.Popen[bytes]
+    self.fuzzer_return_code = 0
     self.require_seeds: bool = False
     self.stats_file: str = "deepstate-stats.txt"
     self.output_file: str = "fuzzer-output.txt"
@@ -570,7 +572,7 @@ class FuzzerFrontend(AnalysisBackend):
     try:
       self.parse_args()
       self.run()
-      return 0
+      return self.fuzzer_return_code
     except AnalysisBackendError as e:
       L.error(e)
       return 1
@@ -716,6 +718,7 @@ class FuzzerFrontend(AnalysisBackend):
               (self.proc.returncode == 1 and self.name == "libFuzzer"):
             L.info("Fuzzer %s (PID %d) exited with return code %d.",
                       self.name, self.proc.pid, self.proc.returncode)
+            self.fuzzer_return_code = 0
             run_one_fuzzer_process = False
 
           else:
@@ -723,6 +726,7 @@ class FuzzerFrontend(AnalysisBackend):
               L.error(stdout.decode('utf8'))
             if stderr:
               L.error(stderr.decode('utf8'))
+            self.fuzzer_return_code = self.proc.returncode
             raise FuzzFrontendError(f"Fuzzer {self.name} (PID {self.proc.pid}) exited "
                                     f"with return code {self.proc.returncode}.")
 
