@@ -5,5 +5,8 @@ set -eu
 IMAGE_NAME="deepstate"
 echo "IMAGE_NAME $IMAGE_NAME"
 
+echo "Building Docker base image..."
+docker build -t deepstate-base -f docker/base/Dockerfile docker/base || exit $?
+
 echo "Building Docker image..."
 docker build -t $IMAGE_NAME -f docker/Dockerfile . || exit $?

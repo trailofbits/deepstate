@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.6
-# Copyright (c) 2017 Trail of Bits, Inc.
+# Copyright (c) 2019 Trail of Bits, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import logging
-logging.basicConfig()
 
 import sys
 try:
@@ -27,17 +26,24 @@ except Exception as e:
   else:
     raise
 import traceback
-from .common import DeepState, TestInfo
 
+from manticore.utils import config
+from manticore.utils import log
 from manticore.core.state import TerminateState
+from manticore.native.manticore import _make_initial_state
 
+from deepstate.core import SymexFrontend, TestInfo
 
-L = logging.getLogger("deepstate.mcore")
-L.setLevel(logging.INFO)
+L = logging.getLogger(__name__)
 
 OUR_TERMINATION_REASON = "I DeepState'd it"
 
-class DeepManticore(DeepState):
+consts = config.get_group("core")
+
+class DeepManticore(SymexFrontend):
+
+  NAME = "Manticore"
+
   def __init__(self, state):
     super(DeepManticore, self).__init__()
     self.state = state
@@ -132,7 +138,7 @@ class DeepManticore(DeepState):
   def add_constraint(self, expr):
     if self.is_symbolic(expr):
       self.state.constrain(expr)
-      # TODO(pag): How to check satisfiability?
+      return self.state.is_feasible()
     return True
 
   def pass_test(self):
@@ -280,7 +286,7 @@ def _is_program_exit(reason):
   return 'Program finished with exit status' in str(reason)
 
 
-def done_test(_, state, state_id, reason):
+def done_test(_, state, reason):
   """Called when a state is terminated."""
   mc = DeepManticore(state)
 
@@ -289,25 +295,22 @@ def done_test(_, state, state_id, reason):
   # DeepState API, so we can just report it as is. Otherwise, we check to see if
   # it was due to behavior that would typically crash the program being analyzed.
   # If so, we save it as a crash. If not, we abandon it.
-  
+
   if str(OUR_TERMINATION_REASON) != str(reason):
     if _is_program_crash(reason):
-      L.info("State {} terminated due to crashing program behavior: {}".format(
-        state_id, reason))
+      L.info("State %s terminated due to crashing program behavior: %s", state._id, reason)
 
       # Don't raise new `TerminateState` exception
       super(DeepManticore, mc).crash_test()
     elif _is_program_exit(reason):
-      L.info("State {} terminated due to program exit: {}".format(
-        state_id, reason))
+      L.info("State %s terminated due to program exit: %s", state._id, reason)
       super(DeepManticore, mc).pass_test()
-      #super(DeepManticore, mc).abandon_test()      
+      #super(DeepManticore, mc).abandon_test()
     else:
-      L.error("State {} terminated due to internal error: {}".format(state_id,
-                                                                     reason))
+      L.error("State %s terminated due to internal error: %s", state._id, reason)
 
       # Don't raise new `TerminateState` exception
-      super(DeepManticore, mc).abandon_test()
+      super(DeepManticore, mc).ubandon_test()
 
   mc.report()
 
@@ -328,21 +331,24 @@ def find_symbol_ea(m, name):
   return 0
 
 
-def do_run_test(state, apis, test, hook_test=False):
+def do_run_test(state, apis, test, workspace, hook_test=False):
   """Run an individual test case."""
   state.cpu.PC = test.ea
-  m = manticore.native.Manticore(state, sys.argv[1:])
-  #m = MainThreadWrapper(m, _CONTROLLER)
-  m.verbosity(1)
 
-  state = m.initial_state
   mc = DeepManticore(state)
+  mc.context['apis'] = apis
 
   # Tell the system that we're using symbolic execution.
   mc.write_uint32_t(apis["UsingSymExec"], 8589934591)
 
   mc.begin_test(test)
+
   del mc
+
+  # NOTE(alan): cannot init State with new native.Manticore in 0.3.0 as it
+  # will try to delete the non-existent stored state from new workspace
+  m = manticore.native.Manticore(state, sys.argv[1:], workspace_url=workspace)
+  log.set_verbosity(1)
 
   m.add_hook(apis['IsSymbolicUInt'], hook(hook_IsSymbolicUInt))
   m.add_hook(apis['ConcretizeData'], hook(hook_ConcretizeData))
@@ -366,64 +372,74 @@ def do_run_test(state, apis, test, hook_test=False):
     m.add_hook(test.ea, hook(hook_TakeOver))
 
   m.subscribe('will_terminate_state', done_test)
-  m.run(procs=1)
+
+  # attempts to kill after consts.timeout
+  with m.kill_timeout(consts.timeout):
+    m.run()
+
+  # if Manticore is stuck, forcefully kill all workers
+  m.kill()
 
 
-def run_test(state, apis, test, hook_test=False):
+def run_test(state, apis, test, workspace, hook_test=False):
   try:
-    do_run_test(state, apis, test, hook_test)
+    do_run_test(state, apis, test, workspace, hook_test)
   except:
-    L.error("Uncaught exception: {}\n{}".format(
-      sys.exc_info()[0], traceback.format_exc()))
+    L.error("Uncaught exception: %s\n%s", sys.exc_info()[0], traceback.format_exc())
 
 
-def run_tests(args, state, apis):
-  """Run all of the test cases."""
-  #pool = multiprocessing.Pool(processes=max(1, args.num_workers))
-  results = []
+def run_tests(args, state, apis, workspace):
   mc = DeepManticore(state)
+  mc.context['apis'] = apis
   tests = mc.find_test_cases()
 
-  L.info("Running {} tests across {} workers".format(
-    len(tests), args.num_workers))
+  if not args.which_test:
+    L.info("Running %d tests across %d workers", len(tests), args.num_workers)
 
-  for test in tests:
-    res = run_test(state, apis, test)
-    results.append(res)
+    for test in tests:
+      run_test(state, apis, test, workspace)
 
-  #pool.close()
-  #pool.join()
+  else:
+    test = [t for t in tests if t.name == args.which_test]
+    if len(test) == 0:
+      L.error("No test found with specified name.")
+      exit(1)
+    elif len(test) > 1:
+      L.error("Multiple tests found with same name.")
+      exit(1)
 
-  exit(0)
+    L.info("Running `%d` test across %d workers", args.which_test, args.num_workers)
+    run_test(state, apis, test[0], workspace)
+
 
 def get_base(m):
-  e_type = m.initial_state.platform.elf['e_type']
+  initial_state = _make_initial_state(m.binary_path)
+  e_type = initial_state.platform.elf['e_type']
   if e_type == 'ET_EXEC':
     return 0x0
   elif e_type == 'ET_DYN':
-    if m.initial_state.cpu.address_bit_size == 32:
+    if initial_state.cpu.address_bit_size == 32:
       return 0x56555000
     else:
       return 0x555555554000
   else:
-    L.critical("Invalid binary type `{}`".format(e_type))
+    L.critical("Invalid binary type `%s`", e_type)
     exit(1)
 
 def main_takeover(m, args, takeover_symbol):
   takeover_ea = find_symbol_ea(m, takeover_symbol)
   if not takeover_ea:
-    L.critical("Cannot find symbol `{}` in binary `{}`".format(
-      takeover_symbol,
-      args.binary))
+    L.critical("Cannot find symbol `%s` in binary `%s`",
+                  takeover_symbol, args.binary)
     return 1
 
-  takeover_state = m._initial_state
+  takeover_state = _make_initial_state(m.binary_path)
 
   mc = DeepManticore(takeover_state)
 
   ea_of_api_table = find_symbol_ea(m, 'DeepState_API')
   if not ea_of_api_table:
-    L.critical("Could not find API table in binary `{}`".format(args.binary))
+    L.critical("Could not find API table in binary `%s`", args.binary)
     return 1
 
   base = get_base(m)
@@ -434,51 +450,56 @@ def main_takeover(m, args, takeover_symbol):
   fake_test = TestInfo(takeover_ea, '_takeover_test', '_takeover_file', 0)
 
   hook_test = not args.klee
-  takeover_hook = lambda state: run_test(state, apis, fake_test, hook_test)
+  takeover_hook = lambda state: run_test(state, apis, fake_test, m._workspace.uri, hook_test)
   m.add_hook(takeover_ea, takeover_hook)
 
-  m.run(procs=1)
+  with m.kill_timeout(consts.timeout):
+    m.run()
+
+  m.kill()
 
 
 def main_unit_test(m, args):
   setup_ea = find_symbol_ea(m, 'DeepState_Setup')
   if not setup_ea:
-    L.critical("Cannot find symbol `DeepState_Setup` in binary `{}`".format(
-      args.binary))
+    L.critical("Cannot find symbol `DeepState_Setup` in binary `%s`", args.binary)
     return 1
 
-  setup_state = m._initial_state
+  setup_state = _make_initial_state(m.binary_path)
 
   mc = DeepManticore(setup_state)
 
   ea_of_api_table = find_symbol_ea(m, 'DeepState_API')
   if not ea_of_api_table:
-    L.critical("Could not find API table in binary `{}`".format(args.binary))
+    L.critical("Could not find API table in binary `%s`", args.binary)
     return 1
 
   base = get_base(m)
   apis = mc.read_api_table(ea_of_api_table, base)
   del mc
 
-  m.add_hook(setup_ea, lambda state: run_tests(args, state, apis))
-  m.run(procs=1)
+  m.add_hook(setup_ea, lambda state: run_tests(args, state, apis, m._workspace.uri))
+
+  with m.kill_timeout(consts.timeout):
+    m.run()
+
+  m.kill()
 
 
 def main():
   args = DeepManticore.parse_args()
 
+  consts.procs = args.num_workers
+  consts.timeout = args.timeout
+  consts.mprocessing = consts.mprocessing.single
+
   try:
     m = manticore.native.Manticore(args.binary)
   except Exception as e:
-    L.critical("Cannot create Manticore instance on binary {}: {}".format(
-      args.binary, e))
+    L.critical("Cannot create Manticore instance on binary %s: %s", args.binary, e)
     return 1
 
-  m.verbosity(args.verbosity)
-
-  # Hack to get around current broken _get_symbol_address
-  m._binary_type = 'not elf'
-  m._binary_obj = m._initial_state.platform.elf
+  log.set_verbosity(args.verbosity)
 
   if args.take_over:
     return main_takeover(m, args, 'DeepState_TakeOver')

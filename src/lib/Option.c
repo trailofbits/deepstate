@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Trail of Bits, Inc.
+ * Copyright (c) 2019 Trail of Bits, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 
-DEFINE_bool(help, false, "Show the usage message.");
+DEFINE_bool(help, MiscGroup, false, "Show the usage message.");
 
 enum {
   kMaxNumOptions = 32,
@@ -39,6 +39,17 @@ static int DeepState_OptionStringLength = 0;
 static char DeepState_OptionString[kMaxOptionLength + 1] = {'\0'};
 static const char *DeepState_OptionNames[kMaxNumOptions] = {NULL};
 static const char *DeepState_OptionValues[kMaxNumOptions] = {NULL};
+
+/* Defines a mapping between group enums and display strings */
+static const char * ProcessGroupString(DeepState_OptGroup group) {
+    return (const char *[]) {
+      "Input/Output Options",
+      "Fuzzing/Symex Analysis Options",
+      "Test Execution Options",
+      "Test Selection Options",
+      "Other Options",
+    }[group];
+}
 
 /* Copy a substring into the main options string. */
 static int CopyStringIntoOptions(int offset, const char *string,
@@ -256,19 +267,33 @@ void DeepState_PrintAllOptions(const char *prog_name) {
   sprintf(buff, "Usage: %s <options>\n\n", prog_name);
   write_len = write(STDERR_FILENO, buff, strlen(buff));
 
-  for (; option != NULL; option = next_option) {
-    next_option = option->next;
+  /* First, print group display string, then each option that corresponds */
+  for (int group = 0; group != MiscGroup; group++) {
 
-    sprintf(buff, "--%s", option->name);
+    sprintf(buff, "\033[4m%s\033[24m\n\n", ProcessGroupString(group));
     write_len = write(STDERR_FILENO, buff, strlen(buff));
 
-    const char *docstring = option->docstring;
-    do {
-      docstring = BufferDocString(line_buff, docstring);
-      sprintf(buff, "\n        %s", line_buff);
-      write_len = write(STDERR_FILENO, buff, strlen(buff));
-    } while (*docstring);
-    write_len = write(STDERR_FILENO, "\n\n", 2);
+    for (; option != NULL; option = next_option) {
+
+      next_option = option->next;
+      if (group == option->group) {
+
+        sprintf(buff, "--%s", option->name);
+        write_len = write(STDERR_FILENO, buff, strlen(buff));
+
+        const char *docstring = option->docstring;
+        do {
+          docstring = BufferDocString(line_buff, docstring);
+          sprintf(buff, "\n\t%s", line_buff);
+          write_len = write(STDERR_FILENO, buff, strlen(buff));
+        } while (*docstring);
+        write_len = write(STDERR_FILENO, "\n\n", 2);
+      }
+    }
+
+	/* Reiterate over linked list again with each group */
+	option = DeepState_Options;
+	next_option = NULL;
   }
   (void) write_len;  /* Deal with -Wunused-result. */
 }
