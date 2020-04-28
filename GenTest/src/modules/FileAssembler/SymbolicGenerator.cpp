@@ -202,7 +202,7 @@ std::string SymbolicGenerator::getSymbolic( std::string datatype )
         {
             return std::to_string( this->getUInt( this->it ) );
         }
-        else if( datatype == "uint_16" )
+        else if( datatype == "uint16_t" )
         {
             return std::to_string( this->getUInt16( this->it ) );
         }
