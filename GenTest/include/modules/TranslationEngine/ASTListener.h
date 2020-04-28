@@ -64,6 +64,12 @@ class ASTListener : public GenTestBaseListener
 	  void enterDs_c_struptolen(GenTestParser::Ds_c_struptolenContext * ctx);
 	  void enterDs_malloc(GenTestParser::Ds_mallocContext * ctx);
 
+	  void enterDs_long(GenTestParser::Ds_longContext * ctx);
+	  void enterDs_short(GenTestParser::Ds_shortContext * ctx);
+	  void enterDs_bool(GenTestParser::Ds_boolContext * ctx);
+	  void enterDs_uint(GenTestParser::Ds_uintContext * ctx);
+	  void enterDs_int64(GenTestParser::Ds_int64Context * ctx);
+
 	  void enterTest(GenTestParser::TestContext * ctx);
 	  void enterSymbolic(GenTestParser::SymbolicContext * ctx);
 	  void enterType(GenTestParser::TypeContext * ctx);

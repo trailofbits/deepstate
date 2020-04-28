@@ -2,6 +2,8 @@
 /*****************************
 * Libraries
 ******************************/
+#ifndef BINARYCONTROLLER_H
+#define BINARYCONTROLLER_H
 #include "TranslationEngine.h"
 #include <deepstate/DeepState.h>
 
@@ -49,22 +51,35 @@ class BinaryController
 
     public:
 
-        BinaryController();
-        ResultPacket fuzz_file( ControllerCommand command, int testIndex = 0 );
+    BinaryController();
+    ResultPacket fuzz_file( ControllerCommand command, int testIndex = 0 );
+
 	unsigned int getPos();
 	void setPos( unsigned int pos );
-        short getShort();
-        uint16_t getUShort();
-        int32_t getInt();
-        int64_t getInt64();
-        uint32_t getUInt();
-        uint64_t getUInt64();
-        double getDouble();
-        float getFloat();
-        int32_t getLong();
-        int8_t getChar();
-        uint8_t getUChar();
-        bool getBool();
+
+	// intx_t types
+    int8_t getInt8();
+	int16_t getInt16();
+    int32_t getInt();
+    int64_t getInt64();
+	
+	// uintx_t types
+    unsigned int getUInt();
+    uint64_t getUInt64();
+
+	// Other numeric types.
+    double getDouble();
+    float getFloat();
+    short getShort();
+    unsigned short getUShort();
+    long getLong();
+
+	// Character types
+    int8_t getChar();
+    uint8_t getUChar();
+
+	// Boolean types.
+    bool getBool();
 };
 
-
+#endif

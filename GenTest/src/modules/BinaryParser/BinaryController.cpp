@@ -40,6 +40,7 @@
 * Headers 
 ********************/
 #include "BinaryController.h"
+#include "StructHandler.h"
 
 /******************************
 * Binary Controller Functions
@@ -163,7 +164,7 @@ short BinaryController::getShort()
     return DeepState_Short();
 }
 
-uint16_t BinaryController::getUShort()
+unsigned short BinaryController::getUShort()
 {
     // Set DeepState_Index
     DeepState_InputIndex = this->pos;
@@ -193,11 +194,17 @@ int64_t BinaryController::getInt64()
     // Increment pos
     pos += 8;
 
-    return DeepState_Int();
+    return DeepState_Int64();
 }
 
-uint32_t BinaryController::getUInt()
+unsigned int BinaryController::getUInt()
 {
+    // Set DeepState_Index
+    DeepState_InputIndex = this->pos;
+
+    // Increment pos
+    pos += 4;
+
     return DeepState_UInt();
 }
 
@@ -234,15 +241,15 @@ float BinaryController::getFloat()
     return DeepState_Float();
 }
 
-int32_t BinaryController::getLong()
+long BinaryController::getLong()
 {
     // Set DeepState_Index
     DeepState_InputIndex = this->pos;
 
     // Increment pos
-    pos += 4;
+    pos += 8;
 
-    return DeepState_Int();
+    return DeepState_Long();
 }
 
 int8_t BinaryController::getChar()
@@ -277,7 +284,6 @@ bool BinaryController::getBool()
 
     return DeepState_Bool();
 }
-
 
 
 /******************************

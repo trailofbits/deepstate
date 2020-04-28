@@ -80,36 +80,39 @@ bool LoopHandler::isInManifest( std::string type )
     return passFail;
 }
 
-std::string LoopHandler::writeSymbolicParams( ResultPacket &results )
+std::string LoopHandler::writeSymbolicParams( ResultPacket &results, std::string padding )
 {
     //Declare local variables.
-    int num_bytes = 0;
+    int num_bytes = 0, total_bytes = results.get_bytes();
     SymbolicGenerator generator( this->ctr, results );
     std::string output = "", type;
 
     for( int pos = 0; pos < (int) typeManifest.size(); pos++ )
     {
         type = this->typeManifest.at( pos );
-        output += "\n" + type + " SYMBOLIC_LOOP_PARAMS [] = { ";        
+        output += "\n" + padding + type + " SYMBOLIC_LOOP_PARAMS_" + 
+		  typeManifest.at( pos ) + " [] = { ";        
     
         // Initialize num_bytes
-        num_bytes = ( (type == "int" || type == "long" || type == "float" ||
+        num_bytes = ( (type == "int" || type == "float" ||
                      type == "unsigned" || type == "unsigned int" || 
-                     type == "uint32_t"  ) * FOUR_BYTES
-                    + ( type == "short" || type == "uint16_t"  ) * TWO_BYTES
+                     type == "uint32_t" || type == "int32_t"  ) * FOUR_BYTES
+                    + ( type == "short" || type == "uint16_t" || 
+			type == "int16_t"  ) * TWO_BYTES
                     + ( type == "char" || type == "unsigned char" || type == "bool" || 
-                        type == "uint8_t" ) * ONE_BYTE 
-                    + ( type == "double" || type == "uint64_t" ) * EIGHT_BYTES );
+                        type == "uint8_t" || type == "int8_t" ) * ONE_BYTE 
+                    + ( type == "double" || type == "uint64_t" || 
+			type == "long" || type == "int64_t" ) * EIGHT_BYTES );
 
         // Iterate until the end of bytes.
-        for( int i = 0; i < ( results.get_bytes() / num_bytes ) - num_bytes; i++ )
+        for( int i = 0; i < ( total_bytes / num_bytes ); i++ )
         {
             if( i % 5 == 0 && i > 0 )
             {
-                output += "\n";
+                output += "\n" + padding;
             }
 
-            if( i < ( ( results.get_bytes() / num_bytes ) - num_bytes ) - 1 )
+            if( i < ( ( results.get_bytes() / num_bytes ) ) - 1 )
             {
                output += generator.getSymbolic( this->typeManifest.at( pos ) ) + ", ";
             }
@@ -141,6 +144,6 @@ std::string LoopHandler::writeSymbolicStatement( std::string datatype, std::stri
     loopVar = loopVar.substr( loopVar.find( " " ) + 1, loopVar.length() );
     loopVar = loopVar.substr( 0, loopVar.find_last_of( " " ) ); 
 
-    return datatype + " " + variableName + " = SYMBOLIC_LOOP_PARAMS[ " + loopVar + " ];\n\n"; 
+    return datatype + " " + variableName + " = SYMBOLIC_LOOP_PARAMS_" + datatype + "[ " + loopVar + " ];\n\n"; 
 }
 

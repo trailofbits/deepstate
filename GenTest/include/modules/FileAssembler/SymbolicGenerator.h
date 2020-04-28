@@ -2,10 +2,14 @@
 /******************
 * Include Files
 *******************/
+#ifndef SYMBOLICGENERATOR_H
+#define SYMBOLICGENERATOR_H
+
 #include "DataStructures.h"
 #include "BinaryController.h"
 #include "BinaryIterator.h"
 #include "BinaryParser.h"
+#include <sstream>
 
 /******************
 * Class Definitions
@@ -54,3 +58,5 @@ class SymbolicGenerator
         std::string writeSymbolicLine( std::string varName, std::string datatype );
         
 };
+
+#endif

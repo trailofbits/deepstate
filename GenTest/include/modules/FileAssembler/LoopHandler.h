@@ -1,5 +1,6 @@
 
 #include "SymbolicGenerator.h"
+#include "StructHandler.h"
 
 // Global constants
 const int ONE_BYTE = 1;
@@ -25,7 +26,7 @@ class LoopHandler
         LoopHandler( BinaryController * ctr );
         void addType( std::string type );
         void setPos( int pos );
-        std::string writeSymbolicParams( ResultPacket &results );
+        std::string writeSymbolicParams( ResultPacket &results, std::string padding );
         std::string writeSymbolicStatement( std::string datatype, std::string currentText, 
 				            std::string loopText );
 };

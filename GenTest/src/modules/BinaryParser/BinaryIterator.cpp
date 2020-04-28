@@ -68,7 +68,6 @@ void BinaryIterator::rewind( std::size_t step )
 
 std::uint64_t BinaryIterator::nextUInt64()
 {
-
     return DeepState_UInt64();
 }
 

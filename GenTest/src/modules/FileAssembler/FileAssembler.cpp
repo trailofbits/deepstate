@@ -67,7 +67,6 @@ std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::str
 
     for( int currentTranslation = 0; currentTranslation < (int) size; currentTranslation++ )
     {
-        
         // Declare loop variables.
         bool added = false, currentQuestion = false;
         std::vector<std::string> stringsToAdd;
@@ -146,7 +145,7 @@ std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::str
 
             stringsToAdd = deepstateQuestionHandle( &translate, currentString );
         }
-        else if( current->type >= DEEPSTATE_INT && current->type <= DEEPSTATE_MALLOC )
+        else if( current->type >= DEEPSTATE_INT && current->type <= DEEPSTATE_BOOL )
         {
             added = true;
 
@@ -182,9 +181,13 @@ std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::str
         //checking for struct declarations
         else if( !structFlag && testFlag && current->type == NO_TRANSLATE )
         {
-            stringsToAdd = structHandle( currentString, &handler, &(*current), generator.getIterator() );
+            stringsToAdd = structHandle( currentString, &handler, &(*current), generator );
       
             added = !stringsToAdd.empty();
+        }
+        else if( current->type == END_OF_FILE )
+        {
+            added = true;
         }
 
         //statements used to handle when there is extra information after a question statement
@@ -279,10 +282,11 @@ std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::str
             loopFlag = false;
         }
 
-        if( testCounter > 0 && current->type == TEST && loopHandle.outputPos > 0 )
-        {
-            output.insert( loopHandle.outputPos, generatePadding( currentDepth + 2 ) + 
-                                                 loopHandle.writeSymbolicParams( results ) ); 
+        if( testCounter > 0 && ( current->type == TEST || current->type == END_OF_FILE )
+	        && loopHandle.outputPos > 0 )
+        {	
+            output.insert( loopHandle.outputPos, 
+                           loopHandle.writeSymbolicParams( results, generatePadding( currentDepth + 1 ) ) ); 
         }
 
         //reset the iterator for each test
@@ -309,6 +313,8 @@ std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::str
 
             // Set test flag.
             testFlag = true;
+
+            std::cout << current->text << std::endl;
         }
 
         prevQuestion = currentQuestion;
@@ -606,7 +612,8 @@ std::vector<std::string> deepstateTypeHandle( const std::string& currentString, 
     return outputVector;
 }
 
-std::vector<std::string> structHandle( const std::string& currentString, StructHandler * handler, Node * current, BinaryIterator * it )
+std::vector<std::string> structHandle( const std::string& currentString, StructHandler * handler, Node * current, 
+			 	       SymbolicGenerator &generator )
 {
     std::vector<std::string> outputVector;
 
@@ -617,7 +624,7 @@ std::vector<std::string> structHandle( const std::string& currentString, StructH
     {
         outputVector.push_back( currentString + "\n" );
 
-        auto strings = handler->writeStatementFor( (*current), it);
+        auto strings = handler->writeStatementFor( (*current), generator );
 
         auto currentLine = strings.begin();
 

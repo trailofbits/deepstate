@@ -130,6 +130,18 @@ public:
   virtual void enterDs_int(GenTestParser::Ds_intContext * /*ctx*/) override { }
   virtual void exitDs_int(GenTestParser::Ds_intContext * /*ctx*/) override { }
 
+  virtual void enterDs_int8(GenTestParser::Ds_int8Context * /*ctx*/) override { }
+  virtual void exitDs_int8(GenTestParser::Ds_int8Context * /*ctx*/) override { }
+
+  virtual void enterDs_int16(GenTestParser::Ds_int16Context * /*ctx*/) override { }
+  virtual void exitDs_int16(GenTestParser::Ds_int16Context * /*ctx*/) override { }
+
+  virtual void enterDs_int64(GenTestParser::Ds_int64Context * /*ctx*/) override { }
+  virtual void exitDs_int64(GenTestParser::Ds_int64Context * /*ctx*/) override { }
+
+  virtual void enterDs_uint(GenTestParser::Ds_uintContext * /*ctx*/) override { }
+  virtual void exitDs_uint(GenTestParser::Ds_uintContext * /*ctx*/) override { }
+
   virtual void enterDs_uint8(GenTestParser::Ds_uint8Context * /*ctx*/) override { }
   virtual void exitDs_uint8(GenTestParser::Ds_uint8Context * /*ctx*/) override { }
 
@@ -148,6 +160,12 @@ public:
   virtual void enterDs_double(GenTestParser::Ds_doubleContext * /*ctx*/) override { }
   virtual void exitDs_double(GenTestParser::Ds_doubleContext * /*ctx*/) override { }
 
+  virtual void enterDs_long(GenTestParser::Ds_longContext * /*ctx*/) override { }
+  virtual void exitDs_long(GenTestParser::Ds_longContext * /*ctx*/) override { }
+
+  virtual void enterDs_short(GenTestParser::Ds_shortContext * /*ctx*/) override { }
+  virtual void exitDs_short(GenTestParser::Ds_shortContext * /*ctx*/) override { }
+
   virtual void enterDs_ushort(GenTestParser::Ds_ushortContext * /*ctx*/) override { }
   virtual void exitDs_ushort(GenTestParser::Ds_ushortContext * /*ctx*/) override { }
 
@@ -156,6 +174,9 @@ public:
 
   virtual void enterDs_char(GenTestParser::Ds_charContext * /*ctx*/) override { }
   virtual void exitDs_char(GenTestParser::Ds_charContext * /*ctx*/) override { }
+
+  virtual void enterDs_bool(GenTestParser::Ds_boolContext * /*ctx*/) override { }
+  virtual void exitDs_bool(GenTestParser::Ds_boolContext * /*ctx*/) override { }
 
   virtual void enterDs_malloc(GenTestParser::Ds_mallocContext * /*ctx*/) override { }
   virtual void exitDs_malloc(GenTestParser::Ds_mallocContext * /*ctx*/) override { }
