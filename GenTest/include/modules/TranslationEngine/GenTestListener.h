@@ -128,6 +128,18 @@ public:
   virtual void enterDs_int(GenTestParser::Ds_intContext *ctx) = 0;
   virtual void exitDs_int(GenTestParser::Ds_intContext *ctx) = 0;
 
+  virtual void enterDs_int8(GenTestParser::Ds_int8Context *ctx) = 0;
+  virtual void exitDs_int8(GenTestParser::Ds_int8Context *ctx) = 0;
+
+  virtual void enterDs_int16(GenTestParser::Ds_int16Context *ctx) = 0;
+  virtual void exitDs_int16(GenTestParser::Ds_int16Context *ctx) = 0;
+
+  virtual void enterDs_int64(GenTestParser::Ds_int64Context *ctx) = 0;
+  virtual void exitDs_int64(GenTestParser::Ds_int64Context *ctx) = 0;
+
+  virtual void enterDs_uint(GenTestParser::Ds_uintContext *ctx) = 0;
+  virtual void exitDs_uint(GenTestParser::Ds_uintContext *ctx) = 0;
+
   virtual void enterDs_uint8(GenTestParser::Ds_uint8Context *ctx) = 0;
   virtual void exitDs_uint8(GenTestParser::Ds_uint8Context *ctx) = 0;
 
@@ -146,6 +158,12 @@ public:
   virtual void enterDs_double(GenTestParser::Ds_doubleContext *ctx) = 0;
   virtual void exitDs_double(GenTestParser::Ds_doubleContext *ctx) = 0;
 
+  virtual void enterDs_long(GenTestParser::Ds_longContext *ctx) = 0;
+  virtual void exitDs_long(GenTestParser::Ds_longContext *ctx) = 0;
+
+  virtual void enterDs_short(GenTestParser::Ds_shortContext *ctx) = 0;
+  virtual void exitDs_short(GenTestParser::Ds_shortContext *ctx) = 0;
+
   virtual void enterDs_ushort(GenTestParser::Ds_ushortContext *ctx) = 0;
   virtual void exitDs_ushort(GenTestParser::Ds_ushortContext *ctx) = 0;
 
@@ -154,6 +172,9 @@ public:
 
   virtual void enterDs_char(GenTestParser::Ds_charContext *ctx) = 0;
   virtual void exitDs_char(GenTestParser::Ds_charContext *ctx) = 0;
+
+  virtual void enterDs_bool(GenTestParser::Ds_boolContext *ctx) = 0;
+  virtual void exitDs_bool(GenTestParser::Ds_boolContext *ctx) = 0;
 
   virtual void enterDs_malloc(GenTestParser::Ds_mallocContext *ctx) = 0;
   virtual void exitDs_malloc(GenTestParser::Ds_mallocContext *ctx) = 0;

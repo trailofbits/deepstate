@@ -6,7 +6,9 @@ using namespace std;
 
 vector<Node> ASTListener::getAST(){
 
-return ASTListener::list;
+    this->addToList( END_OF_FILE, "EOF" );
+
+    return ASTListener::list;
 
 }
 
@@ -14,7 +16,8 @@ return ASTListener::list;
 void ASTListener::addToList( NTerminal type, std::string text )
 {
     if( type == NO_TRANSLATE || type == INCLUDE 
-        || type == STRUCT || type == TYPEDEF )
+        || type == STRUCT || type == TYPEDEF 
+        || type == END_OF_FILE )
     {
         // Create a new node.
         Node newNode;
@@ -286,7 +289,40 @@ void ASTListener::enterDs_char(GenTestParser::Ds_charContext * ctx)
 
 void ASTListener::enterType(GenTestParser::TypeContext * ctx)
 {
-    ASTListener::list.at( list.size() - 1 ).datatype = ctx->getText();
+    if( list.at( list.size() - 1 ).datatype.size() > 0 )
+    {
+        ASTListener::list.at( list.size() - 1 ).datatype += " " + ctx->getText();
+    }
+    else
+    {
+        ASTListener::list.at( list.size() - 1 ).datatype += ctx->getText();
+    }
+}
+
+void ASTListener::enterDs_long(GenTestParser::Ds_longContext * ctx)
+{
+    this->addToList( DEEPSTATE_LONG, ctx->getText() );
+}
+
+void ASTListener::enterDs_short(GenTestParser::Ds_shortContext * ctx)
+{
+    this->addToList( DEEPSTATE_SHORT, ctx->getText() );
+}
+
+void ASTListener::enterDs_bool(GenTestParser::Ds_boolContext * ctx)
+{
+    this->addToList( DEEPSTATE_BOOL, ctx->getText() );
+}
+
+
+void ASTListener::enterDs_uint(GenTestParser::Ds_uintContext * ctx)
+{
+    this->addToList( DEEPSTATE_UINT, ctx->getText() );
+}
+
+void ASTListener::enterDs_int64(GenTestParser::Ds_int64Context * ctx)
+{
+    this->addToList( DEEPSTATE_INT64, ctx->getText() );
 }
 
 void ASTListener::enterInclude(GenTestParser::IncludeContext * ctx)

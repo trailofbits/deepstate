@@ -18,8 +18,6 @@
 #define GENTEST_DATASTRUCTURES_H
 
 #include "Util.h"
-#include "BinaryIterator.h"
-
 
 //TranslationEngine structures
 typedef enum NonTerminals
@@ -76,12 +74,20 @@ typedef enum NonTerminals
     DEEPSTATE_C_STR,
     DEEPSTATE_C_STRUPTO,
     DEEPSTATE_MALLOC,
+    DEEPSTATE_INT64,
+    DEEPSTATE_INT16,
+    DEEPSTATE_INT8,
+    DEEPSTATE_LONG,
+    DEEPSTATE_SHORT,
+    DEEPSTATE_UINT,
+    DEEPSTATE_BOOL,
     SYMBOLIC,
     CLOSE_BRK,
     OPEN_BRK,
     MAIN_FUNC,
     TYPEDEF,
-    STRUCT
+    STRUCT,
+    END_OF_FILE
 
 } NTerminal;
 
@@ -176,98 +182,7 @@ private:
     bool assignTranslation(std::string translationString, NTerminal currentNTerminal );
 };
 
-class VariablePacket
-{
-    private:
-        std::string name;
-        std::string datatype;
 
-    public:
-        void setVarName( std::string name );
-        void setDatatype( std::string datatype );
-        std::string getName();
-        std::string getDatatype();
-};
-
-class StructPacket
-{
-    private:
-        std::string name;
-        std::vector<VariablePacket> varList;
-
-    public:
-
-        void setName( std::string name );
-        void addParam( VariablePacket &packet );
-        std::string getName();
-        size_t length();
-        VariablePacket getVarAt( int index );
-};
-
-class SymbolicPacket
-{
-    private:
-        uint8_t uint8;
-        uint16_t uint16;
-        uint32_t uint32;
-        uint64_t uint64;
-        int integer;
-        float flt;
-        double dbl;
-        short shrt;
-        long lng;
-        char character;
-        bool boolean;
-        std::string string;
-
-    public:
-        
-        SymbolicPacket();
-        void fetchSymbolic( std::string datatype, BinaryIterator * it );  
-        uint8_t getUInt8();
-        uint16_t getUInt16();
-        uint32_t getUInt32();
-        uint64_t getUInt64();
-        int getInt();
-        float getFloat();
-        double getDouble();
-        short getShort();
-        long getLong();
-        char getChar();
-        bool getBool();
-        std::string getString(); 
-};
-
-        
-class StructHandler 
-{
-    private:
-        std::vector<StructPacket> structList;
-        
-        bool structInList( std::string name );
-        StructPacket getPacket( std::string name );
-        std::vector<std::string> assembleStatement( StructPacket packet, BinaryIterator * it  );
-	
-    
-    public:
-
-        typedef enum StructAssemblyCodes {
-
-            ASSEMBLE = 0,
-            ADD_VAR,
-            CLEAR_CURRENT
-
-
-        } AssemblyCode;
-
-        std::string getStructName( std::string header );
-        std::string getVarName( std::string decl );
-        std::string getTypeName( std::string decl );
-        StructPacket assemblePacket( Node declNode, AssemblyCode command );
-        void lookForSymbolic( std::vector<Node> ast );
-        std::vector<std::string> writeStatementFor( Node declNode, BinaryIterator * it );
-        std::vector<std::string> getStructNames();
-};
 
     
 #endif //GENTEST_DATASTRUCTURES_H

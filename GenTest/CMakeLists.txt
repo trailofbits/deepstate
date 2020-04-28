@@ -28,6 +28,7 @@ add_library(gentest_binaryparser STATIC src/modules/BinaryParser/BinaryParser.cp
 add_library(gentest_fileassembler STATIC src/modules/FileAssembler/FileAssembler.cpp
 	    src/modules/FileAssembler/SymbolicGenerator.cpp
 	    src/modules/FileAssembler/LoopHandler.cpp
+	    src/modules/FileAssembler/StructHandler.cpp
 )
 add_library(gentest_translationengine STATIC src/modules/TranslationEngine/TranslationEngine.cpp
 	    src/modules/TranslationEngine/GenTestParser.cpp

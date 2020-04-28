@@ -16,6 +16,7 @@
 
 #include "DataStructures.h"
 #include "LoopHandler.h"
+#include "StructHandler.h"
 #include <algorithm>
 
 std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::string> binaryFile,
@@ -41,7 +42,7 @@ std::vector<std::string> deepstateQuestionHandle( TranslationDictionary * transl
 
 std::vector<std::string> deepstateTypeHandle( const std::string& currentString, BinaryIterator * it, Node * current );
 
-std::vector<std::string> structHandle( const std::string& currentString, StructHandler * handler, Node * current, BinaryIterator * it );
+std::vector<std::string> structHandle( const std::string& currentString, StructHandler * handler, Node * current, SymbolicGenerator &generator );
 
 std::string questionWhichCheck( const std::string& toCheck, const std::string& baseCase );
 

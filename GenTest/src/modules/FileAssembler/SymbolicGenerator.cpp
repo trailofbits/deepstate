@@ -176,13 +176,16 @@ unsigned char SymbolicGenerator::getUChar( BinaryIterator * it )
 
 std::string SymbolicGenerator::getSymbolic( std::string datatype )
 {
+    // Declare local variables.
+    std::ostringstream out;
+
     if( !this->fuzz )
     {
         if( this->it == NULL )
         {
             return "0";
         }
-        if( datatype == "int" )
+        if( datatype == "int" || datatype == "int32_t" )
         {
             return std::to_string( this->getInt( this->it ) );
         }
@@ -194,17 +197,18 @@ std::string SymbolicGenerator::getSymbolic( std::string datatype )
         {
             return std::to_string( this->getInt64( this->it ) );
         }   
-        else if( datatype == "unsigned int" || datatype == "unsigned" )
+        else if( datatype == "unsigned int" || datatype == "unsigned"
+                 || datatype == "uint32_t" )
         {
             return std::to_string( this->getUInt( this->it ) );
         }
-        else if( datatype == "uint_16" )
+        else if( datatype == "uint16_t" )
         {
             return std::to_string( this->getUInt16( this->it ) );
         }
-        else if( datatype == "uint_64" )
+        else if( datatype == "uint64_t" )
         {
-            return std::to_string( this->getInt64( this->it ) );
+            return std::to_string( this->getUInt64( this->it ) );
         }
         else if( datatype == "short" )
         {
@@ -222,11 +226,11 @@ std::string SymbolicGenerator::getSymbolic( std::string datatype )
         {
             return std::to_string( this->getFloat( this->it ) );
         }
-        else if( datatype == "char" )
+        else if( datatype == "char" || datatype == "int8_t" )
         {
             return std::to_string( this->getChar( this->it ) );
         }
-        else if( datatype == "unsigned char" )
+        else if( datatype == "unsigned char" || datatype == "uint8_t" )
         {
             return std::to_string( this->getUChar( this->it ) );
         }
@@ -234,7 +238,7 @@ std::string SymbolicGenerator::getSymbolic( std::string datatype )
     }
     else
     {
-        if( datatype == "int" )
+        if( datatype == "int" || datatype == "int32_t" )
         {
             results.set_read_bytes( results.get_bytes() - 4 );            
 
@@ -244,27 +248,28 @@ std::string SymbolicGenerator::getSymbolic( std::string datatype )
         {
             results.set_read_bytes( results.get_bytes() - 2 );    
 
-            return std::to_string( (int16_t) this->ctr->getInt() );
+            return std::to_string( this->ctr->getShort() );
         }
         else if( datatype == "int64_t" )
         {
             results.set_read_bytes( results.get_bytes() - 8 );  
   
-            return std::to_string( (int64_t) this->ctr->getInt() );
+            return std::to_string( this->ctr->getInt64() );
         }  
-        else if( datatype == "unsigned int" || datatype == "unsigned" )
+        else if( datatype == "unsigned int" || datatype == "unsigned" 
+		 || datatype == "uint32_t" )
         {
             results.set_read_bytes( results.get_bytes() - 4 );  
 
             return std::to_string( this->ctr->getUInt() );
         } 
-        else if( datatype == "uint_16" )
+        else if( datatype == "uint16_t" )
         {
             results.set_read_bytes( results.get_bytes() - 2 );  
 
-            return std::to_string( (uint16_t) this->ctr->getUInt() );
+            return std::to_string( this->ctr->getUShort() );
         }
-        else if( datatype == "uint_64" )
+        else if( datatype == "uint64_t" )
         {
             results.set_read_bytes( results.get_bytes() - 8 );  
 
@@ -278,7 +283,7 @@ std::string SymbolicGenerator::getSymbolic( std::string datatype )
         }
         else if( datatype == "long" )
         {
-            results.set_read_bytes( results.get_bytes() - 4 );  
+            results.set_read_bytes( results.get_bytes() - 8 );  
 
             return std::to_string( this->ctr->getLong() );
         }
@@ -286,26 +291,36 @@ std::string SymbolicGenerator::getSymbolic( std::string datatype )
         {
             results.set_read_bytes( results.get_bytes() - 8 );  
 
-            return std::to_string( this->ctr->getDouble() );
+            out << std::scientific << this->ctr->getDouble();
+
+            return out.str();
         }
         else if( datatype == "float" )
         {
             results.set_read_bytes( results.get_bytes() - 4 );  
 
-            return std::to_string( this->ctr->getFloat() );
+            out << std::scientific << this->ctr->getFloat();
+
+            return out.str();
         }
-        else if( datatype == "char" )
+        else if( datatype == "char" || datatype == "int8_t" )
         {
             results.set_read_bytes( results.get_bytes() - 1 ); 
  
             return std::to_string( this->ctr->getChar() );
         }
-        else if( datatype == "unsigned char" )
+        else if( datatype == "unsigned char" || datatype == "uint8_t" )
         {
             results.set_read_bytes( results.get_bytes() - 1 );  
 
             return std::to_string( this->ctr->getUChar() );
-        } 
+        }
+	    else if( datatype == "bool" )
+	    {
+	        results.set_read_bytes( results.get_bytes() - 1 );  
+
+            return std::to_string( this->ctr->getBool() );
+	    }
     }
 }
 
