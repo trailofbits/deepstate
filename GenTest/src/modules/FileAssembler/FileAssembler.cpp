@@ -403,6 +403,26 @@ std::string deepstateTypeReturn( Node currentNode, std::string currentString, Bi
     {
         outputStr += std::to_string(it->nextInt64() );
     }
+    else if( currentNode.type == DEEPSTATE_BOOL )
+    {
+        outputStr += std::to_string(it->nextBool());
+    }
+    else if (currentNode.type == DEEPSTATE_LONG )
+    {
+        outputStr += std::to_string(it->nextLong());
+    }
+    else if (currentNode.type == DEEPSTATE_SHORT )
+    {
+        outputStr += std::to_string(it->nextShort());
+    }
+    else if (currentNode.type == DEEPSTATE_UINT )
+    {
+        outputStr += std::to_string(it->nextUInt());
+    }
+    else if (currentNode.type == DEEPSTATE_INT64 )
+    {
+        outputStr += std::to_string(it->nextInt64());
+    }
     else
     {
         std::cout<<"UNIMPLEMENTED TYPE: " + currentNode.datatype;
