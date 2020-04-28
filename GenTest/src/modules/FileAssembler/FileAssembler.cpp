@@ -146,7 +146,7 @@ std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::str
 
             stringsToAdd = deepstateQuestionHandle( &translate, currentString );
         }
-        else if( current->type >= DEEPSTATE_INT && current->type <= DEEPSTATE_MALLOC )
+        else if( current->type >= DEEPSTATE_INT && current->type <= DEEPSTATE_C_STR )
         {
             added = true;
 
@@ -339,17 +339,9 @@ std::string deepstateTypeReturn( Node currentNode, std::string currentString, Bi
     {
         outputStr += std::to_string( it->nextInt() );
     }
-    else if( currentNode.type == DEEPSTATE_UINT8 )
-    {
-        //TODO: Add UInt8 to iterator
-    }
     else if( currentNode.type == DEEPSTATE_UINT16 )
     {
         outputStr += std::to_string( it->nextUInt16() );
-    }
-    else if( currentNode.type == DEEPSTATE_UINT32 )
-    {
-        //TODO: Add UInt32 to iterator
     }
     else if( currentNode.type == DEEPSTATE_UINT64 )
     {
@@ -361,7 +353,7 @@ std::string deepstateTypeReturn( Node currentNode, std::string currentString, Bi
     }
     else if( currentNode.type == DEEPSTATE_USHORT )
     {
-        //TODO: Add UShort to iterator
+        outputStr += std::to_string( it->nextUShort() );
     }
     else if( currentNode.type == DEEPSTATE_UCHAR )
     {
@@ -393,20 +385,22 @@ std::string deepstateTypeReturn( Node currentNode, std::string currentString, Bi
             outputStr += "\"" + it->nextString(firstArg, character ) + "\"";
         }
     }
-    else if( currentNode.type == DEEPSTATE_C_STRUPTO )
+    else if( currentNode.type == DEEPSTATE_CHAR )
     {
-        //TODO: Implement this
+        outputStr += "\'" + std::to_string(it->nextChar()) + "\'";
     }
-    else if( currentNode.type == DEEPSTATE_MALLOC )
+    else if( currentNode.type == DEEPSTATE_FLOAT )
     {
-        //TODO: Implement this
+        outputStr += std::to_string(it->nextFloat());
     }
-
+    else if( currentNode.type == DEEPSTATE_INT )
+    {
+        outputStr += std::to_string(it->nextInt64() );
+    }
     else
     {
         std::cout<<"UNIMPLEMENTED TYPE: " + currentNode.datatype;
     }
-
     return outputStr + ';';
 }
 

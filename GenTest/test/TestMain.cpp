@@ -16,7 +16,7 @@ TEST_CASE( "Test Parser and Iterator", "[binary_parser]" )
     REQUIRE_THROWS( bp.getIterator() );
     REQUIRE_THROWS( bp.parse( "invalid_file_name" ) );
 
-    bp.parse( "../test/test_data/binary_test_20b.test" );
+    bp.parse( "../GenTest/test/test_data/binary_test_20b.test" );
 
     auto iter = bp.getIterator();
 
@@ -65,25 +65,138 @@ TEST_CASE( "Test Parser and Iterator", "[binary_parser]" )
 TEST_CASE( "Test Parser and Iterator with deepstate values", "[binary_parser]" ) {
     BinaryParser bp;
 
-    bp.parse("../test/test_data/test.new");
+    bp.parse("../GenTest/test/test_data/test.new");
 
     auto iter = bp.getIterator();
 
+    /*
     SECTION("Binary Iterator Get Value")
     {
         while (true) {
             auto test = iter.nextInt();
 
-            std::cout << test << std::endl;
-
             REQUIRE(test != -1406192183);
         }
 
+
         // end of the road, error should be thrown
     }
+     */
 }
 
 // FileAssembler Tests
+
+TEST_CASE( "Test TranslationDictionary and correct operations", "[file_assembler]")
+{
+    std::string correctFile = "../GenTest/test/test_data/gtestTranslation.cfg";
+
+    std::string incorrectFile = "../GenTest/test/test_data/gtestTranslationMissingVital.cfg";
+
+    SECTION( "Test correct loading of a file" )
+    {
+        TranslationDictionary translate;
+
+        assert( translate.loadFile( correctFile ) );
+    }
+
+    SECTION( "Identify incorrect load of a file" )
+    {
+        TranslationDictionary translate;
+
+        assert( !translate.loadFile( incorrectFile ) );
+    }
+
+    TranslationDictionary translate;
+
+    translate.loadFile(correctFile);
+
+    SECTION( "Test that values can be pulled from the translation dictionary")
+    {
+        auto entry = translate.findTranslationFromNTerminal(ASSUME);
+
+        assert( entry.nTerminal == ASSUME );
+
+        assert( entry.nTerminalVal == "ASSUME");
+
+        //not invalid translation
+        assert( !entry.newEntry );
+
+        //translation has been added
+        assert( entry.translationAdded );
+
+        assert( entry.translateTo == "ASSUME" );
+    }
+
+    SECTION( "Test that invalid translations are identified" )
+    {
+        //invalid translation
+        auto entry = translate.findTranslationFromNTerminal(ASSERT_GT);
+
+        //assert that this entry doesn't exist
+        assert( entry.newEntry );
+    }
+}
+
+TEST_CASE( "Build File Helper Functions", "[file_assembler]")
+{
+    TranslationDictionary td;
+
+    std::string correctCFGFile = "../GenTest/test/test_data/gtestTranslation.cfg";
+
+    td.loadFile(correctCFGFile);
+
+    BinaryParser bp;
+
+    std::string binaryFile = "../GenTest/test/test_data/test.fail";
+
+    bp.parse( binaryFile );
+
+    std::string convert = "ASSERT_GE(One, Two)";
+
+    std::string converted = "ASSERT( One >= Two )";
+
+    std::string translate = "ASSERT_LT(Three, Four)";
+
+    std::string translated = "ASSERT_LT(Three, Four)";
+
+    SECTION("Question Conversion")
+    {
+        auto conversion = questionConversion(convert, ASSERT_GE, &td );
+
+        assert( conversion == converted );
+    }
+
+    SECTION("Question Translation")
+    {
+        auto translation = questionTranslation(td.findTranslationFromNTerminal( ASSERT_LT ), translate);
+
+        assert(translation == translated );
+    }
+
+    SECTION("Question Handle")
+    {
+        std::string conversion = (*questionHandle(&td, ASSERT_GE, convert).begin());
+
+        assert( conversion == converted );
+
+        std::string translation = (*questionHandle(&td, ASSERT_LT, translate).begin());
+
+        assert( translate == translated );
+    }
+
+    SECTION("Deepstate Question Handle")
+    {
+        std::string convert = "DeepState_Assume(one > two)";
+
+        std::string converted = "ASSUME(one > two)";
+
+        auto output = (*deepstateQuestionHandle(&td, convert).begin());
+
+        assert( converted == output );
+    }
+}
+
+
 
 
 // TE Constants
