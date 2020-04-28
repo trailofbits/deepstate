@@ -321,11 +321,11 @@ endif()
 option(GENTEST_TESTS off "Enables the gentest test binary")
 
 if(GENTEST_TESTS)
-    add_executable(gentest_test test/TestMain.cpp)
-
-    enable_testing()
+    add_executable(gentest_test ${CMAKE_SOURCE_DIR}/GenTest/test/TestMain.cpp)
+    include_directories( ${CMAKE_SOURCE_DIR}/GenTest/lib )
 
     target_link_libraries(gentest_test PUBLIC ${PROJECT_NAME})
+    enable_testing()
 
     add_test( NAME test COMMAND gentest_test )
 endif()

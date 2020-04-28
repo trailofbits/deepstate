@@ -93,3 +93,25 @@ jobs:
         run: |
           echo core | sudo tee /proc/sys/kernel/core_pattern
           docker run docker.pkg.github.com/trailofbits/deepstate/deepstate sh -c 'sudo pip3 install nose && nosetests tests/test_fuzzers.py'
+
+  gentest_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v1
+        with:
+          python-version: "3.6"
+      - name: Install dependencies
+        run: |
+          sudo apt install build-essential gcc-multilib cmake libffi-dev
+          python -m pip install --upgrade pip
+          pip install z3-solver angr nose
+          pip install git+git://github.com/trailofbits/manticore.git
+      - name: Build
+        run: |
+          mkdir build && cd build
+          cmake -DGENTEST_TESTS=ON ..
+          make gentest_test
+      - name: RunTest
+        run: |
+          ./gentest_test
