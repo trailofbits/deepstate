@@ -18,7 +18,8 @@
 #include "FileAssembler.h"
 
 std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::string> binaryFiles,
-        const char * outputPath, const char * translateCFG, bool basic_fuzz, bool fuzz_until_fail )
+        const char * outputPath, const char * translateCFG, bool basic_fuzz, bool fuzz_until_fail,
+	std::string test_case )
 {
     // Variable declarations.
 
@@ -39,15 +40,18 @@ std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::str
     BinaryController ctr;
     BinaryIterator it = bp.getIterator();
     ResultPacket results;
-    SymbolicGenerator generator( &ctr, &it, results, ( basic_fuzz || fuzz_until_fail ) );
     TranslationDictionary translate;
     StructHandler handler;
     LoopHandler loopHandle( &ctr );
     std::string loopParams;
     std::string loopText;
 
-    // Start the controller for proper value playback.        
+    // Start the controller for proper value playback. 
+    ctr.setTest( test_case );      
     ctr.fuzz_file( START_CONTROLLER );
+
+    // Declare symbolic generator
+    SymbolicGenerator generator( &ctr, &it, results, ( basic_fuzz || fuzz_until_fail ) );
 
     // Parse structs if they exist. 
     handler.lookForSymbolic( transEngineOutput );
@@ -295,17 +299,23 @@ std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::str
             // Reset controller.
             ctr.fuzz_file( RESET );
 
-            if( basic_fuzz && fuzz_until_fail )
+	        // Increment test counter.
+	        generator.testCount++;
+   
+            if( basic_fuzz && fuzz_until_fail && ( generator.atTest() || !ctr.testInit() ) )
             {
                 results = ctr.fuzz_file( FUZZ_UNTIL_FAIL, testCounter );
             }
-            if( basic_fuzz )
+            if( basic_fuzz && ( generator.atTest() || !ctr.testInit() ) )
             {
                 results = ctr.fuzz_file( FUZZ_ONCE, testCounter );
             }
             else if( !( basic_fuzz && fuzz_until_fail ) )
             {
-                generator.setIterator( binaryFiles );
+		        if( !ctr.testInit() || generator.atTest() )
+		        {
+                    generator.setIterator( binaryFiles );
+                }
             }
 
             // Increment test counter.
@@ -313,8 +323,6 @@ std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::str
 
             // Set test flag.
             testFlag = true;
-
-            std::cout << current->text << std::endl;
         }
 
         prevQuestion = currentQuestion;

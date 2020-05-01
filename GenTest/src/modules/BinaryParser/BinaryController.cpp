@@ -46,7 +46,17 @@
 * Binary Controller Functions
 *******************************/
 
-BinaryController::BinaryController(){ this->pos = 0; }
+BinaryController::BinaryController(){ this->pos = 0; this->testIndex = 0; }
+
+void BinaryController::setTest( std::string test_case )
+{
+    this->test_case = test_case;
+}
+
+bool BinaryController::testInit()
+{
+    return ( this->test_case.size() > 0 );
+}
 
 
 ResultPacket BinaryController::fuzz_one_test( DeepState_TestInfo * test )
@@ -72,6 +82,38 @@ ResultPacket BinaryController::fuzz_one_test( DeepState_TestInfo * test )
     return result;
 }
 
+
+DeepState_TestInfo * BinaryController::getTest( int testIndex )
+{
+    // Declare local variables
+    DeepState_TestInfo * test = DeepState_FirstTest();
+
+    // Base test case.
+    if( !this->testInit() )
+    {
+        for( int index = 0; index < testIndex; index++ )
+        {
+            test = test->prev;
+        }   
+
+        return test;
+    }
+    else // Input_which_test case.
+    {
+       for( test; test != NULL; test = test->prev )
+	   {
+           if( strcmp( this->test_case.c_str(), test->test_name ) == 0 )
+           {
+              return test;
+           }
+
+           this->testIndex++;
+	   }
+
+       return DeepState_FirstTest();
+    }
+}
+
 ResultPacket BinaryController::fuzz_until_fail( DeepState_TestInfo * test )
 {
     // Declare basic variables.
@@ -88,16 +130,10 @@ ResultPacket BinaryController::fuzz_until_fail( DeepState_TestInfo * test )
 ResultPacket BinaryController::fuzz_file( ControllerCommand command, int testIndex )
 {
     // Declare basic variables.
-    DeepState_TestInfo * test = DeepState_FirstTest();
+    DeepState_TestInfo * test = this->getTest( testIndex );
     ResultPacket errorResult, comResult;
     static unsigned inc = 0;
     unsigned seed = time( NULL ) + inc;
-
-    // Fetch appropriate test case.
-    for( int index = 0; index < testIndex; index++ )
-    {
-        test = test->prev;
-    }
 
     // Determine what operation to perform.
     switch( command )

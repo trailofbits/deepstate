@@ -20,7 +20,8 @@
 #include <algorithm>
 
 std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::string> binaryFile,
-        const char * outputPath, const char * translateCFG, bool basic_fuzz, bool fuzz_until_fail );
+        const char * outputPath, const char * translateCFG, bool basic_fuzz, bool fuzz_until_fail,
+	std::string test_case );
 
 BinaryIterator * getIterator( std::vector<std::string> binaryFiles );
 

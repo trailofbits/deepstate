@@ -49,6 +49,8 @@
 SymbolicGenerator::SymbolicGenerator( BinaryController * ctr, BinaryIterator * it, 
                                       ResultPacket &results, bool fuzz )
 {
+    this->testCount = -1;
+    this->testThreshold = ctr->testIndex;
     this->ctr = ctr;
     this->it = it;
     this->fuzz = fuzz;
@@ -58,8 +60,9 @@ SymbolicGenerator::SymbolicGenerator( BinaryController * ctr, BinaryIterator * i
 
 SymbolicGenerator::SymbolicGenerator( BinaryController *& ctr, ResultPacket &results )
 {
+    this->testCount = -1;
+    this->testThreshold = ctr->testIndex;
     this->ctr = ctr;
-    this->it = it;
     this->fuzz = true;
     this->results = results;
 }
@@ -173,13 +176,23 @@ unsigned char SymbolicGenerator::getUChar( BinaryIterator * it )
     return it->nextUChar();
 }
 
+bool SymbolicGenerator::atTest()
+{
+   return ( testThreshold == testCount && testThreshold != -1 );
+}
+
+
 
 std::string SymbolicGenerator::getSymbolic( std::string datatype )
 {
     // Declare local variables.
     std::ostringstream out;
 
-    if( !this->fuzz )
+    if( ctr->testInit() && testCount != testThreshold )
+    {
+	    return "0";
+    }
+    else if( !this->fuzz )
     {
         if( this->it == NULL )
         {
