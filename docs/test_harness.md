@@ -19,7 +19,7 @@ Table of Contents
 ## General structure
 
 
-Tests can be defined using `TEST` macro.
+Tests can be defined using the `TEST` macro.
 This macro takes two arguments: a unit name (`PrimePolynomial`)
 and a test name (`OnlyGeneratesPrimes`).
 
@@ -35,9 +35,9 @@ TEST(PrimePolynomial, AnotherTest) {
 }
 ```
 
-Each test in executed separately. If you need
+Each test is executed separately. If you need
 a more complex setup and/or cleanup, `Test Fixtures`
-are the way to go. These are C++ classes inherited from
+can help. These are C++ classes inherited from
 `deepstate:Test` that may implement two methods:
 `SetUp` and `TearDown`.
 
