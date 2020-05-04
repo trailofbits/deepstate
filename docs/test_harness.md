@@ -261,6 +261,49 @@ the generic `ASSUME` that takes a Boolean argument:
 * ASSUME_GT
 * ASSUME_GE
 
+## Preconditions - assign and assume
+
+Pure assumptions are potentially highly inefficient in fuzzing.  In
+fuzzing, a failed assumption simply aborts the test (there is no way
+to constrain values or backtrack).  This means that a pattern like:
+
+```
+int x = DeepState_Int();
+ASSUME (x % 2 == 0); // need an even value!
+```
+
+in a fuzzer, if there is much behavior prior to assigning `x`, can be
+extremely inefficient, since half of all tests will abort.
+
+To work around this, DeepState provides an _assigning assume_, e.g.:
+
+```
+int x;
+ASSUME_ASSIGN(x, DeepState_Int(), x % 2 == 0);
+```
+
+In symbolic execution, this simply translates into an assignment and
+an assumption.  In concrete execution, however, it maps the chosen `x`
+into the next value that satisfies the predicate.  There are a few
+limitations to this usage, however:
+
+* The search is linear, since nothing else is reasonable for arbitrary
+  predicates, so it may be quite costly.
+* Predicates will side effects are likely to be evaluated multiple
+times.
+* The distribution is highly non-uniform.
+
+For the last point, consider code like:
+
+```
+int x = DeepState_Int(x);
+int y;
+ASSUME_ASSIGN(y, DeepState_Int(), y > x);
+```
+
+In fuzzing, it is highly likely that `y == x+1` will hold much more
+often than any other relationship between `x` and `y` (all values
+below `x` will map to that value).
 
 ## Postconditions - checks
 

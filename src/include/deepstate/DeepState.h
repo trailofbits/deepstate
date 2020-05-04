@@ -445,6 +445,31 @@ DEEPSTATE_INLINE static int DeepState_IsSymbolicDouble(double x) {
   return DeepState_IsSymbolicUInt64(*((uint64_t *) &x));
 }
 
+/* ASSUME that also assigns to v; P should be side-effect free,
+   and type of v should be integral. */
+#ifndef DEEPSTATE_MAX_ASSUME_ITERS
+#define DEEPSTATE_MAX_ASSUME_ITERS UINT_MAX
+#endif
+
+#define ASSUME_ASSIGN(v, expr, P) \
+  do { \
+    v = (expr);				     \
+    unsigned long long DeepState_assume_iters = 0; \
+    if (DeepState_UsingSymExec) { 	     \
+      ASSUME(P); \
+    } else { \
+      unsigned long long DeepState_safe_incr_v = (unsigned long long) v; \
+      while(!(P)) { \
+	DeepState_safe_incr_v++; \
+        v = DeepState_safe_incr_v; \
+	DeepState_assume_iters++; \
+	if (DeepState_assume_iters > DEEPSTATE_MAX_ASSUME_ITERS) { \
+	  ASSUME(0); \
+	} \
+      } \
+    } \
+  } while (0);
+
 /* Used to define the entrypoint of a test case. */
 #define DeepState_EntryPoint(test_name) \
     _DeepState_EntryPoint(test_name, __FILE__, __LINE__)
