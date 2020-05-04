@@ -306,6 +306,11 @@ In fuzzing, it is highly likely that `y == x+1` will hold much more
 often than any other relationship between `x` and `y` (all values
 below `x` will map to that value).
 
+Additionally, if you use this with `DeepState_<type>InRange` the
+search may result in a value that is not in the range!  You'll need to
+repeat your range restriction in the predicate if you want to avoid
+this problem.
+
 ## Postconditions - checks
 
 Once symbolic variables are declared, constrained,
