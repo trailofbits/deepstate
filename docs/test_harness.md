@@ -12,6 +12,7 @@ Table of Contents
     * [Path to input file](#path-to-input-file)
     * [OneOf](#oneof)
   * [Preconditions - constraints](#preconditions---constraints)
+  * [Preconditions - assign and assume](#preconditions---assign-and-assume)
   * [Postconditions - checks](#postconditions---checks)
   * [Logs](#logs)
 
@@ -289,7 +290,7 @@ limitations to this usage, however:
 
 * The search is linear, since nothing else is reasonable for arbitrary
   predicates, so it may be quite costly.
-* Predicates will side effects are likely to be evaluated multiple
+* Predicates with side effects are likely to be evaluated multiple
 times.
 * The distribution is highly non-uniform.
 
