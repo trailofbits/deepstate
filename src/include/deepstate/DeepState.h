@@ -456,7 +456,7 @@ DEEPSTATE_INLINE static int DeepState_IsSymbolicDouble(double x) {
     v = (expr);				     \
     unsigned long long DeepState_assume_iters = 0; \
     if (DeepState_UsingSymExec) { 	     \
-      ASSUME(P); \
+      DeepState_Assume(P); \
     } else { \
       unsigned long long DeepState_safe_incr_v = (unsigned long long) v; \
       while(!(P)) { \
@@ -464,7 +464,7 @@ DEEPSTATE_INLINE static int DeepState_IsSymbolicDouble(double x) {
         v = DeepState_safe_incr_v; \
 	DeepState_assume_iters++; \
 	if (DeepState_assume_iters > DEEPSTATE_MAX_ASSUME_ITERS) { \
-	  ASSUME(0); \
+	  DeepState_Assume(0); \
 	} \
       } \
     } \
