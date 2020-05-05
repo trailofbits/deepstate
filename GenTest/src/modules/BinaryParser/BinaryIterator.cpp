@@ -114,5 +114,10 @@ bool BinaryIterator::nextBool()
 
 std::string BinaryIterator::nextString( std::size_t len, const char *allowed )
 {
+
     return std::string{ DeepState_CStr_C( len, allowed ) };
+}
+
+unsigned short BinaryIterator::nextUShort() {
+    return DeepState_UShort();
 }

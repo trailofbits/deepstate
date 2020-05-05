@@ -189,6 +189,8 @@ class BinaryIterator
      **/
     std::string nextString( std::size_t len, const char *allowed );
 
+    unsigned short nextUShort();
+
  private:
     /**
      * A pointer to unstructured binary data.

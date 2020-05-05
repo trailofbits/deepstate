@@ -15,8 +15,6 @@
 project(deepstate)
 cmake_minimum_required(VERSION 2.8)
 
-add_subdirectory(GenTest)
-
 # --- options
 option(DEEPSTATE_LIBFUZZER, OFF)
 if(DEFINED ENV{DEEPSTATE_LIBFUZZER})
@@ -149,7 +147,6 @@ file( GLOB gentest_files "${CMAKE_SOURCE_DIR}/GenTest/src/modules/*/*.cpp" )
 file( GLOB gentest_lib "${CMAKE_SOURCE_DIR}/GenTest/lib/*.a" )
 file( GLOB gentest_header_files "${CMAKE_SOURCE_DIR}/GenTest/include/modules/*" )
 file( GLOB gentest_files "${CMAKE_SOURCE_DIR}/GenTest/src/modules/*/*.cpp" )
-
 
 add_library(${PROJECT_NAME} STATIC
   src/lib/DeepState.c
@@ -318,6 +315,19 @@ else()
     # and install prefix is set; assume a user install
     # the "prefix=" is intentional
     install(CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} install --user --prefix=)")
+endif()
+
+
+option(GENTEST_TESTS off "Enables the gentest test binary")
+
+if(GENTEST_TESTS)
+    add_executable(gentest_test ${CMAKE_SOURCE_DIR}/GenTest/test/TestMain.cpp)
+    include_directories( ${CMAKE_SOURCE_DIR}/GenTest/lib )
+
+    target_link_libraries(gentest_test PUBLIC ${PROJECT_NAME})
+    enable_testing()
+
+    add_test( NAME test COMMAND gentest_test )
 endif()
 
 add_subdirectory(examples)
