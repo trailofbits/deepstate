@@ -276,11 +276,11 @@ ASSUME (x % 2 == 0); // need an even value!
 in a fuzzer, if there is much behavior prior to assigning `x`, can be
 extremely inefficient, since half of all tests will abort.
 
-To work around this, DeepState provides an _assigning assume_, e.g.:
+To work around this, DeepState provides a what is essentially an _assigning assume_, e.g.:
 
 ```
 int x;
-ASSUME_ASSIGN(x, DeepState_Int(), x % 2 == 0);
+ASSIGN_SATISFYING(x, DeepState_Int(), x % 2 == 0);
 ```
 
 In symbolic execution, this simply translates into an assignment and
@@ -297,19 +297,31 @@ times.
 For the last point, consider code like:
 
 ```
-int x = DeepState_Int(x);
+int x = DeepState_Int();
 int y;
-ASSUME_ASSIGN(y, DeepState_Int(), y > x);
+ASSIGN_SATISFYING(y, DeepState_Int(), y > x);
 ```
 
 In fuzzing, it is highly likely that `y == x+1` will hold much more
 often than any other relationship between `x` and `y` (all values
 below `x` will map to that value).
 
-Additionally, if you use this with `DeepState_<type>InRange` the
-search may result in a value that is not in the range!  You'll need to
+Additionally, if you use `ASSIGN_SATISFYING` with `DeepState_<type>InRange` the
+search may result in a value that is not in the range!  You can
 repeat your range restriction in the predicate if you want to avoid
-this problem.
+this problem, but an easier way around it is to use
+`ASSIGN_SATISFYING_IN_RANGE`, which works just as `ASSIGN_SATISFYING`
+does, except
+that it also takes a range, after the generation expression, e.g.:
+
+```
+int x = DeepState_IntInRange(-10, 10);
+int y;
+ASSIGN_SATSIFYING_IN_RANGE(y, DeepState_Int(), -10, 10, y >= x);
+```
+
+Now `x` and `y` will both be guaranteed to fall in the range -10 to
+10, inclusive.
 
 ## Postconditions - checks
 

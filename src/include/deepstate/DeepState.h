@@ -445,30 +445,72 @@ DEEPSTATE_INLINE static int DeepState_IsSymbolicDouble(double x) {
   return DeepState_IsSymbolicUInt64(*((uint64_t *) &x));
 }
 
-/* ASSUME that also assigns to v; P should be side-effect free,
-   and type of v should be integral. */
-#ifndef DEEPSTATE_MAX_ASSUME_ITERS
-#define DEEPSTATE_MAX_ASSUME_ITERS UINT_MAX
+/* Basically an ASSUME that also assigns to v; P should be side-effect
+   free, and type of v should be integral. */
+#ifndef DEEPSTATE_MAX_SEARCH_ITERS
+#define DEEPSTATE_MAX_SEARCH_ITERS UINT_MAX
 #endif
 
-#define ASSUME_ASSIGN(v, expr, P) \
+#define ASSIGN_SATISFYING(v, expr, P) \
   do { \
-    v = (expr);				     \
-    unsigned long long DeepState_assume_iters = 0; \
-    if (DeepState_UsingSymExec) { 	     \
-      DeepState_Assume(P); \
+    v = (expr); \
+    if (DeepState_UsingSymExec) { \
+      (void) DeepState_Assume(P); \
     } else { \
+      unsigned long long DeepState_assume_iters = 0; \
       unsigned long long DeepState_safe_incr_v = (unsigned long long) v; \
       unsigned long long DeepState_safe_decr_v = (unsigned long long) v; \
       while(!(P)) { \
-	if (DeepState_assume_iters > DEEPSTATE_MAX_ASSUME_ITERS) { \
-	  DeepState_Assume(0); \
+	if (DeepState_assume_iters > DEEPSTATE_MAX_SEARCH_ITERS) { \
+	  (void) DeepState_Assume(0); \
 	} \
+	DeepState_assume_iters++; \
 	DeepState_safe_incr_v++; \
         v = DeepState_safe_incr_v; \
-	DeepState_assume_iters++; \
-	if (!P) { \
+	if (!(P)) { \
 	  DeepState_safe_decr_v--;   \
+          v = DeepState_safe_decr_v; \
+	} \
+      } \
+    } \
+  } while (0);
+
+/* Basically an ASSUME that also assigns to v in range low to high;
+   P should be side-effect free, and type of v should be integral. */
+
+#define ASSIGN_SATISFYING_IN_RANGE(v, expr, low, high, P) \
+  do { \
+    ASSERT (low <= high) << "low (" << low << ") > high (" << high << ")"; \
+    if (low == high) { \
+      v = low; \
+      break; \
+    } \
+    v = (expr); \
+    if (DeepState_UsingSymExec) { \
+      (void) DeepState_Assume(low <= v && v <= high); \
+      (void) DeepState_Assume(P);\
+    } else { \
+      if ((v < low) || (v > high)) { \
+        if (v < 0) v = -v; \
+        if (v < 0) v = 0; \
+	v = low + (v % ((high - low) + 1)); \
+      } \
+      unsigned long long DeepState_assume_iters = 0; \
+      unsigned long long DeepState_safe_incr_v = (unsigned long long) v; \
+      unsigned long long DeepState_safe_decr_v = (unsigned long long) v; \
+      while(!(P)) { \
+	if (DeepState_assume_iters > DEEPSTATE_MAX_SEARCH_ITERS) { \
+	  (void) DeepState_Assume(0); \
+	} \
+	DeepState_assume_iters++; \
+	if (DeepState_safe_incr_v < high) { \
+	  DeepState_safe_incr_v++; \
+          v = DeepState_safe_incr_v; \
+	} else if (DeepState_safe_decr_v == low) { \
+	  (void) DeepState_Assume(0); \
+	} \
+	if (!(P) && (DeepState_safe_decr_v > low)) {	\
+	  DeepState_safe_decr_v--; \
           v = DeepState_safe_decr_v; \
 	} \
       } \
