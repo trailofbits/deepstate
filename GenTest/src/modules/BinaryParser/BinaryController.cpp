@@ -46,7 +46,7 @@
 * Binary Controller Functions
 *******************************/
 
-BinaryController::BinaryController(){ this->pos = 0; this->testIndex = 0; }
+BinaryController::BinaryController(){ this->pos = 0; getTest( 0 ); }
 
 void BinaryController::setTest( std::string test_case )
 {
@@ -83,7 +83,7 @@ ResultPacket BinaryController::fuzz_one_test( DeepState_TestInfo * test )
 }
 
 
-DeepState_TestInfo * BinaryController::getTest( int testIndex )
+DeepState_TestInfo * BinaryController::getTest( int test_info )
 {
     // Declare local variables
     DeepState_TestInfo * test = DeepState_FirstTest();
@@ -91,7 +91,7 @@ DeepState_TestInfo * BinaryController::getTest( int testIndex )
     // Base test case.
     if( !this->testInit() )
     {
-        for( int index = 0; index < testIndex; index++ )
+        for( int index = 0; index < test_info; index++ )
         {
             test = test->prev;
         }   
@@ -100,6 +100,8 @@ DeepState_TestInfo * BinaryController::getTest( int testIndex )
     }
     else // Input_which_test case.
     {
+       this->testIndex = 0;
+
        for( test; test != NULL; test = test->prev )
 	   {
            if( strcmp( this->test_case.c_str(), test->test_name ) == 0 )
@@ -126,6 +128,32 @@ ResultPacket BinaryController::fuzz_until_fail( DeepState_TestInfo * test )
 
     return result;
 }
+
+ResultPacket BinaryController::init_binary( std::string path )
+{
+  // Result packet
+  ResultPacket results;
+  struct stat stat_buf;
+
+  FILE *fp = fopen(path.c_str(), "r");
+
+  int fd = fileno(fp);
+
+  size_t to_read = stat_buf.st_size;
+
+  results.set_read_bytes( to_read );
+
+  /* Reset the input buffer and reset the index. */
+  DeepState_MemScrub((void *) DeepState_Input, sizeof(DeepState_Input));
+  DeepState_InputIndex = 0;
+  DeepState_SwarmConfigsIndex = 0;
+
+  size_t count = fread((void *) DeepState_Input, 1, to_read, fp);
+  fclose(fp);
+  
+  return results;
+}
+
 
 ResultPacket BinaryController::fuzz_file( ControllerCommand command, int testIndex )
 {

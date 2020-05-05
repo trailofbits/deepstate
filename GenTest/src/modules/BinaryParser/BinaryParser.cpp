@@ -25,6 +25,8 @@
 void BinaryParser::parse( const std::string& filename )
 {
     DeepState_InitInputFromFile( filename.c_str() );
+    
+
 }
 
 BinaryIterator BinaryParser::getIterator()

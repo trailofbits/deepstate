@@ -272,7 +272,7 @@ std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::str
         if( current->type == LOOP && !loopFlag )
         {
             loopFlag = true;
-            loopHandle.setPos( (int) output.size() - (int) current->text.size() );
+            loopHandle.setPos( (int) output.size() - (int) current->text.size() + 1 );
             loopText = current->text;
         }
         
@@ -286,13 +286,7 @@ std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::str
             loopFlag = false;
         }
 
-        if( testCounter > 0 && ( current->type == TEST || current->type == END_OF_FILE )
-	        && loopHandle.outputPos > 0 )
-        {	
-            output.insert( loopHandle.outputPos, 
-                           loopHandle.writeSymbolicParams( results, generatePadding( currentDepth + 1 ) ) ); 
-        }
-
+        
         //reset the iterator for each test
         if( current->type == TEST )
         {
@@ -312,9 +306,9 @@ std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::str
             }
             else if( !( basic_fuzz && fuzz_until_fail ) )
             {
-		        if( !ctr.testInit() || generator.atTest() )
+		        if( generator.atTest() )
 		        {
-                    generator.setIterator( binaryFiles );
+                    generator.setIterator( binaryFiles, results );
                 }
             }
 
@@ -324,6 +318,14 @@ std::string buildFile( std::vector<Node> transEngineOutput, std::vector<std::str
             // Set test flag.
             testFlag = true;
         }
+
+        if( testCounter > 0 && ( current->type == TEST || current->type == END_OF_FILE )
+	        && loopHandle.outputPos > 0 )
+        {
+            output.insert( loopHandle.outputPos, 
+                           loopHandle.writeSymbolicParams( results, generatePadding( currentDepth + 1 ), &generator ) ); 
+        }
+
 
         prevQuestion = currentQuestion;
 

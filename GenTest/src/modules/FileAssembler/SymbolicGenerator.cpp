@@ -74,7 +74,7 @@ SymbolicGenerator::SymbolicGenerator( BinaryController *& ctr, ResultPacket &res
 ********************/
 
 
-void SymbolicGenerator::setIterator( std::vector<std::string> binaryFiles )
+void SymbolicGenerator::setIterator( std::vector<std::string> binaryFiles, ResultPacket &results )
 {
     static int bFileCounter = 0;
     BinaryParser bp;
@@ -86,6 +86,8 @@ void SymbolicGenerator::setIterator( std::vector<std::string> binaryFiles )
 
         // Get interator
         static auto it = bp.getIterator();
+        
+        results = this->ctr->init_binary( binaryFiles.at( bFileCounter ) );
 
         // Increment counter
         bFileCounter++;
@@ -188,16 +190,12 @@ std::string SymbolicGenerator::getSymbolic( std::string datatype )
     // Declare local variables.
     std::ostringstream out;
 
-    if( ctr->testInit() && testCount != testThreshold )
+    if( !this->atTest() )
     {
 	    return "0";
     }
     else if( !this->fuzz )
-    {
-        if( this->it == NULL )
-        {
-            return "0";
-        }
+    {   
         if( datatype == "int" || datatype == "int32_t" )
         {
             return std::to_string( this->getInt( this->it ) );
