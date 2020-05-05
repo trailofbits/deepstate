@@ -80,11 +80,11 @@ bool LoopHandler::isInManifest( std::string type )
     return passFail;
 }
 
-std::string LoopHandler::writeSymbolicParams( ResultPacket &results, std::string padding )
+std::string LoopHandler::writeSymbolicParams( ResultPacket &results, std::string padding, SymbolicGenerator
+                                              * generator )
 {
     //Declare local variables.
     int num_bytes = 0, total_bytes = results.get_bytes();
-    SymbolicGenerator generator( this->ctr, results );
     std::string output = "", type;
 
     for( int pos = 0; pos < (int) typeManifest.size(); pos++ )
@@ -106,7 +106,7 @@ std::string LoopHandler::writeSymbolicParams( ResultPacket &results, std::string
 
         // Iterate until the end of bytes.
         for( int i = 0; i < ( total_bytes / num_bytes ); i++ )
-        {
+        {   
             if( i % 5 == 0 && i > 0 )
             {
                 output += "\n" + padding;
@@ -114,11 +114,11 @@ std::string LoopHandler::writeSymbolicParams( ResultPacket &results, std::string
 
             if( i < ( ( results.get_bytes() / num_bytes ) ) - 1 )
             {
-               output += generator.getSymbolic( this->typeManifest.at( pos ) ) + ", ";
+               output += generator->getSymbolic( type ) + ", ";
             }
             else
             {
-               output += generator.getSymbolic( this->typeManifest.at( pos ) );
+               output += generator->getSymbolic( type );
             }
         }
 

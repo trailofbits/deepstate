@@ -44,18 +44,24 @@ class BinaryController
 {
     const unsigned FUZZ_MAX = 1000;
     unsigned int pos;
+	std::string test_case;
 
     // Private functions
     ResultPacket fuzz_one_test( DeepState_TestInfo * test );
     ResultPacket fuzz_until_fail( DeepState_TestInfo * test );
+	DeepState_TestInfo * getTest( int testIndex );
 
     public:
 
+    unsigned int testIndex;
+
     BinaryController();
     ResultPacket fuzz_file( ControllerCommand command, int testIndex = 0 );
+    ResultPacket init_binary( std::string path );
 
 	unsigned int getPos();
 	void setPos( unsigned int pos );
+	void setTest( std::string test_case );
 
 	// intx_t types
     int8_t getInt8();
@@ -80,6 +86,8 @@ class BinaryController
 
 	// Boolean types.
     bool getBool();
+    
+    bool testInit();
 };
 
 #endif

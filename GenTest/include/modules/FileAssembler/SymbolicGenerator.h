@@ -22,6 +22,7 @@ class SymbolicGenerator
         BinaryIterator * it;
         ResultPacket results;
         bool fuzz;
+	unsigned int testThreshold;
         
         // Binary File Algorithms
         int getInt( BinaryIterator * it );
@@ -44,14 +45,18 @@ class SymbolicGenerator
 
     public:
 
+	unsigned int testCount;
+
         SymbolicGenerator( BinaryController * ctr, BinaryIterator * it, 
                            ResultPacket &results, bool fuzz );
 
         SymbolicGenerator( BinaryController *& ctr, ResultPacket &results );
 
-        void setIterator( std::vector<std::string> binaryFiles );
+        void setIterator( std::vector<std::string> binaryFiles, ResultPacket &results );
 
-	BinaryIterator * getIterator();
+        bool atTest();
+
+		BinaryIterator * getIterator();
 
         std::string getSymbolic( std::string datatype );
 

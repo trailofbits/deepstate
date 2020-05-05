@@ -26,7 +26,8 @@ class LoopHandler
         LoopHandler( BinaryController * ctr );
         void addType( std::string type );
         void setPos( int pos );
-        std::string writeSymbolicParams( ResultPacket &results, std::string padding );
+        std::string writeSymbolicParams( ResultPacket &results, std::string padding, SymbolicGenerator
+                                              * generator );
         std::string writeSymbolicStatement( std::string datatype, std::string currentText, 
 				            std::string loopText );
 };
