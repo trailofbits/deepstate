@@ -57,6 +57,7 @@ class BinaryController
 
     BinaryController();
     ResultPacket fuzz_file( ControllerCommand command, int testIndex = 0 );
+    ResultPacket init_binary( std::string path );
 
 	unsigned int getPos();
 	void setPos( unsigned int pos );

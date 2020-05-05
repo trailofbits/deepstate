@@ -52,11 +52,11 @@ class SymbolicGenerator
 
         SymbolicGenerator( BinaryController *& ctr, ResultPacket &results );
 
-        void setIterator( std::vector<std::string> binaryFiles );
+        void setIterator( std::vector<std::string> binaryFiles, ResultPacket &results );
 
         bool atTest();
 
-	BinaryIterator * getIterator();
+		BinaryIterator * getIterator();
 
         std::string getSymbolic( std::string datatype );
 
