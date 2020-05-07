@@ -12,6 +12,7 @@ Table of Contents
     * [Path to input file](#path-to-input-file)
     * [OneOf](#oneof)
   * [Preconditions - constraints](#preconditions---constraints)
+  * [Preconditions - assign and assume](#preconditions---assign-and-assume)
   * [Postconditions - checks](#postconditions---checks)
   * [Logs](#logs)
 
@@ -19,7 +20,7 @@ Table of Contents
 ## General structure
 
 
-Tests can be defined using `TEST` macro.
+Tests can be defined using the `TEST` macro.
 This macro takes two arguments: a unit name (`PrimePolynomial`)
 and a test name (`OnlyGeneratesPrimes`).
 
@@ -35,9 +36,9 @@ TEST(PrimePolynomial, AnotherTest) {
 }
 ```
 
-Each test in executed separately. If you need
+Each test is executed separately. If you need
 a more complex setup and/or cleanup, `Test Fixtures`
-are the way to go. These are C++ classes inherited from
+can help. These are C++ classes inherited from
 `deepstate:Test` that may implement two methods:
 `SetUp` and `TearDown`.
 
@@ -261,6 +262,66 @@ the generic `ASSUME` that takes a Boolean argument:
 * ASSUME_GT
 * ASSUME_GE
 
+## Preconditions - assign and assume
+
+Pure assumptions are potentially highly inefficient in fuzzing.  In
+fuzzing, a failed assumption simply aborts the test (there is no way
+to constrain values or backtrack).  This means that a pattern like:
+
+```
+int x = DeepState_Int();
+ASSUME (x % 2 == 0); // need an even value!
+```
+
+in a fuzzer, if there is much behavior prior to assigning `x`, can be
+extremely inefficient, since half of all tests will abort.
+
+To work around this, DeepState provides a what is essentially an _assigning assume_, e.g.:
+
+```
+int x;
+ASSIGN_SATISFYING(x, DeepState_Int(), x % 2 == 0);
+```
+
+In symbolic execution, this simply translates into an assignment and
+an assumption.  In concrete execution, however, it maps the chosen `x`
+into the next (or previous) value that satisfies the predicate.  There are a few
+limitations to this usage, however:
+
+* The search is linear, since nothing else is reasonable for arbitrary
+  predicates, so it may be quite costly.
+* Predicates with side effects are likely to be evaluated multiple
+times (the generating expression is only evaluated once, however).
+* The distribution is highly non-uniform.
+
+For the last point, consider code like:
+
+```
+int x = DeepState_Int();
+int y;
+ASSIGN_SATISFYING(y, DeepState_Int(), y > x);
+```
+
+In fuzzing, it is highly likely that `y == x+1` and `y == MAX_INT` will result much more
+often than any other relationships between `x` and `y` (one is the
+result of incrementing `y`, the other of wrapping decrement).
+
+Additionally, if you use `ASSIGN_SATISFYING` with `DeepState_<type>InRange` the
+search may result in a value that is not in the range!  You can
+repeat your range restriction in the predicate if you want to avoid
+this problem, but an easier way around it is to use
+`ASSIGN_SATISFYING_IN_RANGE`, which works just as `ASSIGN_SATISFYING`
+does, except
+that it also takes a range, after the generation expression, e.g.:
+
+```
+int x = DeepState_IntInRange(-10, 10);
+int y;
+ASSIGN_SATSIFYING_IN_RANGE(y, DeepState_Int(), -10, 10, y >= x);
+```
+
+Now `x` and `y` will both be guaranteed to fall in the range -10 to
+10, inclusive.
 
 ## Postconditions - checks
 
