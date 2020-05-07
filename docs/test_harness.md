@@ -285,13 +285,13 @@ ASSIGN_SATISFYING(x, DeepState_Int(), x % 2 == 0);
 
 In symbolic execution, this simply translates into an assignment and
 an assumption.  In concrete execution, however, it maps the chosen `x`
-into the next value that satisfies the predicate.  There are a few
+into the next (or previous) value that satisfies the predicate.  There are a few
 limitations to this usage, however:
 
 * The search is linear, since nothing else is reasonable for arbitrary
   predicates, so it may be quite costly.
 * Predicates with side effects are likely to be evaluated multiple
-times.
+times (the generating expression is only evaluated once, however).
 * The distribution is highly non-uniform.
 
 For the last point, consider code like:
@@ -302,9 +302,9 @@ int y;
 ASSIGN_SATISFYING(y, DeepState_Int(), y > x);
 ```
 
-In fuzzing, it is highly likely that `y == x+1` will hold much more
-often than any other relationship between `x` and `y` (all values
-below `x` will map to that value).
+In fuzzing, it is highly likely that `y == x+1` and `y == MAX_INT` will result much more
+often than any other relationships between `x` and `y` (one is the
+result of incrementing `y`, the other of wrapping decrement).
 
 Additionally, if you use `ASSIGN_SATISFYING` with `DeepState_<type>InRange` the
 search may result in a value that is not in the range!  You can
