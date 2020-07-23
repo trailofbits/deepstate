@@ -255,7 +255,7 @@ or the `--min_log_level` argument lowers the threshold for output,
 with:
 * 0 = `DEBUG`,
 * 1 = `TRACE` (output from the tests, including from `printf`),
-* 2 = INFO (DeepState messages, the default),
+* 2 = `INFO` (DeepState messages, the default),
 * 3 = `WARNING`,
 * 4 = `ERROR`,
 * 5 = `EXTERNAL` (output from other programs such as libFuzzer),
