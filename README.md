@@ -94,7 +94,7 @@ Runtime:
 First make sure you install [Python 3.6 or greater](https://askubuntu.com/a/865569). Then use this command line to install additional requirements and compile DeepState:
 
 ```shell
-sudo apt update && sudo apt-get install build-essential gcc-multilib g++-multilib cmake python3-setuptools libffi-dev z3
+sudo apt update && sudo apt-get install build-essential gcc-multilib g++-multilib cmake python3-setuptools python3-dev libffi-dev z3
 git clone https://github.com/trailofbits/deepstate deepstate
 mkdir deepstate/build && cd deepstate/build
 cmake ../
