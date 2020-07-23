@@ -252,10 +252,15 @@ Test case reduction should work on any OS.
 By default, DeepState is not very verbose about testing activity,
 other than failing tests.  The `DEEPSTATE_LOG` environment variable
 or the `--min_log_level` argument lowers the threshold for output,
-with 0 = `DEBUG`, 1 = `TRACE` (output from the tests, including from `printf`),
-2 = INFO (DeepState messages, the default), 3 = `WARNING`,
-4 = `ERROR`, 5 = `EXTERNAL` (output from other programs such as
-libFuzzer), and 6 = `CRITICAL` messages.  Lowering the `min_log_level` can be very
-useful for understanding what a DeepState harness is actually doing;
-often, setting `--min_log_level 1` in either fuzzing or symbolic
-execution will give sufficient information to debug your test harness.
+with:
+* 0 = `DEBUG`,
+* 1 = `TRACE` (output from the tests, including from `printf`),
+* 2 = INFO (DeepState messages, the default),
+* 3 = `WARNING`,
+* 4 = `ERROR`,
+* 5 = `EXTERNAL` (output from other programs such as libFuzzer),
+* 6 = `CRITICAL` messages.
+
+Lowering the `min_log_level` can be very useful for understanding what a DeepState harness is actually doing.
+
+Often, setting `--min_log_level 1` in either fuzzing or symbolic execution will give sufficient information to debug your test harness.
