@@ -2,7 +2,7 @@
 set -e
 
 # Install dependencies
-sudo apt-get install -y binutils-dev \
+sudo apt-get update && sudo apt-get install -y binutils-dev \
     libunwind-dev \
     && sudo rm -rf /var/lib/apt/lists/*
 

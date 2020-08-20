@@ -96,7 +96,8 @@ RUN echo 'Building deepstate with AFL' \
 
 # Honggfuzz
 COPY --from=Honggfuzz /home/user/honggfuzz $DEPS_DIR/honggfuzz
-RUN sudo apt-get -y install libunwind-dev
+RUN sudo apt-get update && apt-get -y install libunwind-dev
+RUN echo "HELLO SAILOR" \
 RUN echo 'Building deepstate with Honggfuzz' \
     && mkdir -p build_honggfuzz && cd build_honggfuzz \
     && export HONGGFUZZ_HOME="$DEPS_DIR/honggfuzz" \
