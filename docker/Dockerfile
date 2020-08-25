@@ -29,6 +29,9 @@ ARG make_j
 
 # Angr, Manticore
 RUN echo 'Installing angr and manticore' \
+    && sudo add-apt-repository -y ppa:sri-csl/formal-methods \
+    && sudo apt-get -y update \
+    && sudo apt-get -y install yices2 \
     && pip3 install z3-solver angr git+git://github.com/trailofbits/manticore.git --user
 
 # Eclipser - not deepstate dependent

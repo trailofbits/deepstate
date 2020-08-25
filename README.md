@@ -95,6 +95,9 @@ First make sure you install [Python 3.6 or greater](https://askubuntu.com/a/8655
 
 ```shell
 sudo apt update && sudo apt-get install build-essential gcc-multilib g++-multilib cmake python3-setuptools python3-dev libffi-dev z3
+sudo apt-add-repository ppa:sri-csl/formal-methods
+sudo apt-get update
+sudo apt-get install yices2
 git clone https://github.com/trailofbits/deepstate deepstate
 mkdir deepstate/build && cd deepstate/build
 cmake ../

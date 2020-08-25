@@ -30,6 +30,7 @@ import traceback
 from manticore.utils import config
 from manticore.utils import log
 from manticore.core.state import TerminateState
+from manticore.core.smtlib.solver import SolverType
 from manticore.native.manticore import _make_initial_state
 
 from deepstate.core import SymexFrontend, TestInfo
@@ -39,6 +40,10 @@ L = logging.getLogger(__name__)
 OUR_TERMINATION_REASON = "I DeepState'd it"
 
 consts = config.get_group("core")
+
+# make sure we use yices
+consts_smt = config.get_group("smt")
+consts_smt.solver=SolverType.yices
 
 class DeepManticore(SymexFrontend):
 
