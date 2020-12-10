@@ -12,13 +12,14 @@ sudo apt-get install -y libtool \
     libtool-bin wget automake autoconf \
     bison gdb git apt-transport-https
 
-wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb
+wget -q https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb
 sudo dpkg -i packages-microsoft-prod.deb
 sudo apt-get update
-sudo apt-get install -y dotnet-sdk-2.2
+sudo apt-get install -y dotnet-sdk-2.1
 sudo rm -rf /var/lib/apt/lists/*
 
 # Install Eclipser
 git clone https://github.com/SoftSec-KAIST/Eclipser \
     && cd Eclipser \
+    && git checkout tags/v1.1 \
     && make -j $1
