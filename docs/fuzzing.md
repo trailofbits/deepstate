@@ -48,14 +48,22 @@ well, in our experience.
 
 ## External fuzzers
 
-DeepState currently support five external fuzzers:
+DeepState currently explicitly supports five external fuzzers with 
+full-fledged custom front-ends:
 [libFuzzer](https://llvm.org/docs/LibFuzzer.html),
 [AFL](http://lcamtuf.coredump.cx/afl),
 [HonggFuzz](https://github.com/google/honggfuzz),
 [Eclipser](https://github.com/SoftSec-KAIST/Eclipser), and
 [Angora](https://github.com/AngoraFuzzer/Angora).
 
-To use one of them as a DeepState backend, you need to:
+Additionally, DeepState can probably be used with most fuzzers that can interact with
+a program through a file interface, via `--input_test_file @@` or something similar.
+E.g., we have successfully used DeepState with 
+[Google's Jackalope](https://github.com/googleprojectzero/Jackalope).
+Doing this may take some work:  for Jackalope, we had to run the process 
+via sudo to allow the debugger to attach, and turn off forking.
+
+To use one of the fully-supported fuzzers as a DeepState backend, you need to:
 * install it
 * compile DeepState with it
 * compile the target library/codebase with it (this is probably the
