@@ -739,7 +739,7 @@ inline static void _DeepState_SwarmSymbolizeCStr(const char* file, unsigned line
 #define LOG_FATAL(cond) \
     ::deepstate::Stream(DeepState_LogFatal, (cond), __FILE__, __LINE__)
 
-#define LOG_CRITICAl(cond) \
+#define LOG_CRITICAL(cond) \
     ::deepstate::Stream(DeepState_LogFatal, (cond), __FILE__, __LINE__)
 
 #define LOG(LEVEL) LOG_ ## LEVEL(true)
