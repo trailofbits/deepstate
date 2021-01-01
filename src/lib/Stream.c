@@ -28,7 +28,7 @@
 DEEPSTATE_BEGIN_EXTERN_C
 
 enum {
-  DeepState_StreamSize = 4096
+  DeepState_StreamSize = 1048576
 };
 
 /* Formatting options availale to the streaming API. */
