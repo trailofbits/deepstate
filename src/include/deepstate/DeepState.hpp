@@ -350,6 +350,23 @@ inline static void ForAll(Closure func) {
 #endif
 
 template <typename... FuncTys>
+inline static void OneOfP(double probs[], FuncTys&&... funcs) {
+  if (FLAGS_verbose_reads) {
+    printf("STARTING OneOf CALL\n");
+  }
+  std::function<void(void)> func_arr[sizeof...(FuncTys)] = {funcs...};
+  double P = DeepState_DoubleInRange(0.0, 1.0);
+  unsigned index = 0;
+  while (P < probs[index]) {
+    index++;
+  }
+  func_arr[index]();
+  if (FLAGS_verbose_reads) {
+    printf("FINISHED OneOf CALL\n");
+  }
+}
+
+template <typename... FuncTys>
 inline static void NoSwarmOneOf(FuncTys&&... funcs) {
   if (FLAGS_verbose_reads) {
     printf("STARTING OneOf CALL\n");
