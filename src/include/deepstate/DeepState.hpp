@@ -350,23 +350,6 @@ inline static void ForAll(Closure func) {
 #endif
 
 template <typename... FuncTys>
-inline static void OneOfP(double probs[], FuncTys&&... funcs) {
-  if (FLAGS_verbose_reads) {
-    printf("STARTING OneOf CALL\n");
-  }
-  std::function<void(void)> func_arr[sizeof...(FuncTys)] = {funcs...};
-  double P = DeepState_DoubleInRange(0.0, 1.0);
-  unsigned index = 0;
-  while (P < probs[index]) {
-    index++;
-  }
-  func_arr[index]();
-  if (FLAGS_verbose_reads) {
-    printf("FINISHED OneOf CALL\n");
-  }
-}
-
-template <typename... FuncTys>
 inline static void NoSwarmOneOf(FuncTys&&... funcs) {
   if (FLAGS_verbose_reads) {
     printf("STARTING OneOf CALL\n");
@@ -396,6 +379,31 @@ inline static void _SwarmOneOf(const char* file, unsigned line, enum DeepState_S
   }
 }
 
+template <typename... FuncTys>
+inline static void OneOfP(std::initializer_list<double> probs, FuncTys&&... funcs) {
+  if (probs.size() != sizeof...(funcs)) {
+    DeepState_Abandon("Probability list size does not match number of choices");
+  }
+  if (FLAGS_verbose_reads) {
+    printf("STARTING OneOf CALL\n");
+  }
+  std::function<void(void)> func_arr[sizeof...(FuncTys)] = {funcs...};
+  // We cannot use DeepState_Float/Double here because the distribution is very bad
+  double P = DeepState_UIntInRange(0, 1000000)/1000000.0;
+  unsigned index = 0;
+  std::initializer_list<double>::iterator it = probs.begin();
+  double sum = *it;
+  while ((it != probs.end()) && (sum < P)) {
+    ++it;
+    sum += *it;
+    ++index;
+  }
+  func_arr[index]();
+  if (FLAGS_verbose_reads) {
+    printf("FINISHED OneOf CALL\n");
+  }
+}
+
 inline static char NoSwarmOneOf(const char *str) {
   if (!str || !str[0]) {
     DeepState_Abandon("NULL or empty string passed to OneOf");
@@ -414,11 +422,32 @@ inline static char _SwarmOneOf(const char* file, unsigned line, enum DeepState_S
 }
 
 template <typename T>
-inline static const T &NoSwarmOneOf(const std::vector<T> &arr) {
+inline static const T &NoSwarmOneOf(std::vector<T> &arr) {
   if (arr.empty()) {
     DeepState_Abandon("Empty vector passed to OneOf");
   }
   return arr[DeepState_IntInRange(0, arr.size() - 1)];
+}
+
+template <typename T>
+inline static const T &OneOfP(std::initializer_list<double> probs, std::vector<T> &arr) {
+  if (arr.empty()) {
+    DeepState_Abandon("Empty vector passed to OneOf");
+  }
+  if (arr.size() != probs.size()) {
+    DeepState_Abandon("Probability list size does not match vector size");
+  }
+  // We cannot use DeepState_Float/Double here because the distribution is very bad
+  double P = DeepState_UIntInRange(0, 1000000)/1000000.0;
+  unsigned index = 0;
+  std::initializer_list<double>::iterator it = probs.begin();
+  double sum = *it;
+  while ((it != probs.end()) && (sum < P)) {
+    ++it;
+    sum += *it;
+    ++index;
+  }
+  return arr[index];
 }
 
 template <typename T>
@@ -438,6 +467,27 @@ inline static const T &NoSwarmOneOf(T (&arr)[len]) {
     DeepState_Abandon("Empty array passed to OneOf");
   }
   return arr[DeepState_IntInRange(0, len - 1)];
+}
+
+template <typename T, int len>
+inline static const T &OneOfP(std::initializer_list<double> probs, T (&arr)[len]) {
+  if (!len) {
+    DeepState_Abandon("Empty array passed to OneOf");
+  }
+  if (len != probs.size()) {
+    DeepState_Abandon("Probability list size does not match array size");
+  }
+  // We cannot use DeepState_Float/Double here because the distribution is very bad
+  double P = DeepState_UIntInRange(0, 1000000)/1000000.0;
+  unsigned index = 0;
+  std::initializer_list<double>::iterator it = probs.begin();
+  double sum = *it;
+  while ((it != probs.end()) && (sum < P)) {
+    ++it;
+    sum += *it;
+    ++index;
+  }
+  return arr[index];
 }
 
 template <typename T, int len>
