@@ -387,7 +387,7 @@ size_t PickProbIndex(std::initializer_list<double> probs, size_t count) {
     DeepState_Abandon("Probability list size greater than number of choices");
   }
   double total = 0.0;
-  vector<double> vecP;
+  std::vector<double> vecP;
   int missing = count - probs.size();
   for (std::initializer_list<double>::iterator it = probs.begin(); it != probs.end(); ++it) {
     if (*it >= 0.0) {
