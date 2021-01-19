@@ -379,6 +379,81 @@ inline static void _SwarmOneOf(const char* file, unsigned line, enum DeepState_S
   }
 }
 
+size_t PickIndex(double *probs, size_t length) {
+  double total = 0.0;
+  size_t missing = 0;
+  for (size_t i = 0; i < length; ++i) {
+    if (probs[i] >= 0.0) {
+      total += probs[i];
+    } else{
+      ++missing;
+    }
+  }
+  if (total > 1.0) {
+    DeepState_Abandon("Probabilities sum to more than 1.0");
+  }
+  if (missing > 0) {
+    double remainder = (1.0 - total) / missing;
+    for (size_t i = 0; i < length; ++i) {
+      if (probs[i] < 0.0) {
+	probs[i] = remainder;
+      }
+    }
+  } else if (total < 0.999) {
+    DeepState_Abandon("Total of probabilities is significantly less than 1.0");
+  }
+
+  // We cannot use DeepState_Float/Double here because the distribution is very bad
+  double P = DeepState_UIntInRange(0, 10000000)/10000000.0;
+  unsigned index = 0;
+  double sum = 0.0;
+  while ((index < length) && (P > (sum + probs[index]))) {
+    sum += probs[index];
+    index++;
+  }
+  return index;
+}
+
+typedef std::function<void(void)> func_t;
+
+void ActuallySelectSomething(double *probs, func_t *funcs, size_t length) {
+  if (FLAGS_verbose_reads) {
+    printf("STARTING OneOf CALL\n");
+  }
+
+  funcs[PickIndex(probs, length)]();
+  if (FLAGS_verbose_reads) {
+    printf("FINISHED OneOf CALL\n");
+  }
+}
+
+// These two helper functions participate in the splitting.
+// Base case does nothing
+void SplitArgs(double* probs, func_t *funcs) {
+}
+
+// recursive case
+template<typename TyFunc, typename... Rest>
+void SplitArgs(double* probs, func_t *funcs, double firstProb, TyFunc &&firstFunc, Rest &&... rest) {
+  *probs = firstProb;
+  *funcs = firstFunc;
+  SplitArgs(probs + 1, funcs + 1, std::forward<Rest>(rest)...);
+}
+
+// The entry point for OneOfP over lambdas
+template<typename... Args>
+void OneOfP(Args &&... args) {
+  constexpr auto argsLen = sizeof...(Args);
+  static_assert((argsLen % 2) == 0, "OneOfP expects probability/lambda pairs");
+  constexpr auto length = argsLen / 2;
+
+  double probs[length];
+  func_t funcs[length];
+  SplitArgs(probs, funcs, std::forward<Args>(args)...);
+
+  ActuallySelectSomething(probs, funcs, length);
+}
+
 inline static char NoSwarmOneOf(const char *str) {
   if (!str || !str[0]) {
     DeepState_Abandon("NULL or empty string passed to OneOf");
@@ -397,11 +472,39 @@ inline static char _SwarmOneOf(const char* file, unsigned line, enum DeepState_S
 }
 
 template <typename T>
-inline static const T &NoSwarmOneOf(const std::vector<T> &arr) {
+inline static const T &NoSwarmOneOf(std::vector<T> &arr) {
   if (arr.empty()) {
     DeepState_Abandon("Empty vector passed to OneOf");
   }
   return arr[DeepState_IntInRange(0, arr.size() - 1)];
+}
+
+size_t PickListIndex(std::initializer_list<double> probs, size_t length) {
+  // The list is interpreted as follows:  a negative probability means "use even distribution"
+  // over all probabilities not specified", and the same strategy is used to fill out the list
+  // to match the count of items to be chosen among.
+  if (probs.size() > length) {
+    DeepState_Abandon("Probability list size greater than number of choices");
+  }
+  double P[length];
+  size_t iP = 0;
+  for (std::initializer_list<double>::iterator it = probs.begin(); it != probs.end(); ++it) {
+    P[iP++] = *it;
+  }
+  while (iP < length) {
+    P[iP++] = -1.0;
+  }
+
+  return PickIndex(P, length);
+}
+
+template <typename T>
+inline static const T &OneOfP(std::initializer_list<double> probs, std::vector<T> &arr) {
+  if (arr.empty()) {
+    DeepState_Abandon("Empty vector passed to OneOf");
+  }
+  size_t index = PickListIndex(probs, arr.size());
+  return arr[index];
 }
 
 template <typename T>
@@ -421,6 +524,15 @@ inline static const T &NoSwarmOneOf(T (&arr)[len]) {
     DeepState_Abandon("Empty array passed to OneOf");
   }
   return arr[DeepState_IntInRange(0, len - 1)];
+}
+
+template <typename T, int len>
+inline static const T &OneOfP(std::initializer_list<double> probs, T (&arr)[len]) {
+  if (!len) {
+    DeepState_Abandon("Empty array passed to OneOf");
+  }
+  size_t index = PickListIndex(probs, len);
+  return arr[index];
 }
 
 template <typename T, int len>
@@ -739,7 +851,7 @@ inline static void _DeepState_SwarmSymbolizeCStr(const char* file, unsigned line
 #define LOG_FATAL(cond) \
     ::deepstate::Stream(DeepState_LogFatal, (cond), __FILE__, __LINE__)
 
-#define LOG_CRITICAl(cond) \
+#define LOG_CRITICAL(cond) \
     ::deepstate::Stream(DeepState_LogFatal, (cond), __FILE__, __LINE__)
 
 #define LOG(LEVEL) LOG_ ## LEVEL(true)

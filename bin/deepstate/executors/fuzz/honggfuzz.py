@@ -16,160 +16,120 @@ import os
 import logging
 import argparse
 
-from deepstate.core import FuzzerFrontend, FuzzFrontendError
+from typing import List, Dict, Optional
 
-L = logging.getLogger("deepstate.frontend.honggfuzz")
-L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
+from deepstate.core import FuzzerFrontend
+
+L = logging.getLogger(__name__)
 
 
 class Honggfuzz(FuzzerFrontend):
 
-  NAME = "honggfuzz"
-  COMPILER = "hfuzz-clang++"
+  NAME = "HonggFuzz"
+  SEARCH_DIRS = ["hfuzz_cc"]
+  EXECUTABLES = {"FUZZER": "honggfuzz",
+                  "COMPILER": "hfuzz-clang++"
+                  }
+
+  REQUIRE_SEEDS = True
+
+  PUSH_DIR = os.path.join("sync_dir", "queue")
+  PULL_DIR = os.path.join("sync_dir", "queue")
+  CRASH_DIR = os.path.join("the_fuzzer", "crashes")
+
 
   @classmethod
-  def parse_args(cls):
-    parser = argparse.ArgumentParser(description="Use Honggfuzz as a backend for DeepState")
-
-    # Execution options
-    parser.add_argument("--dictionary", type=str, help="Optional fuzzer dictionary for honggfuzz.")
-    parser.add_argument("--iterations", type=int, help="Number of iterations to fuzz for.")
-    parser.add_argument("--keep_output", action="store_true", help="Output fuzzing feedback during execution.")
-    parser.add_argument("--clear_env", action="store_true", help="Clear envvars before execution.")
-    parser.add_argument("--save_all", action="store_true", help="Save all test-cases prepended with timestamps.")
-    parser.add_argument("--sanitizers", action="store_true", help="Enable sanitizers when fuzzing.")
-
-    # Instrumentation options
-    parser.add_argument("--no_inst", type=str, help="Black-box fuzzing with honggfuzz without compile-time instrumentation.")
-    parser.add_argument("--persistent", action="store_true", help="Set persistent mode when fuzzing.")
-
-    # Hardware-related features for branch counting/coverage, etc.
-    parser.add_argument("--keep_aslr", action="store_true", help="Don't disable ASLR randomization during execution.")
-    parser.add_argument("--perf_instr", action="store_true", help="Allow PERF_COUNT_HW_INSTRUCTIONS.")
-    parser.add_argument("--perf_branch", action="store_true", help="Allow PERF_COUNT_BRANCH_INSTRUCTIONS.")
-
-    # Misc. options
-    parser.add_argument("--post_stats", action="store_true", help="Output post-fuzzing stats.")
+  def parse_args(cls) -> None:
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+      description="Use Honggfuzz as a backend for DeepState")
 
     cls.parser = parser
-    return super(Honggfuzz, cls).parse_args()
+    super(Honggfuzz, cls).parse_args()
 
 
-  def compile(self):
-    lib_path = "/usr/local/lib/libdeepstate_hfuzz.a"
+  def compile(self) -> None: # type: ignore
+    lib_path: str = "/usr/local/lib/libdeepstate_HFUZZ.a"
 
+    # check if we should fallback to default static library
     if not os.path.isfile(lib_path):
-      flags = ["-ldeepstate"]
+      flags: List[str] = ["-ldeepstate"]
     else:
-      flags = ["-ldeepstate_hfuzz"]
+      flags = ["-ldeepstate_HFUZZ"]
 
     if self.compiler_args:
       flags += [arg for arg in self.compiler_args.split(" ")]
-    super().compile(lib_path, flags, self.out_test_name + ".hfuzz")
+    super().compile(lib_path, flags, self.out_test_name)
 
 
   def pre_exec(self):
     super().pre_exec()
 
-    if not self.no_inst:
-      if not self.input_seeds:
-        raise FuzzFrontendError("No -i/--input_seeds provided.")
-
-      if not os.path.exists(self.input_seeds):
-        os.mkdir(self.input_seeds)
-        raise FuzzFrontendError("Seed path doesn't exist. Creating empty seed directory and exiting.")
-
-      if len([name for name in os.listdir(self.input_seeds)]) == 0:
-        raise FuzzFrontendError(f"No seeds present in directory {self.input_seeds}.")
+    # resume fuzzing
+    if len(os.listdir(self.output_test_dir)) > 1:
+      self.check_required_directories([self.push_dir, self.pull_dir, self.crash_dir])
+      self.input_seeds = self.push_dir
+      L.info(f"Resuming fuzzing using seeds from {self.push_dir} (skipping --input_seeds option).")
+    else:
+      self.setup_new_session([self.pull_dir, self.crash_dir])
 
 
   @property
   def cmd(self):
-    cmd_dict = {
-      "--input": self.input_seeds,
-      "--workspace": self.output_test_dir,
-      "--timeout": str(self.timeout),
-    }
+    cmd_list: List[str] = list()
+
+    # guaranteed arguments
+    cmd_list.extend([
+      "--workspace", self.output_test_dir,
+      "--output", self.push_dir,  # auto-create, reusable
+      "--crashdir", self.crash_dir,
+      # "--logfile", os.path.join(self.output_test_dir, "hfuzz_log.txt"),
+      # "--verbose",
+      "--rlimit_rss", str(self.mem_limit),
+      "--threads", "1"
+    ])
+
+    if self.max_input_size == 0:
+      cmd_list.extend(["--max_file_size", "1099511627776"])  # use 1TiB as unlimited
+    else:
+      cmd_list.extend(["--max_file_size", str(self.max_input_size)])
+
+    # TODO add qemu mode
+    if self.blackbox == True:
+      cmd_list.append("--noinst")
+
+    for key, val in self.fuzzer_args:
+      if len(key) == 1:
+        cmd_list.append('-{}'.format(key))
+      else:
+        cmd_list.append('--{}'.format(key))
+      if val is not None:
+        cmd_list.append(val)
+
+    # optional arguments:
+    # required, if provided: not auto-create and not require any files inside
+    if self.input_seeds:
+      cmd_list.extend(["--input", self.input_seeds])
+
+    if self.exec_timeout:
+      cmd_list.extend(["--timeout", str(self.exec_timeout  / 1000)])
 
     if self.dictionary:
-      cmd_dict["--dict"] = self.dictionary
-    if self.iterations:
-      cmd_dict["--iterations"] = str(self.iterations)
-
-    if self.persistent:
-      cmd_dict["--persistent"] = None
-    if self.no_inst:
-      cmd_dict["--noinst"] = None
-    if self.keep_output:
-      cmd_dict["--keep_output"] = None
-    if self.sanitizers:
-      cmd_dict["--sanitizers"] = None
-    if self.clear_env:
-      cmd_dict["--clear_env"] = None
-    if self.save_all:
-      cmd_dict["--save_all"] = None
-    if self.keep_aslr:
-      cmd_dict["--linux_keep_aslr"] = None
+      cmd_list.extend(["--dict", self.dictionary])
 
     # TODO: autodetect hardware features
-    if self.perf_instr:
-      cmd_dict["--linux_perf_instr"] = None
-    if self.perf_branch:
-      cmd_dict["--linux_perf_branch"] = None
+    cmd_list.append("--linux_keep_aslr")
 
-    return self.build_cmd(cmd_dict, input_symbol="___FILE___")
+    return self.build_cmd(cmd_list, input_symbol="___FILE___")
 
 
-  @property
-  def stats(self):
+  def populate_stats(self):
     """
     Retrieves and parses the stats file produced by Honggfuzz
     """
-    out_dir = os.path.abspath(self.output_test_dir) + "/"
-    report_file = "HONGGFUZZ.REPORT.TXT"
-
-    stat_file = out_dir + report_file
-    with open(stat_file, "r") as sf:
-      lines = sf.readlines()
-
-    stats = {
-      "mutationsPerRun": None,
-      "externalCmd": None,
-      "fuzzStdin": None,
-      "timeout": None,
-      "ignoreAddr": None,
-      "ASLimit": None,
-      "RSSLimit": None,
-      "DATALimit": None,
-      "wordlistFile": None,
-      "fuzzTarget": None,
-      "ORIG_FNAME": None,
-      "FUZZ_FNAME": None,
-      "PID": None,
-      "SIGNAL": None,
-      "FAULT ADDRESS": None,
-      "INSTRUCTION": None,
-      "STACK HASH": None,
-    }
-
-    # strip first 4 and last 5 lines to make a parseable file
-    lines = lines[4:][:-5]
-
-    for l in lines:
-      for k in stats.keys():
-        if k in l:
-          stats[k] = l.split(":")[1].strip()
-
-    # add crash metrics
-    crashes = len([name for name in os.listdir(out_dir) if name != report_file])
-    stats.update({
-      "CRASHES": crashes
-    })
-
-    return stats
+    super().populate_stats()
 
 
-  def reporter(self):
+  def reporter(self) -> Dict[str, Optional[str]]:
     """
     Report a summarized version of statistics, ideal for ensembler output.
     """
@@ -179,22 +139,13 @@ class Honggfuzz(FuzzerFrontend):
     })
 
 
-  def post_exec(self):
-    if self.post_stats:
-      print("\n")
-      for k, v in self.stats.items():
-        print(f"{k} : {v}")
+  def post_exec(self) -> None:
+    super().post_exec()
 
 
 def main():
-  fuzzer = Honggfuzz()
-
-  # parse user arguments and build object
-  fuzzer.parse_args()
-
-  # run fuzzer with parsed attributes
-  fuzzer.run()
-  return 0
+  fuzzer = Honggfuzz(envvar="HONGGFUZZ_HOME")
+  return fuzzer.main()
 
 
 if __name__ == "__main__":

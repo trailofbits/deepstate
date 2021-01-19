@@ -124,9 +124,10 @@ def main():
         cmd = [deepstate + " " + args.cmdArgs.replace("@@", candidate)]
       exitCode = subprocess.call(cmd, shell=True, stdout=outf, stderr=outf)
     result = []
-    with open(".reducer." + str(os.getpid()) + ".out", 'r') as inf:
+    with open(".reducer." + str(os.getpid()) + ".out", 'rb') as inf:
       for line in inf:
-        result.append(line)
+        dline = line.decode("utf-8", "ignore")
+        result.append(dline)
     return (result, exitCode)
 
   def checks(resultAndExitCode):

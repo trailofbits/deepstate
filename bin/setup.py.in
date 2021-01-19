@@ -32,6 +32,9 @@ setuptools.setup(
     license="Apache-2.0",
     keywords="tdd testing symbolic execution",
     install_requires=["angr ; sys_platform != 'darwin'", "manticore ; sys_platform != 'darwin'"],
+    extras_require={
+        'dev': ['mypy']
+    },
     entry_points={
         'console_scripts': [
             'deepstate = deepstate.executors.symex.manticore:main',
