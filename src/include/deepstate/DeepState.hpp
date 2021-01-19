@@ -379,64 +379,54 @@ inline static void _SwarmOneOf(const char* file, unsigned line, enum DeepState_S
   }
 }
 
-size_t PickProbIndex(std::initializer_list<double> probs, size_t count) {
-  // The list is interpreted as follows:  a negative probability means "use even distribution"
-  // over all probabilities not specified", and the same strategy is used to fill out the list
-  // to match the count of items to be chosen among.
-  if (probs.size() > count) {
-    DeepState_Abandon("Probability list size greater than number of choices");
-  }
-  double total = 0.0;
-  std::vector<double> vecP;
-  int missing = count - probs.size();
-  for (std::initializer_list<double>::iterator it = probs.begin(); it != probs.end(); ++it) {
-    if (*it >= 0.0) {
-      total += *it;
-    } else {
-      ++missing;
-    }
-    vecP.push_back(*it);
-  }
-  if (total > 1.0) {
-    DeepState_Abandon("Probabilities sum to more than 1.0");
-  }
-  if (missing > 0) {
-    double remainder = (1.0 - total) / missing;
-    for (int i = 0; i < count; i++) {
-      if (i < vecP.size()) {
-	if (vecP[i] < 0.0) {
-	  vecP[i] = remainder;
-	}
-      } else {
-	vecP.push_back(remainder);
-      }
-    }
-  } else if (total < 0.999) {
-    DeepState_Abandon("Total of probabilities is significantly less than 1.0");
-  }
-
+size_t PickIndex(double *probs, size_t length) {
   // We cannot use DeepState_Float/Double here because the distribution is very bad
   double P = DeepState_UIntInRange(0, 10000000)/10000000.0;
   unsigned index = 0;
   double sum = 0.0;
-  while ((index < count) && (P > (sum + vecP[index]))) {
-    sum += vecP[index];
+  while ((index < length) && (P > (sum + probs[index]))) {
+    sum += probs[index];
     index++;
   }
   return index;
 }
 
-template <typename... FuncTys>
-inline static void OneOfP(std::initializer_list<double> probs, FuncTys&&... funcs) {
+typedef std::function<void(void)> func_t;
+
+void ActuallySelectSomething(double *probs, func_t *funcs, size_t length) {
   if (FLAGS_verbose_reads) {
     printf("STARTING OneOf CALL\n");
   }
-  std::function<void(void)> func_arr[sizeof...(FuncTys)] = {funcs...};
-  size_t index = PickProbIndex(probs, sizeof...(funcs));
-  func_arr[index]();
+  funcs[PickIndex(probs, length)]();
   if (FLAGS_verbose_reads) {
     printf("FINISHED OneOf CALL\n");
   }
+}
+
+// These two helper functions participate in the splitting.
+// Base case does nothing
+void SplitArgs(double* probs, func_t *funcs) {
+}
+
+// recursive case
+template<typename TyFunc, typename... Rest>
+void SplitArgs(double* probs, func_t *funcs, double firstProb, TyFunc &&firstFunc, Rest &&... rest) {
+  *probs = firstProb;
+  *funcs = firstFunc;
+  SplitArgs(probs + 1, funcs + 1, std::forward<Rest>(rest)...);
+}
+
+// The entry point for OneOfP over lambdas
+template<typename... Args>
+void OneOfP(Args &&... args) {
+  constexpr auto length = sizeof...(Args);
+  static_assert((length % 2) == 0);
+
+  double probs[length];
+  func_t funcs[length];
+  SplitArgs(probs, funcs, std::forward<Args>(args)...);
+
+  ActuallySelectSomething(probs, funcs, length);
 }
 
 inline static char NoSwarmOneOf(const char *str) {
@@ -464,12 +454,52 @@ inline static const T &NoSwarmOneOf(std::vector<T> &arr) {
   return arr[DeepState_IntInRange(0, arr.size() - 1)];
 }
 
+size_t PickListIndex(std::initializer_list<double> probs, size_t length) {
+  // The list is interpreted as follows:  a negative probability means "use even distribution"
+  // over all probabilities not specified", and the same strategy is used to fill out the list
+  // to match the count of items to be chosen among.
+  if (probs.size() > length) {
+    DeepState_Abandon("Probability list size greater than number of choices");
+  }
+  double total = 0.0;
+  double P[length];
+  int missing = length - probs.size();
+  size_t iP = 0;
+  for (std::initializer_list<double>::iterator it = probs.begin(); it != probs.end(); ++it) {
+    if (*it >= 0.0) {
+      total += *it;
+    } else {
+      ++missing;
+    }
+    P[iP++] = *it;
+  }
+  if (total > 1.0) {
+    DeepState_Abandon("Probabilities sum to more than 1.0");
+  }
+  if (missing > 0) {
+    double remainder = (1.0 - total) / missing;
+    for (int i = 0; i < length; i++) {
+      if (i < probs.size()) {
+	if (P[i] < 0.0) {
+	  P[i] = remainder;
+	}
+      } else {
+	P[iP++] = remainder;
+      }
+    }
+  } else if (total < 0.999) {
+    DeepState_Abandon("Total of probabilities is significantly less than 1.0");
+  }
+
+  return PickIndex(P, length);
+}
+
 template <typename T>
 inline static const T &OneOfP(std::initializer_list<double> probs, std::vector<T> &arr) {
   if (arr.empty()) {
     DeepState_Abandon("Empty vector passed to OneOf");
   }
-  size_t index = PickProbIndex(probs, arr.size());
+  size_t index = PickListIndex(probs, arr.size());
   return arr[index];
 }
 
@@ -497,7 +527,7 @@ inline static const T &OneOfP(std::initializer_list<double> probs, T (&arr)[len]
   if (!len) {
     DeepState_Abandon("Empty array passed to OneOf");
   }
-  size_t index = PickProbIndex(probs, len);
+  size_t index = PickListIndex(probs, len);
   return arr[index];
 }
 
