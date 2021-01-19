@@ -380,6 +380,29 @@ inline static void _SwarmOneOf(const char* file, unsigned line, enum DeepState_S
 }
 
 size_t PickIndex(double *probs, size_t length) {
+  double total = 0.0;
+  size_t missing = 0;
+  for (size_t i = 0; i < length; ++i) {
+    if (probs[i] >= 0.0) {
+      total += probs[i];
+    } else{
+      ++missing;
+    }
+  }
+  if (total > 1.0) {
+    DeepState_Abandon("Probabilities sum to more than 1.0");
+  }
+  if (missing > 0) {
+    double remainder = (1.0 - total) / missing;
+    for (size_t i = 0; i < length; ++i) {
+      if (probs[i] < 0.0) {
+	probs[i] = remainder;
+      }
+    }
+  } else if (total < 0.999) {
+    DeepState_Abandon("Total of probabilities is significantly less than 1.0");
+  }
+
   // We cannot use DeepState_Float/Double here because the distribution is very bad
   double P = DeepState_UIntInRange(0, 10000000)/10000000.0;
   unsigned index = 0;
@@ -397,6 +420,7 @@ void ActuallySelectSomething(double *probs, func_t *funcs, size_t length) {
   if (FLAGS_verbose_reads) {
     printf("STARTING OneOf CALL\n");
   }
+
   funcs[PickIndex(probs, length)]();
   if (FLAGS_verbose_reads) {
     printf("FINISHED OneOf CALL\n");
@@ -419,8 +443,9 @@ void SplitArgs(double* probs, func_t *funcs, double firstProb, TyFunc &&firstFun
 // The entry point for OneOfP over lambdas
 template<typename... Args>
 void OneOfP(Args &&... args) {
-  constexpr auto length = sizeof...(Args);
-  static_assert((length % 2) == 0, "OneOfP expects probability/lambda pairs");
+  constexpr auto argsLen = sizeof...(Args);
+  static_assert((argsLen % 2) == 0, "OneOfP expects probability/lambda pairs");
+  constexpr auto length = argsLen / 2;
 
   double probs[length];
   func_t funcs[length];
@@ -461,34 +486,13 @@ size_t PickListIndex(std::initializer_list<double> probs, size_t length) {
   if (probs.size() > length) {
     DeepState_Abandon("Probability list size greater than number of choices");
   }
-  double total = 0.0;
   double P[length];
-  int missing = length - probs.size();
   size_t iP = 0;
   for (std::initializer_list<double>::iterator it = probs.begin(); it != probs.end(); ++it) {
-    if (*it >= 0.0) {
-      total += *it;
-    } else {
-      ++missing;
-    }
     P[iP++] = *it;
   }
-  if (total > 1.0) {
-    DeepState_Abandon("Probabilities sum to more than 1.0");
-  }
-  if (missing > 0) {
-    double remainder = (1.0 - total) / missing;
-    for (int i = 0; i < length; i++) {
-      if (i < probs.size()) {
-	if (P[i] < 0.0) {
-	  P[i] = remainder;
-	}
-      } else {
-	P[iP++] = remainder;
-      }
-    }
-  } else if (total < 0.999) {
-    DeepState_Abandon("Total of probabilities is significantly less than 1.0");
+  while (iP < length) {
+    P[iP++] = -1.0;
   }
 
   return PickIndex(P, length);
