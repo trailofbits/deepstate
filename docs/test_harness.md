@@ -234,6 +234,38 @@ TEST(OneOfTest, Basic) {
 }
 ```
 
+You can also supply explicit probabilities to `OneOfP`, e.g.:
+```cpp
+OneOfP(
+   0.05, [&] {x = 1; foo();},
+     -1, [&] {x = 32; bar();},
+   0.7, [&] {x = 128; baz();},
+     -1, [&] {x = 64; foobaz();});
+```
+
+This code sets `x` to 1 and calls `foo` 5% of the time, sets x to 128 and calls `baz` 70% of the time,
+sets `x` to 32 and calls `bar` 37.5% of the time, and sets `x` to 64 and calls `foobaz` 37.5% of the time.
+A probability of -1 tells DeepState to assign a uniform
+probability, distributed over all left-over (-1) options.  `OneOfP` does not yet support swarm testing; but you presumably
+knew what you were doing when assigning probabilities!
+
+`OneOf` and `OneOfP` can also be applied to strings, arrays, or vectors to choose a random element, e.g.,:
+
+```cpp
+const char *compressors[] = {"blosclz", "lz4", "lz4hc", "zlib", "zstd"};
+compress(in_buffer, out_buffer, OneOf(compressors));
+```
+
+The `OneOfP` form can also be used for arrays or vectors, by providing the list of probabilities first, e.g.:
+
+```cpp
+const char *compressors[] = {"blosclz", "lz4", "lz4hc", "zlib", "zstd"};
+compress(in_buffer, out_buffer, OneOfP({0.8, 0.001}, commpressors));
+```
+
+For this kind of `OneOfP`, in addition to the -1 method of specifying "omitted" probabilities,
+you can just put the items you want to specify first in the array/vector, and only supply probabilities for those.
+The example will almost always use "blocsclz" and almost never use "lz4".
 
 ## Preconditions - constraints
 
