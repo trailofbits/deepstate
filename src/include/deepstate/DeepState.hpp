@@ -420,7 +420,7 @@ void SplitArgs(double* probs, func_t *funcs, double firstProb, TyFunc &&firstFun
 template<typename... Args>
 void OneOfP(Args &&... args) {
   constexpr auto length = sizeof...(Args);
-  static_assert((length % 2) == 0);
+  static_assert((length % 2) == 0, "OneOfP expects probability/lambda pairs");
 
   double probs[length];
   func_t funcs[length];
