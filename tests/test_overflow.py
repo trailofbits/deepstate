@@ -5,7 +5,7 @@ import deepstate_base
 
 class OverflowTest(deepstate_base.DeepStateTestCase):
   def run_deepstate(self, deepstate):
-    (r, output) = logrun.logrun([deepstate, "build/examples/IntegerOverflow"],
+    (r, output) = logrun.logrun([deepstate, "--timeout", "15", "build/examples/IntegerOverflow"],
                   "deepstate.out", 1800)
     self.assertEqual(r, 0)
 

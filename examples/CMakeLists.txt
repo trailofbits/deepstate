@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Trail of Bits, Inc.
+# Copyright (c) 2019 Trail of Bits, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,179 +12,61 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_executable(Crash Crash.cpp)
-target_link_libraries(Crash deepstate)
+set(_not_for_fuzzing_files TakeOver Squares Klee)
+file(GLOB files "*.cpp")
 
-if (BUILD_LIBFUZZER)
-   add_executable(Crash_LF Crash.cpp) 
-   target_link_libraries(Crash_LF deepstate_LF) 
-   target_link_libraries (Crash_LF "-fsanitize=fuzzer,undefined") 
-   set_target_properties(Crash_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
+foreach(file ${files})
+   get_filename_component(file_no_ext ${file} NAME_WE)  # should be NAME_WLE if newer cmake
+
+   # skip some files that will be added manually later on
+   list (FIND _not_for_fuzzing_files ${file_no_ext} _index)
+   if (${_index} GREATER -1)
+      continue()
+   endif()
+
+   add_executable(${file_no_ext} ${file})
+   target_link_libraries(${file_no_ext} deepstate)
+
+   if (DEEPSTATE_LIBFUZZER)
+      add_executable("${file_no_ext}_LF" "${file}")
+      target_link_libraries("${file_no_ext}_LF" deepstate_LF)
+      target_link_libraries("${file_no_ext}_LF" "-fsanitize=fuzzer,undefined")
+      set_target_properties("${file_no_ext}_LF" PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
+   endif()
+
+   if (DEEPSTATE_AFL)
+      add_executable("${file_no_ext}_AFL" "${file}")
+      target_link_libraries("${file_no_ext}_AFL" deepstate_AFL)
+   endif()
+
+   if (DEEPSTATE_HONGGFUZZ)
+      add_executable("${file_no_ext}_HFUZZ" "${file}")
+      target_link_libraries("${file_no_ext}_HFUZZ" deepstate_HFUZZ)
+   endif()
+
+   if (DEEPSTATE_ANGORA)
+      set(ANGORA_TAINT_RULE_LIST "./deepstate_abilist.txt")
+
+      if(DEFINED ENV{USE_TRACK})
+         add_executable("${file_no_ext}_angora_taint" "${file}")
+         target_link_libraries("${file_no_ext}_angora_taint" deepstate_taint)
+      else()
+         add_executable("${file_no_ext}_angora_fast" "${file}")
+         target_link_libraries("${file_no_ext}_angora_fast" deepstate_fast)
+      endif()
+   endif()
+endforeach()
+
+if (NOT (DEEPSTATE_LIBFUZZER OR DEEPSTATE_AFL OR DEEPSTATE_HONGGFUZZ OR DEEPSTATE_ANGORA))
+   if (NOT APPLE)
+     add_executable(Squares Squares.c)
+     target_link_libraries(Squares deepstate)
+     set_target_properties(Squares PROPERTIES COMPILE_DEFINITIONS "DEEPSTATE_TEST")
+   endif()
+
+   add_executable(TakeOver TakeOver.cpp)
+   target_link_libraries(TakeOver deepstate)
+
+   add_executable(Klee Klee.c)
+   target_link_libraries(Klee deepstate)
 endif()
-
-if (BUILD_AFL)
-   add_executable(Crash_AFL Crash.cpp) 
-   target_link_libraries(Crash_AFL deepstate_AFL)
-endif()
-
-add_executable(OneOf OneOf.cpp) 
-target_link_libraries(OneOf deepstate)
-
-if (BUILD_LIBFUZZER)
-   add_executable(OneOf_LF OneOf.cpp) 
-   target_link_libraries(OneOf_LF deepstate_LF)
-   target_link_libraries (OneOf_LF "-fsanitize=fuzzer,undefined")
-   set_target_properties(OneOf_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
-endif()
-
-if (BUILD_AFL)
-   add_executable(OneOf_AFL OneOf.cpp) 
-   target_link_libraries(OneOf_AFL deepstate_AFL)
-endif()
-
-add_executable(Fixture Fixture.cpp)
-target_link_libraries(Fixture deepstate)
-
-if (BUILD_LIBFUZZER)
-   add_executable(Fixture_LF Fixture.cpp) 
-   target_link_libraries(Fixture_LF deepstate_LF)
-   target_link_libraries (Fixture_LF "-fsanitize=fuzzer,undefined")
-   set_target_properties(Fixture_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
-endif()
-
-if (BUILD_AFL)
-   add_executable(Fixture_AFL Fixture.cpp) 
-   target_link_libraries(Fixture_AFL deepstate_AFL)
-endif()
-
-add_executable(Primes Primes.cpp)
-target_link_libraries(Primes deepstate)
-
-if (BUILD_LIBFUZZER)
-   add_executable(Primes_LF Primes.cpp) 
-   target_link_libraries(Primes_LF deepstate_LF)
-   target_link_libraries (Primes_LF "-fsanitize=fuzzer,undefined")
-   set_target_properties(Primes_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
-endif()
-
-if (BUILD_AFL)
-   add_executable(Primes_AFL Primes.cpp) 
-   target_link_libraries(Primes_AFL deepstate_AFL)
-endif()
-
-add_executable(Euler Euler.cpp)
-target_link_libraries(Euler deepstate)
-
-if (BUILD_LIBFUZZER)
-   add_executable(Euler_LF Euler.cpp) 
-   target_link_libraries(Euler_LF deepstate_LF)
-   target_link_libraries (Euler_LF "-fsanitize=fuzzer,undefined")
-   set_target_properties(Euler_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
-endif()
-
-if (BUILD_AFL)
-   add_executable(Euler_AFL Euler.cpp) 
-   target_link_libraries(Euler_AFL deepstate_AFL)
-endif()
-
-add_executable(IntegerOverflow IntegerOverflow.cpp)
-target_link_libraries(IntegerOverflow deepstate)
-
-if (BUILD_LIBFUZZER)
-   add_executable(IntegerOverflow_LF IntegerOverflow.cpp) 
-   target_link_libraries(IntegerOverflow_LF deepstate_LF)
-   target_link_libraries (IntegerOverflow_LF "-fsanitize=fuzzer,undefined")
-   set_target_properties(IntegerOverflow_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
-endif()
-
-if (BUILD_AFL)
-   add_executable(IntegerOverflow_AFL IntegerOverflow.cpp) 
-   target_link_libraries(IntegerOverflow_AFL deepstate_AFL)
-endif()
-
-add_executable(IntegerArithmetic IntegerArithmetic.cpp)
-target_link_libraries(IntegerArithmetic deepstate)
-
-if (BUILD_LIBFUZZER)
-   add_executable(IntegerArithmetic_LF IntegerArithmetic.cpp) 
-   target_link_libraries(IntegerArithmetic_LF deepstate_LF)
-   target_link_libraries (IntegerArithmetic_LF "-fsanitize=fuzzer,undefined")
-   set_target_properties(IntegerArithmetic_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
-endif()
-
-if (BUILD_AFL)
-   add_executable(IntegerArithmetic_AFL IntegerArithmetic.cpp) 
-   target_link_libraries(IntegerArithmetic_AFL deepstate_AFL)
-endif()
-
-add_executable(Lists Lists.cpp)
-target_link_libraries(Lists deepstate)
-
-if (BUILD_LIBFUZZER)
-   add_executable(Lists_LF Lists.cpp) 
-   target_link_libraries(Lists_LF deepstate_LF)
-   target_link_libraries (Lists_LF "-fsanitize=fuzzer,undefined")
-   set_target_properties(Lists_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
-endif()
-
-if (BUILD_AFL)
-   add_executable(Lists_AFL Lists.cpp) 
-   target_link_libraries(Lists_AFL deepstate_AFL)
-endif()
-
-add_executable(StreamingAndFormatting StreamingAndFormatting.cpp)
-target_link_libraries(StreamingAndFormatting deepstate)
-
-if (BUILD_LIBFUZZER)
-   add_executable(StreamingAndFormatting_LF StreamingAndFormatting.cpp) 
-   target_link_libraries(StreamingAndFormatting_LF deepstate_LF)
-   target_link_libraries (StreamingAndFormatting_LF "-fsanitize=fuzzer,undefined")
-   set_target_properties(StreamingAndFormatting_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
-endif()
-
-if (BUILD_AFL)
-   add_executable(StreamingAndFormatting_AFL StreamingAndFormatting.cpp) 
-   target_link_libraries(StreamingAndFormatting_AFL deepstate_AFL)
-endif()
-
-add_executable(Runlen Runlen.cpp) 
-target_link_libraries(Runlen deepstate)
-
-if (BUILD_LIBFUZZER)
-   add_executable(Runlen_LF Runlen.cpp) 
-   target_link_libraries(Runlen_LF deepstate_LF)
-   target_link_libraries (Runlen_LF "-fsanitize=fuzzer,undefined")
-   set_target_properties(Runlen_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
-endif()
-
-if (BUILD_AFL)
-   add_executable(Runlen_AFL Runlen.cpp) 
-   target_link_libraries(Runlen_AFL deepstate_AFL)
-endif()
-
-add_executable(FromEclipser FromEclipser.cpp)
-target_link_libraries(FromEclipser deepstate)
-
-if (BUILD_LIBFUZZER)
-   add_executable(FromEclipser_LF FromEclipser.cpp) 
-   target_link_libraries(FromEclipser_LF deepstate_LF)
-   target_link_libraries (FromEclipser_LF "-fsanitize=fuzzer,undefined")
-   set_target_properties(FromEclipser_LF PROPERTIES COMPILE_DEFINITIONS "LIBFUZZER")
-endif()
-
-if (BUILD_AFL)
-   add_executable(FromEclipser_AFL FromEclipser.cpp) 
-   target_link_libraries(FromEclipser_AFL deepstate_AFL)
-endif()
-
-if (NOT APPLE)
-  add_executable(Squares Squares.c)
-  target_link_libraries(Squares deepstate)
-  set_target_properties(Squares PROPERTIES COMPILE_DEFINITIONS "DEEPSTATE_TEST")
-endif()
-
-add_executable(TakeOver TakeOver.cpp)
-target_link_libraries(TakeOver deepstate)
-
-add_executable(Klee Klee.c)
-target_link_libraries(Klee deepstate)

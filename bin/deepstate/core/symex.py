@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Trail of Bits, Inc.
+# Copyright (c) 2019 Trail of Bits, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,15 +13,18 @@
 # limitations under the License.
 
 import logging
-logging.basicConfig()
-logging.addLevelName(15, "TRACE")
 
-import argparse
-#import md5
-import hashlib
-import functools
 import os
 import struct
+import argparse
+import hashlib
+
+from deepstate import (LOG_LEVEL_INT_TO_LOGGER,
+                        LOG_LEVEL_TRACE, LOG_LEVEL_ERROR, LOG_LEVEL_CRITICAL)
+from deepstate.core.base import AnalysisBackend
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class TestInfo(object):
@@ -34,41 +37,16 @@ class TestInfo(object):
     self.line_number = line_number
 
 
-LOG_LEVEL_DEBUG = 0
-LOG_LEVEL_TRACE = 1
-LOG_LEVEL_INFO = 2
-LOG_LEVEL_WARNING = 3
-LOG_LEVEL_ERROR = 4
-LOG_LEVEL_EXTERNAL = 5
-LOG_LEVEL_FATAL = 6
-
-
-LOGGER = logging.getLogger("deepstate")
-LOGGER.setLevel(logging.DEBUG)
-
-LOGGER.trace = functools.partial(LOGGER.log, 15)
-logging.TRACE = 15
-
-LOG_LEVEL_TO_LOGGER = {
-  LOG_LEVEL_DEBUG: LOGGER.debug,
-  LOG_LEVEL_TRACE: LOGGER.trace, 
-  LOG_LEVEL_INFO: LOGGER.info,
-  LOG_LEVEL_WARNING: LOGGER.warning,
-  LOG_LEVEL_ERROR: LOGGER.error,
-  LOG_LEVEL_FATAL: LOGGER.critical
-}
-
-
 class Stream(object):
   def __init__(self, entries):
     self.entries = entries
 
 
-class DeepState(object):
+class SymexFrontend(AnalysisBackend):
   """Wrapper around a symbolic executor for making it easy to do common DeepState-
   specific things."""
   def __init__(self):
-    pass
+    self.num_workers: int = 1
 
   def get_context(self):
     raise NotImplementedError("Must be implemented by engine.")
@@ -112,24 +90,15 @@ class DeepState(object):
   def add_constraint(self, expr):
     raise NotImplementedError("Must be implemented by engine.")
 
-  _ARGS = None
 
   @classmethod
   def parse_args(cls):
-    """Parses command-line arguments needed by DeepState."""
+    """Parses command-line arguments needed by symbolic engine."""
     if cls._ARGS:
       return cls._ARGS
 
     parser = argparse.ArgumentParser(
-        description="Symbolically execute unit tests with Angr")
-
-    parser.add_argument(
-        "--num_workers", default=1, type=int,
-        help="Number of workers to spawn for testing and test generation.")
-
-    parser.add_argument(
-        "--output_test_dir", default="out", type=str, required=False,
-        help="Directory where tests will be saved.")
+        description="Symbolically execute unit tests with {}".format(cls.NAME))
 
     parser.add_argument(
         "--take_over", action='store_true',
@@ -141,27 +110,25 @@ class DeepState(object):
 
     parser.add_argument(
         "--verbosity", default=1, type=int,
-        help="Verbosity level for symbolic execution tool.")
+        help="Verbosity level for symbolic execution tool (default: 1, lower means less output).")
 
     parser.add_argument(
-        "--log_level", default=2, type=int,
-        help="Log level (DeepState logging).")
-    
-    parser.add_argument(
-        "binary", type=str, help="Path to the test binary to run.")
+        "-w", "--num_workers", default=1, type=int,
+        help="Number of worker jobs to spawn for analysis (default is 1).")
 
-    cls._ARGS = parser.parse_args()
-    return cls._ARGS
+    cls.parser = parser
+    return super(SymexFrontend, cls).parse_args()
+
 
   @property
   def context(self):
-    """Gives convenient property-based access to a dictionary holding state-
-    local varaibles."""
+    """Gives convenient property-based access to a dictionary holding state-local variables."""
     return self.get_context()
 
+
   def read_c_string(self, ea, concretize=True, constrain=False):
-    """Read a NUL-terminated string from `ea`."""
-    assert isinstance(ea, (int))
+    """Read a NULL-terminated string from address `ea`."""
+
     chars = []
     while True:
       b, ea = self.read_uint8_t(ea, concretize=concretize, constrain=constrain)
@@ -181,6 +148,7 @@ class DeepState(object):
       return "".join(chr(b) for b in chars), next_ea
     else:
       return chars, next_ea
+
 
   def _read_test_info(self, ea):
     """Read in a `DeepState_TestInfo` info structure from memory."""
@@ -244,7 +212,7 @@ class DeepState(object):
     self.context['crashed'] = False
     self.context['abandoned'] = False
     self.context['log'] = []
-    for level in LOG_LEVEL_TO_LOGGER:
+    for level in LOG_LEVEL_INT_TO_LOGGER:
       self.context['stream_{}'.format(level)] = []
 
     self.context['info'] = info
@@ -265,17 +233,7 @@ class DeepState(object):
     # Create the output directory for this test case.
     args = self.parse_args()
 
-    logging_levels = {
-      LOG_LEVEL_DEBUG: logging.DEBUG,
-      LOG_LEVEL_TRACE: logging.TRACE,
-      LOG_LEVEL_INFO: logging.INFO,
-      LOG_LEVEL_WARNING: logging.WARNING,
-      LOG_LEVEL_ERROR: logging.ERROR,
-      LOG_LEVEL_FATAL: logging.CRITICAL
-    }
-    LOGGER.setLevel(logging_levels[args.log_level])
-    
-    if args.output_test_dir is not None:
+    if args.output_test_dir:
       test_dir = os.path.join(args.output_test_dir,
                               os.path.basename(info.file_name),
                               info.name)
@@ -285,15 +243,16 @@ class DeepState(object):
         pass
 
       if not os.path.isdir(test_dir):
-        LOGGER.critical("Cannot create test output directory: {}".format(
-            test_dir))
+        LOGGER.critical("Cannot create test output directory: %s", test_dir)
 
       self.context['test_dir'] = test_dir
+    else:
+      LOGGER.warning("Argument `--output_test_dir` not given, will not save test cases.")
 
   def log_message(self, level, message):
     """Add `message` to the `level`-specific log as a `Stream` object for
     deferred logging (at the end of the state)."""
-    assert level in LOG_LEVEL_TO_LOGGER
+    assert level in LOG_LEVEL_INT_TO_LOGGER
     log = list(self.context['log'])  # Make a shallow copy (needed for Angr).
 
     if isinstance(message, (str, list, tuple)):
@@ -329,13 +288,16 @@ class DeepState(object):
         val = "".join(chr(b) for b in val_bytes)
       elif val_type == float:
         data = struct.pack('BBBBBBBB', *val_bytes)
-        val = struct.unpack(unpack_str, data)[0]
+        val = struct.unpack("d", data)
       else:
         assert val_type == int
 
         # TODO(pag): I am pretty sure that this is wrong for big-endian.
         data = struct.pack('BBBBBBBB', *val_bytes)
         val = struct.unpack(unpack_str, data[:struct.calcsize(unpack_str)])[0]
+
+        if type(val) == bytes:
+          val = val.decode('unicode_escape')
 
         # Remove length specifiers that are not supported.
         format_str = format_str.replace('l', '')
@@ -376,12 +338,12 @@ class DeepState(object):
       with open(test_file, "wb") as f:
         f.write(input_bytes)
     except:
-      LOGGER.critical("Error saving input to {}".format(test_file))
+      LOGGER.critical("Error saving input to %s", test_file)
 
     if not passing:
-      LOGGER.info("Saved test case in file {}".format(test_file))
+      LOGGER.info("Saved test case in file %s", test_file)
     else:
-      LOGGER.trace("Saved test case in file {}".format(test_file))      
+      LOGGER.trace("Saved test case in file %s", test_file)
 
   def report(self):
     """Report on the pass/fail status of a test case, and dump its log."""
@@ -406,15 +368,15 @@ class DeepState(object):
 
     # Print out each log entry.
     for level, stream in self.context['log']:
-      logger = LOG_LEVEL_TO_LOGGER[level]
+      logger = LOG_LEVEL_INT_TO_LOGGER[level]
       logger(self._stream_to_message(stream))
 
     # Print out the first few input bytes to be helpful.
     lots_of_bytes = len(input_bytes) > 20 and " ..." or ""
     bytes_to_show = min(20, len(input_bytes))
-    LOGGER.trace("Input: {}{}".format(
+    LOGGER.trace("Input: %s%s", 
         " ".join("{:02x}".format(b) for b in input_bytes[:bytes_to_show]),
-        lots_of_bytes))
+        lots_of_bytes)
 
     self._save_test(info, input_bytes)
 
@@ -472,14 +434,14 @@ class DeepState(object):
         return
 
     expr_ea = self.concretize(expr_ea, constrain=True)
-    file_ea = self.concretize(file_ea, constrain=True)    
+    file_ea = self.concretize(file_ea, constrain=True)
     constraint = arg != 0
     if not self.add_constraint(constraint):
       expr, _ = self.read_c_string(expr_ea, concretize=False)
       file, _ = self.read_c_string(file_ea, concretize=False)
       line = self.concretize(line, constrain=True)
       self.log_message(
-        LOG_LEVEL_FATAL, "Failed to add assumption {} in {}:{}".format(
+        LOG_LEVEL_CRITICAL, "Failed to add assumption {} in {}:{}".format(
             expr, file, line))
       self.abandon_test()
 
@@ -491,7 +453,7 @@ class DeepState(object):
     end_ea = self.concretize(end_ea, constrain=True)
     if end_ea < begin_ea:
       self.log_message(
-          LOG_LEVEL_FATAL,
+          LOG_LEVEL_CRITICAL,
           "Invalid range [{:x}, {:x}) to McTest_Concretize".format(
               begin_ea, end_ea))
       self.abandon_test()
@@ -550,8 +512,8 @@ class DeepState(object):
     as having aborted due to some unrecoverable error."""
     info = self.context['info']
     ea = self.concretize(arg, constrain=True)
-    self.log_message(LOG_LEVEL_FATAL, self.read_c_string(ea)[0])
-    self.log_message(LOG_LEVEL_FATAL, "Abandoned: {}".format(info.name))
+    self.log_message(LOG_LEVEL_CRITICAL, self.read_c_string(ea)[0])
+    self.log_message(LOG_LEVEL_CRITICAL, "Abandoned: {}".format(info.name))
     self.abandon_test()
 
   def api_log(self, level, ea):
@@ -561,10 +523,10 @@ class DeepState(object):
 
     level = self.concretize(level, constrain=True)
     ea = self.concretize(ea, constrain=True)
-    assert level in LOG_LEVEL_TO_LOGGER
+    assert level in LOG_LEVEL_INT_TO_LOGGER
     self.log_message(level, self.read_c_string(ea, concretize=False)[0])
 
-    if level == LOG_LEVEL_FATAL:
+    if level == LOG_LEVEL_CRITICAL:
       self.api_fail()
     elif level == LOG_LEVEL_ERROR:
       self.api_soft_fail()
@@ -574,7 +536,7 @@ class DeepState(object):
     """Read the format information and int or float value data from memory
     and record it into a stream."""
     level = self.concretize(level, constrain=True)
-    assert level in LOG_LEVEL_TO_LOGGER
+    assert level in LOG_LEVEL_INT_TO_LOGGER
 
     format_ea = self.concretize(format_ea, constrain=True)
     unpack_ea = self.concretize(unpack_ea, constrain=True)
@@ -608,7 +570,7 @@ class DeepState(object):
     """Implements the `_DeepState_StreamString`, which streams a C-string into a
     holding buffer for the log."""
     level = self.concretize(level, constrain=True)
-    assert level in LOG_LEVEL_TO_LOGGER
+    assert level in LOG_LEVEL_INT_TO_LOGGER
 
     format_ea = self.concretize(format_ea, constrain=True)
     str_ea = self.concretize(str_ea, constrain=True)
@@ -624,7 +586,7 @@ class DeepState(object):
     """Implements DeepState_ClearStream, which clears the contents of a stream
     for level `level`."""
     level = self.concretize(level, constrain=True)
-    assert level in LOG_LEVEL_TO_LOGGER
+    assert level in LOG_LEVEL_INT_TO_LOGGER
     stream_id = 'stream_{}'.format(level)
     self.context[stream_id] = []
 
@@ -632,14 +594,14 @@ class DeepState(object):
     """Implements DeepState_LogStream, which converts the contents of a stream
     for level `level` into a log for level `level`."""
     level = self.concretize(level, constrain=True)
-    assert level in LOG_LEVEL_TO_LOGGER
+    assert level in LOG_LEVEL_INT_TO_LOGGER
     stream_id = 'stream_{}'.format(level)
     stream = self.context[stream_id]
     if len(stream):
       self.context[stream_id] = []
       self.log_message(level, Stream(stream))
 
-      if level == LOG_LEVEL_FATAL:
+      if level == LOG_LEVEL_CRITICAL:
         self.api_fail()
       elif level == LOG_LEVEL_ERROR:
         self.api_soft_fail()
