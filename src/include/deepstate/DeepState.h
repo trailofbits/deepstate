@@ -448,7 +448,7 @@ DEEPSTATE_INLINE static int DeepState_IsSymbolicDouble(double x) {
 /* Basically an ASSUME that also assigns to v; P should be side-effect
    free, and type of v should be integral. */
 #ifndef DEEPSTATE_MAX_SEARCH_ITERS
-#define DEEPSTATE_MAX_SEARCH_ITERS UINT_MAX
+#define DEEPSTATE_MAX_SEARCH_ITERS 4294967296 // 2^32 is enough expense
 #endif
 
 #define ASSIGN_SATISFYING(v, expr, P) \
