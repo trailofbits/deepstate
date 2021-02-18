@@ -37,6 +37,7 @@ setuptools.setup(
     },
     entry_points={
         'console_scripts': [
+
             'deepstate = deepstate.executors.symex.manticore:main',
             'deepstate-angr = deepstate.executors.symex.angr:main',
             'deepstate-manticore = deepstate.executors.symex.manticore:main',

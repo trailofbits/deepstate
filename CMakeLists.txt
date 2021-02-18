@@ -118,10 +118,10 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_C_FLAGS_DEBUG "-O3")
+set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
 
-set(CMAKE_CXX_FLAGS_DEBUG "-O3")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 # compile only examples
@@ -141,11 +141,21 @@ if (NOT WIN32)
   set(CMAKE_CXX_STANDARD 11)
 endif()
 
+
+file( GLOB gentest_header_files "${CMAKE_SOURCE_DIR}/GenTest/include/modules/*" )
+file( GLOB gentest_files "${CMAKE_SOURCE_DIR}/GenTest/src/modules/*/*.cpp" )
+file( GLOB gentest_lib "${CMAKE_SOURCE_DIR}/GenTest/lib/*.a" )
+file( GLOB gentest_header_files "${CMAKE_SOURCE_DIR}/GenTest/include/modules/*" )
+file( GLOB gentest_files "${CMAKE_SOURCE_DIR}/GenTest/src/modules/*/*.cpp" )
+
 add_library(${PROJECT_NAME} STATIC
   src/lib/DeepState.c
   src/lib/Log.c
   src/lib/Option.c
   src/lib/Stream.c
+  src/lib/GenTestBridge.cpp
+  ${gentest_files}
+  ${gentest_lib}
 )
 
 add_library(${PROJECT_NAME}32 STATIC
@@ -154,6 +164,8 @@ add_library(${PROJECT_NAME}32 STATIC
   src/lib/Option.c
   src/lib/Stream.c
 )
+
+target_link_libraries( deepstate ${gentest_lib} )
 
 target_compile_options(${PROJECT_NAME} PUBLIC -mno-avx)
 
@@ -166,6 +178,7 @@ endif()
 
 target_include_directories(${PROJECT_NAME}
   PUBLIC SYSTEM "${CMAKE_SOURCE_DIR}/src/include"
+  PUBLIC SYSTEM "${gentest_header_files}"
 )
 
 target_include_directories(${PROJECT_NAME}32
@@ -302,6 +315,19 @@ else()
     # and install prefix is set; assume a user install
     # the "prefix=" is intentional
     install(CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} install --user --prefix=)")
+endif()
+
+
+option(GENTEST_TESTS off "Enables the gentest test binary")
+
+if(GENTEST_TESTS)
+    add_executable(gentest_test ${CMAKE_SOURCE_DIR}/GenTest/test/TestMain.cpp)
+    include_directories( ${CMAKE_SOURCE_DIR}/GenTest/lib )
+
+    target_link_libraries(gentest_test PUBLIC ${PROJECT_NAME})
+    enable_testing()
+
+    add_test( NAME test COMMAND gentest_test )
 endif()
 
 add_subdirectory(examples)

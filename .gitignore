@@ -152,3 +152,4 @@ out/
 mcore_*/
 
 # End of https://www.gitignore.io/api/c++,cmake,python
+/makeDir/

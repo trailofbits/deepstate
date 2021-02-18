@@ -142,6 +142,12 @@ class AnalysisBackend(object):
       "-c", "--config", type=str,
       help="Configuration file to be consumed instead of arguments.")
 
+    parser.add_argument( "-g", "--gentest",
+                        type = str,
+                        help = "Include if GenTest software should create a standalone testing file.")
+    parser.add_argument( "-l", "--language", type = str,
+    help = "")
+
     parser.add_argument(
       "-t", "--timeout", default=0, type=int,
       help="Time to kill analysis worker processes, in seconds (default is 0 for none).")
