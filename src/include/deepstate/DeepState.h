@@ -104,9 +104,13 @@ enum {
  * for symbolic values (e.g. `int`s). */
 extern volatile uint8_t DeepState_Input[DeepState_InputSize];
 
+#define DEEPSTATE_READBYTE (DeepState_InputIndex < DeepState_InputInitialized ? DeepState_Input[DeepState_InputIndex++] : (!DeepState_InternalFuzzing ? 0 :  (char)rand()))
+
 /* Index into the `DeepState_Input` array that tracks how many input bytes have
  * been consumed. */
 extern uint32_t DeepState_InputIndex;
+extern uint32_t DeepState_InputInitialized;
+extern uint32_t DeepState_InternalFuzzing;
 
 enum DeepState_SwarmType {
   DeepState_SwarmTypePure = 0,
@@ -665,12 +669,11 @@ static void DeepState_InitInputFromFile(const char *path) {
     DeepState_Abandon("Error reading file");
   }
 
-  // Only clear what didn't get written!
-  DeepState_MemScrub((void *) (DeepState_Input + count), sizeof(DeepState_Input) - count);
+  DeepState_InputInitialized = count;
 
   DeepState_LogFormat(DeepState_LogTrace,
-                      "Initialized test input buffer with data from `%s`",
-                      path);
+                      "Initialized test input buffer with %zu bytes of data from `%s`",
+                      count, path);
 }
 
 /* Run a test case, assuming we have forked from the test harness to do so.

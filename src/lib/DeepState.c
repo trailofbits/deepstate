@@ -82,9 +82,13 @@ struct DeepState_TestInfo *DeepState_FirstTestInfo = NULL;
 /* Pointer to the test being run in this process by Dr. Fuzz. */
 static struct DeepState_TestInfo *DeepState_DrFuzzTest = NULL;
 
-/* Initialize global input buffer and index. */
+/* Initialize global input buffer and index / initialized index. */
 volatile uint8_t DeepState_Input[DeepState_InputSize] = {};
 uint32_t DeepState_InputIndex = 0;
+uint32_t DeepState_InputInitialized = 0;
+
+/* Used if we need to generate on-the-fly data while we fuzz */
+uint32_t DeepState_InternalFuzzing = 0;
 
 /* Swarm related state. */
 uint32_t DeepState_SwarmConfigsIndex = 0;
@@ -186,7 +190,7 @@ void DeepState_SymbolizeData(void *begin, void *end) {
       if (FLAGS_verbose_reads) {
         printf("Reading byte at %u\n", DeepState_InputIndex);
       }
-      bytes[i] = DeepState_Input[DeepState_InputIndex++];
+      bytes[i] = DEEPSTATE_READBYTE;
     }
   }
 }
@@ -210,7 +214,7 @@ void DeepState_SymbolizeDataNoNull(void *begin, void *end) {
       if (FLAGS_verbose_reads) {
         printf("Reading byte at %u\n", DeepState_InputIndex);
       }
-      bytes[i] = DeepState_Input[DeepState_InputIndex++];
+      bytes[i] = DEEPSTATE_READBYTE;
       if (bytes[i] == 0) {
         bytes[i] = 1;
       }
@@ -498,7 +502,7 @@ int DeepState_Bool(void) {
   if (FLAGS_verbose_reads) {
     printf("Reading byte as boolean at %u\n", DeepState_InputIndex);
   }
-  return DeepState_Input[DeepState_InputIndex++] & 1;
+  return DEEPSTATE_READBYTE & 1;
 }
 
 /* Return a string path to an input file or directory without parsing it to a type. This is
@@ -554,7 +558,7 @@ const char * DeepState_InputPath(char *testcase_path) {
         if (FLAGS_verbose_reads) { \
           printf("Reading byte at %u\n", DeepState_InputIndex); \
         } \
-        val = (val << 8) | ((type) DeepState_Input[DeepState_InputIndex++]); \
+        val = (val << 8) | ((type) DEEPSTATE_READBYTE); \
       } \
       if (FLAGS_verbose_reads) { \
         printf("FINISHED MULTI-BYTE READ\n"); \
@@ -1115,11 +1119,9 @@ int DeepState_Fuzz(void){
    Has to be defined here since we redefine rand in the header. */
 enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test) {
   DeepState_InputIndex = 0;
+  DeepState_InputInitialized = 0;
   DeepState_SwarmConfigsIndex = 0;
-
-  for (int i = 0; i < DeepState_InputSize; i++) {
-    DeepState_Input[i] = (char)rand();
-  }
+  DeepState_InternalFuzzing = 1;
 
   DeepState_Begin(test);
 
@@ -1191,7 +1193,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   DeepState_SwarmConfigsIndex = 0;
 
   memcpy((void *) DeepState_Input, (void *) Data, Size);
-  DeepState_MemScrub((void *) (DeepState_Input + Size), sizeof(DeepState_Input) - Size);
+  DeepState_InputInitialized = Size;
 
   DeepState_Begin(test);
 
