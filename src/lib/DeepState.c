@@ -803,8 +803,6 @@ void DeepState_Begin(struct DeepState_TestInfo *test) {
                       test->test_name, test->file_name, test->line_number);
 }
 
-/* Save a failing test. */
-
 /* Runs in a child process, under the control of Dr. Memory */
 void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
   struct DeepState_TestInfo *test = DeepState_DrFuzzTest;
@@ -979,8 +977,8 @@ void writeInputData(char* name, int important) {
     free(path);
     return;
   }
-  size_t written = fwrite((void *)DeepState_Input, 1, DeepState_InputSize, fp);
-  if (written != DeepState_InputSize) {
+  size_t written = fwrite((void *)DeepState_Input, 1, DeepState_InputIndex, fp);
+  if (written != DeepState_InputIndex) {
     DeepState_LogFormat(DeepState_LogError, "Failed to write to file `%s`", path);
   } else {
     if (important) {
