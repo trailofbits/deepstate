@@ -653,8 +653,7 @@ static void DeepState_InitInputFromFile(const char *path) {
     to_read = DeepState_InputSize;
   }
 
-  /* Reset the input buffer and reset the index. */
-  DeepState_MemScrub((void *) DeepState_Input, sizeof(DeepState_Input));
+  /* Reset the index. */
   DeepState_InputIndex = 0;
   DeepState_SwarmConfigsIndex = 0;
 
@@ -665,6 +664,9 @@ static void DeepState_InitInputFromFile(const char *path) {
     /* TODO(joe): Add error log with more info. */
     DeepState_Abandon("Error reading file");
   }
+
+  // Only clear what didn't get written!
+  DeepState_MemScrub((void *) (DeepState_Input + count), sizeof(DeepState_Input) - count);
 
   DeepState_LogFormat(DeepState_LogTrace,
                       "Initialized test input buffer with data from `%s`",

@@ -80,7 +80,9 @@ void DeepState_Log(enum DeepState_LogLevel level, const char *str) {
       (level < FLAGS_min_log_level)) {
     return;
   }
-  DeepState_MemScrub(DeepState_LogBuf, DeepState_LogBufSize);
+  //Removed because I don't see why we need to zero this before writing
+  //to it.
+  //DeepState_MemScrub(DeepState_LogBuf, DeepState_LogBufSize);
   snprintf(DeepState_LogBuf, DeepState_LogBufSize, "%s: %s\n",
            DeepState_LogLevelStr(level), str);
   fputs(DeepState_LogBuf, stderr);

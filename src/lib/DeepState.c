@@ -1187,11 +1187,11 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     exit(255);
   }
 
-  DeepState_MemScrub((void *) DeepState_Input, sizeof(DeepState_Input));
   DeepState_InputIndex = 0;
   DeepState_SwarmConfigsIndex = 0;
 
   memcpy((void *) DeepState_Input, (void *) Data, Size);
+  DeepState_MemScrub((void *) (DeepState_Input + Size), sizeof(DeepState_Input) - Size);
 
   DeepState_Begin(test);
 
