@@ -36,6 +36,7 @@ DEFINE_string(input_test_dir, InputOutputGroup, "", "Directory of saved tests to
 DEFINE_string(input_test_file, InputOutputGroup, "", "Saved test to run.");
 DEFINE_string(input_test_files_dir, InputOutputGroup, "", "Directory of saved test files to run (flat structure).");
 DEFINE_string(output_test_dir, InputOutputGroup, "", "Directory where tests will be saved.");
+DEFINE_bool(input_stdin, InputOutputGroup, false, "Run a test from stdin.");
 
 /* Test execution-related options, configures how an execution run is carried out */
 DEFINE_bool(take_over, ExecutionGroup, false, "Replay test cases in take-over mode.");
@@ -82,9 +83,13 @@ struct DeepState_TestInfo *DeepState_FirstTestInfo = NULL;
 /* Pointer to the test being run in this process by Dr. Fuzz. */
 static struct DeepState_TestInfo *DeepState_DrFuzzTest = NULL;
 
-/* Initialize global input buffer and index. */
+/* Initialize global input buffer and index / initialized index. */
 volatile uint8_t DeepState_Input[DeepState_InputSize] = {};
 uint32_t DeepState_InputIndex = 0;
+uint32_t DeepState_InputInitialized = 0;
+
+/* Used if we need to generate on-the-fly data while we fuzz */
+uint32_t DeepState_InternalFuzzing = 0;
 
 /* Swarm related state. */
 uint32_t DeepState_SwarmConfigsIndex = 0;
@@ -186,7 +191,7 @@ void DeepState_SymbolizeData(void *begin, void *end) {
       if (FLAGS_verbose_reads) {
         printf("Reading byte at %u\n", DeepState_InputIndex);
       }
-      bytes[i] = DeepState_Input[DeepState_InputIndex++];
+      bytes[i] = DEEPSTATE_READBYTE;
     }
   }
 }
@@ -210,7 +215,7 @@ void DeepState_SymbolizeDataNoNull(void *begin, void *end) {
       if (FLAGS_verbose_reads) {
         printf("Reading byte at %u\n", DeepState_InputIndex);
       }
-      bytes[i] = DeepState_Input[DeepState_InputIndex++];
+      bytes[i] = DEEPSTATE_READBYTE;
       if (bytes[i] == 0) {
         bytes[i] = 1;
       }
@@ -498,7 +503,7 @@ int DeepState_Bool(void) {
   if (FLAGS_verbose_reads) {
     printf("Reading byte as boolean at %u\n", DeepState_InputIndex);
   }
-  return DeepState_Input[DeepState_InputIndex++] & 1;
+  return DEEPSTATE_READBYTE & 1;
 }
 
 /* Return a string path to an input file or directory without parsing it to a type. This is
@@ -554,7 +559,7 @@ const char * DeepState_InputPath(char *testcase_path) {
         if (FLAGS_verbose_reads) { \
           printf("Reading byte at %u\n", DeepState_InputIndex); \
         } \
-        val = (val << 8) | ((type) DeepState_Input[DeepState_InputIndex++]); \
+        val = (val << 8) | ((type) DEEPSTATE_READBYTE); \
       } \
       if (FLAGS_verbose_reads) { \
         printf("FINISHED MULTI-BYTE READ\n"); \
@@ -799,53 +804,6 @@ void DeepState_Begin(struct DeepState_TestInfo *test) {
                       test->test_name, test->file_name, test->line_number);
 }
 
-/* Save a failing test. */
-
-/* Runs in a child process, under the control of Dr. Memory */
-void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
-  struct DeepState_TestInfo *test = DeepState_DrFuzzTest;
-  DeepState_InputIndex = 0;
-  DeepState_SwarmConfigsIndex = 0;
-  DeepState_InitCurrentTestRun(test);
-  DeepState_LogFormat(DeepState_LogTrace, "Running: %s from %s(%u)",
-                      test->test_name, test->file_name, test->line_number);
-
-  if (!setjmp(DeepState_ReturnToRun)) {
-    /* Convert uncaught C++ exceptions into a test failure. */
-#if defined(__cplusplus) && defined(__cpp_exceptions)
-    try {
-#endif  /* __cplusplus */
-
-    test->test_func();
-    DeepState_CleanUp();
-    DeepState_Pass();
-
-#if defined(__cplusplus) && defined(__cpp_exceptions)
-    } catch(...) {
-      DeepState_Fail();
-    }
-#endif  /* __cplusplus */
-  /* We caught a failure when running the test. */
-  } else if (DeepState_CatchFail()) {
-    DeepState_LogFormat(DeepState_LogError, "Failed: %s", test->test_name);
-    if (HAS_FLAG_output_test_dir) {
-      DeepState_SaveFailingTest();
-    }
-
-  /* The test was abandoned. We may have gotten soft failures before
-   * abandoning, so we prefer to catch those first. */
-  } else if (DeepState_CatchAbandoned()) {
-    DeepState_LogFormat(DeepState_LogError, "Abandoned: %s", test->test_name);
-
-  /* The test passed. */
-  } else {
-    DeepState_LogFormat(DeepState_LogTrace, "Passed: %s", test->test_name);
-    if (HAS_FLAG_output_test_dir) {
-      DeepState_SavePassingTest();
-    }
-  }
-}
-
 void DeepState_Warn_srand(unsigned int seed) {
   DeepState_LogFormat(DeepState_LogWarning,
               "srand under DeepState has no effect: rand is re-defined as DeepState_Int");
@@ -951,12 +909,6 @@ int DeepState_TakeOver(void) {
   return 0;
 }
 
-/* Notify that we're about to begin a test while running under Dr. Fuzz. */
-void DeepState_BeginDrFuzz(struct DeepState_TestInfo *test) {
-  DeepState_DrFuzzTest = test;
-  DrMemFuzzFunc(DeepState_Input, DeepState_InputSize);
-}
-
 /* Right now "fake" a hexdigest by just using random bytes.  Not ideal. */
 void makeFilename(char *name, size_t size) {
   const char *entities = "0123456789abcdef";
@@ -975,8 +927,8 @@ void writeInputData(char* name, int important) {
     free(path);
     return;
   }
-  size_t written = fwrite((void *)DeepState_Input, 1, DeepState_InputSize, fp);
-  if (written != DeepState_InputSize) {
+  size_t written = fwrite((void *)DeepState_Input, 1, DeepState_InputIndex, fp);
+  if (written != DeepState_InputIndex) {
     DeepState_LogFormat(DeepState_LogError, "Failed to write to file `%s`", path);
   } else {
     if (important) {
@@ -1115,11 +1067,9 @@ int DeepState_Fuzz(void){
    Has to be defined here since we redefine rand in the header. */
 enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test) {
   DeepState_InputIndex = 0;
+  DeepState_InputInitialized = 0;
   DeepState_SwarmConfigsIndex = 0;
-
-  for (int i = 0; i < DeepState_InputSize; i++) {
-    DeepState_Input[i] = (char)rand();
-  }
+  DeepState_InternalFuzzing = 1;
 
   DeepState_Begin(test);
 
@@ -1191,7 +1141,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   DeepState_SwarmConfigsIndex = 0;
 
   memcpy((void *) DeepState_Input, (void *) Data, Size);
-  DeepState_MemScrub((void *) (DeepState_Input + Size), sizeof(DeepState_Input) - Size);
+  DeepState_InputInitialized = Size;
 
   DeepState_Begin(test);
 
@@ -1220,8 +1170,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 }
 
 extern int FuzzerEntrypoint(const uint8_t *data, size_t size) {
-  LLVMFuzzerTestOneInput(data, size);
-  return 0;
+  return LLVMFuzzerTestOneInput(data, size);
 }
 
 /* Overwrite libc's abort. */

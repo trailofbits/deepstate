@@ -485,7 +485,10 @@ class FuzzerFrontend(AnalysisBackend):
       raise FuzzFrontendError("Must provide -o/--output_test_dir.")
 
     if not os.path.exists(self.output_test_dir):
-      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) doesn't exist.")
+      try:
+        os.mkdir(self.output_test_dir)
+      except:
+        raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) doesn't exist, and could not be created.")
 
     if not os.path.isdir(self.output_test_dir):
       raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
@@ -613,15 +616,11 @@ class FuzzerFrontend(AnalysisBackend):
 
     # hard kill
     for some_proc in psutil.Process(self.proc.pid).children(recursive=True) + [self.proc]:
-      try:
-        some_proc.communicate(timeout=1)
-        L.info("Fuzzer subprocess (PID %d) exited with `%d`", some_proc.pid, some_proc.returncode)
-      except subprocess.TimeoutExpired:
         L.warning("Subprocess (PID %d) could not terminate in time, killing.", some_proc.pid)
-        some_proc.kill()
-      except psutil.NoSuchProcess:
-        self.proc = None
-        return
+        try:
+            some_proc.kill()
+        except psutil.NoSuchProcess:
+            self.proc = None
 
     self.proc = None
 

@@ -135,7 +135,14 @@ class AFL(FuzzerFrontend):
     if self.dictionary:
       cmd_list.extend(["-x", self.dictionary])
 
-    return self.build_cmd(cmd_list)
+    cmd_list.extend([
+     "--", self.binary,
+      "--input_stdin",
+      "--abort_on_fail",
+      "--no_fork",
+      "--min_log_level", str(self.min_log_level)
+    ])
+    return cmd_list
 
 
   def populate_stats(self):

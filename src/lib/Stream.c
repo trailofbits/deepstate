@@ -276,7 +276,6 @@ void DeepState_StreamDouble(enum DeepState_LogLevel level, double val) {
 void DeepState_ClearStream(enum DeepState_LogLevel level) {
   struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   if (stream->size) {
-    DeepState_MemScrub(stream->message, DeepState_StreamSize);
     stream->size = 0;
   }
 }
