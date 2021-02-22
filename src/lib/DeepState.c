@@ -803,51 +803,6 @@ void DeepState_Begin(struct DeepState_TestInfo *test) {
                       test->test_name, test->file_name, test->line_number);
 }
 
-/* Runs in a child process, under the control of Dr. Memory */
-void DrMemFuzzFunc(volatile uint8_t *buff, size_t size) {
-  struct DeepState_TestInfo *test = DeepState_DrFuzzTest;
-  DeepState_InputIndex = 0;
-  DeepState_SwarmConfigsIndex = 0;
-  DeepState_InitCurrentTestRun(test);
-  DeepState_LogFormat(DeepState_LogTrace, "Running: %s from %s(%u)",
-                      test->test_name, test->file_name, test->line_number);
-
-  if (!setjmp(DeepState_ReturnToRun)) {
-    /* Convert uncaught C++ exceptions into a test failure. */
-#if defined(__cplusplus) && defined(__cpp_exceptions)
-    try {
-#endif  /* __cplusplus */
-
-    test->test_func();
-    DeepState_CleanUp();
-    DeepState_Pass();
-
-#if defined(__cplusplus) && defined(__cpp_exceptions)
-    } catch(...) {
-      DeepState_Fail();
-    }
-#endif  /* __cplusplus */
-  /* We caught a failure when running the test. */
-  } else if (DeepState_CatchFail()) {
-    DeepState_LogFormat(DeepState_LogError, "Failed: %s", test->test_name);
-    if (HAS_FLAG_output_test_dir) {
-      DeepState_SaveFailingTest();
-    }
-
-  /* The test was abandoned. We may have gotten soft failures before
-   * abandoning, so we prefer to catch those first. */
-  } else if (DeepState_CatchAbandoned()) {
-    DeepState_LogFormat(DeepState_LogError, "Abandoned: %s", test->test_name);
-
-  /* The test passed. */
-  } else {
-    DeepState_LogFormat(DeepState_LogTrace, "Passed: %s", test->test_name);
-    if (HAS_FLAG_output_test_dir) {
-      DeepState_SavePassingTest();
-    }
-  }
-}
-
 void DeepState_Warn_srand(unsigned int seed) {
   DeepState_LogFormat(DeepState_LogWarning,
               "srand under DeepState has no effect: rand is re-defined as DeepState_Int");
@@ -1149,34 +1104,8 @@ enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo
 }
 
 extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
-  static long start = 0;
-  if (start == 0) {
-    start = (long)time(NULL);
-  }
-  static long current = 0;
-  if (current == 0) {
-    current = (long)time(NULL);
-  }
-  static unsigned diff = 0;
-  static unsigned last_status = 0;
-  static unsigned int i = 1;
-
-  static int num_failed_tests = 0;
-  static int num_passed_tests = 0;
-  static int num_abandoned_tests = 0;
-
   if (Size > sizeof(DeepState_Input)) {
     return 0; // Just ignore any too-big inputs
-  }
-
-  if ((diff != last_status) && ((diff % 30) == 0) ) {
-    time_t t = time(NULL);
-    struct tm tm = *localtime(&t);
-    DeepState_LogFormat(DeepState_LogInfo, "%d-%02d-%02d %02d:%02d:%02d: %u tests/second: %d failed/%d passed/%d abandoned",
-    tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, i/diff,
-    num_failed_tests, num_passed_tests, num_abandoned_tests);
-    last_status = diff;
-  }
 
   DeepState_UsingLibFuzzer = 1;
 
@@ -1221,19 +1150,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   DeepState_Begin(test);
 
   enum DeepState_TestRunResult result = DeepState_RunTestNoFork(test);
-  if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
-    num_failed_tests++;
-  } else if (result == DeepState_TestRunPass) {
-    num_passed_tests++;
-  } else if (result == DeepState_TestRunAbandon) {
-    num_abandoned_tests++;
-  }  
   DeepState_CleanUp();
-  
-  i++;
-
-  current = (long)time(NULL);
-  diff = current - start;
 
   const char* abort_check = getenv("LIBFUZZER_ABORT_ON_FAIL");
   if (abort_check != NULL) {
