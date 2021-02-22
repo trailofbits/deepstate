@@ -103,7 +103,7 @@ void DeepState_LogVFormat(enum DeepState_LogLevel level,
                           const char *format, va_list args) {
   struct DeepState_VarArgs va;
   va_copy(va.args, args);
-  if (DeepState_UsingLibFuzzer && (level < DeepState_LogExternal)) {
+  if (DeepState_UsingLibFuzzer && (level != DeepState_LogDebug)) {
     return;
   }
   DeepState_LogStream(level);
