@@ -1141,23 +1141,10 @@ static int DeepState_Run(void) {
 	  }
 	}
 
-	/* Check if we should use Dr.Fuzz or run regularly */
-	if (use_drfuzz) {
-      if (!fork()) {
-        DeepState_BeginDrFuzz(test);
-      } else {
-        continue;
-      }
-    } else {
-	  DeepState_Begin(test);
-      if (DeepState_ForkAndRunTest(test) != 0) {
-        num_failed_tests++;
-      }
-	}
-  }
-
-  if (use_drfuzz) {
-    waitpid(-1, NULL, 0);  /* Wait for all children. */
+	DeepState_Begin(test);
+    if (DeepState_ForkAndRunTest(test) != 0) {
+      num_failed_tests++;
+    }
   }
 
   DeepState_Teardown();
