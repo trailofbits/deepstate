@@ -676,7 +676,7 @@ int32_t DeepState_MaxInt(int32_t v) {
 }
 
 /* Function to clean up generated strings, and any other DeepState-managed data. */
-void DeepState_CleanUp() {
+extern void DeepState_CleanUp() {
   for (int i = 0; i < DeepState_GeneratedAllocsIndex; i++) {
     free(DeepState_GeneratedAllocs[i]);
   }
