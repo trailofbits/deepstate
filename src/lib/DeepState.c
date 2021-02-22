@@ -1159,6 +1159,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   }
   static unsigned diff = 0;
   static unsigned last_status = 1;
+  static unsigned int i = 0;
 
   static int num_failed_tests = 0;
   static int num_passed_tests = 0;
@@ -1228,6 +1229,8 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     num_abandoned_tests++;
   }  
   DeepState_CleanUp();
+  
+  i++;
 
   current = (long)time(NULL);
   diff = current - start;
