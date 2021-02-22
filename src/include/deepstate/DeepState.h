@@ -804,6 +804,8 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
 
 extern enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test);
 
+extern void DeepState_Cleanup();
+
 /* Run a single saved test case with input initialized from the file
  * `name` in directory `dir`. */
 static enum DeepState_TestRunResult
