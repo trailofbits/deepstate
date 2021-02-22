@@ -104,7 +104,7 @@ enum {
  * for symbolic values (e.g. `int`s). */
 extern volatile uint8_t DeepState_Input[DeepState_InputSize];
 
-#define DEEPSTATE_READBYTE (DeepState_InputIndex < DeepState_InputInitialized ? DeepState_Input[DeepState_InputIndex++] : (DeepState_InternalFuzzing ? (DeepState_Input[DeepState_InputIndex++] = (char)rand(), DeepState_Input[DeepState_InputIndex]) : (DeepState_Input[DeepState_InputIndex++] = 0, DeepState_Input[DeepState_InputIndex])))
+#define DEEPSTATE_READBYTE (DeepState_InputIndex < DeepState_InputInitialized ? DeepState_Input[DeepState_InputIndex++] : (DeepState_InternalFuzzing ? (DeepState_Input[DeepState_InputIndex] = (char)rand(), DeepState_Input[DeepState_InputIndex++]) : (DeepState_Input[DeepState_InputIndex] = 0, DeepState_Input[DeepState_InputIndex++])))
 
 /* Index into the `DeepState_Input` array that tracks how many input bytes have
  * been consumed. */
