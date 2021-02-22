@@ -908,12 +908,6 @@ int DeepState_TakeOver(void) {
   return 0;
 }
 
-/* Notify that we're about to begin a test while running under Dr. Fuzz. */
-void DeepState_BeginDrFuzz(struct DeepState_TestInfo *test) {
-  DeepState_DrFuzzTest = test;
-  DrMemFuzzFunc(DeepState_Input, DeepState_InputSize);
-}
-
 /* Right now "fake" a hexdigest by just using random bytes.  Not ideal. */
 void makeFilename(char *name, size_t size) {
   const char *entities = "0123456789abcdef";
