@@ -95,20 +95,17 @@ class Eclipser(FuzzerFrontend):
     cmd_list: List[str] = list()
 
     # get deepstate args and remove "-- binary"
-    deepstate_args = []
-    deepstate_args.extend([
-      "--", self.binary,
-      "--input_stdin",
-      "--abort_on_fail",
-      "--no_fork",
-      "--min_log_level", str(self.min_log_level)
-    ])
+    deepstate_args = self.build_cmd([], input_symbol='eclipser.input')
+    binary_index = deepstate_args.index('--')
+    deepstate_args.pop(binary_index)
+    deepstate_args.pop(binary_index)
 
     # guaranteed arguments
     cmd_list.extend([
       "fuzz",
       "--program", self.binary,
-      "--src", "stdin",
+      "--src", "file",
+      "--fixfilepath", "eclipser.input",
       "--initarg", " ".join(deepstate_args),
       "--outputdir", os.path.join(self.output_test_dir, "the_fuzzer"), # auto-create, reusable
     ])
