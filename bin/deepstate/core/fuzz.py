@@ -616,9 +616,6 @@ class FuzzerFrontend(AnalysisBackend):
 
     # hard kill
     for some_proc in psutil.Process(self.proc.pid).children(recursive=True) + [self.proc]:
-        some_proc.kill()
-        #L.info("Fuzzer subprocess (PID %d) exited with `%d`", some_proc.pid, some_proc.returncode)
-      except subprocess.TimeoutExpired:
         L.warning("Subprocess (PID %d) could not terminate in time, killing.", some_proc.pid)
         some_proc.kill()
       except psutil.NoSuchProcess:
