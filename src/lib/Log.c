@@ -77,7 +77,7 @@ char DeepState_LogBuf[DeepState_LogBufSize + 1] = {};
 DEEPSTATE_NOINLINE
 void DeepState_Log(enum DeepState_LogLevel level, const char *str) {
   if ((level < FLAGS_min_log_level) &&
-      !(DeepState_UsingLibFuzzer && level == 0))
+      !(DeepState_UsingLibFuzzer && level == 0)) {
     return;
   }
   //Removed because I don't see why we need to zero this before writing
@@ -103,7 +103,8 @@ void DeepState_LogVFormat(enum DeepState_LogLevel level,
                           const char *format, va_list args) {
   struct DeepState_VarArgs va;
   va_copy(va.args, args);
-  if (DeepState_UsingLibFuzzer && (level != DeepState_LogDebug)) {
+  if (DeepState_UsingLibFuzzer && !DeepState_LibFuzzer_Loud &&
+      (level != DeepState_LogDebug)) {
     return;
   }
   DeepState_LogStream(level);
