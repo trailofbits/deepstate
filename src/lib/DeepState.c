@@ -1158,7 +1158,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     current = (long)time(NULL);
   }
   static unsigned diff = 0;
-  static unsigned last_status = 1;
+  static unsigned last_status = 0;
   static unsigned int i = 1;
 
   static int num_failed_tests = 0;
