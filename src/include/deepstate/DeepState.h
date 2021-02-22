@@ -1108,7 +1108,6 @@ static int DeepState_Run(void) {
   }
 
   int num_failed_tests = 0;
-  int use_drfuzz = getenv("DYNAMORIO_EXE_PATH") != NULL;
   struct DeepState_TestInfo *test = NULL;
 
 
