@@ -826,7 +826,6 @@ DeepState_RunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
     DeepState_Begin(test);
 
     enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
-    DeepState_Cleanup();
 
     if (result == DeepState_TestRunFail) {
       DeepState_LogFormat(DeepState_LogError, "Test case %s failed", path);
