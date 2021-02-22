@@ -36,6 +36,7 @@ DEFINE_string(input_test_dir, InputOutputGroup, "", "Directory of saved tests to
 DEFINE_string(input_test_file, InputOutputGroup, "", "Saved test to run.");
 DEFINE_string(input_test_files_dir, InputOutputGroup, "", "Directory of saved test files to run (flat structure).");
 DEFINE_string(output_test_dir, InputOutputGroup, "", "Directory where tests will be saved.");
+DEFINE_bool(input_stdin, InputOutputGroup, false, "Run a test from stdin.");
 
 /* Test execution-related options, configures how an execution run is carried out */
 DEFINE_bool(take_over, ExecutionGroup, false, "Replay test cases in take-over mode.");

@@ -836,7 +836,7 @@ DeepState_RunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
       snprintf(path, path_len, "%s", name);
     }
 
-    if (!strncmp(name, "** STDIN **", strlen(name)) == 0) {
+    if (!(strncmp(name, "** STDIN **", strlen(name)) == 0)) {
       DeepState_InitInputFromFile(path);
     } else {
       DeepState_InitInputFromStdin();
