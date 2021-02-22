@@ -1149,8 +1149,26 @@ enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo
 }
 
 extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
+  static long start = (long)time(NULL);
+  static long current = (long)time(NULL);
+  static unsigned diff = 0;
+  static unsigned int i = 0;
+
+  static int num_failed_tests = 0;
+  static int num_passed_tests = 0;
+  static int num_abandoned_tests = 0;
+
   if (Size > sizeof(DeepState_Input)) {
     return 0; // Just ignore any too-big inputs
+  }
+
+  if ((diff != last_status) && ((diff % 30) == 0) ) {
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    DeepState_LogFormat(DeepState_LogInfo, "%d-%02d-%02d %02d:%02d:%02d: %u tests/second: %d failed/%d passed/%d abandoned",
+    tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, i/diff,
+    num_failed_tests, num_passed_tests, num_abandoned_tests);
+    last_status = diff;
   }
 
   DeepState_UsingLibFuzzer = 1;
@@ -1196,7 +1214,17 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   DeepState_Begin(test);
 
   enum DeepState_TestRunResult result = DeepState_RunTestNoFork(test);
+  if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
+    num_failed_tests++;
+  } else if (result == DeepState_TestRunPass) {
+    num_passed_tests++;
+  } else if (result == DeepState_TestRunAbandon) {
+    num_abandoned_tests++;
+  }  
   DeepState_CleanUp();
+
+  current = (long)time(NULL);
+  diff = current - start;
 
   const char* abort_check = getenv("LIBFUZZER_ABORT_ON_FAIL");
   if (abort_check != NULL) {
