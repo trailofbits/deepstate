@@ -1100,6 +1100,7 @@ enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo
 extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   if (Size > sizeof(DeepState_Input)) {
     return 0; // Just ignore any too-big inputs
+  }
 
   DeepState_UsingLibFuzzer = 1;
 
