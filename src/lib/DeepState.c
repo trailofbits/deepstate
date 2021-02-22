@@ -1149,10 +1149,16 @@ enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo
 }
 
 extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
-  static long start = (long)time(NULL);
-  static long current = (long)time(NULL);
+  static long start = 0;
+  if (start == 0) {
+    start = (long)time(NULL);
+  }
+  static long current = 0;
+  if (current = 0) {
+    current = (long)time(NULL);
+  }
   static unsigned diff = 0;
-  static unsigned int i = 0;
+  static unsigned last_status = 1;
 
   static int num_failed_tests = 0;
   static int num_passed_tests = 0;
