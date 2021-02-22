@@ -485,7 +485,10 @@ class FuzzerFrontend(AnalysisBackend):
       raise FuzzFrontendError("Must provide -o/--output_test_dir.")
 
     if not os.path.exists(self.output_test_dir):
-      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) doesn't exist.")
+      try:
+        os.mkdir(self.output_test_dir)
+      except:
+        raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) doesn't exist, and could not be created.")
 
     if not os.path.isdir(self.output_test_dir):
       raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
