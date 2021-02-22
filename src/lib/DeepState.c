@@ -676,7 +676,7 @@ int32_t DeepState_MaxInt(int32_t v) {
 }
 
 /* Function to clean up generated strings, and any other DeepState-managed data. */
-void DeepState_CleanUp() {
+extern void DeepState_CleanUp() {
   for (int i = 0; i < DeepState_GeneratedAllocsIndex; i++) {
     free(DeepState_GeneratedAllocs[i]);
   }
@@ -1159,7 +1159,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   }
   static unsigned diff = 0;
   static unsigned last_status = 1;
-  static unsigned int i = 0;
+  static unsigned int i = 1;
 
   static int num_failed_tests = 0;
   static int num_passed_tests = 0;
@@ -1257,8 +1257,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 }
 
 extern int FuzzerEntrypoint(const uint8_t *data, size_t size) {
-  LLVMFuzzerTestOneInput(data, size);
-  return 0;
+  return LLVMFuzzerTestOneInput(data, size);
 }
 
 /* Overwrite libc's abort. */
