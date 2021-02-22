@@ -577,9 +577,6 @@ extern void DeepState_Setup(void);
 /* Tear down DeepState. */
 extern void DeepState_Teardown(void);
 
-/* Notify that we're about to begin a test while running under Dr. Fuzz. */
-extern void DeepState_BeginDrFuzz(struct DeepState_TestInfo *info);
-
 /* Notify that we're about to begin a test. */
 extern void DeepState_Begin(struct DeepState_TestInfo *info);
 
