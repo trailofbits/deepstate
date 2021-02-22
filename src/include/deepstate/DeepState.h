@@ -55,7 +55,7 @@
 #endif
 
 #ifndef DEEPSTATE_SIZE
-#define DEEPSTATE_SIZE 8192
+#define DEEPSTATE_SIZE 32768
 #endif
 
 #ifndef DEEPSTATE_MAX_SWARM_CONFIGS
@@ -80,6 +80,7 @@ DECLARE_string(input_which_test);
 DECLARE_string(output_test_dir);
 DECLARE_string(test_filter);
 
+DECLARE_bool(input_stdin);
 DECLARE_bool(take_over);
 DECLARE_bool(abort_on_fail);
 DECLARE_bool(exit_on_fail);
@@ -673,6 +674,23 @@ static void DeepState_InitInputFromFile(const char *path) {
                       count, path);
 }
 
+/* Resets the global `DeepState_Input` buffer, then fills it with the
+ * data found in the file `path`. */
+static void DeepState_InitInputFromStdin() {
+
+  /* Reset the index. */
+  DeepState_InputIndex = 0;
+  DeepState_SwarmConfigsIndex = 0;
+
+  size_t count = read(STDIN_FILENO, (void *) DeepState_Input, DeepState_InputSize);
+
+  DeepState_InputInitialized = count;
+
+  DeepState_LogFormat(DeepState_LogTrace,
+                      "Initialized test input buffer with %zu bytes of data from stdin",
+                      count);
+}
+
 /* Run a test case, assuming we have forked from the test harness to do so.
  *
  * An exit code of 0 indicates that the test passed. Any other exit
@@ -818,7 +836,11 @@ DeepState_RunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
       snprintf(path, path_len, "%s", name);
     }
 
-    DeepState_InitInputFromFile(path);
+    if (!strncmp(name, "** STDIN **", strlen(name)) == 0) {
+      DeepState_InitInputFromFile(path);
+    } else {
+      DeepState_InitInputFromStdin();
+    }
 
     DeepState_Begin(test);
 
@@ -982,6 +1004,50 @@ static int DeepState_RunSingleSavedTestCase(void) {
   return num_failed_tests;
 }
 
+/* Run test from stdin, under `FLAGS_input_which_test`
+ * or first test, if not defined. */
+static int DeepState_RunTestFromStdin(void) {
+  int num_failed_tests = 0;
+  struct DeepState_TestInfo *test = NULL;
+
+  for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
+    if (HAS_FLAG_input_which_test) {
+      if (strcmp(FLAGS_input_which_test, test->test_name) == 0) {
+        break;
+      }
+    } else {
+      DeepState_LogFormat(DeepState_LogWarning,
+			  "No test specified, defaulting to first test defined (%s)",
+			  test->test_name);
+      break;
+    }
+  }
+
+  if (test == NULL) {
+    DeepState_LogFormat(DeepState_LogInfo,
+                        "Could not find matching test for %s",
+                        FLAGS_input_which_test);
+    return 0;
+  }
+
+  enum DeepState_TestRunResult result =
+    DeepState_RunSavedTestCase(test, "", "** STDIN **");
+
+  if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
+    if (FLAGS_abort_on_fail) {
+      DeepState_HardCrash();
+    }
+    if (FLAGS_exit_on_fail) {
+      exit(255); // Terminate the testing
+    }
+    num_failed_tests++;
+  }
+
+  DeepState_Teardown();
+
+  return num_failed_tests;
+}
+
 extern int DeepState_Fuzz(void);
 
 /* Run tests from `FLAGS_input_test_files_dir`, under `FLAGS_input_which_test`
@@ -1093,6 +1159,10 @@ static int DeepState_Run(void) {
 
   if (HAS_FLAG_input_test_file) {
     return DeepState_RunSingleSavedTestCase();
+  }
+
+  if (HAS_FLAG_input_stdin) {
+    return DeepState_RunTestFromStdin();
   }
 
   if (HAS_FLAG_input_test_dir) {
