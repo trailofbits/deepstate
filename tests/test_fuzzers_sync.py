@@ -1,8 +1,5 @@
 from __future__ import print_function
 
-import base64
-import deepstate_base
-import logrun
 import os
 import re
 import subprocess
@@ -14,7 +11,6 @@ from glob import glob
 from os import path
 from pathlib import Path
 from shutil import rmtree
-from tempfile import TemporaryDirectory
 from tempfile import mkdtemp
 from tempfile import mkstemp
 from time import sleep
@@ -138,7 +134,7 @@ class CrashFuzzerTest(TestCase):
           sleep(1)
         print("")
 
-      print(f"CRASHING - done")
+      print("CRASHING - done")
       print("-"*50)
 
 
@@ -205,7 +201,7 @@ class CrashFuzzerTest(TestCase):
         values = fuzzers[fuzzer]
         push_dir = os.path.join(values["output_dir"], values["class"].PUSH_DIR)
         print(f"Pushing seed {seed_no} to {fuzzer}: `{push_dir}`")
-        with open(os.path.join(push_dir, f"id:000201,the_crash"), "wb") as f:
+        with open(os.path.join(push_dir, "id:000201,the_crash"), "wb") as f:
           f.write(seed)
         fuzzer_id += 1
 

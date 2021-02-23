@@ -6,7 +6,6 @@ from pathlib import Path
 from os import path
 from glob import glob
 import re
-import sys
 
 
 class CrashFuzzerTest(deepstate_base.DeepStateFuzzerTestCase):

@@ -192,8 +192,8 @@ class AnalysisBackend(object):
     # log level fixing
     if not os.environ.get("DEEPSTATE_LOG"):
       if _args["min_log_level"] < 0 or _args["min_log_level"] > 6:
-        raise AnalysisBackendError(f"`--min_log_level` is in invalid range, should be in 0-6 "
-                                    "(debug, trace, info, warning, error, external, critical).")
+        raise AnalysisBackendError("`--min_log_level` is in invalid range, should be in 0-6 "
+                                   "(debug, trace, info, warning, error, external, critical).")
 
       L.info("Setting log level from --min_log_level: %d", _args["min_log_level"])
       logger = logging.getLogger("deepstate")
