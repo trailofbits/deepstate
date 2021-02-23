@@ -16,6 +16,8 @@ from tempfile import mkstemp
 from time import sleep
 from unittest import TestCase
 
+import psutil
+
 
 class CrashFuzzerTest(TestCase):
   def test_fuzzers_synchronization(self):
