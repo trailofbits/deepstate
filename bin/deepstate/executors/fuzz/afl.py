@@ -104,8 +104,11 @@ class AFL(FuzzerFrontend):
     # guaranteed arguments
     cmd_list.extend([
       "-o", self.output_test_dir,  # auto-create, reusable
-      "-M", "the_fuzzer"  # TODO, detect when to use -S
-    ])  
+    ])
+
+    arg_keys = map(lambda x:x[0], self.fuzzer_args)
+    if ("d" not in arg_keys) and ("S" not in arg_keys):
+      cmd_list.extend(["-M", "the_fuzzer"])
 
     if self.mem_limit == 0:
       cmd_list.extend(["-m", "1099511627776"])  # use 1TiB as unlimited
@@ -113,7 +116,9 @@ class AFL(FuzzerFrontend):
       cmd_list.extend(["-m", str(self.mem_limit)])
 
     for key, val in self.fuzzer_args:
-      if len(key) == 1:
+      if key == "d":
+        cmd_list.extend(["-S", "the_fuzzer"])
+      elif len(key) == 1:
         cmd_list.append('-{}'.format(key))
       else:
         cmd_list.append('--{}'.format(key))
