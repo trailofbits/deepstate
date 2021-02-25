@@ -36,7 +36,6 @@ jobs:
           - TEST: lists
           - TEST: oneof
           - TEST: runlen
-          - TEST: runlen
           - TEST: overflow
           - TEST: primes
           - TEST: takeover
