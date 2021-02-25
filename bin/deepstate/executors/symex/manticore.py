@@ -30,7 +30,7 @@ import traceback
 from manticore.utils import config
 from manticore.utils import log
 from manticore.core.state import TerminateState
-from manticore.core.smtlib.solver import SolverType
+from manticore.core.smtlib.solver import SolverType # type: ignore
 from manticore.native.manticore import _make_initial_state
 
 from deepstate.core import SymexFrontend, TestInfo

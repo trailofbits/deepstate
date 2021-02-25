@@ -362,10 +362,10 @@ class FuzzerFrontend(AnalysisBackend):
     _out_bin += f".{self.NAME.lower()}"
 
     if self.compiler_exe is None:
-      raise FuzzFrontendError(f"No compiler specified for compile-time instrumentation.")
+      raise FuzzFrontendError("No compiler specified for compile-time instrumentation.")
 
     if self.binary is not None:
-      raise FuzzFrontendError(f"User-specified test binary conflicts with compiling from source.")
+      raise FuzzFrontendError("User-specified test binary conflicts with compiling from source.")
 
     if not os.path.isfile(lib_path):
       raise FuzzFrontendError("No {}-instrumented DeepState static library found in {}".format(self, lib_path))

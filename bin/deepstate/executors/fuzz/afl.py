@@ -42,7 +42,7 @@ class AFL(FuzzerFrontend):
   @classmethod
   def parse_args(cls) -> None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
-      description=f"Use AFL as a backend for DeepState")
+      description="Use AFL as a backend for DeepState")
 
     cls.parser = parser
     super(AFL, cls).parse_args()
