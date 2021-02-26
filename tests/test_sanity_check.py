@@ -5,6 +5,8 @@ import logrun
 
 class SanityCheck(deepstate_base.DeepStateTestCase):
   def run_deepstate(self, deepstate):
+    if deepstate != "--fuzz":
+      return
     os.mkdir("OneOf_out")
     (r, output) = logrun.logrun(["build/examples/OneOf",
                                   "--fuzz",
