@@ -26,7 +26,7 @@ class SanityCheck(deepstate_base.DeepStateTestCase):
         foundFinish = True
         perSecond = int(line.split(" tests/second")[0].split("(")[1])
         self.assertTrue(perSecond > 20000)
-        passed = int(line.split(" passed/")[0].split("/")[1])
+        passed = int(line.split(" passed/")[0].split(" failed/")[1])
         self.assertTrue(passed > 1000)
         failed = int(line.split(" failed/")[0].split("with ")[1])
         self.assertTrue(failed > 1000)
