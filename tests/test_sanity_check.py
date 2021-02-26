@@ -25,6 +25,10 @@ class SanityCheck(deepstate_base.DeepStateTestCase):
       if "Done fuzzing!" in line:
         foundFinish = True
         perSecond = int(line.split(" tests/second")[0].split("(")[1])
-        self.assertTrue(perSecond > 5000)
+        self.assertTrue(perSecond > 20000)
+        passed = int(line.split(" passed/")[0].split("/")[1])
+        self.assertTrue(passed > 1000)
+        failed = int(line.split(" failed/")[0].split("with ")[1])
+        self.assertTrue(failed > 1000)
     self.assertTrue(foundFinish)
 
