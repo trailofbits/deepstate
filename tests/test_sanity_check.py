@@ -13,7 +13,8 @@ class SanityCheck(deepstate_base.DeepStateTestCase):
                                   "--fuzz",
                                   "--timeout", "30",
                                   "--no_fork",
-                                  "--output_test_dir", "OneOf_out"
+                                  "--output_test_dir", "OneOf_out",
+                                  "--min_log_level", "2",
                                    ],
                   "deepstate.out", 1800)
 
