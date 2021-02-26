@@ -7,7 +7,7 @@ from shutil import rmtree
 import psutil
 
 
-def logrun(cmd, file, timeout, break_callback=None):
+def logrun(cmd, file, timeout, break_callback=None, filters=[]):
   sys.stderr.write("\n\n" + ("=" * 80) + "\n")
   sys.stderr.write("RUNNING: ")
   sys.stderr.write(" ".join(cmd) + "\n\n")
@@ -40,7 +40,11 @@ def logrun(cmd, file, timeout, break_callback=None):
     if newContentLen > oldContentLen:
       inf.seek(oldContentLen, 0)
       newContent = inf.read()
-      sys.stderr.write(newContent)
+      printLines = newContent.split("\n")
+      for f in filters:
+        printLines = list(filter(lambda line: f not in line, printLines))
+      printContent = "\n".join(printLines)
+      sys.stderr.write(printContent)
       sys.stderr.flush()
       oldContentLen = newContentLen
       lastOutput = time.time()
