@@ -30,6 +30,7 @@ jobs:
     strategy:
       matrix:
         env:
+	  - TEST: sanity_check
           - TEST: crash
           - TEST: fixture
           - TEST: klee
