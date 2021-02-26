@@ -11,7 +11,7 @@ class SanityCheck(deepstate_base.DeepStateTestCase):
     os.mkdir("OneOf_out")
     (r, output) = logrun.logrun(["build/examples/OneOf",
                                   "--fuzz",
-                                  "--timeout", "30",
+                                  "--timeout", "",
                                   "--no_fork",
                                   "--output_test_dir", "OneOf_out",
                                   "--min_log_level", "2",
