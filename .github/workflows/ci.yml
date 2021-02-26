@@ -30,17 +30,18 @@ jobs:
     strategy:
       matrix:
         env:
-          - TEST: crash
-          - TEST: fixture
-          - TEST: klee
-          - TEST: lists
-          - TEST: oneof
-          - TEST: runlen
-          - TEST: overflow
-          - TEST: primes
-          - TEST: takeover
-          # - TEST: streamingandformatting
-          # - TEST: boringdisabled
+          - TEST: sanity_check
+         # - TEST: crash
+         # - TEST: fixture
+         # - TEST: klee
+         # - TEST: lists
+         # - TEST: oneof
+         # - TEST: runlen
+         # - TEST: overflow
+         # - TEST: primes
+         # - TEST: takeover
+         # - TEST: streamingandformatting
+         # - TEST: boringdisabled
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

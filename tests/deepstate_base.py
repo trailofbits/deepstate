@@ -10,6 +10,9 @@ class DeepStateTestCase(TestCase):
     self.run_deepstate("deepstate-angr")
   '''
 
+  def test_builtin_fuzz(self):
+    self.run_deepstate("--fuzz")
+
   def test_manticore(self):
     return # Right now manticore always times out, so just skip it
     self.run_deepstate("deepstate-manticore")
