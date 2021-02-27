@@ -16,7 +16,8 @@ class SanityCheck(deepstate_base.DeepStateTestCase):
                                   "--output_test_dir", "OneOf_out",
                                   "--min_log_level", "2",
                                    ],
-                  "deepstate.out", 1800, filters=["Assumption", "Abandoned", "CRITICAL"])
+                  "deepstate.out", 1800,
+                  filters=["Assumption", "Abandoned", "CRITICAL", "ERROR", "Saved"])
 
     self.assertTrue("Failed: OneOfExample_ProduceSixtyOrHigher" in output)
     self.assertTrue("Saved test case in file" in output)
