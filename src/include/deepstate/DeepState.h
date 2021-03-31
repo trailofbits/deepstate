@@ -35,6 +35,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <fnmatch.h>
+#include <execinfo.h>
 
 #include <deepstate/Log.h>
 #include <deepstate/Compiler.h>
@@ -56,6 +57,10 @@
 
 #ifndef DEEPSTATE_SIZE
 #define DEEPSTATE_SIZE 32768
+#endif
+
+#ifndef DEEPSTATE_CRASH_MAX_FRAMES
+#define DEEPSTATE_CRASH_MAX_FRAMES 63
 #endif
 
 #ifndef DEEPSTATE_MAX_SWARM_CONFIGS
@@ -91,6 +96,7 @@ DECLARE_bool(fork);
 DECLARE_bool(list_tests);
 DECLARE_bool(boring_only);
 DECLARE_bool(run_disabled);
+DECLARE_bool(verbose_crash_trace);
 
 DECLARE_int(min_log_level);
 DECLARE_int(seed);
@@ -599,6 +605,42 @@ extern void DeepState_SaveFailingTest(void);
 /* Save a crashing test to the output test directory. */
 extern void DeepState_SaveCrashingTest(void);
 
+/* Emit test function backtrace after test crashes. */
+static void DeepState_EmitBacktrace(int signum, siginfo_t *sig, void *_context) {
+
+  /* output information about the signal caught and the exception that occurred */
+  const char *result;
+  if (!sig->si_status)
+    result = sys_siglist[signum];
+  else
+    result = sys_siglist[sig->si_status];
+  DeepState_LogFormat(DeepState_LogError, "Signal caught in test: %s (error: %d)", result, sig->si_signo);
+
+  /* return a backtrace */
+  size_t size;
+  void *back_addrs[DEEPSTATE_CRASH_MAX_FRAMES];
+  char **symbols;
+
+  size = backtrace(back_addrs, DEEPSTATE_CRASH_MAX_FRAMES);
+  if (size == 0)
+    DeepState_Abandon("Cannot retrieve backtrace stack addresses");
+
+  symbols = backtrace_symbols(back_addrs, size);
+  if (symbols == NULL)
+    DeepState_Abandon("Cannot retrieve symbols for stack addresses");
+
+  DeepState_LogFormat(DeepState_LogTrace, "======= Backtrace: =========");
+  for (size_t i = 0; i < size; i++)
+     DeepState_LogFormat(DeepState_LogTrace, "%s", symbols[i]);
+  DeepState_LogFormat(DeepState_LogTrace, "===========================");
+
+  /* cleanup resources and exit */
+  free(symbols);
+  DeepState_CleanUp();
+  exit(DeepState_TestRunCrash);
+}
+
+
 /* Jump buffer for returning to `DeepState_Run`. */
 extern jmp_buf DeepState_ReturnToRun;
 
@@ -746,7 +788,6 @@ static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
 #if defined(__cplusplus) && defined(__cpp_exceptions)
     try {
 #endif  /* __cplusplus */
-
       test->test_func();  /* Run the test function. */
       return(DeepState_TestRunPass);
 
@@ -800,6 +841,18 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
   if (FLAGS_fork) {
     waitpid(test_pid, &wstatus, 0);
   } else {
+
+    /* If flag is set, install a "multiplexed" signal handler
+     * in order to backtrace and cleanup without an abrupt exit. */
+    if (FLAGS_verbose_crash_trace) {
+      struct sigaction sigact;
+      sigact.sa_flags = SA_SIGINFO;
+      sigact.sa_sigaction = DeepState_EmitBacktrace;
+
+      for (int i = 0; i <= sizeof(sys_siglist); i++)
+        sigaction(i, &sigact, 0);
+    }
+
     wstatus = DeepState_RunTestNoFork(test);
     DeepState_CleanUp();
   }
@@ -854,6 +907,7 @@ DeepState_RunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
       DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
       DeepState_LogFormat(DeepState_LogError, "Test case %s crashed", path);
       free(path);
+
       if (HAS_FLAG_output_test_dir) {
         DeepState_SaveCrashingTest();
       }

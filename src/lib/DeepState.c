@@ -42,10 +42,10 @@ DEFINE_bool(input_stdin, InputOutputGroup, false, "Run a test from stdin.");
 DEFINE_bool(take_over, ExecutionGroup, false, "Replay test cases in take-over mode.");
 DEFINE_bool(abort_on_fail, ExecutionGroup, false, "Abort on file replay failure (useful in file fuzzing).");
 DEFINE_bool(exit_on_fail, ExecutionGroup, false, "Exit with status 255 on test failure.");
-DEFINE_bool(verbose_reads, ExecutionGroup, false, "Report on bytes being read during execution of test.");
 DEFINE_int(min_log_level, ExecutionGroup, 0, "Minimum level of logging to output (default 2, 0=debug, 1=trace, 2=info, ...).");
-DEFINE_int(timeout, ExecutionGroup, 3600, "Timeout for brute force fuzzing.");
-DEFINE_uint(num_workers, ExecutionGroup, 1, "Number of workers to spawn for testing and test generation.");
+DEFINE_int(timeout, ExecutionGroup, 120, "Timeout for brute force fuzzing.");
+DEFINE_bool(verbose_reads, ExecutionGroup, false, "Report on bytes being read during execution of test.");
+DEFINE_bool(verbose_crash_trace, ExecutionGroup, false, "If unforked test crashes, report crash information and backtrace.");
 
 /* Fuzzing and symex related options, baked in to perform analysis-related tasks without auxiliary tools */
 DEFINE_bool(fuzz, AnalysisGroup, false, "Perform brute force unguided fuzzing.");
@@ -259,7 +259,7 @@ void DeepState_SwarmAssignCStr_C(const char* file, unsigned line, int stype,
   if (NULL == str) {
     DeepState_Abandon("Attempted to populate null pointer.");
   }
-  char swarm_allowed[256];  
+  char swarm_allowed[256];
   if (allowed == 0) {
     /* In swarm mode, if there is no allowed string, create one over all chars. */
     for (int i = 0; i < 255; i++) {
@@ -311,7 +311,7 @@ char *DeepState_SwarmCStr_C(const char* file, unsigned line, int stype,
   if (NULL == str) {
     DeepState_Abandon("Can't allocate memory");
   }
-  char swarm_allowed[256];  
+  char swarm_allowed[256];
   if (allowed == 0) {
     /* In swarm mode, if there is no allowed string, create one over all chars. */
     for (int i = 0; i < 255; i++) {
@@ -352,14 +352,14 @@ void DeepState_SymbolizeCStr_C(char *begin, const char* allowed) {
 void DeepState_SwarmSymbolizeCStr_C(const char* file, unsigned line, int stype,
 				    char *begin, const char* allowed) {
   if (begin && begin[0]) {
-    char swarm_allowed[256];    
+    char swarm_allowed[256];
     if (allowed == 0) {
       /* In swarm mode, if there is no allowed string, create one over all chars. */
       for (int i = 0; i < 255; i++) {
 	swarm_allowed[i] = i+1;
       }
       swarm_allowed[255] = 0;
-      allowed = (const char*)&swarm_allowed;      
+      allowed = (const char*)&swarm_allowed;
     }
     uint32_t allowed_size = strlen(allowed);
     struct DeepState_SwarmConfig* sc = DeepState_GetSwarmConfig(allowed_size, file, line, stype);
@@ -681,6 +681,8 @@ extern void DeepState_CleanUp() {
   for (int i = 0; i < DeepState_GeneratedAllocsIndex; i++) {
     free(DeepState_GeneratedAllocs[i]);
   }
+  
+  DeepState_GeneratedStringsIndex = 0;
   DeepState_GeneratedAllocsIndex = 0;
   
   for (int i = 0; i < DeepState_SwarmConfigsIndex; i++) {
@@ -1074,6 +1076,7 @@ enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo
   DeepState_Begin(test);
 
   enum DeepState_TestRunResult result = DeepState_ForkAndRunTest(test);
+
 
   if (result == DeepState_TestRunCrash) {
     DeepState_LogFormat(DeepState_LogError, "Crashed: %s", test->test_name);
