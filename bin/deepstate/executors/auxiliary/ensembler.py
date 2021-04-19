@@ -44,6 +44,7 @@ class Ensembler(FuzzerFrontend):
   seed synchronization between them.
   """
 
+  NAME = "Ensembler"
   EXECUTABLES = {"FUZZER": "deepstate-ensembler"}
 
   @classmethod
@@ -115,6 +116,10 @@ class Ensembler(FuzzerFrontend):
       L.warn("Output directory does not exist. Creating.")
       os.mkdir(self.output_test_dir)
 
+    if not self.sync_dir:
+        L.warn("No seed synchronization dir specified, using `sync`.")
+        self.sync_dir = "sync"
+
     sync_dir = self.output_test_dir + "/" + self.sync_dir
     if not os.path.isdir(sync_dir):
       L.warn("Sync directory does not exist. Creating.")
@@ -137,7 +142,12 @@ class Ensembler(FuzzerFrontend):
     if ret_all:
       return [subclass() for subclass in FuzzerFrontend.__subclasses__()]
     else:
-      return [AFL(), Honggfuzz(), Angora(), Eclipser()]
+      return [
+        AFL(envvar="AFL_HOME"), 
+        Honggfuzz(envvar="HONGGFUZZ_HOME"),
+        Angora(envvar="ANGORA_HOME"),
+        Eclipser(envvar="ECLIPSER_HOME")
+      ]
 
 
   def _get_tests(self, tests):
@@ -365,7 +375,7 @@ class Ensembler(FuzzerFrontend):
 
 
 def main():
-  ensembler = Ensembler()
+  ensembler = Ensembler(envvar="PATH")
 
   # parse arguments and provision ensembler
   ensembler.parse_args()
