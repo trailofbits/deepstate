@@ -357,6 +357,12 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
     }
 */
 
+#define DEEPSTATE_DECLARE_MASK(Tname, tname, utname) \
+    extern tname DeepState_ ## Tname ## _mask;
+
+DEEPSTATE_FOR_EACH_INTEGER(DEEPSTATE_DECLARE_MASK)
+#undef DEEPSTATE_DECLARE_MASK
+
 #define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname, utname) \
     DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
         tname low, tname high) { \
@@ -378,7 +384,8 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
       } \
       if ((x < low) || (x > high)) { \
         const utname ux = (utname) x; \
-        const utname usize = (utname) ((high - low) + 1); \
+        const utname usize = \
+            (utname) ((high - (DeepState_ ## Tname ## _mask & (low + 1))) + 2);\
         const utname ux_clamped = ux % usize; \
         const tname x_clamped = (tname) ux_clamped; \
         const tname ret = low + x_clamped; \

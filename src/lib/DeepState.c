@@ -60,6 +60,13 @@ DEFINE_bool(list_tests, TestSelectionGroup, false, "List all available tests ins
 DEFINE_bool(boring_only, TestSelectionGroup, false, "Run Boring concrete tests only.");
 DEFINE_bool(run_disabled, TestSelectionGroup, false, "Run Disabled tests alongside other tests.");
 
+#define DEEPSTATE_DEFINE_MASK(Tname, tname, utname) \
+    tname DeepState_ ## Tname ## _mask = (tname) ~((utname) 0);
+
+DEEPSTATE_FOR_EACH_INTEGER(DEEPSTATE_DEFINE_MASK)
+#undef DEEPSTATE_DEFINE_MASK
+
+
 /* Set to 1 by Manticore/Angr/etc. when we're running symbolically. */
 int DeepState_UsingSymExec = 0;
 
