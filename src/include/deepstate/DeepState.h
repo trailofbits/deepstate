@@ -357,12 +357,6 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
     }
 */
 
-#define DEEPSTATE_DECLARE_MASK(Tname, tname, utname) \
-    extern tname DeepState_ ## Tname ## _mask;
-
-DEEPSTATE_FOR_EACH_INTEGER(DEEPSTATE_DECLARE_MASK)
-#undef DEEPSTATE_DECLARE_MASK
-
 #define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname, utname) \
     DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
         tname low, tname high) { \
@@ -384,11 +378,19 @@ DEEPSTATE_FOR_EACH_INTEGER(DEEPSTATE_DECLARE_MASK)
       } \
       if ((x < low) || (x > high)) { \
         const utname ux = (utname) x; \
-        const utname usize = \
-            (utname) ((high - (DeepState_ ## Tname ## _mask & (low + 1))) + 2);\
+        utname usize; \
+	if (__builtin_sub_overflow(high, low, &usize)) {	\
+	  return low; /* Always legal */ 			\
+	} \
+	if (__builtin_add_overflow(usize, 1, &usize)) { \
+	  return high; /* Always legal */ \
+        } \
         const utname ux_clamped = ux % usize; \
         const tname x_clamped = (tname) ux_clamped; \
-        const tname ret = low + x_clamped; \
+	tname ret; \
+	if (__builtin_add_overflow(low, x_clamped, &ret)) {	\
+	  return high; /* Always legal */ \
+	} \
         if (FLAGS_verbose_reads) { \
           printf("Converting out-of-range value to %" PRId64 "\n", \
                  (int64_t)ret); \
