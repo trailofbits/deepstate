@@ -27,12 +27,12 @@ DEEPSTATE_INLINE int check_pass(const char * pass, size_t len) {
 	return 1;
 
   // third char should be equal to `0`
-  register uint8_t ch0 = (uint8_t) pass[2];
+  uint8_t ch0 = (uint8_t) pass[2];
   if (ch0 != 48)
     return 1;
 
   // ninth char should be equal to `o`
-  register uint8_t ch1 = (uint8_t) pass[8];
+  uint8_t ch1 = (uint8_t) pass[8];
   if (ch1 != 111)
 	return 1;
 

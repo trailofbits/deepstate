@@ -393,7 +393,6 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
 
 DEEPSTATE_FOR_EACH_INTEGER(DEEPSTATE_MAKE_SYMBOLIC_RANGE)
 #undef DEEPSTATE_MAKE_SYMBOLIC_RANGE
-#undef DEEPSTATE_FOR_EACH_INTEGER
 
 extern float DeepState_FloatInRange(float low, float high);
 extern double DeepState_DoubleInRange(double low, double high);
