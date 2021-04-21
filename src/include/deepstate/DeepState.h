@@ -497,15 +497,10 @@ DEEPSTATE_INLINE static int DeepState_IsSymbolicDouble(double x) {
       break; \
     } \
     v = (expr); \
+    (void) DeepState_Assume(low <= v && v <= high); \
     if (DeepState_UsingSymExec) { \
-      (void) DeepState_Assume(low <= v && v <= high); \
       (void) DeepState_Assume(P);\
     } else { \
-      if ((v < low) || (v > high)) { \
-        if (v < 0) v = -v; \
-        if (v < 0) v = 0; \
-	v = low + (v % ((high - low) + 1)); \
-      } \
       unsigned long long DeepState_assume_iters = 0; \
       unsigned long long DeepState_safe_incr_v = (unsigned long long) v; \
       unsigned long long DeepState_safe_decr_v = (unsigned long long) v; \

@@ -349,11 +349,13 @@ that it also takes a range, after the generation expression, e.g.:
 ```
 int x = DeepState_IntInRange(-10, 10);
 int y;
-ASSIGN_SATSIFYING_IN_RANGE(y, DeepState_Int(), -10, 10, y >= x);
+ASSIGN_SATSIFYING_IN_RANGE(y, DeepState_IntInRange(-10, 10), -10, 10, y >= x);
 ```
 
 Now `x` and `y` will both be guaranteed to fall in the range -10 to
-10, inclusive.
+10, inclusive.  Notice that if you pass in an initial value that violates the range
+constraint, this will just cause an assumption failure, so you want to include the
+range in the assignment, also.
 
 ## Postconditions - checks
 
