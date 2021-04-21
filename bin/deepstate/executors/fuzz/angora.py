@@ -39,6 +39,7 @@ class Angora(FuzzerFrontend):
                   "CLANG_COMPILER": "clang++"
                   }
 
+  ENVVAR = "ANGORA_HOME"
   REQUIRE_SEEDS = True
 
   PUSH_DIR = os.path.join("sync_dir", "queue")
@@ -276,7 +277,7 @@ class Angora(FuzzerFrontend):
 
 
 def main():
-  fuzzer = Angora(envvar="ANGORA_HOME")
+  fuzzer = Angora()
   return fuzzer.main()
 
 

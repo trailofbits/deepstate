@@ -142,12 +142,7 @@ class Ensembler(FuzzerFrontend):
     if ret_all:
       return [subclass() for subclass in FuzzerFrontend.__subclasses__()]
     else:
-      return [
-        AFL(envvar="AFL_HOME"), 
-        Honggfuzz(envvar="HONGGFUZZ_HOME"),
-        Angora(envvar="ANGORA_HOME"),
-        Eclipser(envvar="ECLIPSER_HOME")
-      ]
+      return [AFL(), Honggfuzz(), Angora(), Eclipser()]
 
 
   def _get_tests(self, tests):
@@ -375,7 +370,7 @@ class Ensembler(FuzzerFrontend):
 
 
 def main():
-  ensembler = Ensembler(envvar="PATH")
+  ensembler = Ensembler()
 
   # parse arguments and provision ensembler
   ensembler.parse_args()

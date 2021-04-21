@@ -40,6 +40,7 @@ class Eclipser(FuzzerFrontend):
                   "RUNNER": "dotnet"
                   }
 
+  ENVVAR = "ECLIPSER_HOME"
   REQUIRE_SEEDS = False
 
   PUSH_DIR = os.path.join("sync_dir", "queue")
@@ -199,7 +200,7 @@ class Eclipser(FuzzerFrontend):
 
 def main():
   try:
-    fuzzer = Eclipser(envvar="ECLIPSER_HOME")
+    fuzzer = Eclipser()
     fuzzer.parse_args()
     fuzzer.run(runner=fuzzer.EXECUTABLES["RUNNER"])
     return 0

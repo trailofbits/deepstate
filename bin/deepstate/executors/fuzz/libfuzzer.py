@@ -30,6 +30,7 @@ class LibFuzzer(FuzzerFrontend):
                   "COMPILER": "clang++"
                   }
 
+  ENVVAR = "LIBFUZZER_HOME"
   REQUIRE_SEEDS = False
 
   PUSH_DIR = os.path.join("sync_dir", "queue")
@@ -166,7 +167,7 @@ class LibFuzzer(FuzzerFrontend):
 
 
 def main():
-  fuzzer = LibFuzzer(envvar="LIBFUZZER_HOME")
+  fuzzer = LibFuzzer()
   return fuzzer.main()
 
 

@@ -47,13 +47,16 @@ class FuzzerFrontend(AnalysisBackend):
   Defines a base front-end object for using DeepState to interact with fuzzers.
   """
 
+  # fuzzer-specific configurations
+  ENVVAR: str = "PATH"
   REQUIRE_SEEDS: bool = False
 
+  # configurations for seed synchronization
   PUSH_DIR: str
   PULL_DIR: str
   CRASH_DIR: str
 
-  def __init__(self, envvar: str) -> None:
+  def __init__(self) -> None:
     """
     Create and store variables:
       - fuzzer_exe (fuzzer executable file)
@@ -79,7 +82,6 @@ class FuzzerFrontend(AnalysisBackend):
       - EXECUTABLES dict with keys:
           FUZZER, COMPILER (if compiling) and any executable it will use
 
-    :param envvar: name of envvar to discover executables.
     """
     super(FuzzerFrontend, self).__init__()
 
@@ -87,8 +89,7 @@ class FuzzerFrontend(AnalysisBackend):
       raise FuzzFrontendError("FuzzerFrontend.EXECUTABLES[\"FUZZER\"] not set.")
     self.fuzzer_exe: str = self.EXECUTABLES.pop("FUZZER")
 
-    self.envvar: str = envvar
-    self.env: Optional[str] = os.environ.get(envvar, None)
+    self.env: Optional[str] = os.environ.get(self.ENVVAR, None)
 
     self.search_dirs: List[str] = getattr(self, "SEARCH_DIRS", [])
 
@@ -304,7 +305,7 @@ class FuzzerFrontend(AnalysisBackend):
         return exe_path
 
     raise FuzzFrontendError(f"Executable file `{exe_name}` not found in neither `{self.env}` nor $PATH.\n"
-                            f"Please add path to {self.name} in {self.envvar} env var or in --home_path argument.")
+                            f"Please add path to {self.name} in {self.ENVVAR} env var or in --home_path argument.")
 
 
   def _set_executables(self):

@@ -29,10 +29,9 @@ class AFL(FuzzerFrontend):
   """ Defines AFL fuzzer frontend """
 
   NAME = "AFL"
-  EXECUTABLES = {"FUZZER": "afl-fuzz",
-                  "COMPILER": "afl-clang++"
-                  }
+  EXECUTABLES = {"FUZZER": "afl-fuzz", "COMPILER": "afl-clang++"}
 
+  ENVVAR = "AFL_HOME"
   REQUIRE_SEEDS = True
 
   PUSH_DIR = os.path.join("sync_dir", "queue")
@@ -72,7 +71,7 @@ class AFL(FuzzerFrontend):
     # check if core dump pattern is set as `core`
     if os.path.isfile("/proc/sys/kernel/core_pattern"):
       with open("/proc/sys/kernel/core_pattern") as f:
-        if not "core" in f.read():
+        if f.read().strip() != "core":
           raise FuzzFrontendError("No core dump pattern set. Execute 'echo core | sudo tee /proc/sys/kernel/core_pattern'")
 
     # check if CPU scaling governor is set to `performance`
@@ -197,7 +196,7 @@ class AFL(FuzzerFrontend):
 
 
 def main():
-  fuzzer = AFL(envvar="AFL_HOME")
+  fuzzer = AFL()
   return fuzzer.main()
 
 
