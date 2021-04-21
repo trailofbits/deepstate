@@ -569,7 +569,6 @@ const char * DeepState_InputPath(char *testcase_path) {
 
 
 MAKE_SYMBOL_FUNC(Size, size_t)
-
 MAKE_SYMBOL_FUNC(Long, long)
 
 float DeepState_Float(void) {
@@ -589,19 +588,19 @@ int64_t DeepState_Int64(void) {
   return (int64_t) DeepState_UInt64();
 }
 
-MAKE_SYMBOL_FUNC(UInt, uint32_t)
-int32_t DeepState_Int(void) {
-  return (int32_t) DeepState_UInt();
+MAKE_SYMBOL_FUNC(UInt, unsigned)
+int DeepState_Int(void) {
+  return (int) DeepState_UInt();
 }
 
-MAKE_SYMBOL_FUNC(UShort, uint16_t)
-int16_t DeepState_Short(void) {
-  return (int16_t) DeepState_UShort();
+MAKE_SYMBOL_FUNC(UShort, unsigned short)
+short DeepState_Short(void) {
+  return (short) DeepState_UShort();
 }
 
-MAKE_SYMBOL_FUNC(UChar, uint8_t)
-int8_t DeepState_Char(void) {
-  return (int8_t) DeepState_UChar();
+MAKE_SYMBOL_FUNC(UChar, unsigned char)
+char DeepState_Char(void) {
+  return (char) DeepState_UChar();
 }
 
 #undef MAKE_SYMBOL_FUNC
@@ -613,9 +612,9 @@ float DeepState_FloatInRange(float low, float high) {
   if (low < 0.0) { // Handle negatives differently
     if (high > 0.0) {
       if (DeepState_Bool()) {
-	return -(DeepState_FloatInRange(0.0, -low));
+        return -(DeepState_FloatInRange(0.0, -low));
       } else {
-	return DeepState_FloatInRange(0.0, high);
+        return DeepState_FloatInRange(0.0, high);
       }
     } else {
       return -(DeepState_FloatInRange(-high, -low));
@@ -635,9 +634,9 @@ double DeepState_DoubleInRange(double low, double high) {
   if (low < 0.0) { // Handle negatives differently
     if (high > 0.0) {
       if (DeepState_Bool()) {
-	return -(DeepState_DoubleInRange(0.0, -low));
+        return -(DeepState_DoubleInRange(0.0, -low));
       } else {
-	return DeepState_DoubleInRange(0.0, high);
+        return DeepState_DoubleInRange(0.0, high);
       }
     } else {
       return -(DeepState_DoubleInRange(-high, -low));

@@ -19,6 +19,7 @@
 
 #include <assert.h>
 #include <dirent.h>
+#include <inttypes.h>
 #include <libgen.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -137,21 +138,29 @@ extern uint32_t DeepState_SwarmConfigsIndex;
 /* Function to return a swarm configuration. */
 extern struct DeepState_SwarmConfig* DeepState_GetSwarmConfig(unsigned fcount, const char* file, unsigned line, enum DeepState_SwarmType stype);
 
+
+#define DEEPSTATE_FOR_EACH_INTEGER(X) \
+    X(Size, size_t, size_t) \
+    X(Long, long, unsigned long) \
+    X(Int64, int64_t, uint64_t) \
+    X(UInt64, uint64_t, uint64_t) \
+    X(Int, int, unsigned) \
+    X(UInt, unsigned, unsigned) \
+    X(Short, short, unsigned short) \
+    X(UShort, unsigned short, unsigned short) \
+    X(Char, char, unsigned char) \
+    X(UChar, unsigned char, unsigned char)
+
 /* Return a symbolic value of a given type. */
 extern int DeepState_Bool(void);
-extern size_t DeepState_Size(void);
-extern long DeepState_Long(void);
-extern float DeepState_Float(void);
-extern double DeepState_Double(void);
-extern uint64_t DeepState_UInt64(void);
-extern int64_t DeepState_Int64(void);
-extern uint32_t DeepState_UInt(void);
-extern int32_t DeepState_Int(void);
-extern int32_t DeepState_RandInt(void);
-extern uint16_t DeepState_UShort(void);
-extern int16_t DeepState_Short(void);
-extern uint8_t DeepState_UChar(void);
-extern int8_t DeepState_Char(void);
+
+#define DEEPSTATE_DECLARE(Tname, tname, utname) \
+    extern tname DeepState_ ## Tname (void);
+
+DEEPSTATE_DECLARE(Float, float, void)
+DEEPSTATE_DECLARE(Double, double, void)
+DEEPSTATE_FOR_EACH_INTEGER(DEEPSTATE_DECLARE)
+#undef DEEPSTATE_DECLARE
 
 /* Returns the minimum satisfiable value for a given symbolic value, given
  * the constraints present on that value. */
@@ -260,7 +269,7 @@ extern const char *DeepState_InputPath(char *testcase_path);
 /* Portable and architecture-independent memory scrub without dead store elimination. */
 extern void *DeepState_MemScrub(void *pointer, size_t data_size);
 
-#define DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Tname, tname) \
+#define DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Tname, tname, utname) \
     DEEPSTATE_INLINE static \
     tname *DeepState_Symbolic ## Tname ## Array(size_t num_elms) { \
       tname *arr = (tname *) malloc(sizeof(tname) * num_elms); \
@@ -268,15 +277,7 @@ extern void *DeepState_MemScrub(void *pointer, size_t data_size);
       return arr; \
     }
 
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Int64, int64_t)
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(UInt64, uint64_t)
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Int, int)
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(UInt, uint32_t)
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Short, int16_t)
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(UShort, uint16_t)
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Char, char)
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(UChar, unsigned char)
-
+DEEPSTATE_FOR_EACH_INTEGER(DEEPSTATE_MAKE_SYMBOLIC_ARRAY)
 #undef DEEPSTATE_MAKE_SYMBOLIC_ARRAY
 
 /* Creates an assumption about a symbolic value. Returns `1` if the assumption
@@ -355,14 +356,16 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
       } \
     }
 */
-#define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname) \
+
+#define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname, utname) \
     DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
         tname low, tname high) { \
-      if (low > high) { \
-        return DeepState_ ## Tname ## InRange(high, low); \
-      } \
       if (low == high) { \
-        return low;	 \
+        return low; \
+      } else if (low > high) { \
+        const tname copy = high; \
+        high = low; \
+        low = copy; \
       } \
       tname x = DeepState_ ## Tname(); \
       if (DeepState_UsingSymExec) { \
@@ -370,31 +373,34 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
         return x;					\
       } \
       if (FLAGS_verbose_reads) { \
-        printf("Range read low %lld high %lld\n", (long long)low, (long long)high); \
+        printf("Range read low %" PRId64 " high %" PRId64 "\n", \
+               (int64_t)low, (int64_t)high); \
       } \
       if ((x < low) || (x > high)) { \
-        const tname size = (high - low) + 1; \
-        if (x < 0) x = -x;		     \
-        if (x < 0) x = 0;		     \
-        if (FLAGS_verbose_reads) { \
-          printf("Converting out-of-range value to %lld\n", (long long)(low + (x % size))); \
+        const utname ux = (utname) x; \
+        utname usize; \
+	if (__builtin_sub_overflow(high, low, &usize)) {	\
+	  return low; /* Always legal */ 			\
+	} \
+	if (__builtin_add_overflow(usize, 1, &usize)) { \
+	  return high; /* Always legal */ \
         } \
-        return low + (x % size); \
+        const utname ux_clamped = ux % usize; \
+        const tname x_clamped = (tname) ux_clamped; \
+	tname ret; \
+	if (__builtin_add_overflow(low, x_clamped, &ret)) {	\
+	  return high; /* Always legal */ \
+	} \
+        if (FLAGS_verbose_reads) { \
+          printf("Converting out-of-range value to %" PRId64 "\n", \
+                 (int64_t)ret); \
+        } \
+        return ret; \
       } \
       return x; \
     }
 
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(Size, size_t)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(Long, long)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(Int64, int64_t)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(UInt64, uint64_t)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(Int, int)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(UInt, uint32_t)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(Short, int16_t)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(UShort, uint16_t)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(Char, char)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(UChar, unsigned char)
-
+DEEPSTATE_FOR_EACH_INTEGER(DEEPSTATE_MAKE_SYMBOLIC_RANGE)
 #undef DEEPSTATE_MAKE_SYMBOLIC_RANGE
 
 extern float DeepState_FloatInRange(float low, float high);
@@ -491,15 +497,10 @@ DEEPSTATE_INLINE static int DeepState_IsSymbolicDouble(double x) {
       break; \
     } \
     v = (expr); \
+    (void) DeepState_Assume(low <= v && v <= high); \
     if (DeepState_UsingSymExec) { \
-      (void) DeepState_Assume(low <= v && v <= high); \
       (void) DeepState_Assume(P);\
     } else { \
-      if ((v < low) || (v > high)) { \
-        if (v < 0) v = -v; \
-        if (v < 0) v = 0; \
-	v = low + (v % ((high - low) + 1)); \
-      } \
       unsigned long long DeepState_assume_iters = 0; \
       unsigned long long DeepState_safe_incr_v = (unsigned long long) v; \
       unsigned long long DeepState_safe_decr_v = (unsigned long long) v; \
