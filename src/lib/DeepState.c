@@ -43,7 +43,7 @@ DEFINE_bool(take_over, ExecutionGroup, false, "Replay test cases in take-over mo
 DEFINE_bool(abort_on_fail, ExecutionGroup, false, "Abort on file replay failure (useful in file fuzzing).");
 DEFINE_bool(exit_on_fail, ExecutionGroup, false, "Exit with status 255 on test failure.");
 DEFINE_bool(verbose_reads, ExecutionGroup, false, "Report on bytes being read during execution of test.");
-DEFINE_int(min_log_level, ExecutionGroup, 0, "Minimum level of logging to output (default 2, 0=debug, 1=trace, 2=info, ...).");
+DEFINE_int(min_log_level, ExecutionGroup, 0, "Minimum level of logging to output (default 0, 0=debug, 1=trace, 2=info, ...).");
 DEFINE_int(timeout, ExecutionGroup, 3600, "Timeout for brute force fuzzing.");
 DEFINE_uint(num_workers, ExecutionGroup, 1, "Number of workers to spawn for testing and test generation.");
 
@@ -139,6 +139,15 @@ DEEPSTATE_NORETURN
 void DeepState_Abandon(const char *reason) {
   DeepState_Log(DeepState_LogError, reason);
 
+  DeepState_CurrentTestRun->result = DeepState_TestRunAbandon;
+  DeepState_CurrentTestRun->reason = reason;
+
+  longjmp(DeepState_ReturnToRun, 1);
+}
+
+/* Abandon this test due to failed assumption. Less important to log. */
+DEEPSTATE_NORETURN
+void DeepState_Abandon_Due_to_Assumption(const char *reason) {
   DeepState_CurrentTestRun->result = DeepState_TestRunAbandon;
   DeepState_CurrentTestRun->reason = reason;
 
@@ -693,10 +702,10 @@ extern void DeepState_CleanUp() {
 void _DeepState_Assume(int expr, const char *expr_str, const char *file,
                        unsigned line) {
   if (!expr) {
-    DeepState_LogFormat(DeepState_LogError,
+    DeepState_LogFormat(DeepState_LogTrace,
                         "%s(%u): Assumption %s failed",
                         file, line, expr_str);
-    DeepState_Abandon("Assumption failed");
+    DeepState_Abandon_Due_to_Assumption("Assumption failed");
   }
 }
 
@@ -1113,9 +1122,15 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 
   DeepState_UsingLibFuzzer = 1;
 
+  FLAGS_min_log_level = 3;
+
+  const char* log_control = getenv("DEEPSTATE_LOG");
+  if (log_control != NULL) {
+    FLAGS_min_log_level = atoi(log_control);
+  }
+
   const char* loud = getenv("LIBFUZZER_LOUD");
   if (loud != NULL) {
-    FLAGS_min_log_level = 0;
     DeepState_LibFuzzerLoud = 1;
   }
 
