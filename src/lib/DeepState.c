@@ -1113,9 +1113,9 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 
   DeepState_UsingLibFuzzer = 1;
 
-  const char* loud = getenv("LIBFUZZER_LOUD");
-  if (loud != NULL) {
-    FLAGS_min_log_level = 0;
+  const char* log_control = getenv("DEEPSTATE_LOG");
+  if (log_control != NULL) {
+    FLAGS_min_log_level = atoi(log_control);
     DeepState_LibFuzzerLoud = 1;
   }
 
