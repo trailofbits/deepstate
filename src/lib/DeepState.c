@@ -145,6 +145,15 @@ void DeepState_Abandon(const char *reason) {
   longjmp(DeepState_ReturnToRun, 1);
 }
 
+/* Abandon this test due to failed assumption. Less important to log. */
+DEEPSTATE_NORETURN
+void DeepState_Abandon_Due_to_Assumption(const char *reason) {
+  DeepState_CurrentTestRun->result = DeepState_TestRunAbandon;
+  DeepState_CurrentTestRun->reason = reason;
+
+  longjmp(DeepState_ReturnToRun, 1);
+}
+
 /* Mark this test as having crashed. */
 void DeepState_Crash(void) {
   DeepState_SetTestFailed();
@@ -693,10 +702,10 @@ extern void DeepState_CleanUp() {
 void _DeepState_Assume(int expr, const char *expr_str, const char *file,
                        unsigned line) {
   if (!expr) {
-    DeepState_LogFormat(DeepState_LogError,
+    DeepState_LogFormat(DeepState_LogTrace,
                         "%s(%u): Assumption %s failed",
                         file, line, expr_str);
-    DeepState_Abandon("Assumption failed");
+    DeepState_Abandon_Due_to_Assumption("Assumption failed");
   }
 }
 
