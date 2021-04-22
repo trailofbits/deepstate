@@ -324,6 +324,8 @@ limitations to this usage, however:
   predicates, so it may be quite costly.
 * Predicates with side effects are likely to be evaluated multiple
 times (the generating expression is only evaluated once, however).
+* Of course all this only works for essentially integral types, where
+  increment and decrement work as expected!
 * The distribution is highly non-uniform.
 
 For the last point, consider code like:
