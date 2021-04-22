@@ -1001,7 +1001,9 @@ int DeepState_Fuzz(void){
 
   if (HAS_FLAG_fork) {
     DeepState_LogFormat(DeepState_LogFatal,
-			"Forking should not be combined with brute force fuzzing (use --no_fork).");
+			"Forking should not be combined with brute force fuzzing.");
+  } else {
+    FLAGS_fork = 0;
   }
 
   long start = (long)time(NULL);
