@@ -491,25 +491,20 @@ DEEPSTATE_INLINE static int DeepState_IsSymbolicDouble(double x) {
 
 #define ASSIGN_SATISFYING_IN_RANGE(v, expr, low, high, P) \
   do { \
-    ASSERT (low <= high) << "low (" << low << ") > high (" << high << ")"; \
-    if (low == high) { \
-      v = low; \
-      break; \
-    } \
     v = (expr); \
     (void) DeepState_Assume(low <= v && v <= high); \
     if (DeepState_UsingSymExec) { \
       (void) DeepState_Assume(P);\
     } else { \
       unsigned long long DeepState_assume_iters = 0; \
-      unsigned long long DeepState_safe_incr_v = (unsigned long long) v; \
-      unsigned long long DeepState_safe_decr_v = (unsigned long long) v; \
+      long long DeepState_safe_incr_v = (long long) v; \
+      long long DeepState_safe_decr_v = (long long) v; \
       while(!(P)) { \
 	if (DeepState_assume_iters > DEEPSTATE_MAX_SEARCH_ITERS) { \
 	  (void) DeepState_Assume(0); \
 	} \
 	DeepState_assume_iters++; \
-	if (DeepState_safe_incr_v < high) { \
+	if (DeepState_safe_incr_v < high) {	\
 	  DeepState_safe_incr_v++; \
           v = DeepState_safe_incr_v; \
 	} else if (DeepState_safe_decr_v == low) { \
