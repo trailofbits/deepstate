@@ -335,27 +335,6 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
 }
 
 /* Return a symbolic value in a the range `[low_inc, high_inc]`. */
-/* Saturating version here is an alternative, but worse for fuzzing:
-#define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname) \
-    DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
-        tname low, tname high) { \
-      if (low > high) { \
-        return DeepState_ ## Tname ## InRange(high, low); \
-      } \
-      const tname x = DeepState_ ## Tname(); \
-      if (DeepState_UsingSymExec) { \
-        (void) DeepState_Assume(low <= x && x <= high); \
-        return x; \
-      } \
-      if (x < low) { \
-        return low; \
-      } else if (x > high) { \
-        return high; \
-      } else { \
-        return x; \
-      } \
-    }
-*/
 
 #define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname, utname) \
     DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
@@ -719,7 +698,7 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
     /* The test was abandoned. We may have gotten soft failures before
      * abandoning, so we prefer to catch those first. */
   } else if (DeepState_CatchAbandoned()) {
-    DeepState_LogFormat(DeepState_LogError, "Abandoned: %s", test->test_name);
+    DeepState_LogFormat(DeepState_LogTrace, "Abandoned: %s", test->test_name);
     exit(DeepState_TestRunAbandon);
 
     /* The test passed. */
@@ -766,7 +745,7 @@ static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
     /* The test was abandoned. We may have gotten soft failures before
      * abandoning, so we prefer to catch those first. */
   } else if (DeepState_CatchAbandoned()) {
-    DeepState_LogFormat(DeepState_LogError, "Abandoned: %s", test->test_name);
+    DeepState_LogFormat(DeepState_LogTrace, "Abandoned: %s", test->test_name);
     return(DeepState_TestRunAbandon);
 
     /* The test passed. */
