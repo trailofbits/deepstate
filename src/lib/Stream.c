@@ -197,7 +197,7 @@ void _DeepState_StreamString(enum DeepState_LogLevel level, const char *format,
   stream->size += size;
 }
 
-void DeepState_StreamPointer(enum DeepState_LogLevel level, void *val) {
+void DeepState_StreamPointer(enum DeepState_LogLevel level, const void *val) {
   struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   stream->format[0] = '0';
   stream->format[1] = 'x';

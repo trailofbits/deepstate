@@ -55,7 +55,7 @@ extern void DeepState_StreamVFormat(
         enum DeepState_LogLevel level, type val);
 
 DEEPSTATE_DECLARE_STREAMER(Double, double);
-DEEPSTATE_DECLARE_STREAMER(Pointer, void *);
+DEEPSTATE_DECLARE_STREAMER(Pointer, const void *);
 
 DEEPSTATE_DECLARE_STREAMER(UInt64, uint64_t)
 DEEPSTATE_DECLARE_STREAMER(Int64, int64_t)
