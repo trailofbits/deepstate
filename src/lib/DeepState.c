@@ -416,8 +416,9 @@ void *DeepState_MemScrub(void *pointer, size_t data_size) {
 struct DeepState_SwarmConfig *DeepState_NewSwarmConfig(unsigned fcount, const char* file, unsigned line,
 						       enum DeepState_SwarmType stype) {
   struct DeepState_SwarmConfig *new_config = malloc(sizeof(struct DeepState_SwarmConfig));
-  new_config->file = malloc(strlen(file) + 1);
-  strncpy(new_config->file, file, strlen(file));
+  size_t buf_len = strlen(file) + 1;
+  new_config->file = malloc(buf_len);
+  strncpy(new_config->file, file, buf_len);
   new_config->line = line;
   new_config->orig_fcount = fcount;
   new_config->fcount = 0;
