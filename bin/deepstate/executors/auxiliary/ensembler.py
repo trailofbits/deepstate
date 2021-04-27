@@ -44,6 +44,7 @@ class Ensembler(FuzzerFrontend):
   seed synchronization between them.
   """
 
+  NAME = "Ensembler"
   EXECUTABLES = {"FUZZER": "deepstate-ensembler"}
 
   @classmethod
@@ -114,6 +115,10 @@ class Ensembler(FuzzerFrontend):
     if not os.path.isdir(self.output_test_dir):
       L.warn("Output directory does not exist. Creating.")
       os.mkdir(self.output_test_dir)
+
+    if not self.sync_dir:
+        L.warn("No seed synchronization dir specified, using `sync`.")
+        self.sync_dir = "sync"
 
     sync_dir = self.output_test_dir + "/" + self.sync_dir
     if not os.path.isdir(sync_dir):
@@ -280,7 +285,7 @@ class Ensembler(FuzzerFrontend):
         "output_test_dir": "{}/{}_{}_out".format(self.output_test_dir, str(fuzzer), _rand_id()),
         "dictionary": None,
         "max_input_size": self.max_input_size if self.max_input_size else 8192,
-        "mem_limit": 50,
+        "mem_limit": "none",
         "which_test": self.which_test,
         "target_args": self.target_args,
 
@@ -333,12 +338,12 @@ class Ensembler(FuzzerFrontend):
 
       fuzzer.init_from_dict(fuzzer_args)
 
-      # sets compiler and no_exec params before execution
+      # sets compiler, no_exec and skip_argparse params before execution
       # Eclipser requires `dotnet` to be invoked before fuzzer executable.
       if isinstance(fuzzer, Eclipser):
-        args = ("dotnet", True)
+        args = ("dotnet", True, True)
       else:
-        args = (None, True)
+        args = (None, True, True)
 
 
       L.info("Initialized %s for ensemble-fuzzing and spinning up child proc.", fuzzer)
@@ -350,11 +355,12 @@ class Ensembler(FuzzerFrontend):
     # TODO(alan): fix up delayed reporter; try not to have an individual proc run for
     # reporting
     if not self.no_global:
-      L.info("Starting up child proc for global stats reporting.")
+      L.info("Creating child proc for global stats reporting.")
       report_proc = Process(target=self.report, args=())
       procs.append(report_proc)
 
     for proc in procs:
+      L.info("Starting child proc for fuzzing.")
       proc.start()
 
     # sleep until fuzzers finalize initialization, approx 5 seconds
