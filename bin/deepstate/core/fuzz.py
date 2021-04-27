@@ -626,17 +626,19 @@ class FuzzerFrontend(AnalysisBackend):
     self.proc = None
 
 
-  def run(self, runner: Optional[str] = None, no_exec: bool = False):
+  def run(self, runner: Optional[str] = None, no_exec: bool = False, skip_argparse: bool = False):
     """
     Interface for spawning and executing fuzzer job.
 
     :param runner: if necessary, a runner that is invoked before fuzzer executable (ie `dotnet`)
     :param no_exec: skips pre- and post-processing steps during execution
+    :param skip_argparse: if set, skip argparsing, if already done in any auxiliary executor.
 
     """
 
     # NOTE(alan): we don't use namespace param so we "build up" object attributes when we execute run()
-    super(FuzzerFrontend, self).init_from_dict()
+    if not skip_argparse:
+        super(FuzzerFrontend, self).init_from_dict()
 
     # call pre_exec for any checks/inits before execution.
     if not no_exec:
