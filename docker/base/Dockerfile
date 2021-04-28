@@ -1,4 +1,7 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
+
+ENV TZ=America/New_York
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Set up the non-root user
 RUN apt-get update \
@@ -14,7 +17,7 @@ USER user
 # Install general dependencies
 RUN sudo apt update && sudo apt-get install -y build-essential \
     gcc-multilib g++-multilib cmake \
-    python3-setuptools libffi-dev z3 python3-pip \
+    python python3-setuptools libffi-dev z3 python3-pip \
     git wget lsb-release software-properties-common \
     && sudo rm -rf /var/lib/apt/lists/*
 
