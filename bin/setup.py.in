@@ -48,6 +48,9 @@ setuptools.setup(
             'deepstate-honggfuzz = deepstate.executors.fuzz.honggfuzz:main',
 
             'deepstate-reduce = deepstate.executors.auxiliary.reducer:main',
-            'deepstate-ensembler = deepstate.executors.auxiliary.ensembler:main'
+            'deepstate-ensembler = deepstate.executors.auxiliary.ensembler:main',
+          
+            'deepstate-add-standalone = deepstate.standalone:main',
+            'deepstate-extract-standalone = deepstate.extract:main',
         ]
     })
