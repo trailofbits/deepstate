@@ -71,7 +71,7 @@ class AnalysisBackend(object):
       raise AnalysisBackendError("AnalysisBackend.NAME not set")
     L.debug("Analysis backend name: %s", self.name)
 
-    AnalysisBackend.compiler_exe = self.EXECUTABLES.pop("COMPILER", None)
+    self.compiler_exe = self.EXECUTABLES.pop("COMPILER", None)
 
     # parsed argument attributes
     self.binary: Optional[str] = None
