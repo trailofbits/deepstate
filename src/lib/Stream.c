@@ -28,7 +28,7 @@
 DEEPSTATE_BEGIN_EXTERN_C
 
 enum {
-  DeepState_StreamSize = 4096
+  DeepState_StreamSize = 1048576
 };
 
 /* Formatting options availale to the streaming API. */
@@ -197,7 +197,7 @@ void _DeepState_StreamString(enum DeepState_LogLevel level, const char *format,
   stream->size += size;
 }
 
-void DeepState_StreamPointer(enum DeepState_LogLevel level, void *val) {
+void DeepState_StreamPointer(enum DeepState_LogLevel level, const void *val) {
   struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   stream->format[0] = '0';
   stream->format[1] = 'x';
@@ -276,7 +276,6 @@ void DeepState_StreamDouble(enum DeepState_LogLevel level, double val) {
 void DeepState_ClearStream(enum DeepState_LogLevel level) {
   struct DeepState_Stream *stream = &(DeepState_Streams[level]);
   if (stream->size) {
-    DeepState_MemScrub(stream->message, DeepState_StreamSize);
     stream->size = 0;
   }
 }

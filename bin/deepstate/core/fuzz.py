@@ -14,26 +14,28 @@
 # limitations under the License.
 
 import logging
-logging.basicConfig()
 
 import os
 import time
 import sys
 import subprocess
+import psutil  # type: ignore
 import argparse
-import functools
-import multiprocessing
+import shutil
+import traceback
 
-from typing import ClassVar, Optional, Dict, List, Any
+from tempfile import mkdtemp
+from time import sleep
+from pathlib import Path
+from typing import Optional, Dict, List, Any, Tuple
 
-from deepstate.core.base import AnalysisBackend
+from deepstate.core.base import AnalysisBackend, AnalysisBackendError
 
 
-L = logging.getLogger("deepstate.core.fuzz")
-L.setLevel(os.environ.get("DEEPSTATE_LOG", "INFO").upper())
+L = logging.getLogger(__name__)
 
 
-class FuzzFrontendError(Exception):
+class FuzzFrontendError(AnalysisBackendError):
   """
   Defines our custom exception class for FuzzerFrontend
   """
@@ -45,103 +47,112 @@ class FuzzerFrontend(AnalysisBackend):
   Defines a base front-end object for using DeepState to interact with fuzzers.
   """
 
-  def __init__(self, envvar: str = "PATH") -> None:
+  # fuzzer-specific configurations
+  ENVVAR: str = "PATH"
+  REQUIRE_SEEDS: bool = False
+
+  # configurations for seed synchronization
+  PUSH_DIR: str
+  PULL_DIR: str
+  CRASH_DIR: str
+
+  def __init__(self) -> None:
     """
-    Initializes base object with fuzzer executable and path, and checks to see if fuzzer
-    executable exists in supplied environment variable (default is $PATH). Optionally also
-    sets path to compiler executable for compile-time instrumentation, for those fuzzers that support it.
+    Create and store variables:
+      - fuzzer_exe (fuzzer executable file)
+      - env (environment variable name)
+      - search_dirs (directories inside fuzzer home dir where to look for executables)
+      - require_seeds
+      - stats (dict that frontend should populate in populate_stats method)
+      - stats_file (file where to put stats from fuzzer in common format)
+      - output_file (file where stdout of fuzzer will be redirected)
+      - proc (handler to fuzzer process)
+      - fuzzer_return_code (the exit status from the fuzzer process AND the return status of main)
 
-    User must define NAME and COMPILER (if compiling) members in inherited fuzzer class.
+      - push_dir (push testcases from external sources here)
+      - pull_dir (pull new testcases from this dir)
+      - crash_dir (crashes will be in this dir)
 
-    :param envvar: name of envvar to discover executables. Default is $PATH.
+    Inherits:
+      - name (name for pretty printing)
+      - compiler_exe (fuzzer compiler file, optional)
+
+    User must define in inherited fuzzer class:
+      - NAME str
+      - EXECUTABLES dict with keys:
+          FUZZER, COMPILER (if compiling) and any executable it will use
+
     """
+    super(FuzzerFrontend, self).__init__()
 
-    fuzzer_name: Optional[str] = self.NAME
-    if fuzzer_name is None:
-      raise FuzzFrontendError("FuzzerFrontend.FUZZER not set")
+    if "FUZZER" not in self.EXECUTABLES:
+      raise FuzzFrontendError("FuzzerFrontend.EXECUTABLES[\"FUZZER\"] not set.")
+    self.fuzzer_exe: str = self.EXECUTABLES.pop("FUZZER")
 
-    compiler: Optional[str] = self.COMPILER
+    self.env: Optional[str] = os.environ.get(self.ENVVAR, None)
 
-    # work-around for mypy type-checking
-    _env = os.environ.get(envvar)
-    if _env is None:
-      raise FuzzFrontendError(f"${envvar} does not contain any known paths.")
-    env: str = str(_env)
-
-    # collect paths from envvar, and check to see if fuzzer executable is present in paths
-    potential_paths: List[str] = [var for var in env.split(":")]
-    fuzzer_paths: List[str] = [f"{path}/{fuzzer_name}" for path in potential_paths if os.path.isfile(path + '/' + fuzzer_name)]
-    if len(fuzzer_paths) == 0:
-      raise FuzzFrontendError(f"${envvar} does not contain supplied fuzzer executable for `{self.NAME}`.")
-
-    L.debug(fuzzer_paths)
-
-    # if supplied, check if compiler exists in potential_paths
-    if compiler is not None:
-
-      compiler_paths: List[str] = [f"{path}/{compiler}" for path in potential_paths if os.path.isfile(path + '/' + compiler)]
-      if len(compiler_paths) == 0:
-
-        # if not in earlier envvar, check to see if user supplied absolute path
-        if os.path.isfile(compiler):
-          self.compiler: str = compiler
-
-        # .. or check if in $PATH before tossing exception
-        else:
-          path_env: Optional[str] = os.environ.get("PATH")
-          if path_env is None:
-            raise FuzzFrontendError("$PATH envvar is not defined.")
-
-          for path in path_env.split(os.pathsep):
-            compiler_path: str = os.path.join(path, compiler)
-
-            L.debug(f"Checking if `{compiler_path}` is a valid compiler path")
-            if os.path.isfile(compiler_path) and os.access(compiler_path, os.X_OK):
-              self.compiler = compiler_path
-              break
-
-      # use first compiler executable if multiple exists
-      else:
-        self.compiler = compiler_paths[0]
-
-      # toss exception if compiler still could not be found
-      if not hasattr(self, "compiler"):
-        raise FuzzFrontendError(f"{compiler} does not exist as absolute path, or in ${envvar} or $PATH")
-
-      L.debug(f"Initialized compiler: {self.compiler}")
-
-    # store envvar for re-use across API
-    self.env: str = env
-
-    # in case name supplied as `bin/fuzzer`, strip executable name
-    self.name: str = fuzzer_name.split('/')[-1] if '/' in fuzzer_name else fuzzer_name
-    L.debug(f"Fuzzer name: {self.name}")
-
-    # use first fuzzer executable path if multiple exists
-    self.fuzzer = fuzzer_paths[0]
-    L.debug(f"Initialized fuzzer path: {self.fuzzer}")
+    self.search_dirs: List[str] = getattr(self, "SEARCH_DIRS", [])
 
     # flag to ensure fuzzer processes do not persist
     self._on: bool = False
 
+    self.proc: subprocess.Popen[bytes]
+    self.fuzzer_return_code = 0
+    self.require_seeds: bool = False
+    self.stats_file: str = "deepstate-stats.txt"
+    self.output_file: str = "fuzzer-output.txt"
+
+    # same as AFL's (https://github.com/google/AFL/blob/master/docs/status_screen.txt)
+    self.stats: Dict[str, Optional[str]] = {
+      # guaranteed
+      "unique_crashes": None,
+      "fuzzer_pid": None,
+      "start_time": None,
+      "sync_dir_size": None,
+
+      # not guaranteed
+      "execs_done": None,
+      "execs_per_sec": None,
+      "last_update": None,
+      "cycles_done": None,
+      "paths_total": None,
+      "paths_favored": None,
+      "paths_found": None,
+      "paths_imported": None,
+      "max_depth": None,
+      "cur_path": None,
+      "pending_favs": None,
+      "pending_total": None,
+      "variable_paths": None,
+      "stability": None,
+      "bitmap_cvg": None,
+      "unique_hangs": None,
+      "last_path": None,
+      "last_crash": None,
+      "last_hang": None,
+      "execs_since_crash": None,
+      "slowest_exec_ms": None,
+      "peak_rss_mb": None,
+    }
+
     # parsed argument attributes
-    self.binary: Optional[str] = None
-    self.prog_args: List[str] = []
-    self.output_test_dir: str = "{}_out".format(str(self))
-    self.timeout: int = 0
-    self.num_workers: int = 1
+    self.input_seeds: Optional[str] = None
+    self.max_input_size: int = 8192
+    self.dictionary: Optional[str] = None
+    self.exec_timeout: Optional[int] = None
+    self.blackbox: Optional[bool] = None
+    self.fuzzer_args: List[Any] = []
+    self.fuzzer_out: bool = False
 
-    self.compile_test: Optional[str] = None
-    self.compiler_args: Optional[str] = None
-    self.out_test_name: str = "out"
-
-    self.enable_sync: bool = False
     self.sync_cycle: int = 5
     self.sync_out: bool = True
-    self.sync_dir: str = "out_sync"
+    self.sync_dir: Optional[str] = None
 
-    self.which_test: Optional[str] = None
-    self.post_stats: bool = False
+    self.push_dir: str = ''
+    self.pull_dir: str = ''
+    self.crash_dir: str = ''
+
+    self.home_path: Optional[str] = None
 
 
   def __repr__(self) -> str:
@@ -154,6 +165,24 @@ class FuzzerFrontend(AnalysisBackend):
     Default base argument parser for DeepState frontends. Comprises of default arguments all
     frontends must implement to maintain consistency in executables. Users can inherit this
     method to extend and add own arguments or override for outstanding deviations in fuzzer CLIs.
+
+    Arguments provided by this method and usable in fuzzers' functions.
+    Guaranteed arguments (have default value):
+      - output_test_dir (default: out)
+      - mem_limit (default: 50MiB)
+      - max_input_size (default: 8192B)
+      - fuzzer_args (default: {})
+      - blackbox (default: False)
+
+    Optional arguments (may be None):
+      - input_seeds
+      - dictionary
+      - exec_timeout
+
+    Arguments that should not be used by child class:
+      - timeout (default: 0)
+      - num_workers (default: 1)
+      - target_args (default: {})
     """
 
     L.debug("Parsing arguments with internal base class routine")
@@ -177,43 +206,64 @@ class FuzzerFrontend(AnalysisBackend):
 
     parser.add_argument(
       "-s", "--max_input_size", type=int, default=8192,
-      help="Maximum input size for input generator (default is 8192).")
+      help="Maximum input size for input generator in bytes (default is 8192). 0 for unlimited.")
+
+    parser.add_argument("--dictionary", type=str,
+      help="Optional fuzzer dictionary.")
+
+    parser.add_argument(
+      "--exec_timeout", type=int,
+      help="Timeout for one test-case (fuzz run) in milliseconds.")
+
+    parser.add_argument(
+      "--blackbox", action="store_true",
+      help="Black-box fuzzing without compile-time instrumentation.")
+
+    parser.add_argument(
+      "--fuzzer_out", action="store_true",
+      help="Show fuzzer-specific output (graphical interface) instead of deepstate one.")
+
+    parser.add_argument(
+      "--fuzzer_args", default=[], nargs='*',
+      help="Flags to pass to the fuzzer. Format: `a arg1=val` -> `-a --arg val`.")
 
 
     # Parallel / Ensemble Fuzzing
     ensemble_group = parser.add_argument_group("Parallel/Ensemble Fuzzing")
     ensemble_group.add_argument(
-      "--enable_sync", action="store_true",
-      help="Enable seed synchronization to another seed queue directory.")
-
-    ensemble_group.add_argument(
-      "--sync_out", action="store_true",
-      help="When set, output individual fuzzer stat summary, instead of a global summary from the ensembler")
-
-    ensemble_group.add_argument(
-      "--sync_dir", type=str, default="out_sync",
-      help="Directory representing seed queue for synchronization between local queue.")
+      "--sync_dir", type=str,
+      help="Directory representing seed queue for synchronization between fuzzers.")
 
     ensemble_group.add_argument(
       "--sync_cycle", type=int, default=5,
       help="Time in seconds the executor should sync to sync directory (default is 5 seconds).")
-
-
-    # Post-processing
-    post_group = parser.add_argument_group("Execution Post-processing")
-    post_group.add_argument("--post_stats", action="store_true",
-      help="Output post-fuzzing statistics to user (if any).")
-
 
     # Miscellaneous options
     parser.add_argument(
       "--fuzzer_help", action="store_true",
       help="Show fuzzer command line interface's help options.")
 
+    parser.add_argument(
+      "--home_path", type=str,
+      help="Path to fuzzer home directory. Will search executables there and in PATH.")
+
     # finalize building up parser by passing to superclass, and instantiate object attributes
     # the base `parse_args` sets state with _ARGS, so we do need to return a namespace
     cls.parser = parser
     super(FuzzerFrontend, cls).parse_args()
+
+    # parse fuzzer_args
+    _args: Dict[str, Any] = vars(cls._ARGS)
+
+    fuzzer_args_parsed: List[Tuple[str, Optional[str]]] = []
+    for arg in _args['fuzzer_args']:
+      vals = arg.split("=", 1)
+      key = vals[0]
+      val = None
+      if len(vals) == 2:
+        val = vals[1]
+      fuzzer_args_parsed.append((key, val))
+    _args['fuzzer_args'] = fuzzer_args_parsed
 
     return None
 
@@ -222,12 +272,76 @@ class FuzzerFrontend(AnalysisBackend):
     """
     Calls fuzzer to print executable help menu.
     """
-    subprocess.call([self.fuzzer, "--help"])
+    subprocess.call([self.fuzzer_exe, "--help"])
 
 
   ##############################################
   # Fuzzer pre-execution methods
   ##############################################
+
+
+  def _search_for_executable(self, exe_name):
+    # exe as absolute name
+    if os.path.isabs(exe_name):
+      if not os.path.isfile(exe_name):
+        raise FuzzFrontendError(f"File `{exe_name}` doesn't exists.")
+      if not os.access(exe_name, os.X_OK):
+        raise FuzzFrontendError(f"File `{exe_name}` is not executable.")
+      return exe_name
+
+    # search in env, add search_dirs
+    if self.env:
+      for one_env_path in self.env.split(":"):
+        for search_dir in [""] + self.search_dirs:
+          exe_path: Optional[str] = shutil.which(exe_name, mode=os.F_OK, path=os.path.join(one_env_path, search_dir))
+          if exe_path is not None:
+            return exe_path
+
+    # search in current dir and $PATH
+    where_to_search = ['.', None]
+    for search_env in where_to_search:
+      exe_path: Optional[str] = shutil.which(exe_name, mode=os.F_OK, path=search_env)
+      if exe_path is not None:
+        return exe_path
+
+    raise FuzzFrontendError(f"Executable file `{exe_name}` not found in neither `{self.env}` nor $PATH.\n"
+                            f"Please add path to {self.name} in {self.ENVVAR} env var or in --home_path argument.")
+
+
+  def _set_executables(self):
+    """
+    Search for required executables in ${env} (envvar from child class),
+    then in --home_path CLI argument, then in current dir and then in $PATH.
+
+    Except if executable is given as an absolute path, then just check if it exists
+    and if permissions are correct.
+
+    Update variables:
+      - fuzzer_exe
+      - compiler_exe
+    
+    Throws exception if some executable couldn't be found
+    """
+
+    # add path from argument to env
+    if self.home_path:
+      if self.env:
+        self.env += f":{self.home_path}"
+      else:
+        self.env = self.home_path
+
+    # set fuzzer_exe 
+    self.fuzzer_exe = self._search_for_executable(self.fuzzer_exe)
+    L.debug("Will use %s as fuzzer executable.", self.fuzzer_exe)
+
+    # set compiler_exe
+    if self.compiler_exe:
+      self.compiler_exe = self._search_for_executable(self.compiler_exe)
+      L.debug("Will use %s as fuzzer compiler.", self.compiler_exe)
+
+    # set additional executables
+    for exe_name, exe_file in self.EXECUTABLES.items():
+      self.EXECUTABLES[exe_name] = self._search_for_executable(exe_file)
 
 
   def compile(self, lib_path: str, flags: List[str], _out_bin: str, env = os.environ.copy()) -> None:
@@ -246,32 +360,31 @@ class FuzzerFrontend(AnalysisBackend):
     :param env: optional envvars to set during compilation
     """
 
-    if self.compiler is None:
-      raise FuzzFrontendError(f"No compiler specified for compile-time instrumentation.")
+    _out_bin += f".{self.NAME.lower()}"
+
+    if self.compiler_exe is None:
+      raise FuzzFrontendError("No compiler specified for compile-time instrumentation.")
 
     if self.binary is not None:
-      raise FuzzFrontendError(f"User-specified test binary conflicts with compiling from source.")
+      raise FuzzFrontendError("User-specified test binary conflicts with compiling from source.")
 
     if not os.path.isfile(lib_path):
       raise FuzzFrontendError("No {}-instrumented DeepState static library found in {}".format(self, lib_path))
-    L.debug(f"Static library path: {lib_path}")
+    L.debug("Static library path: %s", lib_path)
 
     # initialize compiler envvars
-    env["CC"] = self.compiler
-    env["CXX"] = self.compiler
-    L.debug(f"CC={env['CC']} and CXX={env['CXX']}")
+    env["CC"] = self.compiler_exe.replace('++', '')
+    env["CXX"] = self.compiler_exe
+    L.debug("CC=%s and CXX=%s", env['CC'], env['CXX'])
 
     # initialize command with prepended compiler
     compiler_args: List[str] = ["-std=c++11", self.compile_test] + flags + ["-o", _out_bin] # type: ignore
-    compile_cmd = [self.compiler] + compiler_args
-    L.debug(f"Compilation command: {str(compile_cmd)}")
+    compile_cmd = [self.compiler_exe] + compiler_args
+    L.debug("Compilation command: %s", compile_cmd)
 
     # call compiler, and deal with exceptions accordingly
-    L.info(f"Compiling test harness `{self.compile_test}` with {self.compiler}")
-    try:
-      subprocess.Popen(compile_cmd, env=env).communicate()
-    except BaseException as e:
-      raise FuzzFrontendError(f"{self.compiler} interrupted due to exception:", e)
+    L.info("Compiling test harness `%s`", compile_cmd)
+    subprocess.Popen(compile_cmd, env=env).communicate()
 
     # extra check if target binary was successfully compiled, and set that as target binary
     out_bin = os.path.join(os.getcwd(), _out_bin)
@@ -279,15 +392,52 @@ class FuzzerFrontend(AnalysisBackend):
       self.binary = out_bin
 
 
+  def create_fake_seeds(self):
+    if not self.input_seeds:
+      self.input_seeds = mkdtemp(prefix="deepstate_fake_seed")
+    with open(os.path.join(self.input_seeds, "fake_seed"), 'wb') as f:
+      f.write(b'X')
+    L.info("Creating fake input seed file in directory `%s`", self.input_seeds)
+
+
+  def check_required_directories(self, required_dirs):
+    for required_dir in required_dirs:
+      if not os.path.isdir(required_dir):
+        raise FuzzFrontendError(f"Can't resume with output directory `{self.output_test_dir}`. "
+                                f"No `{required_dir}` directory inside.")
+
+
+  def setup_new_session(self, dirs_to_create=[]):
+    for dir_to_create in dirs_to_create:
+      Path(dir_to_create).mkdir(parents=True, exist_ok=True)
+      L.debug(f"Creating directory {dir_to_create}.")
+
+    if self.require_seeds is True and not self.input_seeds:
+        self.create_fake_seeds()
+
+
   def pre_exec(self):
     """
     Called before fuzzer execution in order to perform sanity checks. Base method contains
     default argument checks. Users should implement inherited method for any other environment
     checks or initializations before execution.
+
+    Do:
+      - search for executables (update self.EXECUTABLES)
+      - may print fuzzer help (and exit)
+      - may compile
+      - check for targets (self.binary)
+      - may check for input_seeds
+      - check for output directory
+      - check for sync_dir
+      - update stats_file path
     """
 
     if self.parser is None:
       raise FuzzFrontendError("No arguments parsed yet. Call parse_args() before pre_exec().")
+
+    # search for executables and set proper variables
+    self._set_executables()
 
     if self.fuzzer_help:
       self.print_help()
@@ -312,23 +462,59 @@ class FuzzerFrontend(AnalysisBackend):
       sys.exit(1)
 
     # check if binary exists and contains an absolute path
-    if not os.path.isabs(self.binary):
-      self.binary = os.path.abspath(self.binary)
+    self.binary = os.path.abspath(self.binary)
+    if not os.path.isfile(self.binary):
+      raise FuzzFrontendError(f"Binary {self.binary} doesn't exists.")
+    L.debug("Target binary: %s", self.binary)
 
-    L.debug(f"Target binary: {self.binary}")
-
-    # no sanity check, since some fuzzers require optional input seeds
+    # if input_seeds is provided run checks
     if self.input_seeds:
-      L.debug(f"Input seeds directory: {self.input_seeds}")
+      L.debug("Input seeds directory: %s", self.input_seeds)
 
-    L.debug(f"Output directory: {self.output_test_dir}")
+      if not os.path.exists(self.input_seeds):
+        raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) doesn't exist.")
+
+      if not os.path.isdir(self.input_seeds):
+        raise FuzzFrontendError(f"Input seeds dir (`{self.input_seeds}`) is not a directory.")
+
+      if len(os.listdir(self.input_seeds)) == 0:
+        raise FuzzFrontendError(f"No seeds present in directory `{self.input_seeds}`.")
+
+    # require output directory
+    L.debug("Output directory: %s", self.output_test_dir)
+    if not self.output_test_dir:
+      raise FuzzFrontendError("Must provide -o/--output_test_dir.")
+
+    if not os.path.exists(self.output_test_dir):
+      try:
+        os.mkdir(self.output_test_dir)
+      except:
+        raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) doesn't exist, and could not be created.")
+
+    if not os.path.isdir(self.output_test_dir):
+      raise FuzzFrontendError(f"Output test dir (`{self.output_test_dir}`) is not a directory.")
+
+    # update stats and output file
+    self.stats_file = os.path.join(self.output_test_dir, self.stats_file)
+    self.output_file = os.path.join(self.output_test_dir, self.output_file)
+
+    # require seeds flag
+    self.require_seeds = self.REQUIRE_SEEDS
+
+    # push/pull/crash paths
+    self.push_dir = os.path.join(self.output_test_dir, self.PUSH_DIR)
+    self.pull_dir = os.path.join(self.output_test_dir, self.PULL_DIR)
+    self.crash_dir = os.path.join(self.output_test_dir, self.CRASH_DIR)
 
     # check if we enabled seed synchronization, and initialize directory
-    if self.enable_sync:
+    if self.sync_dir:
+      if not os.path.exists(self.sync_dir):
+        raise FuzzFrontendError(f"Seed synchronization dir (`{self.sync_dir}`) doesn't exist.")
+
       if not os.path.isdir(self.sync_dir):
-        L.info("Initializing sync directory for ensembling seeds.")
-        os.mkdir(self.sync_dir)
-      L.debug(f"Sync directory: {self.sync_dir}")
+        raise FuzzFrontendError(f"Seed synchronization dir (`{self.sync_dir}`) is not a directory.")
+
+      L.info("Will synchronize seed using `%s` directory.", self.sync_dir)
 
 
   ##################################
@@ -337,86 +523,122 @@ class FuzzerFrontend(AnalysisBackend):
 
 
   @property
-  def cmd(self) -> Dict[str, Optional[str]]:
+  def cmd(self) -> List[str]:
     """
     Property method that implements the logic for constructing a valid command
     for fuzzing, which is then bootstrapped and consumed by subprocess. User must
-    implement functionality that can construct a valid dict of flags (key) to values,
+    implement functionality that can construct a valid list of flags (key-value tuples),
     and then returns it to build_cmd().
     """
     raise NotImplementedError("Must implement in frontend subclass.")
 
 
-  @staticmethod
-  def _dict_to_cmd(cmd_dict: Dict[str, Optional[str]]) -> List[Optional[str]]:
-    """
-    Helper that provides an interface for constructing proper command to be passed
-    to fuzzer executable. This takes a dict that maps a str argument flag to a value,
-    and transforms it into list.
-
-    :param cmd_dict: dict with keys as cli flags and values as arguments
-    """
-
-    # explicit lambda def to deal with mypy-lambda relations
-    concat = lambda key, val: key + val
-    cmd_args: List[Optional[str]] = list(functools.reduce(concat, cmd_dict.items()))
-    cmd_args = [arg for arg in cmd_args if arg is not None]
-
-    L.debug(f"Fuzzer arguments: `{str(cmd_args)}`")
-    return cmd_args
-
-
-  def build_cmd(self, cmd_dict: Dict[str, Any], input_symbol: str = "@@") -> Dict[str, Optional[str]]:
+  def build_cmd(self, cmd_list: List[Optional[str]], input_symbol: str = "@@") -> List[Optional[str]]:
     """
     Helper method to be invoked by child fuzzer class's cmd() property method in order
     to finalize command called by the fuzzer executable with appropriate arguments for the
     test harness. Should NOT be called if a fuzzer gets invoked differently (ie arguments necessary
     that deviate from how standard fuzzers invoke binaries).
 
-    :param cmd_dict: incomplete dict to complete with harness argument information
+    :param cmd_list: incomplete dict to complete with harness argument information
     :param input_symbol: symbol recognized by fuzzer to replace when conducting file-based fuzzing
     """
 
     # initialize command with harness binary and DeepState flags to pass to it
-    cmd_dict.update({
-      "--": self.binary,
-      "--input_test_file": input_symbol,
-      "--abort_on_fail": None,
-      "--no_fork": None
-    })
+    cmd_list.extend([
+      "--", self.binary,
+      "--input_test_file", input_symbol,
+      "--abort_on_fail",
+      "--no_fork",
+      "--min_log_level", str(self.min_log_level)
+    ])
 
     # append any other DeepState flags
-    if self.prog_args:
-      for arg in self.prog_args:
-        vals = arg.split("=")
-        if len(vals) == 1:
-          cmd_dict.update({ vals[0] : None })
-        else:
-          cmd_dict.update({ vals[0] : vals[1] })
+    for key, val in self.target_args:
+      if len(key) == 1:
+        cmd_list.append('-{}'.format(key))
+      else:
+        cmd_list.append('--{}'.format(key))
+      if val is not None:
+        cmd_list.append(val)
 
     # test selection
     if self.which_test:
-      cmd_dict["--input_which_test"] = self.which_test
+      cmd_list.extend(["--input_which_test", self.which_test])
 
-    return cmd_dict
+    return cmd_list
+
+
+  def main(self):
+    """
+    Helper method for calling fuzzer methods in correct order
+    """
+    try:
+      self.parse_args()
+      self.run()
+      return self.fuzzer_return_code
+    except AnalysisBackendError as e:
+      L.error(e)
+      return 1
 
 
   ##############################################
   # Fuzzer process execution methods
   ##############################################
 
-  def run(self, compiler: Optional[str] = None, no_exec: bool = False):
-    """
-    Interface for spawning and executing fuzzer jobs. Uses the configured `num_workers` in order to
-    create a multiprocessing pool to parallelize fuzzers for execution in self._run.
 
-    :param compiler: if necessary, a compiler that is invoked before fuzzer executable (ie `dotnet`)
+  def manage(self):
+    # print and save statistics
+    self.populate_stats()
+    self.save_stats()
+    if not self.fuzzer_out:
+      self.print_stats()
+
+    # invoke ensemble if sync_dir is provided
+    if self.sync_dir:
+      L.info("%s - Performing sync cycle %s", self.name, self.sync_count)
+      self.ensemble()
+      self.sync_count += 1
+
+
+  def cleanup(self):
+    if not self.proc:
+      return
+    
+    L.info(f"Killing process {self.proc.pid} and childs.")
+
+    # terminate
+    try:
+      for some_proc in psutil.Process(self.proc.pid).children(recursive=True) + [self.proc]:
+        some_proc.terminate()
+    except psutil.NoSuchProcess:
+      self.proc = None
+      return
+
+    # hard kill
+    for some_proc in psutil.Process(self.proc.pid).children(recursive=True) + [self.proc]:
+        L.warning("Subprocess (PID %d) could not terminate in time, killing.", some_proc.pid)
+        try:
+            some_proc.kill()
+        except psutil.NoSuchProcess:
+            self.proc = None
+
+    self.proc = None
+
+
+  def run(self, runner: Optional[str] = None, no_exec: bool = False, skip_argparse: bool = False):
+    """
+    Interface for spawning and executing fuzzer job.
+
+    :param runner: if necessary, a runner that is invoked before fuzzer executable (ie `dotnet`)
     :param no_exec: skips pre- and post-processing steps during execution
+    :param skip_argparse: if set, skip argparsing, if already done in any auxiliary executor.
 
     """
 
     # NOTE(alan): we don't use namespace param so we "build up" object attributes when we execute run()
-    super(FuzzerFrontend, self).init_from_dict()
+    if not skip_argparse:
+        super(FuzzerFrontend, self).init_from_dict()
 
     # call pre_exec for any checks/inits before execution.
     if not no_exec:
@@ -424,148 +646,154 @@ class FuzzerFrontend(AnalysisBackend):
       self.pre_exec()
 
     # initialize cmd from property
-    command = [self.fuzzer] + self._dict_to_cmd(self.cmd) # type: ignore
+    command = [self.fuzzer_exe] + self.cmd # type: ignore
 
-    # prepend compiler that invokes fuzzer
-    if compiler:
-      command.insert(0, compiler)
+    # prepend runner that invokes fuzzer
+    if runner:
+      command.insert(0, runner)
 
-    results: List[int] = []
-    pool = multiprocessing.Pool(processes=self.num_workers)
-    results = pool.apply_async(self._run, args=(command,)) # type: ignore
+    L.info("Executing command `%s`", command)
+    self.start_time: int = int(time.time())
+    self.command: str = ' '.join(command)
+    self.sync_count = 0
 
-    pool.close()
-    pool.join()
+    total_execution_time: int = 0
+    wait_time: int = self.sync_cycle
+    run_fuzzer: bool = True
+    prev_log_level = L.level
 
-    L.debug(results)
+    # for fuzzer output
+    if not self.fuzzer_out:
+      fuzzer_out_file = open(self.output_file, "wb")
 
-    # TODO: check results for failures
+    # run or resume fuzzer process as long as it is needed
+    # may create new processes continuously
+    while run_fuzzer:
+      run_one_fuzzer_process: bool = False
+      try:
+        if self.fuzzer_out:
+          # disable deepstate output
+          L.info("Using fuzzer output.")
+          L.setLevel("ERROR")
+          self.proc = subprocess.Popen(command)
+
+        else:
+          L.info("Using DeepState output.")
+          # TODO: frontends uses blocking read in `populate_stats`,
+          # we may replace PIPE with normal file and do reads non-blocking
+          self.proc = subprocess.Popen(command, stdout=fuzzer_out_file, stderr=fuzzer_out_file)
+
+        run_one_fuzzer_process = True
+        L.info("Started fuzzer process with PID %d.", self.proc.pid)
+
+      except (OSError, ValueError):
+        L.setLevel(prev_log_level)
+        L.error(traceback.format_exc())
+        raise FuzzFrontendError("Exception during fuzzer startup.")
+
+      # run-manage loop, until somethings happens (error, interrupt, fuzzer exits)
+      # use only one process
+      while run_one_fuzzer_process:
+        # general timeout
+        time_left = float('inf')
+        total_execution_time = int(time.time() - self.start_time)
+        if self.timeout != 0:
+          time_left = self.timeout - total_execution_time
+          if time_left < 0:
+            run_one_fuzzer_process = False
+            run_fuzzer = False
+            wait_time = 0
+            L.info("Timeout")
+
+        try:
+          # sleep/communicate for `self.sync_cycle` time
+          timeout_one_cycle: int = wait_time
+          if wait_time > time_left:
+            timeout_one_cycle = int(time_left)
+
+          L.debug("One cycle `communicate` with timeout %d.", timeout_one_cycle)
+          stdout, stderr = self.proc.communicate(timeout=timeout_one_cycle)
+
+          # fuzzer process exited
+          # it's fine if returncode is 0 or 1 for libfuzzer 
+          if self.proc.returncode == 0 or \
+              (self.proc.returncode == 1 and self.name == "libFuzzer"):
+            L.info("Fuzzer %s (PID %d) exited with return code %d.",
+                      self.name, self.proc.pid, self.proc.returncode)
+            self.fuzzer_return_code = 0
+            run_one_fuzzer_process = False
+
+          else:
+            if stdout:
+              L.error(stdout.decode('utf8'))
+            if stderr:
+              L.error(stderr.decode('utf8'))
+            self.fuzzer_return_code = self.proc.returncode
+            raise FuzzFrontendError(f"Fuzzer {self.name} (PID {self.proc.pid}) exited "
+                                    f"with return code {self.proc.returncode}.")
+
+        # Timeout, just continue to management step
+        except subprocess.TimeoutExpired:
+          L.debug("One cycle timeout.")
+
+        # Any OS-specific errors encountered
+        except OSError as e:
+          L.error("%s run interrupted due to OSError: %s.", self.name, e)
+          run_one_fuzzer_process = False
+
+        # SIGINT stops fuzzer, but continues frontend execution
+        except KeyboardInterrupt:
+          L.info("Stopped the %s fuzzer.", self.name)
+          run_one_fuzzer_process = False
+          run_fuzzer = False
+
+        # bad things happed, inform user and exit
+        except Exception:
+          L.error(traceback.format_exc())      
+          L.error("Exception during fuzzer %s run.", self.name)
+          run_one_fuzzer_process = False
+          run_fuzzer = False
+
+        # manage
+        try:
+          L.debug("Management cycle starts after %ss.", total_execution_time)
+          self.manage()
+
+        # error in management, exit
+        except Exception:
+          L.error(traceback.format_exc())      
+          L.error("Exception during fuzzer %s run.", self.name)
+          run_one_fuzzer_process = False
+          run_fuzzer = False
+
+        if self.do_restart():
+          L.info(f"Restarting fuzzer {self.name}.")
+          run_one_fuzzer_process = False
+
+      # cleanup
+      try:
+        self.cleanup()
+        sleep(1)  # wait so all fuzzer processes are killed
+      except:
+        pass
+
+      if run_fuzzer:
+        self.post_exec()
+
+      # and... maybe loop again!
+
+    if not self.fuzzer_out:
+      fuzzer_out_file.close()
+
+    L.setLevel(prev_log_level)
+    # calculate total execution time
+    exec_time: float = round(time.time() - self.start_time, 2)
+    L.info("Fuzzer exec time: %ss", exec_time)
 
     # do post-fuzz operations
     if not no_exec:
-      if callable(getattr(self, "post_exec")):
-        L.info("Calling post-exec for fuzzer post-processing")
-        self.post_exec()
-
-
-  def _run(self, command: List[str]) -> int:
-    """
-    Spawns a singular fuzzer process for execution with proper error-handling and foreground STDOUT output.
-    Also supports rsync-style seed synchronization if configured to share seeds between a global queue.
-
-    :param command: list of arguments representing fuzzer command to execute.
-    """
-
-    L.info(f"Executing command `{str(command)}`")
-
-    self._on = True
-    self._start_time = int(time.time())
-
-    try:
-
-      # if we are syncing seeds, we background the process and all of the output generated
-      if self.enable_sync:
-        self.proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        L.info(f"Starting fuzzer with seed synchronization with PID `{self.proc.pid}`")
-      else:
-        self.proc = subprocess.Popen(command)
-        L.info(f"Starting fuzzer  with PID `{self.proc.pid}`")
-
-      L.info(f"Fuzzer start time: {self._start_time}")
-
-      # while fuzzers may configure timeout, subprocess can ensure exit and is useful when parallelizing
-      # processes or doing ensemble-based testing.
-      stdout, stderr = self.proc.communicate(timeout=self.timeout if self.timeout != 0 else None)
-      if self.proc.returncode != 0:
-        self._kill()
-        if self.enable_sync:
-          err = stdout if stderr is None else stderr
-          raise FuzzFrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Message: {err.decode('utf-8')}")
-        else:
-          raise FuzzFrontendError(f"{self.fuzzer} run interrupted with non-zero return status. Error code: {self.proc.returncode}")
-
-      # invoke ensemble if seed synchronization option is set
-      if self.enable_sync:
-
-        # do not ensemble as fuzzer initializes
-        time.sleep(5)
-        self.sync_count = 0
-
-        # ensemble "event" loop
-        while self._is_alive():
-
-          L.debug(f"{self.name} - Performing sync cycle {self.sync_count}")
-
-          # sleep for execution cycle
-          time.sleep(self.sync_cycle)
-
-          # call ensemble to perform seed synchronization
-          self.ensemble()
-
-          # if sync_out argument set, output individual fuzzer statistics
-          # rather than have our ensembler report global stats
-          if self.sync_out:
-            print(f"\n{self.name} Fuzzer Stats\n")
-            for head, stat in self.reporter().items():
-              print(f"{head}\t:\t{stat}")
-
-          self.sync_count += 1
-
-
-    # any OS-specific errors encountered
-    except OSError as e:
-      self._kill()
-      raise FuzzFrontendError(f"{self.fuzzer} run interrupted due to exception {e}.")
-
-    # SIGINT stops fuzzer, but continues execution
-    except KeyboardInterrupt:
-      print(f"Killing fuzzer {self.name} with PID {self.proc.pid}")
-      self._kill()
-      return 1
-
-    finally:
-      self._kill()
-
-    # calculate total execution time
-    exec_time: float = round(time.time() - self._start_time, 2)
-    L.info(f"Fuzzer exec time: {exec_time}s")
-
-    return 0
-
-
-  def _is_alive(self) -> bool:
-    """
-    Checks to see if fuzzer PID is running, but tossing SIGT (0) to see if we can
-    interact. Ideally used in an event loop during a running process.
-    """
-
-    if self._on:
-      return True
-
-    try:
-      os.kill(self.proc.pid, 0)
-    except (OSError, ProcessLookupError):
-      return False
-
-    return True
-
-
-  def _kill(self) -> None:
-    """
-    Kills running fuzzer process. Can be used forcefully if
-    KeyboardInterrupt signal falls through and process continues execution.
-    """
-    if not hasattr(self, "proc"):
-      raise FuzzFrontendError("Attempted to kill non-running PID.")
-
-    self.proc.terminate()
-    try:
-      self.proc.wait(timeout=0.5)
-      L.info(f"Fuzzer subprocess exited with `{self.proc.returncode}`")
-    except subprocess.TimeoutExpired:
-      raise FuzzFrontendError("Subprocess could not terminate in time")
-
-    self._on = False
+      L.info("Calling post-exec for fuzzer post-processing")
+      self.post_exec()
 
 
   ############################################
@@ -582,13 +810,52 @@ class FuzzerFrontend(AnalysisBackend):
     return NotImplementedError("Must implement in frontend subclass.")
 
 
-  @property
-  def stats(self):
+  def do_restart(self):
+    """
+    Some fuzzers need restart to use seeds from external sources
+      (can't pull seeds in runtime).
+    This function should determine if the fuzzer should be restarted too look
+      for new seeds.
+    This may be based on time of last new path discovered or whatever.
+
+    Should return False if self.sync_dir is None.
+    """
+    if not self.sync_dir:
+      return False
+
+    # if time.time() - self.start_time > 20:
+    #   return True
+    return False
+
+
+  def populate_stats(self):
     """
     Parses out stats generated by fuzzer output. Should be implemented by user, and can return custom
     feedback.
     """
-    raise NotImplementedError("Must implement in frontend subclass.")
+    crashes: int = len(os.listdir(self.crash_dir))
+    if os.path.isfile(os.path.join(self.crash_dir, "README.txt")):
+      crashes -= 1
+    self.stats["unique_crashes"] = str(crashes)
+    self.stats["start_time"] = str(int(self.start_time))
+    if self.proc:
+      self.stats["fuzzer_pid"] = str(self.proc.pid)
+    if self.sync_dir:
+      self.stats["sync_dir_size"] = str(len(os.listdir(self.sync_dir)))
+
+
+  def print_stats(self):
+    for key, value in self.stats.items():
+      if value:
+        L.fuzz_stats("%s:%s", key, value)
+    L.fuzz_stats("-"*30)
+
+
+  def save_stats(self):
+    with open(self.stats_file, 'w') as f:
+      for key, value in self.stats.items():
+        if value:
+          f.write(f"{key}:{value}\n")
 
 
   def post_exec(self):
@@ -597,7 +864,8 @@ class FuzzerFrontend(AnalysisBackend):
     things like crash triaging, testcase minimization (ie with `deepstate-reduce`), or any other manipulations
     with produced testcases.
     """
-    raise NotImplementedError("Must implement in frontend subclass.")
+    # make sure that child processes are killed
+    self.cleanup()
 
 
   ###################################
@@ -605,51 +873,42 @@ class FuzzerFrontend(AnalysisBackend):
   ###################################
 
 
-  def _sync_seeds(self, mode: str, src: str, dest: str, excludes: List[str] = []) -> None:
+  def _sync_seeds(self, src: str, dest: str, excludes: List[str] = []) -> None:
     """
     Helper that invokes rsync for convenient file syncing between two files.
 
     TODO(alan): implement functionality for syncing across servers.
     TODO(alan): consider implementing "native" syncing alongside current "rsync mode".
 
-    :param mode: str representing mode (either 'GET' or 'PUSH')
     :param src: path to source queue
     :param dest: path to destination queue
     :param excludes: list of string patterns for paths to ignore when rsync-ing
     """
 
-    if not mode in ["GET", "PUSH"]:
-      raise FuzzFrontendError(f"Unknown mode for seed syncing: `{mode}`")
-
-    rsync_cmd: List[str] = ["rsync", "-racz", "--ignore-existing"]
+    rsync_cmd: List[str] = [
+      "rsync",
+      "--recursive",
+      "--archive",
+      "--checksum",
+      "--compress",
+      "--ignore-existing"
+    ]
 
     # subclass should invoke with list of pattern ignores
     if len(excludes) > 0:
       rsync_cmd += [f"--exclude={e}" for e in excludes]
 
-    if mode == "GET":
-      rsync_cmd += [dest, src]
-    elif mode == "PUSH":
-      rsync_cmd += [src, dest]
+    rsync_cmd += [
+      os.path.join(src, ""),  # append trailing / 
+      dest
+    ]
 
-    L.debug(f"rsync command: {rsync_cmd}")
+    # L.debug("rsync command: %s", rsync_cmd)
+    L.debug("rsync %s: from `%s` to `%s`.", self.name, src, dest)
     try:
       subprocess.Popen(rsync_cmd)
     except subprocess.CalledProcessError as e:
-      raise FuzzFrontendError(f"{self.fuzzer} run interrupted due to exception {e}.")
-
-
-  @staticmethod
-  def _queue_len(queue_path: str) -> int:
-    """
-    Helper that checks the number of seeds in queue, returns 0 if path doesn't
-    exist yet.
-
-    :param queue_path: path to queue (ie AFL_out/queue/)
-    """
-    if not os.path.exists(queue_path):
-      return 0
-    return len([path for path in os.listdir(queue_path)])
+      raise FuzzFrontendError(f"{self.name} rsync interrupted due to exception {e}.")
 
 
   def ensemble(self, local_queue: Optional[str] = None, global_queue: Optional[str] = None):
@@ -658,26 +917,29 @@ class FuzzerFrontend(AnalysisBackend):
     implement any additional logic for determining whether to sync/get seeds as if in event loop.
     """
 
-    if global_queue is None:
-      global_queue = self.sync_dir + "/"
-
-    global_len: int = self._queue_len(global_queue)
-    L.debug(f"Global seed queue: {global_queue} with {global_len} files")
-
-    if local_queue is None:
-      local_queue = self.output_test_dir + "/queue/"
-
-    local_len: int = self._queue_len(local_queue)
-    L.debug(f"Fuzzer local seed queue: {local_queue} with {local_len} files")
-
-    # sanity check: if global queue is empty, populate from local queue
-    if (global_len == 0) and (local_len > 0):
-      L.info("Nothing in global queue, pushing seeds from local queue")
-      self._sync_seeds("PUSH", local_queue, global_queue)
+    if not self.sync_dir:
+      L.warning("Called `ensemble`, but `--sync_dir` not provided.")
       return
 
+    global_queue = os.path.join(self.sync_dir, "queue")
+    global_crashes = os.path.join(self.sync_dir, "crashes")
+    local_queue = self.push_dir
+    local_crashes = self.crash_dir
+
+    # check global queue
+    global_len: int = len(os.listdir(self.crash_dir))
+    L.debug("Global seed queue: `%s` with %d files", global_queue, global_len)
+
+    # update local queue with new findings
+    self._sync_seeds(src=self.pull_dir, dest=self.push_dir)
+
+    # check local queue
+    local_len: int = len(os.listdir(self.push_dir))
+    L.debug("Fuzzer local seed queue: `%s` with %d files", local_queue, local_len)
+
     # get seeds from local to global queue, rsync will deal with duplicates
-    self._sync_seeds("GET", global_queue, local_queue)
+    self._sync_seeds(src=local_queue, dest=global_queue)
+    self._sync_seeds(src=local_crashes, dest=global_crashes)
 
     # push seeds from global queue to local, rsync will deal with duplicates
-    self._sync_seeds("PUSH", global_queue, local_queue)
+    self._sync_seeds(src=global_queue, dest=local_queue)

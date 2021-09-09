@@ -1,5 +1,6 @@
 .dockerignore
-Dockerfile
+docker/Dockerfile
+docker/base
 __pycache__
 *.pyc
 *.pyo

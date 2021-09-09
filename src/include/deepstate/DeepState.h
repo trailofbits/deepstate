@@ -19,6 +19,7 @@
 
 #include <assert.h>
 #include <dirent.h>
+#include <inttypes.h>
 #include <libgen.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -55,7 +56,7 @@
 #endif
 
 #ifndef DEEPSTATE_SIZE
-#define DEEPSTATE_SIZE 8192
+#define DEEPSTATE_SIZE 32768
 #endif
 
 #ifndef DEEPSTATE_MAX_SWARM_CONFIGS
@@ -80,6 +81,7 @@ DECLARE_string(input_which_test);
 DECLARE_string(output_test_dir);
 DECLARE_string(test_filter);
 
+DECLARE_bool(input_stdin);
 DECLARE_bool(take_over);
 DECLARE_bool(abort_on_fail);
 DECLARE_bool(exit_on_fail);
@@ -104,9 +106,13 @@ enum {
  * for symbolic values (e.g. `int`s). */
 extern volatile uint8_t DeepState_Input[DeepState_InputSize];
 
+#define DEEPSTATE_READBYTE ((DeepState_UsingSymExec ? 1 : (DeepState_InputIndex < DeepState_InputInitialized ? 1 : (DeepState_InternalFuzzing ? (DeepState_Input[DeepState_InputIndex] = (char)rand()) : (DeepState_Input[DeepState_InputIndex] = 0)))), DeepState_Input[DeepState_InputIndex++])
+
 /* Index into the `DeepState_Input` array that tracks how many input bytes have
  * been consumed. */
 extern uint32_t DeepState_InputIndex;
+extern uint32_t DeepState_InputInitialized;
+extern uint32_t DeepState_InternalFuzzing;
 
 enum DeepState_SwarmType {
   DeepState_SwarmTypePure = 0,
@@ -132,21 +138,29 @@ extern uint32_t DeepState_SwarmConfigsIndex;
 /* Function to return a swarm configuration. */
 extern struct DeepState_SwarmConfig* DeepState_GetSwarmConfig(unsigned fcount, const char* file, unsigned line, enum DeepState_SwarmType stype);
 
+
+#define DEEPSTATE_FOR_EACH_INTEGER(X) \
+    X(Size, size_t, size_t) \
+    X(Long, long, unsigned long) \
+    X(Int64, int64_t, uint64_t) \
+    X(UInt64, uint64_t, uint64_t) \
+    X(Int, int, unsigned) \
+    X(UInt, unsigned, unsigned) \
+    X(Short, short, unsigned short) \
+    X(UShort, unsigned short, unsigned short) \
+    X(Char, char, unsigned char) \
+    X(UChar, unsigned char, unsigned char)
+
 /* Return a symbolic value of a given type. */
 extern int DeepState_Bool(void);
-extern size_t DeepState_Size(void);
-extern long DeepState_Long(void);
-extern float DeepState_Float(void);
-extern double DeepState_Double(void);
-extern uint64_t DeepState_UInt64(void);
-extern int64_t DeepState_Int64(void);
-extern uint32_t DeepState_UInt(void);
-extern int32_t DeepState_Int(void);
-extern int32_t DeepState_RandInt(void);
-extern uint16_t DeepState_UShort(void);
-extern int16_t DeepState_Short(void);
-extern uint8_t DeepState_UChar(void);
-extern int8_t DeepState_Char(void);
+
+#define DEEPSTATE_DECLARE(Tname, tname, utname) \
+    extern tname DeepState_ ## Tname (void);
+
+DEEPSTATE_DECLARE(Float, float, void)
+DEEPSTATE_DECLARE(Double, double, void)
+DEEPSTATE_FOR_EACH_INTEGER(DEEPSTATE_DECLARE)
+#undef DEEPSTATE_DECLARE
 
 /* Returns the minimum satisfiable value for a given symbolic value, given
  * the constraints present on that value. */
@@ -248,13 +262,17 @@ extern void *DeepState_Malloc(size_t num_bytes);
 /* Allocate all the concrete inputs and return a pointer to `num_bytes` symbolic bytes. */
 extern void *DeepState_MallocAll(size_t *num_bytes);
 
+/* Allocate and return a pointer to `num_bytes` symbolic bytes.
+   Ptr will be freed by DeepState at end of test. */
+extern void *DeepState_GCMalloc(size_t num_bytes);
+
 /* Returns the path to a testcase without parsing to any aforementioned types */
 extern const char *DeepState_InputPath(char *testcase_path);
 
 /* Portable and architecture-independent memory scrub without dead store elimination. */
 extern void *DeepState_MemScrub(void *pointer, size_t data_size);
 
-#define DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Tname, tname) \
+#define DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Tname, tname, utname) \
     DEEPSTATE_INLINE static \
     tname *DeepState_Symbolic ## Tname ## Array(size_t num_elms) { \
       tname *arr = (tname *) malloc(sizeof(tname) * num_elms); \
@@ -262,15 +280,7 @@ extern void *DeepState_MemScrub(void *pointer, size_t data_size);
       return arr; \
     }
 
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Int64, int64_t)
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(UInt64, uint64_t)
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Int, int)
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(UInt, uint32_t)
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Short, int16_t)
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(UShort, uint16_t)
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Char, char)
-DEEPSTATE_MAKE_SYMBOLIC_ARRAY(UChar, unsigned char)
-
+DEEPSTATE_FOR_EACH_INTEGER(DEEPSTATE_MAKE_SYMBOLIC_ARRAY)
 #undef DEEPSTATE_MAKE_SYMBOLIC_ARRAY
 
 /* Creates an assumption about a symbolic value. Returns `1` if the assumption
@@ -328,35 +338,16 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
 }
 
 /* Return a symbolic value in a the range `[low_inc, high_inc]`. */
-/* Saturating version here is an alternative, but worse for fuzzing:
-#define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname) \
+
+#define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname, utname) \
     DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
         tname low, tname high) { \
-      if (low > high) { \
-        return DeepState_ ## Tname ## InRange(high, low); \
-      } \
-      const tname x = DeepState_ ## Tname(); \
-      if (DeepState_UsingSymExec) { \
-        (void) DeepState_Assume(low <= x && x <= high); \
-        return x; \
-      } \
-      if (x < low) { \
-        return low; \
-      } else if (x > high) { \
-        return high; \
-      } else { \
-        return x; \
-      } \
-    }
-*/
-#define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname) \
-    DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
-        tname low, tname high) { \
-      if (low > high) { \
-        return DeepState_ ## Tname ## InRange(high, low); \
-      } \
       if (low == high) { \
-        return low;	 \
+        return low; \
+      } else if (low > high) { \
+        const tname copy = high; \
+        high = low; \
+        low = copy; \
       } \
       tname x = DeepState_ ## Tname(); \
       if (DeepState_UsingSymExec) { \
@@ -364,31 +355,34 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
         return x;					\
       } \
       if (FLAGS_verbose_reads) { \
-        printf("Range read low %lld high %lld\n", (long long)low, (long long)high); \
+        printf("Range read low %" PRId64 " high %" PRId64 "\n", \
+               (int64_t)low, (int64_t)high); \
       } \
       if ((x < low) || (x > high)) { \
-        const tname size = (high - low) + 1; \
-        if (x < 0) x = -x;		     \
-        if (x < 0) x = 0;		     \
-        if (FLAGS_verbose_reads) { \
-          printf("Converting out-of-range value to %lld\n", (long long)(low + (x % size))); \
+        const utname ux = (utname) x; \
+        utname usize; \
+	if (__builtin_sub_overflow(high, low, &usize)) {	\
+	  return low; /* Always legal */ 			\
+	} \
+	if (__builtin_add_overflow(usize, 1, &usize)) { \
+	  return high; /* Always legal */ \
         } \
-        return low + (x % size); \
+        const utname ux_clamped = ux % usize; \
+        const tname x_clamped = (tname) ux_clamped; \
+	tname ret; \
+	if (__builtin_add_overflow(low, x_clamped, &ret)) {	\
+	  return high; /* Always legal */ \
+	} \
+        if (FLAGS_verbose_reads) { \
+          printf("Converting out-of-range value to %" PRId64 "\n", \
+                 (int64_t)ret); \
+        } \
+        return ret; \
       } \
       return x; \
     }
 
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(Size, size_t)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(Long, long)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(Int64, int64_t)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(UInt64, uint64_t)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(Int, int)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(UInt, uint32_t)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(Short, int16_t)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(UShort, uint16_t)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(Char, char)
-DEEPSTATE_MAKE_SYMBOLIC_RANGE(UChar, unsigned char)
-
+DEEPSTATE_FOR_EACH_INTEGER(DEEPSTATE_MAKE_SYMBOLIC_RANGE)
 #undef DEEPSTATE_MAKE_SYMBOLIC_RANGE
 
 extern float DeepState_FloatInRange(float low, float high);
@@ -443,6 +437,68 @@ DEEPSTATE_INLINE static int DeepState_IsSymbolicFloat(float x) {
 DEEPSTATE_INLINE static int DeepState_IsSymbolicDouble(double x) {
   return DeepState_IsSymbolicUInt64(*((uint64_t *) &x));
 }
+
+/* Basically an ASSUME that also assigns to v; P should be side-effect
+   free, and type of v should be integral. */
+#ifndef DEEPSTATE_MAX_SEARCH_ITERS
+#define DEEPSTATE_MAX_SEARCH_ITERS 4294967296 // 2^32 is enough expense
+#endif
+
+#define ASSIGN_SATISFYING(v, expr, P) \
+  do { \
+    v = (expr); \
+    if (DeepState_UsingSymExec) { \
+      (void) DeepState_Assume(P); \
+    } else { \
+      unsigned long long DeepState_assume_iters = 0; \
+      unsigned long long DeepState_safe_incr_v = (unsigned long long) v; \
+      unsigned long long DeepState_safe_decr_v = (unsigned long long) v; \
+      while(!(P)) { \
+	if (DeepState_assume_iters > DEEPSTATE_MAX_SEARCH_ITERS) { \
+	  (void) DeepState_Assume(0); \
+	} \
+	DeepState_assume_iters++; \
+	DeepState_safe_incr_v++; \
+        v = DeepState_safe_incr_v; \
+	if (!(P)) { \
+	  DeepState_safe_decr_v--;   \
+          v = DeepState_safe_decr_v; \
+	} \
+      } \
+    } \
+  } while (0);
+
+/* Basically an ASSUME that also assigns to v in range low to high;
+   P should be side-effect free, and type of v should be integral. */
+
+#define ASSIGN_SATISFYING_IN_RANGE(v, expr, low, high, P) \
+  do { \
+    v = (expr); \
+    (void) DeepState_Assume(low <= v && v <= high); \
+    if (DeepState_UsingSymExec) { \
+      (void) DeepState_Assume(P);\
+    } else { \
+      unsigned long long DeepState_assume_iters = 0; \
+      long long DeepState_safe_incr_v = (long long) v; \
+      long long DeepState_safe_decr_v = (long long) v; \
+      while(!(P)) { \
+	if (DeepState_assume_iters > DEEPSTATE_MAX_SEARCH_ITERS) { \
+	  (void) DeepState_Assume(0); \
+	} \
+	DeepState_assume_iters++; \
+	if (DeepState_safe_incr_v < high) {	\
+	  DeepState_safe_incr_v++; \
+          v = DeepState_safe_incr_v; \
+	} else if (DeepState_safe_decr_v == low) { \
+	  (void) DeepState_Assume(0); \
+	} \
+	if (!(P) && (DeepState_safe_decr_v > low)) {	\
+	  DeepState_safe_decr_v--; \
+          v = DeepState_safe_decr_v; \
+	} \
+      } \
+    } \
+  } while (0);
 
 /* Used to define the entrypoint of a test case. */
 #define DeepState_EntryPoint(test_name) \
@@ -499,9 +555,6 @@ extern void DeepState_Setup(void);
 
 /* Tear down DeepState. */
 extern void DeepState_Teardown(void);
-
-/* Notify that we're about to begin a test while running under Dr. Fuzz. */
-extern void DeepState_BeginDrFuzz(struct DeepState_TestInfo *info);
 
 /* Notify that we're about to begin a test. */
 extern void DeepState_Begin(struct DeepState_TestInfo *info);
@@ -580,8 +633,7 @@ static void DeepState_InitInputFromFile(const char *path) {
     to_read = DeepState_InputSize;
   }
 
-  /* Reset the input buffer and reset the index. */
-  DeepState_MemScrub((void *) DeepState_Input, sizeof(DeepState_Input));
+  /* Reset the index. */
   DeepState_InputIndex = 0;
   DeepState_SwarmConfigsIndex = 0;
 
@@ -593,9 +645,28 @@ static void DeepState_InitInputFromFile(const char *path) {
     DeepState_Abandon("Error reading file");
   }
 
+  DeepState_InputInitialized = count;
+
   DeepState_LogFormat(DeepState_LogTrace,
-                      "Initialized test input buffer with data from `%s`",
-                      path);
+                      "Initialized test input buffer with %zu bytes of data from `%s`",
+                      count, path);
+}
+
+/* Resets the global `DeepState_Input` buffer, then fills it with the
+ * data found in the file `path`. */
+static void DeepState_InitInputFromStdin() {
+
+  /* Reset the index. */
+  DeepState_InputIndex = 0;
+  DeepState_SwarmConfigsIndex = 0;
+
+  size_t count = read(STDIN_FILENO, (void *) DeepState_Input, DeepState_InputSize);
+
+  DeepState_InputInitialized = count;
+
+  DeepState_LogFormat(DeepState_LogTrace,
+                      "Initialized test input buffer with %zu bytes of data from stdin",
+                      count);
 }
 
 /* Run a test case, assuming we have forked from the test harness to do so.
@@ -630,7 +701,7 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
     /* The test was abandoned. We may have gotten soft failures before
      * abandoning, so we prefer to catch those first. */
   } else if (DeepState_CatchAbandoned()) {
-    DeepState_LogFormat(DeepState_LogError, "Abandoned: %s", test->test_name);
+    DeepState_LogFormat(DeepState_LogTrace, "Abandoned: %s", test->test_name);
     exit(DeepState_TestRunAbandon);
 
     /* The test passed. */
@@ -677,7 +748,7 @@ static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
     /* The test was abandoned. We may have gotten soft failures before
      * abandoning, so we prefer to catch those first. */
   } else if (DeepState_CatchAbandoned()) {
-    DeepState_LogFormat(DeepState_LogError, "Abandoned: %s", test->test_name);
+    DeepState_LogFormat(DeepState_LogTrace, "Abandoned: %s", test->test_name);
     return(DeepState_TestRunAbandon);
 
     /* The test passed. */
@@ -743,7 +814,11 @@ DeepState_RunSavedTestCase(struct DeepState_TestInfo *test, const char *dir,
       snprintf(path, path_len, "%s", name);
     }
 
-    DeepState_InitInputFromFile(path);
+    if (!(strncmp(name, "** STDIN **", strlen(name)) == 0)) {
+      DeepState_InitInputFromFile(path);
+    } else {
+      DeepState_InitInputFromStdin();
+    }
 
     DeepState_Begin(test);
 
@@ -907,6 +982,50 @@ static int DeepState_RunSingleSavedTestCase(void) {
   return num_failed_tests;
 }
 
+/* Run test from stdin, under `FLAGS_input_which_test`
+ * or first test, if not defined. */
+static int DeepState_RunTestFromStdin(void) {
+  int num_failed_tests = 0;
+  struct DeepState_TestInfo *test = NULL;
+
+  for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
+    if (HAS_FLAG_input_which_test) {
+      if (strcmp(FLAGS_input_which_test, test->test_name) == 0) {
+        break;
+      }
+    } else {
+      DeepState_LogFormat(DeepState_LogWarning,
+			  "No test specified, defaulting to first test defined (%s)",
+			  test->test_name);
+      break;
+    }
+  }
+
+  if (test == NULL) {
+    DeepState_LogFormat(DeepState_LogInfo,
+                        "Could not find matching test for %s",
+                        FLAGS_input_which_test);
+    return 0;
+  }
+
+  enum DeepState_TestRunResult result =
+    DeepState_RunSavedTestCase(test, "", "** STDIN **");
+
+  if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
+    if (FLAGS_abort_on_fail) {
+      DeepState_HardCrash();
+    }
+    if (FLAGS_exit_on_fail) {
+      exit(255); // Terminate the testing
+    }
+    num_failed_tests++;
+  }
+
+  DeepState_Teardown();
+
+  return num_failed_tests;
+}
+
 extern int DeepState_Fuzz(void);
 
 /* Run tests from `FLAGS_input_test_files_dir`, under `FLAGS_input_which_test`
@@ -1020,6 +1139,10 @@ static int DeepState_Run(void) {
     return DeepState_RunSingleSavedTestCase();
   }
 
+  if (HAS_FLAG_input_stdin) {
+    return DeepState_RunTestFromStdin();
+  }
+
   if (HAS_FLAG_input_test_dir) {
     return DeepState_RunSavedTestCases();
   }
@@ -1033,7 +1156,6 @@ static int DeepState_Run(void) {
   }
 
   int num_failed_tests = 0;
-  int use_drfuzz = getenv("DYNAMORIO_EXE_PATH") != NULL;
   struct DeepState_TestInfo *test = NULL;
 
 
@@ -1067,23 +1189,10 @@ static int DeepState_Run(void) {
 	  }
 	}
 
-	/* Check if we should use Dr.Fuzz or run regularly */
-	if (use_drfuzz) {
-      if (!fork()) {
-        DeepState_BeginDrFuzz(test);
-      } else {
-        continue;
-      }
-    } else {
-	  DeepState_Begin(test);
-      if (DeepState_ForkAndRunTest(test) != 0) {
-        num_failed_tests++;
-      }
-	}
-  }
-
-  if (use_drfuzz) {
-    waitpid(-1, NULL, 0);  /* Wait for all children. */
+	DeepState_Begin(test);
+    if (DeepState_ForkAndRunTest(test) != 0) {
+      num_failed_tests++;
+    }
   }
 
   DeepState_Teardown();

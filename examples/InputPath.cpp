@@ -75,5 +75,5 @@ TEST(InputPath, Deserialize) {
   Datastore store = parse_file(path);
 
   ASSERT(store.id == 0) << "initial user does not have a 0 id";
-  ASSERT(store.data != "Admin") << "cannot have admin username";
+  ASSERT(strcmp("Admin", store.data) != 0) << "cannot have admin username";
 }

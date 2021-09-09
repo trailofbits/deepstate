@@ -1,105 +1,115 @@
-FROM ubuntu:18.04
+# -- AFL
+FROM deepstate-base AS AFL
+COPY ./docker/install_afl.sh ./
+ARG make_j
+RUN bash install_afl.sh $make_j
 
-# Set up the non-root user
-RUN apt-get update \
-    &&  apt-get -y install sudo \
-    && useradd -ms /bin/bash user && echo "user:user" | chpasswd && adduser user sudo
+# -- Honggfuzz
+FROM deepstate-base AS Honggfuzz
+COPY ./docker/install_honggfuzz.sh ./
+ARG make_j
+RUN bash install_honggfuzz.sh $make_j
 
-ADD /docker/sudoers.txt /etc/sudoers
+# -- Eclipser
+FROM deepstate-base AS Eclipser
+COPY ./docker/install_eclipser.sh ./
+ARG make_j
+RUN bash install_eclipser.sh $make_j
 
-ENV ECLIPSER_HOME /home/user/Eclipser/build
+# -- Angora
+FROM deepstate-base AS Angora
+COPY ./docker/install_angora.sh ./
+ARG make_j
+RUN bash install_angora.sh $make_j
 
-WORKDIR /home/user
+# -- DeepState
+FROM deepstate-base
+ENV DEPS_DIR /home/user/deps
+ARG make_j
 
-COPY . /home/user/deepstate
+# Angr, Manticore
+RUN echo 'Installing angr and manticore' \
+    && sudo add-apt-repository -y ppa:sri-csl/formal-methods \
+    && sudo apt-get -y update \
+    && sudo apt-get -y install yices2 \
+    && pip3 install z3-solver angr git+git://github.com/trailofbits/manticore.git --user
 
-# Eclipser requires deb-src entries
-RUN echo 'deb-src http://archive.ubuntu.com/ubuntu/ bionic main restricted \n\
-deb-src http://archive.ubuntu.com/ubuntu/ bionic-updates main restricted \n\
-deb-src http://archive.ubuntu.com/ubuntu/ bionic universe \n\
-deb-src http://archive.ubuntu.com/ubuntu/ bionic-updates universe \n\
-deb-src http://archive.ubuntu.com/ubuntu/ bionic multiverse \n\
-deb-src http://archive.ubuntu.com/ubuntu/ bionic-updates multiverse \n\
-deb-src http://archive.ubuntu.com/ubuntu/ bionic-backports main restricted universe multiverse \n\
-deb-src http://archive.canonical.com/ubuntu bionic partner \n\
-deb-src http://security.ubuntu.com/ubuntu/ bionic-security main restricted \n\
-deb-src http://security.ubuntu.com/ubuntu/ bionic-security universe \n\
-deb-src http://security.ubuntu.com/ubuntu/ bionic-security multiverse' >> /etc/apt/sources.list
-
-# Install Eclipser dependencies
-RUN apt-get update \
-    && apt-get -y build-dep qemu \
-    && apt-get install -y libtool \
-    libtool-bin wget automake autoconf \
-    bison gdb git apt-transport-https \
+# Eclipser - not deepstate dependent
+COPY --from=Eclipser /home/user/Eclipser/build $DEPS_DIR/eclipser
+RUN echo 'Eclipser - installing dotnet' \
     && wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb \
-    && dpkg -i packages-microsoft-prod.deb \
-    && apt-get update \
-    && apt-get install -y dotnet-sdk-2.2
+    && sudo dpkg -i packages-microsoft-prod.deb \
+    && sudo apt-get update \
+    && sudo apt-get install -y dotnet-sdk-2.2
+COPY --from=Eclipser /home/user/.nuget /home/user/.nuget
 
-# Install Angora dependencies
-#RUN apt-get install -y rustc \
-#    cargo libstdc++-7-dev
+# Angora part 1 - not deepstate dependent
+COPY --from=Angora /home/user/Angora $DEPS_DIR/angora
+COPY --from=Angora /home/user/clang+llvm $DEPS_DIR/angora/clang+llvm
 
-# Install DeepState/AFL/libFuzzer dependencies
-RUN apt-get install -y build-essential \
-    && apt-get install -y clang \
-    gcc-multilib g++-multilib cmake \
-    python3-setuptools libffi-dev z3 python3-pip \
-    && rm -rf /var/lib/apt/lists/*
+# copy deepstate code here to use cache as much as possible
+COPY . ./deepstate
+RUN sudo chown user:user -R ./deepstate
+WORKDIR ./deepstate
 
-RUN chown -R user:user /home/user
+# Angora part 2
+# ignore errors in `make`, because Angora doesn't support 32bit builds
+RUN echo 'Building deepstate with Angora - taint' \
+    && mkdir -p build_angora_taint && cd build_angora_taint \
+    && export PATH="$DEPS_DIR/angora/clang+llvm/bin:$PATH" \
+    && export LD_LIBRARY_PATH="$DEPS_DIR/angora/clang+llvm/lib:$LD_LIBRARY_PATH" \
+    && export USE_TRACK=1 \
+    && export ANGORA_HOME="$DEPS_DIR/angora" \
+    && CXX="$ANGORA_HOME/bin/angora-clang++" CC="$ANGORA_HOME/bin/angora-clang" cmake -DDEEPSTATE_ANGORA=ON ../ \
+    && make -j $make_j -i \
+    && sudo cp ./libdeepstate_taint.a /usr/local/lib/
 
-USER user
+RUN echo 'Building deepstate with Angora - fast' \
+    && mkdir -p build_angora_fast && cd build_angora_fast \
+    && export PATH="$DEPS_DIR/angora/clang+llvm/bin:$PATH" \
+    && export LD_LIBRARY_PATH="$DEPS_DIR/angora/clang+llvm/lib:$LD_LIBRARY_PATH" \
+    && export USE_FAST=1 \
+    && export ANGORA_HOME="$DEPS_DIR/angora" \
+    && CXX="$ANGORA_HOME/bin/angora-clang++" CC="$ANGORA_HOME/bin/angora-clang" cmake -DDEEPSTATE_ANGORA=ON ../ \
+    && make -j $make_j -i \
+    && sudo cp ./libdeepstate_fast.a /usr/local/lib/
 
-# Install AFL
-RUN wget http://lcamtuf.coredump.cx/afl/releases/afl-latest.tgz \
-    && tar -xzvf afl-latest.tgz \
-    && rm -rf afl-latest.tgz \
-    && cd afl-2.52b/ \
-    && make \
+# general
+RUN echo 'Building deepstate' \
+    && mkdir -p ./build_deepstate && cd ./build_deepstate \
+    && CXX=clang++ CC=clang cmake ../ \
+    && make -j $make_j \
     && sudo make install
 
-# Install Eclipser
-RUN git clone https://github.com/SoftSec-KAIST/Eclipser \
-    && cd Eclipser \
-    && make \
-    && cd ../
-
-ENV PATH "${ECLIPSER_HOME}:${PATH}"
-
-# Install Angora
-#RUN git clone https://github.com/AngoraFuzzer/Angora \
-#    && cd Angora \
-#    && ./build/build.sh \
-#    && cd ../
-
-#ENV ANGORA=/home/user/Angora
-
-# Install DeepState using a few different compilers for AFL/libFuzzer/Eclipser/Angora+normal
-RUN cd deepstate \
-    && rm -Rf CMakeFiles CMakeCache.txt \
-    && rm -Rf build \
-    && mkdir -p build \
-    && cd build \
-    && rm -rf CMakeFiles CMakeCache.txt \
-    && CXX=afl-clang++ CC=afl-clang cmake -DDEEPSTATE_AFL=ON ../ \
-    && sudo make install \
-    && rm -rf CMakeFiles CMakeCache.txt \
+# libFuzzer
+RUN echo 'Building deepstate with libFuzzer' \
+    && mkdir -p build_libfuzzer && cd build_libfuzzer \
     && CXX=clang++ CC=clang cmake -DDEEPSTATE_LIBFUZZER=ON ../ \
-    && sudo make install \
-#    && rm -rf CMakeFiles CMakeCache.txt \
-#    && USE_TRACK=1 CXX=$ANGORA/bin/angora-clang++ CC=$ANGORA/bin/angora-clang cmake -DDEEPSTATE_ANGORA=ON ../ \
-#    && export USE_TRACK=1 && sudo -E sh -c 'make -i install' \
-#    && make clean \
-#    && rm -rf CMakeFiles CMakeCache.txt \
-#    && CXX=$ANGORA/bin/angora-clang++ CC=$ANGORA/bin/angora-clang cmake -DDEEPSTATE_ANGORA=ON ../ \
-#    && export USE_FAST=1 && sudo -E sh -c 'make install' \
-    && cd .. \
-    && sudo pip3 install z3-solver angr git+git://github.com/trailofbits/manticore.git \
-    && sudo python3 ./build/setup.py install
+    && make -j $make_j \
+    && sudo cp ./libdeepstate_LF.a /usr/local/lib/
 
-ENV CC=clang
-ENV CXX=clang++
+# AFL
+COPY --from=AFL /home/user/afl-2.52b $DEPS_DIR/afl
+RUN echo 'Building deepstate with AFL' \
+    && mkdir -p build_afl && cd build_afl \
+    && export AFL_HOME="$DEPS_DIR/afl" \
+    && CXX="$AFL_HOME/afl-clang++" CC="$AFL_HOME/afl-clang" cmake -DDEEPSTATE_AFL=ON ../ \
+    && make -j $make_j \
+    && sudo cp ./libdeepstate_AFL.a /usr/local/lib/
+
+# Honggfuzz
+COPY --from=Honggfuzz /home/user/honggfuzz $DEPS_DIR/honggfuzz
+RUN sudo apt-get update && sudo apt-get -y install libunwind-dev
+RUN echo "HELLO SAILOR" \
+RUN echo 'Building deepstate with Honggfuzz' \
+    && mkdir -p build_honggfuzz && cd build_honggfuzz \
+    && export HONGGFUZZ_HOME="$DEPS_DIR/honggfuzz" \
+    && CXX="$HONGGFUZZ_HOME/hfuzz_cc/hfuzz-clang++" CC="$HONGGFUZZ_HOME/hfuzz_cc/hfuzz-clang" cmake -DDEEPSTATE_HONGGFUZZ=ON ../ \
+    && make -j $make_j \
+    && sudo cp ./libdeepstate_HFUZZ.a /usr/local/lib/
+
+ENV CXX=clang++ CC=clang
+ENV AFL_HOME="$DEPS_DIR/afl" HONGGFUZZ_HOME="$DEPS_DIR/honggfuzz" \
+    ANGORA_HOME="$DEPS_DIR/angora" ECLIPSER_HOME="$DEPS_DIR/eclipser"
 
 CMD ["/bin/bash"]

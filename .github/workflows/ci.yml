@@ -23,25 +23,25 @@ jobs:
           pip install pyflakes mypy
       - name: Lint
         run: |
-          pyflakes bin/deepstate/*.py
-          pyflakes tests/*.py
+          find ./bin -name '*.py' -exec pyflakes "{}" \;
+          find ./tests -name '*.py' -exec pyflakes "{}" \;
           mypy --strict-optional --config-file mypy.ini bin/deepstate
   build:
     strategy:
       matrix:
         env:
-          - TEST: crash
-          - TEST: fixture
-          - TEST: klee
-          - TEST: lists
-          - TEST: oneof
-          - TEST: runlen
-          - TEST: runlen
-          - TEST: overflow
-          - TEST: primes
-          - TEST: takeover
-          # - TEST: streamingandformatting
-          # - TEST: boringdisabled
+          - TEST: sanity_check
+         # - TEST: crash
+         # - TEST: fixture
+         # - TEST: klee
+         # - TEST: lists
+         # - TEST: oneof
+         # - TEST: runlen
+         # - TEST: overflow
+         # - TEST: primes
+         # - TEST: takeover
+         # - TEST: streamingandformatting
+         # - TEST: boringdisabled
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -50,7 +50,8 @@ jobs:
           python-version: "3.6"
       - name: Install dependencies
         run: |
-          sudo apt install build-essential gcc-multilib cmake libffi-dev
+          sudo apt-get update
+          sudo apt-get install -y build-essential gcc-multilib cmake libffi-dev
           python -m pip install --upgrade pip
           pip install z3-solver angr nose
           pip install git+git://github.com/trailofbits/manticore.git
@@ -62,16 +63,3 @@ jobs:
       - name: Test
         run: |
           nosetests tests/test_${{ matrix.env.TEST }}.py
-  container:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Build and publish container
-        uses: elgohr/Publish-Docker-Github-Action@master
-        with:
-          name: trailofbits/deepstate/deepstate
-          registry: docker.pkg.github.com
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-          dockerfile: docker/Dockerfile
-          tag_names: true
