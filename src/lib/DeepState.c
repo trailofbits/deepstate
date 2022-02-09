@@ -788,6 +788,11 @@ void DeepState_Setup(void) {
 
   /* Sort the test cases by line number. */
   struct DeepState_TestInfo *current = DeepState_LastTestInfo;
+  if (current == NULL) {
+    DeepState_LogFormat(DeepState_LogError,
+       "No tests to run have been defined!  Did you include the harness to compile?");
+    exit(1);
+  }
   struct DeepState_TestInfo *min_node = current->prev;
   current->prev = NULL;
 
