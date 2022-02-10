@@ -2,7 +2,7 @@
 FROM deepstate-base AS AFL
 COPY ./docker/install_afl.sh ./
 ARG make_j
-RUN bash install_afl.sh $make_j
+RUN conda activate deepstate_env && bash install_afl.sh $make_j
 
 # -- Honggfuzz
 FROM deepstate-base AS Honggfuzz
@@ -20,7 +20,7 @@ RUN bash install_eclipser.sh $make_j
 FROM deepstate-base AS Angora
 COPY ./docker/install_angora.sh ./
 ARG make_j
-RUN bash install_angora.sh $make_j
+RUN conda activate deepstate_env && bash install_angora.sh $make_j
 
 # -- DeepState
 FROM deepstate-base
@@ -29,10 +29,15 @@ ARG make_j
 
 # Angr, Manticore
 RUN echo 'Installing angr and manticore' \
+    && sudo apt -y update \
     && sudo add-apt-repository -y ppa:sri-csl/formal-methods \
     && sudo apt-get -y update \
     && sudo apt-get -y install yices2 \
-    && pip3 install z3-solver angr git+git://github.com/trailofbits/manticore.git --user
+    && conda activate deepstate_env \
+    && pip install z3-solver angr git+git://github.com/trailofbits/manticore.git --user
+
+RUN conda activate deepstate_env \
+    && pip install z3-solver angr git+git://github.com/trailofbits/manticore.git --user
 
 # Eclipser - not deepstate dependent
 COPY --from=Eclipser /home/user/Eclipser/build $DEPS_DIR/eclipser
@@ -76,6 +81,7 @@ RUN echo 'Building deepstate with Angora - fast' \
 
 # general
 RUN echo 'Building deepstate' \
+    && conda activate deepstate_env \
     && mkdir -p ./build_deepstate && cd ./build_deepstate \
     && CXX=clang++ CC=clang cmake ../ \
     && make -j $make_j \
@@ -83,6 +89,7 @@ RUN echo 'Building deepstate' \
 
 # libFuzzer
 RUN echo 'Building deepstate with libFuzzer' \
+    && conda activate deepstate_env \
     && mkdir -p build_libfuzzer && cd build_libfuzzer \
     && CXX=clang++ CC=clang cmake -DDEEPSTATE_LIBFUZZER=ON ../ \
     && make -j $make_j \
@@ -91,6 +98,7 @@ RUN echo 'Building deepstate with libFuzzer' \
 # AFL
 COPY --from=AFL /home/user/afl-2.52b $DEPS_DIR/afl
 RUN echo 'Building deepstate with AFL' \
+    && conda activate deepstate_env \
     && mkdir -p build_afl && cd build_afl \
     && export AFL_HOME="$DEPS_DIR/afl" \
     && CXX="$AFL_HOME/afl-clang++" CC="$AFL_HOME/afl-clang" cmake -DDEEPSTATE_AFL=ON ../ \
@@ -102,6 +110,7 @@ COPY --from=Honggfuzz /home/user/honggfuzz $DEPS_DIR/honggfuzz
 RUN sudo apt-get update && sudo apt-get -y install libunwind-dev
 RUN echo "HELLO SAILOR" \
 RUN echo 'Building deepstate with Honggfuzz' \
+    && conda activate deepstate_env \
     && mkdir -p build_honggfuzz && cd build_honggfuzz \
     && export HONGGFUZZ_HOME="$DEPS_DIR/honggfuzz" \
     && CXX="$HONGGFUZZ_HOME/hfuzz_cc/hfuzz-clang++" CC="$HONGGFUZZ_HOME/hfuzz_cc/hfuzz-clang" cmake -DDEEPSTATE_HONGGFUZZ=ON ../ \
