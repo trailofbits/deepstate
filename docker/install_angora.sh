@@ -12,7 +12,8 @@ sudo apt-get install -y rustc \
     && sudo rm -rf /var/lib/apt/lists/*
 
 # set proper LLVM version
-export LLVM_VER=7.0.0
+export LLVM_VER=11.0.1
+export LINUX_VER=ubuntu-16.04
 export PATH="$(pwd)/clang+llvm/bin:$PATH"
 export LD_LIBRARY_PATH="$(pwd)/clang+llvm/lib:$LD_LIBRARY_PATH"
 
