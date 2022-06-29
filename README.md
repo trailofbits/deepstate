@@ -195,6 +195,9 @@ Check out [docs](/docs) folder:
 * [Fuzzing](/docs/fuzzing.md)
 * [Swarm testing](/docs/swarm_testing.md)
 
+## External Tools
+
+DeepState can be used to test R packages written using the popular Rcpp package.  The [Rcppdeepstate tool](https://github.com/akhikolla/RcppDeepState) is described in a [paper presented at the 2021 IEEE International Symposium on Software Reliability Engineering](https://agroce.github.io/issre21.pdf).
 
 ## Contributing
 
