@@ -93,18 +93,11 @@ if (DEEPSTATE_ANGORA)
   string(FIND "${CMAKE_C_COMPILER}" "angora-clang" _angora_found)
   if(_angora_found EQUAL -1)
     message(FATAL_ERROR "DeepState's Angora mode requires the angora-clang C compiler.")
-  elseif(CMAKE_C_COMPILER_VERSION VERSION_LESS "4.0.0" OR CMAKE_C_COMPILER_VERSION VERSION_GREATER "7.1.0")
-    message("X " ${CMAKE_C_COMPILER})
-    message(FATAL_ERROR "DeepState's Angora mode requires the main compiler to be clang 4.0.0-7.1.0\n"
-                        "export PATH to \"$ANGORA_HOME/clang+llvm/bin:$PATH\"")
   endif()
 
   string(FIND "${CMAKE_CXX_COMPILER}" "angora-clang++" _angora_found)
   if(_angora_found EQUAL -1)
     message(FATAL_ERROR "DeepState's Angora mode requires the angora-clang++ C++ compiler.")
-  elseif(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.0.0" OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "7.1.0")
-    message(FATAL_ERROR "DeepState's Angora mode requires the main compiler to be clang++ 4.0.0-7.1.0\n"
-                        "export PATH to \"$ANGORA_HOME/clang+llvm/bin:$PATH\"")
   endif()
 endif()
 
