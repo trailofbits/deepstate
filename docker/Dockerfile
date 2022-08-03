@@ -11,10 +11,10 @@ RUN bash install_afl.sh $make_j
 # RUN bash install_honggfuzz.sh $make_j
 
 # -- Eclipser
-# FROM deepstate-base AS Eclipser
-# COPY ./docker/install_eclipser.sh ./
-# ARG make_j
-# RUN bash install_eclipser.sh $make_j
+FROM deepstate-base AS Eclipser
+COPY ./docker/install_eclipser.sh ./
+ARG make_j
+RUN bash install_eclipser.sh $make_j
 
 # -- Angora
 # FROM deepstate-base AS Angora
@@ -35,13 +35,13 @@ ARG make_j
 #    && pip3 install z3-solver angr git+git://github.com/trailofbits/manticore.git --user
 
 # Eclipser - not deepstate dependent
-# COPY --from=Eclipser /home/user/Eclipser/build $DEPS_DIR/eclipser
-# RUN echo 'Eclipser - installing dotnet' \
-#    && wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb \
-#    && sudo dpkg -i packages-microsoft-prod.deb \
-#    && sudo apt-get update \
-#    && sudo apt-get install -y dotnet-sdk-2.2
-# COPY --from=Eclipser /home/user/.nuget /home/user/.nuget
+COPY --from=Eclipser /home/user/Eclipser/build $DEPS_DIR/eclipser
+RUN echo 'Eclipser - installing dotnet' \
+    && wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb \
+    && sudo dpkg -i packages-microsoft-prod.deb \
+    && sudo apt-get update \
+    && sudo apt-get install -y dotnet-sdk-2.2
+COPY --from=Eclipser /home/user/.nuget /home/user/.nuget
 
 # Angora part 1 - not deepstate dependent
 # COPY --from=Angora /home/user/Angora $DEPS_DIR/angora
