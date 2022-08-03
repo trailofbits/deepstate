@@ -31,7 +31,7 @@ setuptools.setup(
     author_email="peter@trailofbits.com",
     license="Apache-2.0",
     keywords="tdd testing symbolic execution",
-    install_requires=["angr ; sys_platform != 'darwin'", "manticore ; sys_platform != 'darwin'"],
+    install_requires=["psutil"],
     extras_require={
         'dev': ['mypy']
     },
