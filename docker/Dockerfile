@@ -5,10 +5,10 @@ ARG make_j
 RUN bash install_afl.sh $make_j
 
 # -- Honggfuzz
-FROM deepstate-base AS Honggfuzz
-COPY ./docker/install_honggfuzz.sh ./
-ARG make_j
-RUN bash install_honggfuzz.sh $make_j
+# FROM deepstate-base AS Honggfuzz
+# COPY ./docker/install_honggfuzz.sh ./
+# ARG make_j
+# RUN bash install_honggfuzz.sh $make_j
 
 # -- Eclipser
 FROM deepstate-base AS Eclipser
@@ -98,15 +98,15 @@ RUN echo 'Building deepstate with AFL' \
     && sudo cp ./libdeepstate_AFL.a /usr/local/lib/
 
 # Honggfuzz
-COPY --from=Honggfuzz /home/user/honggfuzz $DEPS_DIR/honggfuzz
-RUN sudo apt-get update && sudo apt-get -y install libunwind-dev
-RUN echo "HELLO SAILOR" \
-RUN echo 'Building deepstate with Honggfuzz' \
-    && mkdir -p build_honggfuzz && cd build_honggfuzz \
-    && export HONGGFUZZ_HOME="$DEPS_DIR/honggfuzz" \
-    && CXX="$HONGGFUZZ_HOME/hfuzz_cc/hfuzz-clang++" CC="$HONGGFUZZ_HOME/hfuzz_cc/hfuzz-clang" cmake -DDEEPSTATE_HONGGFUZZ=ON ../ \
-    && make -j $make_j \
-    && sudo cp ./libdeepstate_HFUZZ.a /usr/local/lib/
+# COPY --from=Honggfuzz /home/user/honggfuzz $DEPS_DIR/honggfuzz
+# RUN sudo apt-get update && sudo apt-get -y install libunwind-dev
+# RUN echo "HELLO SAILOR" \
+# RUN echo 'Building deepstate with Honggfuzz' \
+#    && mkdir -p build_honggfuzz && cd build_honggfuzz \
+#    && export HONGGFUZZ_HOME="$DEPS_DIR/honggfuzz" \
+#    && CXX="$HONGGFUZZ_HOME/hfuzz_cc/hfuzz-clang++" CC="$HONGGFUZZ_HOME/hfuzz_cc/hfuzz-clang" cmake -DDEEPSTATE_HONGGFUZZ=ON ../ \
+#    && make -j $make_j \
+#    && sudo cp ./libdeepstate_HFUZZ.a /usr/local/lib/
 
 ENV CXX=clang++ CC=clang
 ENV AFL_HOME="$DEPS_DIR/afl" HONGGFUZZ_HOME="$DEPS_DIR/honggfuzz" \
