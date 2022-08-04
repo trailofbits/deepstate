@@ -14,7 +14,7 @@ USER user
 # Install general dependencies
 RUN sudo apt update && sudo apt-get install -y build-essential \
     gcc-multilib g++-multilib cmake \
-    python3-setuptools libffi-dev z3 python3-pip \
+    python3-setuptools libffi-dev z3 python3-pip python3.7 python3.7-dev \
     git wget lsb-release software-properties-common \
     && sudo rm -rf /var/lib/apt/lists/*
 
@@ -36,3 +36,6 @@ RUN sudo apt-get update && sudo apt-get -y install libllvm-$LLVM_VER-ocaml-dev \
 
 RUN sudo ln -s $(which clang-$LLVM_VER) /usr/bin/clang 
 RUN sudo ln -s $(which clang++-$LLVM_VER) /usr/bin/clang++ 
+
+
+

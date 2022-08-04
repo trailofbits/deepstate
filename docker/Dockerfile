@@ -28,11 +28,14 @@ ENV DEPS_DIR /home/user/deps
 ARG make_j
 
 # Angr, Manticore
-# RUN echo 'Installing angr and manticore' \
-#    && sudo add-apt-repository -y ppa:sri-csl/formal-methods \
-#    && sudo apt-get -y update \
-#    && sudo apt-get -y install yices2 \
-#    && pip3 install z3-solver angr git+git://github.com/trailofbits/manticore.git --user
+RUN echo 'Installing angr and manticore' \
+    && sudo add-apt-repository -y ppa:sri-csl/formal-methods \
+    && sudo apt-get -y update \
+    && sudo apt-get -y install yices2 \
+    && sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.7 1 \
+    && pip3 install --user cython \
+    && pip3 install --user cytoolz \
+    && pip3 install --user z3-solver manticore
 
 # Eclipser - not deepstate dependent
 COPY --from=Eclipser /home/user/Eclipser/build $DEPS_DIR/eclipser
