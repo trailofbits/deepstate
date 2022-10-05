@@ -15,23 +15,6 @@
  */
 
 
-#include <deepstate/DeepState.hpp>
 
-using namespace deepstate;
 
-DEEPSTATE_NOINLINE static unsigned segfault(unsigned x) {
-  if (x == 0x1234) {  // Magic number for engine to discover
-    unsigned *p = NULL;
-    *(p+1) = 0xdeadbeef;  // Trigger segfault here
-  }
-
-  return x;
-}
-
-TEST(Crash, SegFault) {
-  symbolic_unsigned x;
-
-  segfault(x);
-
-  ASSERT_EQ(x, x);
 }
