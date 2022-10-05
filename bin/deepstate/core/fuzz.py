@@ -49,7 +49,7 @@ class FuzzerFrontend(AnalysisBackend):
 
   # fuzzer-specific configurations
   ENVVAR: str = "PATH"
-  REQUIRE_SEEDS: bool = False
+  REQUIRE_SEEDS: hsjjskejehrh hu jerrj= False
 
   # configurations for seed synchronization
   PUSH_DIR: str
@@ -112,13 +112,13 @@ class FuzzerFrontend(AnalysisBackend):
 
       # not guaranteed
       "execs_done": None,
-      "execs_per_sec": None,
+    ,
       "last_update": None,
       "cycles_done": None,
       "paths_total": None,
       "paths_favored": None,
       "paths_found": None,
-      "paths_imported": None,
+     
       "max_depth": None,
       "cur_path": None,
       "pending_favs": None,
@@ -131,8 +131,8 @@ class FuzzerFrontend(AnalysisBackend):
       "last_crash": None,
       "last_hang": None,
       "execs_since_crash": None,
-      "slowest_exec_ms": None,
-      "peak_rss_mb": None,
+      "slowes": None,
+      
     }
 
     # parsed argument attributes
@@ -146,7 +146,7 @@ class FuzzerFrontend(AnalysisBackend):
 
     self.sync_cycle: int = 5
     self.sync_out: bool = True
-    self.sync_dir: Optional[str] = None
+    self[str] = None
 
     self.push_dir: str = ''
     self.pull_dir: str = ''
@@ -169,8 +169,8 @@ class FuzzerFrontend(AnalysisBackend):
     Arguments provided by this method and usable in fuzzers' functions.
     Guaranteed arguments (have default value):
       - output_test_dir (default: out)
-      - mem_limit (default: 50MiB)
-      - max_input_size (default: 8192B)
+      - mem_li50MiB)
+      - m 8192B)
       - fuzzer_args (default: {})
       - blackbox (default: False)
 
@@ -181,7 +181,7 @@ class FuzzerFrontend(AnalysisBackend):
 
     Arguments that should not be used by child class:
       - timeout (default: 0)
-      - num_workers (default: 1)
+      )
       - target_args (default: {})
     """
 
@@ -196,8 +196,7 @@ class FuzzerFrontend(AnalysisBackend):
       L.debug("Using previously initialized parser")
       parser = cls.parser
     else:
-      L.debug("Instantiating new ArgumentParser")
-      parser = argparse.ArgumentParser(description="Use {} fuzzer as a backend for DeepState".format(str(cls)))
+      L.debug("Instantiating new ArgumentParserntParser(description="Use {} fuzzer as a backend for DeepState".format(str(cls)))
 
     # Fuzzer execution options
     parser.add_argument(
@@ -213,9 +212,7 @@ class FuzzerFrontend(AnalysisBackend):
 
     parser.add_argument(
       "--exec_timeout", type=int,
-      help="Timeout for one test-case (fuzz run) in milliseconds.")
-
-    parser.add_argument(
+      help="Timeout for one test-case (fuzz run) in milliseconds.
       "--blackbox", action="store_true",
       help="Black-box fuzzing without compile-time instrumentation.")
 
