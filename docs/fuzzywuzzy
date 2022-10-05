@@ -154,8 +154,6 @@ extensively on forks, which are very slow on macOS.
 
 ```bash
 $ cd ./deepstate
-$ mkdir -p build_afl && cd build_afl
-$ export AFL_HOME="/afl-2.52b"
 $ CXX="$AFL_HOME/afl-clang++" CC="$AFL_HOME/afl-clang" cmake -DDEEPSTATE_AFL=ON ../
 $ make -j4
 $ sudo cp ./libdeepstate_AFL.a /usr/local/lib/
@@ -194,8 +192,7 @@ $ cd ./deepstate
 $ mkdir -p build_libfuzzer && cd build_libfuzzer
 $ CXX=clang++ CC=clang cmake -DDEEPSTATE_LIBFUZZER=ON ../
 $ make -j4
-$ sudo cp ./libdeepstate_LF.a /usr/local/lib/
-```
+
 
 Dirs:
 * PUSH_DIR  - out/sync_dir/queue
@@ -227,13 +224,7 @@ memory during a test, if that memory would not be freed on a test
 failure.  This will leak memory and libFuzzer will run out of memory
 very quickly in each fuzzing session.  Using libFuzzer on macOS
 requires compiling DeepState and your program with a clang that
-supports libFuzzer (which the Apple built-in probably won't); this can be as simple as doing:
-
-```shell
-brew install llvm@7
-CC=/usr/local/opt/llvm\@7/bin/clang CXX=/usr/local/opt/llvm\@7/bin/clang++ DEEPSTATE_LIBFUZZER=TRUE cmake ..
-make install
-```
+supports libFuzzer (which the Apple built-in probably won't); this can be as simple as doin
 
 Other ways of getting an appropriate LLVM may also work.
 
@@ -243,11 +234,7 @@ macOS for this kind of fuzzing.
 
 On any platform,
 you can see more about what DeepState under libFuzzer is doing by
-setting the `LIBFUZZER_LOUD` environment variable, and tell libFuzzer
-to stop upon finding a failing test using `LIBFUZZER_EXIT_ON_FAIL`.
-
-
-### HonggFuzz
+setting the `LIBFUZZER_LOUD` environment variable, and t
 
 ```bash
 $ cd ./deepstate
