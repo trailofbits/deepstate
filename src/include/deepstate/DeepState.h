@@ -355,6 +355,12 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
         printf("Range read low %" PRId64 " high %" PRId64 "\n", \
                (int64_t)low, (int64_t)high); \
       } \
+#ifdef DEEPSTATE_RANGE_BOUNDARY_BIAS
+      if (x < low) \
+	return low; \
+      if (x > high) \
+	return high; \
+#else
       if ((x < low) || (x > high)) { \
         const utname ux = (utname) x; \
         utname usize; \
@@ -376,6 +382,7 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
         } \
         return ret; \
       } \
+#endif
       return x; \
     }
 
