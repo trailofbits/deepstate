@@ -38,7 +38,7 @@ docker pull agroce/deepstate_examples
 docker run -it agroce/deepstate_examples
 ```
 
-Then within the DeepState docker, go to an example:
+Then within the DeepState docker container, go to an example:
 ```shell
 cd ~/examples/fuzz_tcas
 deepstate-afl ./TCAS_AFL -o fuzz_afl --fuzzer_out --timeout 120
@@ -47,6 +47,12 @@ llvm-cov-9 gcov TCAS_driver.cpp  -b
 ```
 
 This runs the AFL fuzzer on the TCAS code (https://en.wikipedia.org/wiki/Traffic_collision_avoidance_system), a long-used example program in software testing.  After two minutes of fuzzing, we run a version of the test driver that collects code coverage, and see how much of the code AFL has managed to cover in two minutes.
+
+NOTE: You may need to modify `/proc/sys/kernel/core_pattern` on your host for AFL to run properly, e.g.:
+
+```shell
+echo core | sudo tee /proc/sys/kernel/core_pattern
+```
 
 Finally, we can look at the failing tests AFL produces:
 
