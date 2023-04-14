@@ -13,7 +13,7 @@ on effective use of DeepState.
 
 Table of Contents
 =================
-
+  * [DeepState in a Nutshell](#deepstate-in-a-nutshell)
   * [Articles describing DeepState](#articles-describing-deepstate)
   * [Overview of Features](#overview-of-features)
   * [Build'n'run](#buildnrun)
@@ -28,6 +28,33 @@ Table of Contents
   * [Trophy case](#trophy-case)
   * [License](#license)
 
+
+## DeepState in a Nutshell
+
+If you want to jump right in, or are having trouble with building DeepState, you can just use a Docker that is pre-built and has compiled versions of several of the easiest examples of DeepState in use:
+
+```shell
+docker pull agroce/deepstate_examples
+docker run -it agroce/deepstate_examples
+```
+
+Then within the DeepState docker, go to an example:
+```shell
+cd ~/examples/fuzz_tcas
+deepstate-afl ./TCAS_AFL -o fuzz_afl --fuzzer_out --timeout 120
+./TCAS_cov --input_test_files_dir fuzz_afl/the_fuzzer/queue/
+llvm-cov-9 gcov TCAS_driver.cpp  -b
+```
+
+This runs the AFL fuzzer on the TCAS code (https://en.wikipedia.org/wiki/Traffic_collision_avoidance_system), a long-used example program in software testing.  After two minutes of fuzzing, we run a version of the test driver that collects code coverage, and see how much of the code AFL has managed to cover in two minutes.
+
+Finally, we can look at the failing tests AFL produces:
+
+```shell
+./TCAS --input_test_files_dir fuzz_afl/the_fuzzer/crashes/ --min_log_level=0
+```
+
+Inspecting `TCAS_driver.cpp` and `Makefile` will give a good idea of how DeepState can be used.  The other examples, including the one in the original DeepState blog post, are similar in structure and usage.
 
 ## Articles describing DeepState
 
