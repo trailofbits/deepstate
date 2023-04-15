@@ -627,15 +627,6 @@ static void DeepState_InitInputFromFile(const char *path) {
     DeepState_Abandon("Tried to get file descriptor for invalid stream");
   }
 
-  #if defined(_WIN32) || defined(_MSC_VER)
-    /* TODO: Check availability of the input file */
-  #elif defined(__unix)
-    struct stat stat_buf;
-    if (fstat(fd, &stat_buf) < 0) {
-      DeepState_Abandon("Unable to access input file");
-    }; 
-  #endif
-
   fseek(fp, 0L, SEEK_END);
   size_t to_read = ftell(fp);
   fseek(fp, 0L, SEEK_SET);
@@ -1155,7 +1146,10 @@ static int DeepState_RunSingleSavedTestDir(void) {
     snprintf(path, path_len, "%s/%s", FLAGS_input_test_files_dir, dp->d_name);
 
     #if defined(_WIN32) || defined(_MSC_VER)
-    /* TODO: implement path check for Windows */
+      DWORD file_attributes = GetFileAttributes(path);
+      if (file_attributes == INVALID_FILE_ATTRIBUTES || (file_attributes & FILE_ATTRIBUTE_DIRECTORY) ){
+        continue;
+      }
     #elif defined(__unix)
       stat(path, &path_stat);
       if (!S_ISREG(path_stat.st_mode)) {
