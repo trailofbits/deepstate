@@ -29,13 +29,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-#include <fnmatch.h>
+#if defined(_WIN32) || defined(_MSC_VER)
+  #include <windows.h>
+  #define MAX_CMD_LEN 512
+#elif defined(__unix)
+  #include <sys/types.h>
+  #include <sys/wait.h>
+  #include <sys/mman.h>
+  #include <sys/stat.h>
+  #include <fnmatch.h>
+#endif
 
 #include <deepstate/Log.h>
 #include <deepstate/Compiler.h>
@@ -92,6 +97,9 @@ DECLARE_bool(fork);
 DECLARE_bool(list_tests);
 DECLARE_bool(boring_only);
 DECLARE_bool(run_disabled);
+#if defined(_WIN32) || defined(_MSC_VER)
+DECLARE_bool(direct_run);
+#endif
 
 DECLARE_int(min_log_level);
 DECLARE_int(seed);
@@ -352,7 +360,7 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
         return x;					\
       } \
       if (FLAGS_verbose_reads) { \
-        printf("Range read low %" PRId64 " high %" PRId64 "\n", \
+        printf("Range read low %ld high %ld\n", \
                (int64_t)low, (int64_t)high); \
       } \
       if ((x < low) || (x > high)) { \
@@ -371,7 +379,7 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
 	  return high; /* Always legal */ \
 	} \
         if (FLAGS_verbose_reads) { \
-          printf("Converting out-of-range value to %" PRId64 "\n", \
+          printf("Converting out-of-range value to %ld\n", \
                  (int64_t)ret); \
         } \
         return ret; \
@@ -607,7 +615,6 @@ extern void DeepState_Warn_srand(unsigned int seed);
 /* Resets the global `DeepState_Input` buffer, then fills it with the
  * data found in the file `path`. */
 static void DeepState_InitInputFromFile(const char *path) {
-  struct stat stat_buf;
 
   FILE *fp = fopen(path, "r");
   if (fp == NULL) {
@@ -619,13 +626,21 @@ static void DeepState_InitInputFromFile(const char *path) {
   if (fd < 0) {
     DeepState_Abandon("Tried to get file descriptor for invalid stream");
   }
-  if (fstat(fd, &stat_buf) < 0) {
-    DeepState_Abandon("Unable to access input file");
-  };
 
-  size_t to_read = stat_buf.st_size;
+  #if defined(_WIN32) || defined(_MSC_VER)
+    /* TODO: Check availability of the input file */
+  #elif defined(__unix)
+    struct stat stat_buf;
+    if (fstat(fd, &stat_buf) < 0) {
+      DeepState_Abandon("Unable to access input file");
+    }; 
+  #endif
 
-  if (stat_buf.st_size > sizeof(DeepState_Input)) {
+  fseek(fp, 0L, SEEK_END);
+  size_t to_read = ftell(fp);
+  fseek(fp, 0L, SEEK_SET);
+
+  if (to_read > sizeof(DeepState_Input)) {
     DeepState_LogFormat(DeepState_LogWarning, "File too large, truncating to max input size");
     to_read = DeepState_InputSize;
   }
@@ -753,39 +768,51 @@ static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
     DeepState_LogFormat(DeepState_LogTrace, "Passed: %s", test->test_name);
     if (HAS_FLAG_output_test_dir) {
       if (!FLAGS_fuzz || FLAGS_fuzz_save_passing) {
-	DeepState_SavePassingTest();
+        DeepState_SavePassingTest();
       }
     }
     return(DeepState_TestRunPass);
   }
 }
 
+
+
+
 /* Fork and run `test`. */
 static enum DeepState_TestRunResult
 DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
-  pid_t test_pid;
-  if (FLAGS_fork) {
-    test_pid = fork();
-    if (!test_pid) {
-      DeepState_RunTest(test);
-      /* No need to clean up in a fork; exit() is the ultimate garbage collector */
+  int wstatus;
+
+  #if defined(_WIN32) || defined(_MSC_VER)
+    if (FLAGS_fork) {
+      wstatus = DeepState_RunTestWin(test);
+      return (enum DeepState_TestRunResult) wstatus;
     }
-  }
-  int wstatus = 0;
-  if (FLAGS_fork) {
-    waitpid(test_pid, &wstatus, 0);
-  } else {
     wstatus = DeepState_RunTestNoFork(test);
     DeepState_CleanUp();
-  }
-
-  /* If we exited normally, the status code tells us if the test passed. */
-  if (!FLAGS_fork) {
     return (enum DeepState_TestRunResult) wstatus;
-  } else if (WIFEXITED(wstatus)) {
-    uint8_t status = WEXITSTATUS(wstatus);
-    return (enum DeepState_TestRunResult) status;
-  }
+  #elif defined(__unix)
+    pid_t test_pid;
+    if (FLAGS_fork) {
+      test_pid = fork();
+      if (!test_pid) {
+        DeepState_RunTest(test);
+        /* No need to clean up in a fork; exit() is the ultimate garbage collector */
+      }
+    }
+
+    /* If we exited normally, the status code tells us if the test passed. */
+    int wstatus = 0;
+    if (FLAGS_fork) {
+      waitpid(test_pid, &wstatus, 0);
+      return (enum DeepState_TestRunResult) wstatus;
+    } else {
+      wstatus = DeepState_RunTestNoFork(test);
+      DeepState_CleanUp();
+      return (enum DeepState_TestRunResult) wstatus;
+    }
+  #endif
+   
 
   /* If here, we exited abnormally but didn't catch it in the signal
    * handler, and thus the test failed due to a crash. */
@@ -1058,8 +1085,10 @@ static int DeepState_RunSingleSavedTestDir(void) {
   struct dirent *dp;
   DIR *dir_fd;
 
-  struct stat path_stat;
-
+  #if defined(__unix)
+    struct stat path_stat;
+  #endif
+  
   dir_fd = opendir(FLAGS_input_test_files_dir);
   if (dir_fd == NULL) {
     DeepState_LogFormat(DeepState_LogInfo,
@@ -1074,22 +1103,28 @@ static int DeepState_RunSingleSavedTestDir(void) {
     size_t path_len = 2 + sizeof(char) * (strlen(FLAGS_input_test_files_dir) + strlen(dp->d_name));
     char *path = (char *) malloc(path_len);
     snprintf(path, path_len, "%s/%s", FLAGS_input_test_files_dir, dp->d_name);
-    stat(path, &path_stat);
 
-    if (S_ISREG(path_stat.st_mode)) {
-      i++;
-      enum DeepState_TestRunResult result =
-        DeepState_RunSavedTestCase(test, FLAGS_input_test_files_dir, dp->d_name);
-
-      if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
-        if (FLAGS_abort_on_fail) {
-          DeepState_HardCrash();
-        }
-        if (FLAGS_exit_on_fail) {
-          exit(255); // Terminate the testing
-        }
-        num_failed_tests++;
+    #if defined(_WIN32) || defined(_MSC_VER)
+    /* TODO: implement path check for Windows */
+    #elif defined(__unix)
+      stat(path, &path_stat);
+      if (!S_ISREG(path_stat.st_mode)) {
+        continue;
       }
+    #endif
+
+    i++;
+    enum DeepState_TestRunResult result =
+      DeepState_RunSavedTestCase(test, FLAGS_input_test_files_dir, dp->d_name);
+
+    if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
+      if (FLAGS_abort_on_fail) {
+        DeepState_HardCrash();
+      }
+      if (FLAGS_exit_on_fail) {
+        exit(255); // Terminate the testing
+      }
+      num_failed_tests++;
     }
   }
   closedir(dir_fd);
@@ -1122,6 +1157,8 @@ static int DeepState_RunSavedTestCases(void) {
   return num_failed_tests;
 }
 
+extern void DeepState_RunSingle();
+
 /* Start DeepState and run the tests. Returns the number of failed tests. */
 static int DeepState_Run(void) {
   if (!DeepState_OptionsAreInitialized) {
@@ -1129,8 +1166,15 @@ static int DeepState_Run(void) {
   }
 
   if (HAS_FLAG_list_tests) {
-	return DeepState_RunListTests();
+    return DeepState_RunListTests();
   }
+
+  #if defined(_WIN32) || defined(_MSC_VER)
+    if (FLAGS_direct_run) {
+      DeepState_RunSingle();
+      return 0;
+    }
+  #endif
 
   if (HAS_FLAG_input_test_file) {
     return DeepState_RunSingleSavedTestCase();
@@ -1174,9 +1218,15 @@ static int DeepState_Run(void) {
 
 	/* Check if pattern match exists in test, skip if not */
 	if (HAS_FLAG_test_filter) {
-	  if (fnmatch(FLAGS_test_filter, curr_test, FNM_NOESCAPE)) {
-	    continue;
-	  }
+    #if defined(_WIN32) || defined(_MSC_VER)
+      /* TODO: implement fnmatch for Windows */
+      continue;
+    #elif defined(__unix)
+      if (fnmatch(FLAGS_test_filter, curr_test, FNM_NOESCAPE)) {
+        continue;
+      }
+    #endif
+	  
 	}
 
 	/* Check if --run_disabled is set, and if not, skip Disabled* tests */
