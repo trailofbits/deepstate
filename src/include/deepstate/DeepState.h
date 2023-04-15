@@ -775,7 +775,57 @@ static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
   }
 }
 
+/* Run a test case inside a new Windows process */
+static int DeepState_RunTestWin(struct DeepState_TestInfo *test){
 
+  #if defined(_WIN32) || defined(_MSC_VER)
+
+    PROCESS_INFORMATION pi;
+    STARTUPINFO si;
+    DWORD exit_code = 0;
+
+    ZeroMemory( &si, sizeof(si) );
+    si.cb = sizeof(si);
+    ZeroMemory( &pi, sizeof(pi) );
+    
+    /* Get the fully qualified path of the current module */
+    char command[MAX_CMD_LEN]; 
+    if (!GetModuleFileName(NULL, command, MAX_CMD_LEN)){
+      DeepState_LogFormat(DeepState_LogError, "GetModuleFileName failed (%d)", GetLastError());
+      return 0;
+    }
+
+    /* Append the parameters to specify which test to run and to run the test
+       directly in the main process */
+    snprintf(command, MAX_CMD_LEN, "%s --direct_run --input_which_test %s", command, test->test_name);
+
+    if (HAS_FLAG_output_test_dir) {
+      snprintf(command, MAX_CMD_LEN, "%s --output_test_dir %s", command, FLAGS_output_test_dir);
+    }
+
+    if (!FLAGS_fuzz || FLAGS_fuzz_save_passing) {
+      snprintf(command, MAX_CMD_LEN, "%s --fuzz_save_passing", command);
+    }
+
+    /* Create the process */
+    if(!CreateProcess(NULL, command, NULL, NULL, false, 0, NULL, NULL, &si, &pi)){
+      DeepState_LogFormat(DeepState_LogError, "CreateProcess failed (%d)", GetLastError());
+      return 0;
+    }
+
+    /* Wait for the process to complete and get it's exit code */
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    if (!GetExitCodeProcess(pi.hProcess, &exit_code)){
+      DeepState_LogFormat(DeepState_LogError, "GetExitCodeProcess failed (%d)", GetLastError());
+      return 0;
+    }
+
+    return exit_code;
+
+  #endif
+
+  return 0;
+}
 
 
 /* Fork and run `test`. */
