@@ -1328,6 +1328,9 @@ void DeepState_RunSingle(){
 #ifndef LIBFUZZER
 #ifndef HEADLESS
 
+#if defined(__unix)
+__attribute__((weak))
+#endif
 int main(int argc, char *argv[]) {
   int ret = 0;
   DeepState_Setup();
