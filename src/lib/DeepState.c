@@ -1254,6 +1254,37 @@ void __stack_chk_fail(void) {
   __builtin_unreachable();
 }
 
+/* Runs a single test. This function is intended to be executed within a new 
+Windows process. */
+void DeepState_RunSingle(){
+  struct DeepState_TestInfo *test = DeepState_FirstTest(); 
+
+  /* Seek for the TEST to run */
+  for (test = DeepState_FirstTest(); test != NULL; test = test->prev) {
+    if (HAS_FLAG_input_which_test) {
+      if (strcmp(FLAGS_input_which_test, test->test_name) == 0) {
+        break;
+      }
+    } else {
+      DeepState_LogFormat(DeepState_LogWarning,
+			  "No test specified, defaulting to first test defined (%s)",
+			  test->test_name);
+      break;
+    }
+  }
+
+  if (test == NULL) {
+    DeepState_LogFormat(DeepState_LogInfo,
+                        "Could not find matching test for %s",
+                        FLAGS_input_which_test);
+    return;
+  }
+
+  /* Run the test */
+  DeepState_RunTest(test);
+
+}
+
 #ifndef LIBFUZZER
 #ifndef HEADLESS
 
