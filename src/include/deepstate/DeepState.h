@@ -272,7 +272,7 @@ extern void *DeepState_Malloc(size_t num_bytes);
 extern void *DeepState_GCMalloc(size_t num_bytes);
 
 /* Returns the path to a testcase without parsing to any aforementioned types */
-extern const char *DeepState_InputPath(char *testcase_path);
+extern char *DeepState_InputPath(const char* testcase_path);
 
 /* Portable and architecture-independent memory scrub without dead store elimination. */
 extern void *DeepState_MemScrub(void *pointer, size_t data_size);

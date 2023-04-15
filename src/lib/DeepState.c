@@ -543,27 +543,68 @@ int DeepState_Bool(void) {
 
 /* Return a string path to an input file or directory without parsing it to a type. This is
  * useful method in the case where a tested function only takes a path input in order
- * to generate some specialized structured type. */
-const char * DeepState_InputPath(char *testcase_path) {
+ * to generate some specialized structured type. Note: the returned path must be 
+ * deallocated at the end by the caller. */
+char* DeepState_InputPath(const char* testcase_path) {
 
-  char *abspath;
+  #if defined(_WIN32) || defined(_MSC_VER)
+    char *abspath = (char*) malloc(MAX_CMD_LEN * sizeof(char));
+  #elif defined(__unix)
+    struct stat statbuf;
+    char *abspath;
+  #endif
 
   /* Use specified path if no --input_test* flag specified. Override if --input_* args specified. */
   if (testcase_path) {
     if (!HAS_FLAG_input_test_file && !HAS_FLAG_input_test_files_dir) {
-      abspath = testcase_path;
+      #if defined(_WIN32) || defined(_MSC_VER)
+        _fullpath(abspath, testcase_path, MAX_CMD_LEN);
+      #elif defined(__unix)
+        abspath = realpath(testcase_path, NULL);
+      #endif
     }
   }
 
   /* Prioritize using CLI-specified input paths, for the sake of fuzzing */
   if (HAS_FLAG_input_test_file) {
-    abspath = FLAGS_input_test_file;
+    #if defined(_WIN32) || defined(_MSC_VER)
+      _fullpath(abspath, FLAGS_input_test_file, MAX_CMD_LEN);
+    #elif defined(__unix)
+      abspath = realpath(FLAGS_input_test_file, NULL);
+    #endif
   } else if (HAS_FLAG_input_test_files_dir) {
-    abspath = FLAGS_input_test_files_dir;
+    #if defined(_WIN32) || defined(_MSC_VER)
+      _fullpath(abspath, FLAGS_input_test_files_dir, MAX_CMD_LEN);
+    #elif defined(__unix)
+      abspath = realpath(FLAGS_input_test_files_dir, NULL);
+    #endif
   } else {
     DeepState_Abandon("No usable path specified for DeepState_InputPath.");
   }
 
+  #if defined(_WIN32) || defined(_MSC_VER)
+    DWORD file_attributes = GetFileAttributes(abspath);
+    if (file_attributes == INVALID_FILE_ATTRIBUTES){
+      DeepState_Abandon("Specified input path does not exist.");
+    }
+  #elif defined(__unix)
+    if (stat(abspath, &statbuf) != 0) {
+      DeepState_Abandon("Specified input path does not exist.");
+    }
+  #endif
+
+  if (HAS_FLAG_input_test_files_dir) {
+    #if defined(_WIN32) || defined(_MSC_VER)
+      if (!(file_attributes & INVALID_FILE_ATTRIBUTES)){
+        DeepState_Abandon("Specified input directory is not a directory.");
+      }
+    #elif defined(__unix)
+      if (!S_ISDIR(statbuf.st_mode)) {
+        DeepState_Abandon("Specified input directory is not a directory.");
+      }
+    #endif
+
+  }
 
   DeepState_LogFormat(DeepState_LogInfo, "Using `%s` as input path.", abspath);
   return abspath;
@@ -922,7 +963,6 @@ void DeepState_RunSavedTakeOverCases(jmp_buf env,
   /* If here the system is not unix based, and thus exit with an error. */
   DeepState_LogFormat(DeepState_LogError,
                       "Error: takeover works only on Unix based systems.");
-  return -1;
 }
 
 int DeepState_TakeOver(void) {
