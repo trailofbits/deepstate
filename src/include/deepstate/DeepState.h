@@ -843,7 +843,6 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
     }
 
     /* If we exited normally, the status code tells us if the test passed. */
-    int wstatus = 0;
     if (FLAGS_fork) {
       waitpid(test_pid, &wstatus, 0);
       return (enum DeepState_TestRunResult) wstatus;
