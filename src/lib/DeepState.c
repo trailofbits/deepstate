@@ -46,6 +46,9 @@ DEFINE_bool(verbose_reads, ExecutionGroup, false, "Report on bytes being read du
 DEFINE_int(min_log_level, ExecutionGroup, 0, "Minimum level of logging to output (default 0, 0=debug, 1=trace, 2=info, ...).");
 DEFINE_int(timeout, ExecutionGroup, 3600, "Timeout for brute force fuzzing.");
 DEFINE_uint(num_workers, ExecutionGroup, 1, "Number of workers to spawn for testing and test generation.");
+#if defined(_WIN32) || defined(_MSC_VER)
+DEFINE_bool(direct_run, ExecutionGroup, false, "Run test function directly.");
+#endif
 
 /* Fuzzing and symex related options, baked in to perform analysis-related tasks without auxiliary tools */
 DEFINE_bool(fuzz, AnalysisGroup, false, "Perform brute force unguided fuzzing.");
@@ -115,17 +118,39 @@ static void DeepState_SetTestAbandoned(const char *reason) {
 }
 
 void DeepState_AllocCurrentTestRun(void) {
-  int mem_prot = PROT_READ | PROT_WRITE;
-  int mem_vis = MAP_ANONYMOUS | MAP_SHARED;
-  void *shared_mem = mmap(NULL, sizeof(struct DeepState_TestRunInfo), mem_prot,
-                          mem_vis, 0, 0);
+  #if defined(_WIN32) || defined(_MSC_VER) 
+    HANDLE shared_mem_handle = INVALID_HANDLE_VALUE;
+    
+    shared_mem_handle = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 
+                    0, sizeof(struct DeepState_TestRunInfo), "DeepState_CurrentTestRun");
+    if (!shared_mem_handle){
+      DeepState_LogFormat(DeepState_LogError, "Unable to map shared memory (%d)", GetLastError());
+      exit(1);
+    }
 
-  if (shared_mem == MAP_FAILED) {
-    DeepState_Log(DeepState_LogError, "Unable to map shared memory");
-    exit(1);
-  }
+	  struct DeepState_TestRunInfo *shared_mem = (struct DeepState_TestRunInfo*) MapViewOfFile(shared_mem_handle, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(struct DeepState_TestRunInfo));
+    if (!shared_mem){
+      DeepState_LogFormat(DeepState_LogError, "Unable to map shared memory (%d)", GetLastError());
+      exit(1);
+    }
 
-  DeepState_CurrentTestRun = (struct DeepState_TestRunInfo *) shared_mem;
+    DeepState_CurrentTestRun = (struct DeepState_TestRunInfo *) shared_mem;
+
+  #elif defined(__unix)
+
+    int mem_prot = PROT_READ | PROT_WRITE;
+    int mem_vis = MAP_ANONYMOUS | MAP_SHARED;
+    void *shared_mem = mmap(NULL, sizeof(struct DeepState_TestRunInfo), mem_prot,
+                            mem_vis, 0, 0);
+
+    if (shared_mem == MAP_FAILED) {
+      DeepState_Log(DeepState_LogError, "Unable to map shared memory");
+      exit(1);
+    }
+
+    DeepState_CurrentTestRun = (struct DeepState_TestRunInfo *) shared_mem;
+  #endif
+
 }
 
 static void DeepState_InitCurrentTestRun(struct DeepState_TestInfo *test) {
@@ -521,34 +546,24 @@ int DeepState_Bool(void) {
  * to generate some specialized structured type. */
 const char * DeepState_InputPath(char *testcase_path) {
 
-  struct stat statbuf;
   char *abspath;
 
   /* Use specified path if no --input_test* flag specified. Override if --input_* args specified. */
   if (testcase_path) {
     if (!HAS_FLAG_input_test_file && !HAS_FLAG_input_test_files_dir) {
-      abspath = realpath(testcase_path, NULL);
+      abspath = testcase_path;
     }
   }
 
   /* Prioritize using CLI-specified input paths, for the sake of fuzzing */
   if (HAS_FLAG_input_test_file) {
-    abspath = realpath(FLAGS_input_test_file, NULL);
+    abspath = FLAGS_input_test_file;
   } else if (HAS_FLAG_input_test_files_dir) {
-    abspath = realpath(FLAGS_input_test_files_dir, NULL);
+    abspath = FLAGS_input_test_files_dir;
   } else {
     DeepState_Abandon("No usable path specified for DeepState_InputPath.");
   }
 
-  if (stat(abspath, &statbuf) != 0) {
-    DeepState_Abandon("Specified input path does not exist.");
-  }
-
-  if (HAS_FLAG_input_test_files_dir) {
-    if (!S_ISDIR(statbuf.st_mode)) {
-      DeepState_Abandon("Specified input directory is not a directory.");
-    }
-  }
 
   DeepState_LogFormat(DeepState_LogInfo, "Using `%s` as input path.", abspath);
   return abspath;
@@ -825,102 +840,118 @@ void DeepState_Warn_srand(unsigned int seed) {
 
 void DeepState_RunSavedTakeOverCases(jmp_buf env,
                                      struct DeepState_TestInfo *test) {
-  int num_failed_tests = 0;
-  const char *test_case_dir = FLAGS_input_test_dir;
+  #if defined(__unix)
+    int num_failed_tests = 0;
+    const char *test_case_dir = FLAGS_input_test_dir;
 
-  DIR *dir_fd = opendir(test_case_dir);
-  if (dir_fd == NULL) {
-    DeepState_LogFormat(DeepState_LogInfo,
-                        "Skipping test `%s`, no saved test cases",
-                        test->test_name);
-    return;
-  }
+    DIR *dir_fd = opendir(test_case_dir);
+    if (dir_fd == NULL) {
+      DeepState_LogFormat(DeepState_LogInfo,
+                          "Skipping test `%s`, no saved test cases",
+                          test->test_name);
+      return;
+    }
 
-  struct dirent *dp;
+    struct dirent *dp;
 
-  /* Read generated test cases and run a test for each file found. */
-  while ((dp = readdir(dir_fd)) != NULL) {
-    if (DeepState_IsTestCaseFile(dp->d_name)) {
-      DeepState_InitCurrentTestRun(test);
+    /* Read generated test cases and run a test for each file found. */
+    while ((dp = readdir(dir_fd)) != NULL) {
+      if (DeepState_IsTestCaseFile(dp->d_name)) {
+        DeepState_InitCurrentTestRun(test);
 
-      pid_t case_pid = fork();
-      if (!case_pid) {
-        DeepState_Begin(test);
+        pid_t case_pid = fork();
+        if (!case_pid) {
+          DeepState_Begin(test);
 
-        size_t path_len = 2 + sizeof(char) * (strlen(test_case_dir) +
-                                              strlen(dp->d_name));
-        char *path = (char *) malloc(path_len);
-        if (path == NULL) {
-          DeepState_Abandon("Error allocating memory");
+          size_t path_len = 2 + sizeof(char) * (strlen(test_case_dir) +
+                                                strlen(dp->d_name));
+          char *path = (char *) malloc(path_len);
+          if (path == NULL) {
+            DeepState_Abandon("Error allocating memory");
+          }
+          snprintf(path, path_len, "%s/%s", test_case_dir, dp->d_name);
+          DeepState_InitInputFromFile(path);
+          free(path);
+
+          longjmp(env, 1);
         }
-        snprintf(path, path_len, "%s/%s", test_case_dir, dp->d_name);
-        DeepState_InitInputFromFile(path);
-        free(path);
 
-        longjmp(env, 1);
-      }
+        int wstatus;
+        waitpid(case_pid, &wstatus, 0);
 
-      int wstatus;
-      waitpid(case_pid, &wstatus, 0);
-
-      /* If we exited normally, the status code tells us if the test passed. */
-      if (WIFEXITED(wstatus)) {
-        switch (DeepState_CurrentTestRun->result) {
-        case DeepState_TestRunPass:
-          DeepState_LogFormat(DeepState_LogTrace,
-                              "Passed: TakeOver test with data from `%s`",
-                              dp->d_name);
-          break;
-        case DeepState_TestRunFail:
-          DeepState_LogFormat(DeepState_LogError,
-                              "Failed: TakeOver test with data from `%s`",
-                              dp->d_name);
-          break;
-        case DeepState_TestRunCrash:
+        /* If we exited normally, the status code tells us if the test passed. */
+        if (WIFEXITED(wstatus)) {
+          switch (DeepState_CurrentTestRun->result) {
+          case DeepState_TestRunPass:
+            DeepState_LogFormat(DeepState_LogTrace,
+                                "Passed: TakeOver test with data from `%s`",
+                                dp->d_name);
+            break;
+          case DeepState_TestRunFail:
+            DeepState_LogFormat(DeepState_LogError,
+                                "Failed: TakeOver test with data from `%s`",
+                                dp->d_name);
+            break;
+          case DeepState_TestRunCrash:
+            DeepState_LogFormat(DeepState_LogError,
+                                "Crashed: TakeOver test with data from `%s`",
+                                dp->d_name);
+            break;
+          case DeepState_TestRunAbandon:
+            DeepState_LogFormat(DeepState_LogError,
+                                "Abandoned: TakeOver test with data from `%s`",
+                                dp->d_name);
+            break;
+          default:  /* Should never happen */
+            DeepState_LogFormat(DeepState_LogError,
+                                "Error: Invalid test run result %d from `%s`",
+                                DeepState_CurrentTestRun->result, dp->d_name);
+          }
+        } else {
+          /* If here, we exited abnormally but didn't catch it in the signal
+          * handler, and thus the test failed due to a crash. */
           DeepState_LogFormat(DeepState_LogError,
                               "Crashed: TakeOver test with data from `%s`",
                               dp->d_name);
-          break;
-        case DeepState_TestRunAbandon:
-          DeepState_LogFormat(DeepState_LogError,
-                              "Abandoned: TakeOver test with data from `%s`",
-                              dp->d_name);
-          break;
-        default:  /* Should never happen */
-          DeepState_LogFormat(DeepState_LogError,
-                              "Error: Invalid test run result %d from `%s`",
-                              DeepState_CurrentTestRun->result, dp->d_name);
         }
-      } else {
-        /* If here, we exited abnormally but didn't catch it in the signal
-         * handler, and thus the test failed due to a crash. */
-        DeepState_LogFormat(DeepState_LogError,
-                            "Crashed: TakeOver test with data from `%s`",
-                            dp->d_name);
       }
     }
-  }
-  closedir(dir_fd);
+    closedir(dir_fd);
+  #endif
+
+  /* If here the system is not unix based, and thus exit with an error. */
+  DeepState_LogFormat(DeepState_LogError,
+                      "Error: takeover works only on Unix based systems.");
+  return -1;
 }
 
 int DeepState_TakeOver(void) {
-  struct DeepState_TestInfo test = {
-    .prev = NULL,
-    .test_func = NULL,
-    .test_name = "__takeover_test",
-    .file_name = "__takeover_file",
-    .line_number = 0,
-  };
 
-  DeepState_AllocCurrentTestRun();
+  #if defined(__unix)
+    struct DeepState_TestInfo test = {
+      .prev = NULL,
+      .test_func = NULL,
+      .test_name = "__takeover_test",
+      .file_name = "__takeover_file",
+      .line_number = 0,
+    };
 
-  jmp_buf env;
-  if (!setjmp(env)) {
-    DeepState_RunSavedTakeOverCases(env, &test);
-    exit(0);
-  }
+    DeepState_AllocCurrentTestRun();
 
-  return 0;
+    jmp_buf env;
+    if (!setjmp(env)) {
+      DeepState_RunSavedTakeOverCases(env, &test);
+      exit(0);
+    }
+
+    return 0;
+  #endif
+
+  /* If here the system is not unix based, and thus exit with an error. */
+  DeepState_LogFormat(DeepState_LogError,
+                      "Error: takeover works only on Unix based systems.");
+  return -1;
+
 }
 
 /* Right now "fake" a hexdigest by just using random bytes.  Not ideal. */
@@ -1225,7 +1256,7 @@ void __stack_chk_fail(void) {
 
 #ifndef LIBFUZZER
 #ifndef HEADLESS
-__attribute__((weak))
+
 int main(int argc, char *argv[]) {
   int ret = 0;
   DeepState_Setup();
