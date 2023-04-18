@@ -636,9 +636,13 @@ static void DeepState_InitInputFromFile(const char *path) {
     DeepState_Abandon("Tried to get file descriptor for invalid stream");
   }
 
-  fseek(fp, 0L, SEEK_END);
+  if (fseek(fp, 0L, SEEK_END) < 0){
+    DeepState_Abandon("Unable to get test input size");
+  }
   size_t to_read = ftell(fp);
-  fseek(fp, 0L, SEEK_SET);
+  if(to_read < 0 || fseek(fp, 0L, SEEK_SET) < 0){
+    DeepState_Abandon("Unable to get test input size");
+  }
 
   if (to_read > sizeof(DeepState_Input)) {
     DeepState_LogFormat(DeepState_LogWarning, "File too large, truncating to max input size");
