@@ -102,7 +102,7 @@ int DeepState_RunTestWin(struct DeepState_TestInfo *test){
 
   PROCESS_INFORMATION pi;
   STARTUPINFO si;
-  DWORD exit_code = 0;
+  DWORD exit_code = DeepState_TestRunPass;
 
   ZeroMemory( &si, sizeof(si) );
   si.cb = sizeof(si);
@@ -112,7 +112,7 @@ int DeepState_RunTestWin(struct DeepState_TestInfo *test){
   char command[MAX_CMD_LEN]; 
   if (!GetModuleFileName(NULL, command, MAX_CMD_LEN)){
     DeepState_LogFormat(DeepState_LogError, "GetModuleFileName failed (%d)", GetLastError());
-    return exit_code;
+    return DeepState_TestRunAbandon;
   }
 
   /* Append the parameters to specify which test to run and to run the test
@@ -130,18 +130,17 @@ int DeepState_RunTestWin(struct DeepState_TestInfo *test){
   /* Create the process */
   if(!CreateProcess(NULL, command, NULL, NULL, false, 0, NULL, NULL, &si, &pi)){
     DeepState_LogFormat(DeepState_LogError, "CreateProcess failed (%d)", GetLastError());
-    return exit_code;
+    return DeepState_TestRunAbandon;
   }
 
   /* Wait for the process to complete and get it's exit code */
   WaitForSingleObject(pi.hProcess, INFINITE);
   if (!GetExitCodeProcess(pi.hProcess, &exit_code)){
     DeepState_LogFormat(DeepState_LogError, "GetExitCodeProcess failed (%d)", GetLastError());
-    return exit_code;
+    return DeepState_TestRunAbandon;
   }
 
   return exit_code;
-
 }
 
 /* Run a single test. This function is intended to be executed within a new 
