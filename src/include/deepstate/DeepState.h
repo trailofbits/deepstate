@@ -626,50 +626,7 @@ extern void DeepState_Warn_srand(unsigned int seed);
 
 /* Resets the global `DeepState_Input` buffer, then fills it with the
  * data found in the file `path`. */
-static void DeepState_InitInputFromFile(const char *path) {
-
-  FILE *fp = fopen(path, "r");
-  if (fp == NULL) {
-    /* TODO(joe): Add error log with more info. */
-    DeepState_Abandon("Unable to open file");
-  }
-
-  int fd = fileno(fp);
-  if (fd < 0) {
-    DeepState_Abandon("Tried to get file descriptor for invalid stream");
-  }
-
-  if (fseek(fp, 0L, SEEK_END) < 0){
-    DeepState_Abandon("Unable to get test input size");
-  }
-  size_t to_read = ftell(fp);
-  if(to_read < 0 || fseek(fp, 0L, SEEK_SET) < 0){
-    DeepState_Abandon("Unable to get test input size");
-  }
-
-  if (to_read > sizeof(DeepState_Input)) {
-    DeepState_LogFormat(DeepState_LogWarning, "File too large, truncating to max input size");
-    to_read = DeepState_InputSize;
-  }
-
-  /* Reset the index. */
-  DeepState_InputIndex = 0;
-  DeepState_SwarmConfigsIndex = 0;
-
-  size_t count = fread((void *) DeepState_Input, 1, to_read, fp);
-  fclose(fp);
-
-  if (count != to_read) {
-    /* TODO(joe): Add error log with more info. */
-    DeepState_Abandon("Error reading file");
-  }
-
-  DeepState_InputInitialized = count;
-
-  DeepState_LogFormat(DeepState_LogTrace,
-                      "Initialized test input buffer with %zu bytes of data from `%s`",
-                      count, path);
-}
+extern void DeepState_InitInputFromFile(const char *path);
 
 /* Resets the global `DeepState_Input` buffer, then fills it with the
  * data found in the file `path`. */
