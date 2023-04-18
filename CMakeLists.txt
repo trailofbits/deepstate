@@ -124,7 +124,7 @@ endif (WIN32)
 
 if (UNIX)
   set(DEEPSTATE_PLATFORM_LIB src/lib/DeepState_UNIX.c)
-endif (WIN32)
+endif (UNIX)
 
 # compile only examples
 if(EXAMPLES_ONLY)
