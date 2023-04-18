@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <windows.h>
+
 #include "deepstate/Platform.h"
 #include "deepstate/DeepState.h"
 #include "deepstate/Option.h"
@@ -186,6 +188,12 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
   wstatus = DeepState_RunTestNoFork(test);
   DeepState_CleanUp();
   return (enum DeepState_TestRunResult) wstatus;
+}
+
+/* Checks if the given path corresponds to a regular file. */
+bool DeepState_IsRegularFile(char *path){
+  DWORD file_attributes = GetFileAttributes(path);
+  return file_attributes != INVALID_FILE_ATTRIBUTES && !(file_attributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
 DEEPSTATE_END_EXTERN_C

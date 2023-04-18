@@ -206,4 +206,12 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
   return DeepState_TestRunCrash;
 }
 
+/* Checks if the given path corresponds to a regular file. */
+bool DeepState_IsRegularFile(char *path){
+  struct stat path_stat;
+
+  stat(path, &path_stat);
+  return S_ISREG(path_stat.st_mode);
+}
+
 DEEPSTATE_END_EXTERN_C

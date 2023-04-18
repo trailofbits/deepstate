@@ -26,8 +26,6 @@ struct DeepState_TestInfo;
 
 #if defined(_WIN32) || defined(_MSC_VER)
 
-#include <windows.h>
-
 DECLARE_bool(direct_run);
 
 /* Maximum command length on Windows */
@@ -38,11 +36,6 @@ DECLARE_bool(direct_run);
   DeepState_RunSingle(); \
   return 0; \
 }
-
-#define IS_REGULAR_FILE(PATH) ({ \
-  DWORD file_attributes = GetFileAttributes(PATH); \
-  file_attributes != INVALID_FILE_ATTRIBUTES && !(file_attributes & FILE_ATTRIBUTE_DIRECTORY); \
-})
 
 /* Match a regular expression pattern inside a given string 
   * TODO: implementation for Windows */
@@ -69,12 +62,6 @@ extern void DeepState_RunSingle();
 #include <fnmatch.h>
 
 #define ENABLE_DIRECT_RUN_FLAG
-
-#define IS_REGULAR_FILE(PATH) ({ \
-  struct stat path_stat; \
-  stat(path, &path_stat); \
-  S_ISREG(path_stat.st_mode); \
-})
 
 /* Match a regular expression pattern inside a given string */
 #define REG_MATCH(PATTERN, STRING) (fnmatch(PATTERN, STRING, FNM_NOESCAPE))

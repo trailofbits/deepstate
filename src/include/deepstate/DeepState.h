@@ -310,6 +310,9 @@ extern char *DeepState_InputPath(const char* testcase_path);
 /* Portable and architecture-independent memory scrub without dead store elimination. */
 extern void *DeepState_MemScrub(void *pointer, size_t data_size);
 
+/* Checks if the given path corresponds to a regular file. */
+extern bool DeepState_IsRegularFile(char *path);
+
 #define DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Tname, tname, utname) \
     DEEPSTATE_INLINE static \
     tname *DeepState_Symbolic ## Tname ## Array(size_t num_elms) { \
@@ -1064,7 +1067,7 @@ static int DeepState_RunSingleSavedTestDir(void) {
     char *path = (char *) malloc(path_len);
     snprintf(path, path_len, "%s/%s", FLAGS_input_test_files_dir, dp->d_name);
 
-    if (!IS_REGULAR_FILE(path)){
+    if (!DeepState_IsRegularFile(path)){
       continue;
     }
 
