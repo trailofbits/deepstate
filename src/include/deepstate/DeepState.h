@@ -31,17 +31,8 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#if defined(_WIN32) || defined(_MSC_VER)
-  #include <windows.h>
-  #define MAX_CMD_LEN 512
-#elif defined(__unix)
-  #include <sys/types.h>
-  #include <sys/wait.h>
-  #include <sys/mman.h>
-  #include <sys/stat.h>
-  #include <fnmatch.h>
-#endif
 
+#include <deepstate/Platform.h>
 #include <deepstate/Log.h>
 #include <deepstate/Compiler.h>
 #include <deepstate/Option.h>
@@ -97,9 +88,6 @@ DECLARE_bool(fork);
 DECLARE_bool(list_tests);
 DECLARE_bool(boring_only);
 DECLARE_bool(run_disabled);
-#if defined(_WIN32) || defined(_MSC_VER)
-DECLARE_bool(direct_run);
-#endif
 
 DECLARE_int(min_log_level);
 DECLARE_int(seed);
@@ -210,6 +198,34 @@ DEEPSTATE_INLINE static int8_t DeepState_MaxChar(int8_t v) {
   return (int8_t) DeepState_MaxInt(v);
 }
 
+
+/* Result of a single forked test run.
+ * Will be passed to the parent process as an exit code. */
+enum DeepState_TestRunResult {
+  DeepState_TestRunPass = 0,
+  DeepState_TestRunFail = 1,
+  DeepState_TestRunCrash = 2,
+  DeepState_TestRunAbandon = 3,
+};
+
+/* Contains information about a test case */
+struct DeepState_TestInfo {
+  struct DeepState_TestInfo *prev;
+  void (*test_func)(void);
+  const char *test_name;
+  const char *file_name;
+  unsigned line_number;
+};
+
+struct DeepState_TestRunInfo {
+  struct DeepState_TestInfo *test;
+  enum DeepState_TestRunResult result;
+  const char *reason;
+};
+
+/* Information about the current test run, if any. */
+extern struct DeepState_TestRunInfo *DeepState_CurrentTestRun;
+
 /* Function to clean up generated strings, and any other DeepState-managed data. */
 extern void DeepState_CleanUp();
 
@@ -271,7 +287,24 @@ extern void *DeepState_Malloc(size_t num_bytes);
    Ptr will be freed by DeepState at end of test. */
 extern void *DeepState_GCMalloc(size_t num_bytes);
 
-/* Returns the path to a testcase without parsing to any aforementioned types */
+/* Initialize the current test run */
+extern void DeepState_InitCurrentTestRun(struct DeepState_TestInfo *test);
+
+/* Fork and run `test`. Platform specific function. */
+extern enum DeepState_TestRunResult DeepState_ForkAndRunTest(struct DeepState_TestInfo *test);
+
+/* Function that allocates the shared memory for the current test run. Platform 
+ * specific function. */
+extern void DeepState_AllocCurrentTestRun(void);
+
+/* Run saved take over cases. Platform specific function. */
+extern void DeepState_RunSavedTakeOverCases(jmp_buf env, struct DeepState_TestInfo *test);
+
+/* Run take over. Platform specific function. */
+extern int DeepState_TakeOver(void);
+
+/* Returns the path to a testcase without parsing to any aforementioned types. 
+ * Platform specific function. */
 extern char *DeepState_InputPath(const char* testcase_path);
 
 /* Portable and architecture-independent memory scrub without dead store elimination. */
@@ -294,16 +327,6 @@ extern void _DeepState_Assume(int expr, const char *expr_str, const char *file,
                               unsigned line);
 
 #define DeepState_Assume(x) _DeepState_Assume(!!(x), #x, __FILE__, __LINE__)
-
-/* Result of a single forked test run.
- *
- * Will be passed to the parent process as an exit code. */
-enum DeepState_TestRunResult {
-  DeepState_TestRunPass = 0,
-  DeepState_TestRunFail = 1,
-  DeepState_TestRunCrash = 2,
-  DeepState_TestRunAbandon = 3,
-};
 
 /* Abandon this test. We've hit some kind of internal problem. */
 DEEPSTATE_NORETURN
@@ -360,7 +383,7 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
         return x;					\
       } \
       if (FLAGS_verbose_reads) { \
-        printf("Range read low %ld high %ld\n", \
+        printf("Range read low %" PRId64 " high %" PRId64 "\n", \
                (int64_t)low, (int64_t)high); \
       } \
       if ((x < low) || (x > high)) { \
@@ -379,7 +402,7 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
 	  return high; /* Always legal */ \
 	} \
         if (FLAGS_verbose_reads) { \
-          printf("Converting out-of-range value to %ld\n", \
+          printf("Converting out-of-range value to %" PRId64 "\n", \
                  (int64_t)ret); \
         } \
         return ret; \
@@ -509,20 +532,6 @@ DEEPSTATE_INLINE static int DeepState_IsSymbolicDouble(double x) {
 #define DeepState_EntryPoint(test_name) \
     _DeepState_EntryPoint(test_name, __FILE__, __LINE__)
 
-/* Contains information about a test case */
-struct DeepState_TestInfo {
-  struct DeepState_TestInfo *prev;
-  void (*test_func)(void);
-  const char *test_name;
-  const char *file_name;
-  unsigned line_number;
-};
-
-struct DeepState_TestRunInfo {
-  struct DeepState_TestInfo *test;
-  enum DeepState_TestRunResult result;
-  const char *reason;
-};
 
 /* Pointer to the last registered `TestInfo` structure. */
 extern struct DeepState_TestInfo *DeepState_LastTestInfo;
@@ -764,99 +773,6 @@ static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
     }
     return(DeepState_TestRunPass);
   }
-}
-
-/* Run a test case inside a new Windows process */
-static int DeepState_RunTestWin(struct DeepState_TestInfo *test){
-
-  #if defined(_WIN32) || defined(_MSC_VER)
-
-    PROCESS_INFORMATION pi;
-    STARTUPINFO si;
-    DWORD exit_code = 0;
-
-    ZeroMemory( &si, sizeof(si) );
-    si.cb = sizeof(si);
-    ZeroMemory( &pi, sizeof(pi) );
-    
-    /* Get the fully qualified path of the current module */
-    char command[MAX_CMD_LEN]; 
-    if (!GetModuleFileName(NULL, command, MAX_CMD_LEN)){
-      DeepState_LogFormat(DeepState_LogError, "GetModuleFileName failed (%d)", GetLastError());
-      return 0;
-    }
-
-    /* Append the parameters to specify which test to run and to run the test
-       directly in the main process */
-    snprintf(command, MAX_CMD_LEN, "%s --direct_run --input_which_test %s", command, test->test_name);
-
-    if (HAS_FLAG_output_test_dir) {
-      snprintf(command, MAX_CMD_LEN, "%s --output_test_dir %s", command, FLAGS_output_test_dir);
-    }
-
-    if (!FLAGS_fuzz || FLAGS_fuzz_save_passing) {
-      snprintf(command, MAX_CMD_LEN, "%s --fuzz_save_passing", command);
-    }
-
-    /* Create the process */
-    if(!CreateProcess(NULL, command, NULL, NULL, false, 0, NULL, NULL, &si, &pi)){
-      DeepState_LogFormat(DeepState_LogError, "CreateProcess failed (%d)", GetLastError());
-      return 0;
-    }
-
-    /* Wait for the process to complete and get it's exit code */
-    WaitForSingleObject(pi.hProcess, INFINITE);
-    if (!GetExitCodeProcess(pi.hProcess, &exit_code)){
-      DeepState_LogFormat(DeepState_LogError, "GetExitCodeProcess failed (%d)", GetLastError());
-      return 0;
-    }
-
-    return exit_code;
-
-  #endif
-
-  return 0;
-}
-
-
-/* Fork and run `test`. */
-static enum DeepState_TestRunResult
-DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
-  int wstatus;
-
-  #if defined(_WIN32) || defined(_MSC_VER)
-    if (FLAGS_fork) {
-      wstatus = DeepState_RunTestWin(test);
-      return (enum DeepState_TestRunResult) wstatus;
-    }
-    wstatus = DeepState_RunTestNoFork(test);
-    DeepState_CleanUp();
-    return (enum DeepState_TestRunResult) wstatus;
-  #elif defined(__unix)
-    pid_t test_pid;
-    if (FLAGS_fork) {
-      test_pid = fork();
-      if (!test_pid) {
-        DeepState_RunTest(test);
-        /* No need to clean up in a fork; exit() is the ultimate garbage collector */
-      }
-    }
-
-    /* If we exited normally, the status code tells us if the test passed. */
-    if (FLAGS_fork) {
-      waitpid(test_pid, &wstatus, 0);
-      return (enum DeepState_TestRunResult) wstatus;
-    } else {
-      wstatus = DeepState_RunTestNoFork(test);
-      DeepState_CleanUp();
-      return (enum DeepState_TestRunResult) wstatus;
-    }
-  #endif
-   
-
-  /* If here, we exited abnormally but didn't catch it in the signal
-   * handler, and thus the test failed due to a crash. */
-  return DeepState_TestRunCrash;
 }
 
 extern enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test);
@@ -1144,17 +1060,9 @@ static int DeepState_RunSingleSavedTestDir(void) {
     char *path = (char *) malloc(path_len);
     snprintf(path, path_len, "%s/%s", FLAGS_input_test_files_dir, dp->d_name);
 
-    #if defined(_WIN32) || defined(_MSC_VER)
-      DWORD file_attributes = GetFileAttributes(path);
-      if (file_attributes == INVALID_FILE_ATTRIBUTES || (file_attributes & FILE_ATTRIBUTE_DIRECTORY) ){
-        continue;
-      }
-    #elif defined(__unix)
-      stat(path, &path_stat);
-      if (!S_ISREG(path_stat.st_mode)) {
-        continue;
-      }
-    #endif
+    if (!IS_REGULAR_FILE(path)){
+      continue;
+    }
 
     i++;
     enum DeepState_TestRunResult result =
@@ -1200,8 +1108,6 @@ static int DeepState_RunSavedTestCases(void) {
   return num_failed_tests;
 }
 
-extern void DeepState_RunSingle();
-
 /* Start DeepState and run the tests. Returns the number of failed tests. */
 static int DeepState_Run(void) {
   if (!DeepState_OptionsAreInitialized) {
@@ -1212,12 +1118,7 @@ static int DeepState_Run(void) {
     return DeepState_RunListTests();
   }
 
-  #if defined(_WIN32) || defined(_MSC_VER)
-    if (FLAGS_direct_run) {
-      DeepState_RunSingle();
-      return 0;
-    }
-  #endif
+  ENABLE_DIRECT_RUN_FLAG;
 
   if (HAS_FLAG_input_test_file) {
     return DeepState_RunSingleSavedTestCase();
@@ -1261,15 +1162,9 @@ static int DeepState_Run(void) {
 
 	/* Check if pattern match exists in test, skip if not */
 	if (HAS_FLAG_test_filter) {
-    #if defined(_WIN32) || defined(_MSC_VER)
-      /* TODO: implement fnmatch for Windows */
+    if (REG_MATCH(FLAGS_test_filter, curr_test)){
       continue;
-    #elif defined(__unix)
-      if (fnmatch(FLAGS_test_filter, curr_test, FNM_NOESCAPE)) {
-        continue;
-      }
-    #endif
-	  
+    }	  
 	}
 
 	/* Check if --run_disabled is set, and if not, skip Disabled* tests */
