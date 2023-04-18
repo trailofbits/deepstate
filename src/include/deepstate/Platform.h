@@ -25,57 +25,59 @@ DEEPSTATE_BEGIN_EXTERN_C
 struct DeepState_TestInfo;
 
 #if defined(_WIN32) || defined(_MSC_VER)
-  #include <windows.h>
 
-  DECLARE_bool(direct_run);
+#include <windows.h>
 
-  /* Maximum command length on Windows */
-  #define MAX_CMD_LEN 512
+DECLARE_bool(direct_run);
 
-  /* Enables the direct_run flag */
-  #define ENABLE_DIRECT_RUN_FLAG if (FLAGS_direct_run) { \
-    DeepState_RunSingle(); \
-    return 0; \
-  }
+/* Maximum command length on Windows */
+#define MAX_CMD_LEN 512
 
-  #define IS_REGULAR_FILE(PATH) ({ \
-    DWORD file_attributes = GetFileAttributes(PATH); \
-    file_attributes != INVALID_FILE_ATTRIBUTES && !(file_attributes & FILE_ATTRIBUTE_DIRECTORY); \
-  })
+/* Enables the direct_run flag */
+#define ENABLE_DIRECT_RUN_FLAG if (FLAGS_direct_run) { \
+  DeepState_RunSingle(); \
+  return 0; \
+}
 
-  /* Match a regular expression pattern inside a given string 
-   * TODO: implementation for Windows */
-  #define REG_MATCH(PATTERN, STRING) false
+#define IS_REGULAR_FILE(PATH) ({ \
+  DWORD file_attributes = GetFileAttributes(PATH); \
+  file_attributes != INVALID_FILE_ATTRIBUTES && !(file_attributes & FILE_ATTRIBUTE_DIRECTORY); \
+})
 
-  /* PRId64 definition */
-  #if !defined(PRId64) 
-    #define PRId64 "lld" 
-  #endif 
+/* Match a regular expression pattern inside a given string 
+  * TODO: implementation for Windows */
+#define REG_MATCH(PATTERN, STRING) false
 
-  /* Direct run of a test in a new Windows process. Platform specific function. */
-  extern int DeepState_RunTestWin(struct DeepState_TestInfo *test);
+/* PRId64 definition */
+#if !defined(PRId64) 
+  #define PRId64 "lld" 
+#endif 
 
-  /* Direct run of a single test case. Platform specific function. */
-  extern void DeepState_RunSingle();
+/* Direct run of a test in a new Windows process. Platform specific function. */
+extern int DeepState_RunTestWin(struct DeepState_TestInfo *test);
+
+/* Direct run of a single test case. Platform specific function. */
+extern void DeepState_RunSingle();
   
 
 #elif defined(__unix)
-  #include <sys/types.h>
-  #include <sys/wait.h>
-  #include <sys/mman.h>
-  #include <sys/stat.h>
-  #include <fnmatch.h>
 
-  #define ENABLE_DIRECT_RUN_FLAG
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fnmatch.h>
 
-  #define IS_REGULAR_FILE(PATH) ({ \
-    struct stat path_stat; \
-    stat(path, &path_stat); \
-    S_ISREG(path_stat.st_mode); \
-  })
+#define ENABLE_DIRECT_RUN_FLAG
 
-  /* Match a regular expression pattern inside a given string */
-  #define REG_MATCH(PATTERN, STRING) (fnmatch(PATTERN, STRING, FNM_NOESCAPE))
+#define IS_REGULAR_FILE(PATH) ({ \
+  struct stat path_stat; \
+  stat(path, &path_stat); \
+  S_ISREG(path_stat.st_mode); \
+})
+
+/* Match a regular expression pattern inside a given string */
+#define REG_MATCH(PATTERN, STRING) (fnmatch(PATTERN, STRING, FNM_NOESCAPE))
 
 #endif
 
