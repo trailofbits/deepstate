@@ -118,11 +118,13 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_C_FLAGS_DEBUG "-O3")
-set(CMAKE_C_FLAGS_RELEASE "-O3")
+if (WIN32)
+  set(DEEPSTATE_PLATFORM_LIB src/lib/DeepState_Win32.c)
+endif (WIN32)
 
-set(CMAKE_CXX_FLAGS_DEBUG "-O3")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+if (UNIX)
+  set(DEEPSTATE_PLATFORM_LIB src/lib/DeepState_UNIX.c)
+endif (WIN32)
 
 # compile only examples
 if(EXAMPLES_ONLY)
@@ -142,6 +144,7 @@ if (NOT WIN32)
 endif()
 
 add_library(${PROJECT_NAME} STATIC
+  ${DEEPSTATE_PLATFORM_LIB}
   src/lib/DeepState.c
   src/lib/Log.c
   src/lib/Option.c
@@ -149,6 +152,7 @@ add_library(${PROJECT_NAME} STATIC
 )
 
 add_library(${PROJECT_NAME}32 STATIC
+  ${DEEPSTATE_PLATFORM_LIB}
   src/lib/DeepState.c
   src/lib/Log.c
   src/lib/Option.c
@@ -192,6 +196,7 @@ if (DEEPSTATE_LIBFUZZER)
     endif()
 
     add_library(${PROJECT_NAME}_LF STATIC
+       ${DEEPSTATE_PLATFORM_LIB}
        src/lib/DeepState.c
        src/lib/Log.c
        src/lib/Option.c
@@ -213,6 +218,7 @@ endif()
 
 if (DEEPSTATE_HONGGFUZZ)
     add_library(${PROJECT_NAME}_HFUZZ STATIC
+       ${DEEPSTATE_PLATFORM_LIB}
        src/lib/DeepState.c
        src/lib/Log.c
        src/lib/Option.c
@@ -234,6 +240,7 @@ endif()
 
 if (DEEPSTATE_AFL)
     add_library(${PROJECT_NAME}_AFL STATIC
+       ${DEEPSTATE_PLATFORM_LIB}
        src/lib/DeepState.c
        src/lib/Log.c
        src/lib/Option.c
@@ -261,6 +268,7 @@ if (DEEPSTATE_ANGORA)
 	endif()
 
 	add_library(${PROJECT_NAME} STATIC
+       ${DEEPSTATE_PLATFORM_LIB}
        src/lib/DeepState.c
        src/lib/Log.c
        src/lib/Option.c
