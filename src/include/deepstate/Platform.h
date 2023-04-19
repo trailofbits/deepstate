@@ -38,7 +38,8 @@ DECLARE_bool(direct_run);
 }
 
 /* Match a regular expression pattern inside a given string 
-  * TODO: implementation for Windows */
+  * TODO: implementation for Windows 
+  * See issue: https://github.com/trailofbits/deepstate/issues/429 */
 #define REG_MATCH(PATTERN, STRING) false
 
 /* PRId64 definition */
