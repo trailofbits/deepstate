@@ -17,9 +17,9 @@
 #include <windows.h>
 
 #include "deepstate/Platform.h"
-#include "deepstate/DeepState.h"
 #include "deepstate/Option.h"
 #include "deepstate/Log.h"
+#include "DeepState.h"
 
 DEEPSTATE_BEGIN_EXTERN_C
 

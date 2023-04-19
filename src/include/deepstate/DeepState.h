@@ -293,20 +293,6 @@ extern void DeepState_InitCurrentTestRun(struct DeepState_TestInfo *test);
 /* Fork and run `test`. Platform specific function. */
 extern enum DeepState_TestRunResult DeepState_ForkAndRunTest(struct DeepState_TestInfo *test);
 
-/* Function that allocates the shared memory for the current test run. Platform 
- * specific function. */
-extern void DeepState_AllocCurrentTestRun(void);
-
-/* Run saved take over cases. Platform specific function. */
-extern void DeepState_RunSavedTakeOverCases(jmp_buf env, struct DeepState_TestInfo *test);
-
-/* Run take over. Platform specific function. */
-extern int DeepState_TakeOver(void);
-
-/* Returns the path to a testcase without parsing to any aforementioned types. 
- * Platform specific function. */
-extern char *DeepState_InputPath(const char* testcase_path);
-
 /* Portable and architecture-independent memory scrub without dead store elimination. */
 extern void *DeepState_MemScrub(void *pointer, size_t data_size);
 
