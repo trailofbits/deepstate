@@ -179,7 +179,7 @@ int DeepState_TakeOver(void) {
 /* Fork and run `test`. */
 extern enum DeepState_TestRunResult
 DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
-  int wstatus;
+  int wstatus = 0;
   pid_t test_pid;
   
   if (FLAGS_fork) {
@@ -189,17 +189,20 @@ DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
       /* No need to clean up in a fork; exit() is the ultimate garbage collector */
     }
   }
-
-  /* If we exited normally, the status code tells us if the test passed. */
   if (FLAGS_fork) {
     waitpid(test_pid, &wstatus, 0);
-    return (enum DeepState_TestRunResult) wstatus;
   } else {
     wstatus = DeepState_RunTestNoFork(test);
     DeepState_CleanUp();
-    return (enum DeepState_TestRunResult) wstatus;
   }
-  
+
+  /* If we exited normally, the status code tells us if the test passed. */
+  if (!FLAGS_fork) {
+    return (enum DeepState_TestRunResult) wstatus;
+  } else if (WIFEXITED(wstatus)) {
+    uint8_t status = WEXITSTATUS(wstatus);
+    return (enum DeepState_TestRunResult) status;
+  }
 
   /* If here, we exited abnormally but didn't catch it in the signal
    * handler, and thus the test failed due to a crash. */
