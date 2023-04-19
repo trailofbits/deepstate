@@ -142,6 +142,15 @@ int DeepState_RunTestWin(struct DeepState_TestInfo *test){
     return DeepState_TestRunAbandon;
   }
 
+  /* If at this point the exit code is not DeepState_TestRunPass, it means that
+   * DeepState_RunTest never reached the end of test->test_func(), and thus the 
+   * function exited abnormally:
+   *   test->test_func();
+   *   exit(DeepState_TestRunPass); */
+  if (exit_code != DeepState_TestRunPass){
+    exit_code = DeepState_TestRunCrash;
+  }
+
   return exit_code;
 }
 
