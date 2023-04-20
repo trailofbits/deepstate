@@ -29,14 +29,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-#include <fnmatch.h>
 
+#include <deepstate/Platform.h>
 #include <deepstate/Log.h>
 #include <deepstate/Compiler.h>
 #include <deepstate/Option.h>
@@ -202,6 +198,34 @@ DEEPSTATE_INLINE static int8_t DeepState_MaxChar(int8_t v) {
   return (int8_t) DeepState_MaxInt(v);
 }
 
+
+/* Result of a single forked test run.
+ * Will be passed to the parent process as an exit code. */
+enum DeepState_TestRunResult {
+  DeepState_TestRunPass = 0,
+  DeepState_TestRunFail = 1,
+  DeepState_TestRunCrash = 2,
+  DeepState_TestRunAbandon = 3,
+};
+
+/* Contains information about a test case */
+struct DeepState_TestInfo {
+  struct DeepState_TestInfo *prev;
+  void (*test_func)(void);
+  const char *test_name;
+  const char *file_name;
+  unsigned line_number;
+};
+
+struct DeepState_TestRunInfo {
+  struct DeepState_TestInfo *test;
+  enum DeepState_TestRunResult result;
+  const char *reason;
+};
+
+/* Information about the current test run, if any. */
+extern struct DeepState_TestRunInfo *DeepState_CurrentTestRun;
+
 /* Function to clean up generated strings, and any other DeepState-managed data. */
 extern void DeepState_CleanUp();
 
@@ -263,11 +287,17 @@ extern void *DeepState_Malloc(size_t num_bytes);
    Ptr will be freed by DeepState at end of test. */
 extern void *DeepState_GCMalloc(size_t num_bytes);
 
-/* Returns the path to a testcase without parsing to any aforementioned types */
-extern const char *DeepState_InputPath(char *testcase_path);
+/* Initialize the current test run */
+extern void DeepState_InitCurrentTestRun(struct DeepState_TestInfo *test);
+
+/* Fork and run `test`. Platform specific function. */
+extern enum DeepState_TestRunResult DeepState_ForkAndRunTest(struct DeepState_TestInfo *test);
 
 /* Portable and architecture-independent memory scrub without dead store elimination. */
 extern void *DeepState_MemScrub(void *pointer, size_t data_size);
+
+/* Checks if the given path corresponds to a regular file. */
+extern bool DeepState_IsRegularFile(char *path);
 
 #define DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Tname, tname, utname) \
     DEEPSTATE_INLINE static \
@@ -286,16 +316,6 @@ extern void _DeepState_Assume(int expr, const char *expr_str, const char *file,
                               unsigned line);
 
 #define DeepState_Assume(x) _DeepState_Assume(!!(x), #x, __FILE__, __LINE__)
-
-/* Result of a single forked test run.
- *
- * Will be passed to the parent process as an exit code. */
-enum DeepState_TestRunResult {
-  DeepState_TestRunPass = 0,
-  DeepState_TestRunFail = 1,
-  DeepState_TestRunCrash = 2,
-  DeepState_TestRunAbandon = 3,
-};
 
 /* Abandon this test. We've hit some kind of internal problem. */
 DEEPSTATE_NORETURN
@@ -501,20 +521,6 @@ DEEPSTATE_INLINE static int DeepState_IsSymbolicDouble(double x) {
 #define DeepState_EntryPoint(test_name) \
     _DeepState_EntryPoint(test_name, __FILE__, __LINE__)
 
-/* Contains information about a test case */
-struct DeepState_TestInfo {
-  struct DeepState_TestInfo *prev;
-  void (*test_func)(void);
-  const char *test_name;
-  const char *file_name;
-  unsigned line_number;
-};
-
-struct DeepState_TestRunInfo {
-  struct DeepState_TestInfo *test;
-  enum DeepState_TestRunResult result;
-  const char *reason;
-};
 
 /* Pointer to the last registered `TestInfo` structure. */
 extern struct DeepState_TestInfo *DeepState_LastTestInfo;
@@ -606,48 +612,7 @@ extern void DeepState_Warn_srand(unsigned int seed);
 
 /* Resets the global `DeepState_Input` buffer, then fills it with the
  * data found in the file `path`. */
-static void DeepState_InitInputFromFile(const char *path) {
-  struct stat stat_buf;
-
-  FILE *fp = fopen(path, "r");
-  if (fp == NULL) {
-    /* TODO(joe): Add error log with more info. */
-    DeepState_Abandon("Unable to open file");
-  }
-
-  int fd = fileno(fp);
-  if (fd < 0) {
-    DeepState_Abandon("Tried to get file descriptor for invalid stream");
-  }
-  if (fstat(fd, &stat_buf) < 0) {
-    DeepState_Abandon("Unable to access input file");
-  };
-
-  size_t to_read = stat_buf.st_size;
-
-  if (stat_buf.st_size > sizeof(DeepState_Input)) {
-    DeepState_LogFormat(DeepState_LogWarning, "File too large, truncating to max input size");
-    to_read = DeepState_InputSize;
-  }
-
-  /* Reset the index. */
-  DeepState_InputIndex = 0;
-  DeepState_SwarmConfigsIndex = 0;
-
-  size_t count = fread((void *) DeepState_Input, 1, to_read, fp);
-  fclose(fp);
-
-  if (count != to_read) {
-    /* TODO(joe): Add error log with more info. */
-    DeepState_Abandon("Error reading file");
-  }
-
-  DeepState_InputInitialized = count;
-
-  DeepState_LogFormat(DeepState_LogTrace,
-                      "Initialized test input buffer with %zu bytes of data from `%s`",
-                      count, path);
-}
+extern void DeepState_InitInputFromFile(const char *path);
 
 /* Resets the global `DeepState_Input` buffer, then fills it with the
  * data found in the file `path`. */
@@ -753,43 +718,11 @@ static int DeepState_RunTestNoFork(struct DeepState_TestInfo *test) {
     DeepState_LogFormat(DeepState_LogTrace, "Passed: %s", test->test_name);
     if (HAS_FLAG_output_test_dir) {
       if (!FLAGS_fuzz || FLAGS_fuzz_save_passing) {
-	DeepState_SavePassingTest();
+        DeepState_SavePassingTest();
       }
     }
     return(DeepState_TestRunPass);
   }
-}
-
-/* Fork and run `test`. */
-static enum DeepState_TestRunResult
-DeepState_ForkAndRunTest(struct DeepState_TestInfo *test) {
-  pid_t test_pid;
-  if (FLAGS_fork) {
-    test_pid = fork();
-    if (!test_pid) {
-      DeepState_RunTest(test);
-      /* No need to clean up in a fork; exit() is the ultimate garbage collector */
-    }
-  }
-  int wstatus = 0;
-  if (FLAGS_fork) {
-    waitpid(test_pid, &wstatus, 0);
-  } else {
-    wstatus = DeepState_RunTestNoFork(test);
-    DeepState_CleanUp();
-  }
-
-  /* If we exited normally, the status code tells us if the test passed. */
-  if (!FLAGS_fork) {
-    return (enum DeepState_TestRunResult) wstatus;
-  } else if (WIFEXITED(wstatus)) {
-    uint8_t status = WEXITSTATUS(wstatus);
-    return (enum DeepState_TestRunResult) status;
-  }
-
-  /* If here, we exited abnormally but didn't catch it in the signal
-   * handler, and thus the test failed due to a crash. */
-  return DeepState_TestRunCrash;
 }
 
 extern enum DeepState_TestRunResult DeepState_FuzzOneTestCase(struct DeepState_TestInfo *test);
@@ -1058,8 +991,10 @@ static int DeepState_RunSingleSavedTestDir(void) {
   struct dirent *dp;
   DIR *dir_fd;
 
-  struct stat path_stat;
-
+  #if defined(__unix)
+    struct stat path_stat;
+  #endif
+  
   dir_fd = opendir(FLAGS_input_test_files_dir);
   if (dir_fd == NULL) {
     DeepState_LogFormat(DeepState_LogInfo,
@@ -1074,22 +1009,23 @@ static int DeepState_RunSingleSavedTestDir(void) {
     size_t path_len = 2 + sizeof(char) * (strlen(FLAGS_input_test_files_dir) + strlen(dp->d_name));
     char *path = (char *) malloc(path_len);
     snprintf(path, path_len, "%s/%s", FLAGS_input_test_files_dir, dp->d_name);
-    stat(path, &path_stat);
 
-    if (S_ISREG(path_stat.st_mode)) {
-      i++;
-      enum DeepState_TestRunResult result =
-        DeepState_RunSavedTestCase(test, FLAGS_input_test_files_dir, dp->d_name);
+    if (!DeepState_IsRegularFile(path)){
+      continue;
+    }
 
-      if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
-        if (FLAGS_abort_on_fail) {
-          DeepState_HardCrash();
-        }
-        if (FLAGS_exit_on_fail) {
-          exit(255); // Terminate the testing
-        }
-        num_failed_tests++;
+    i++;
+    enum DeepState_TestRunResult result =
+      DeepState_RunSavedTestCase(test, FLAGS_input_test_files_dir, dp->d_name);
+
+    if ((result == DeepState_TestRunFail) || (result == DeepState_TestRunCrash)) {
+      if (FLAGS_abort_on_fail) {
+        DeepState_HardCrash();
       }
+      if (FLAGS_exit_on_fail) {
+        exit(255); // Terminate the testing
+      }
+      num_failed_tests++;
     }
   }
   closedir(dir_fd);
@@ -1129,8 +1065,10 @@ static int DeepState_Run(void) {
   }
 
   if (HAS_FLAG_list_tests) {
-	return DeepState_RunListTests();
+    return DeepState_RunListTests();
   }
+
+  ENABLE_DIRECT_RUN_FLAG;
 
   if (HAS_FLAG_input_test_file) {
     return DeepState_RunSingleSavedTestCase();
@@ -1174,9 +1112,9 @@ static int DeepState_Run(void) {
 
 	/* Check if pattern match exists in test, skip if not */
 	if (HAS_FLAG_test_filter) {
-	  if (fnmatch(FLAGS_test_filter, curr_test, FNM_NOESCAPE)) {
-	    continue;
-	  }
+    if (REG_MATCH(FLAGS_test_filter, curr_test)){
+      continue;
+    }	  
 	}
 
 	/* Check if --run_disabled is set, and if not, skip Disabled* tests */

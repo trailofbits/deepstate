@@ -102,7 +102,7 @@ deterministic settings such as regression testing or CI.
 
 ### Supported Platforms
 
-DeepState currently targets Linux, with macOS support in progress
+DeepState currently targets Linux, Windows, with macOS support in progress
 (the fuzzers work fine, but symbolic execution is not well-supported
 yet, without a painful cross-compilation process).
 
@@ -135,6 +135,22 @@ cmake ../
 make
 sudo make install
 ```
+
+### Building on Windows 10
+If you want to compile DeepState on Windows make sure to install MinGW with MSYS2 by following the [installation instructions](https://www.msys2.org/#installation). After the installation is finished, select an environment and launch that version of the environment from the Windows programs menu(if in doubt, choose MINGW64 or UCRT64). Then, use the command below to install all of your environment's dependencies and compile DeepState:
+```shell
+pacman -Syyu
+pacman -S mingw-w64-x86_64-python3 mingw-w64-x86_64-python-setuptools mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-libffi mingw-w64-x86_64-make
+pacman -S make git
+
+git clone https://github.com/trailofbits/deepstate deepstate
+mkdir deepstate/build && cd deepstate/build
+cmake -G "Unix Makefiles" ../
+make
+make install
+```
+
+NOTE: If you decide to use UCRT64, keep in mind to change `x86_64` to `ucrt-x86_64` in the second pacman command, i.e. `mingw-w64-x86_64-python3` gets replaced with `mingw-w64-ucrt-x86_64-python3`.
 
 ### Installing
 
