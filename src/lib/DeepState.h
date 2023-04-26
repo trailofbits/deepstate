@@ -32,10 +32,6 @@ extern void DeepState_RunSavedTakeOverCases(jmp_buf env, struct DeepState_TestIn
 /* Run take over. Platform specific function. */
 extern int DeepState_TakeOver(void);
 
-/* Returns the path to a testcase without parsing to any aforementioned types. 
- * Platform specific function. */
-extern char *DeepState_InputPath(const char* testcase_path);
-
 
 DEEPSTATE_END_EXTERN_C
 

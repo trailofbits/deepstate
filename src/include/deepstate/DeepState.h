@@ -299,6 +299,10 @@ extern void *DeepState_MemScrub(void *pointer, size_t data_size);
 /* Checks if the given path corresponds to a regular file. */
 extern bool DeepState_IsRegularFile(char *path);
 
+/* Returns the path to a testcase without parsing to any aforementioned types. 
+ * Platform specific function. */
+extern char *DeepState_InputPath(const char* testcase_path);
+
 #define DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Tname, tname, utname) \
     DEEPSTATE_INLINE static \
     tname *DeepState_Symbolic ## Tname ## Array(size_t num_elms) { \
