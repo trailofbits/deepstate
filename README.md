@@ -20,6 +20,7 @@ Table of Contents
      * [Supported Platforms](#supported-platforms)
      * [Dependencies](#dependencies)
      * [Building on Ubuntu 18.04 (Bionic)](#building-on-ubuntu-1804-bionic)
+     * [Building on Windows 10](#building-on-windows-10)
      * [Installing](#installing)
      * [Installation testing](#installation-testing)
      * [Docker](#docker)

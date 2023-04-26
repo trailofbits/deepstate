@@ -299,6 +299,10 @@ extern void *DeepState_MemScrub(void *pointer, size_t data_size);
 /* Checks if the given path corresponds to a regular file. */
 extern bool DeepState_IsRegularFile(char *path);
 
+/* Returns the path to a testcase without parsing to any aforementioned types. 
+ * Platform specific function. */
+extern char *DeepState_InputPath(const char* testcase_path);
+
 #define DEEPSTATE_MAKE_SYMBOLIC_ARRAY(Tname, tname, utname) \
     DEEPSTATE_INLINE static \
     tname *DeepState_Symbolic ## Tname ## Array(size_t num_elms) { \
@@ -355,8 +359,8 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
 }
 
 /* Return a symbolic value in a the range `[low_inc, high_inc]`. */
-
-#define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname, utname) \
+#ifdef DEEPSTATE_RANGE_BOUNDARY_BIAS
+  #define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname, utname) \
     DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
         tname low, tname high) { \
       if (low == high) { \
@@ -375,12 +379,32 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
         printf("Range read low %" PRId64 " high %" PRId64 "\n", \
                (int64_t)low, (int64_t)high); \
       } \
-#ifdef DEEPSTATE_RANGE_BOUNDARY_BIAS
       if (x < low) \
-	return low; \
+        return low; \
       if (x > high) \
-	return high; \
+        return high; \
+      return x; \
+    }
 #else
+  #define DEEPSTATE_MAKE_SYMBOLIC_RANGE(Tname, tname, utname) \
+    DEEPSTATE_INLINE static tname DeepState_ ## Tname ## InRange( \
+        tname low, tname high) { \
+      if (low == high) { \
+        return low; \
+      } else if (low > high) { \
+        const tname copy = high; \
+        high = low; \
+        low = copy; \
+      } \
+      tname x = DeepState_ ## Tname(); \
+      if (DeepState_UsingSymExec) { \
+        (void) DeepState_Assume(low <= x && x <= high); \
+        return x;					\
+      } \
+      if (FLAGS_verbose_reads) { \
+        printf("Range read low %" PRId64 " high %" PRId64 "\n", \
+               (int64_t)low, (int64_t)high); \
+      } \
       if ((x < low) || (x > high)) { \
         const utname ux = (utname) x; \
         utname usize; \
@@ -402,9 +426,10 @@ DEEPSTATE_INLINE static void DeepState_Check(int expr) {
         } \
         return ret; \
       } \
-#endif
       return x; \
     }
+#endif
+
 
 DEEPSTATE_FOR_EACH_INTEGER(DEEPSTATE_MAKE_SYMBOLIC_RANGE)
 #undef DEEPSTATE_MAKE_SYMBOLIC_RANGE
