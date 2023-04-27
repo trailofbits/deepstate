@@ -105,7 +105,8 @@ deterministic settings such as regression testing or CI.
 
 DeepState currently targets Linux, Windows, with macOS support in progress
 (the fuzzers work fine, but symbolic execution is not well-supported
-yet, without a painful cross-compilation process).
+yet, without a painful cross-compilation process). No current support for ARM64 architecture,
+ this includes Apple Silicon processors, as there is no support for multilib compilers. 
 
 ### Dependencies
 
@@ -125,6 +126,7 @@ Runtime:
 
 First make sure you install [Python 3.6 or greater](https://askubuntu.com/a/865569). Then use this command line to install additional requirements and compile DeepState:
 
+**Building Deepstate**
 ```shell
 sudo apt update && sudo apt-get install build-essential gcc-multilib g++-multilib cmake python3-setuptools python3-dev libffi-dev z3
 sudo apt-add-repository ppa:sri-csl/formal-methods
@@ -135,6 +137,47 @@ mkdir deepstate/build && cd deepstate/build
 cmake ../
 make
 sudo make install
+```
+
+### Changing file permissions
+```shell
+cd deepstate
+sudo chmod -R 755 .
+sudo chown -R username:groupname .
+```
+
+### Installing Dependencies on Ubuntu if issues arise
+**CMake:**
+```shell
+sudo apt install cmake
+```
+
+**GCC & G++ with multilib support:**
+```shell
+sudo apt-get install gcc-multilib
+sudo apt-get install g++-multilib
+```
+
+**Installing the latest version of Python via CLI:**
+```shell
+sudo apt-get update && sudo apt upgrade
+sudo apt install wget build-essential libncursesw5-dev libssl-dev \
+libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev zlib1g-dev
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt install python3.11
+```
+
+**Setup Tools:**
+
+Skip the first command below if pip is already installed.
+```shell
+sudo apt install python3-pip
+pip3 install setuptools
+```
+
+**Z3:**
+```shell
+sudo apt install z3
 ```
 
 ### Building on Windows 10
@@ -221,7 +264,19 @@ to get all the fuzzers and tools up and running on any system.
 The build may take about 40 minutes, because some fuzzers require us
 building huge projects like QEMU or LLVM.
 
+**Ensure that docker is installed:**
+
+- Check out the docker website [here](https://docs.docker.com/engine/install/) for installation instructions.
+
+**Check if docker is installed correctly:**
 ```bash
+docker run hello-world
+```
+
+**Run these commands to install deepstate via docker:**
+```bash
+git clone https://github.com/trailofbits/deepstate deepstate
+$ cd deepstate
 $ docker build -t deepstate-base -f docker/base/Dockerfile docker/base
 $ docker build -t deepstate --build-arg make_j=6 -f ./docker/Dockerfile .
 $ docker run -it deepstate bash
@@ -234,6 +289,22 @@ user@a17bc44fd259:~/deepstate/build_libfuzzer/examples$ cd ../../build_afl/examp
 user@a17bc44fd259:~/deepstate/build_afl/examples$ mkdir foo && echo x > foo/x && mkdir afl_Runlen2
 user@a17bc44fd259:~/deepstate/build_afl/examples$ $AFL_HOME/afl-fuzz -i foo -o afl_Runlen -- ./Runlen_AFL --input_test_file @@ --no_fork --abort_on_fail
 user@a17bc44fd259:~/deepstate/build_afl/examples$ deepstate-afl -o afl_Runlen2 ./Runlen_AFL --fuzzer_out
+```
+
+**How to use docker without sudo:**
+```bash
+sudo groupadd docker
+sudo gpasswd -a $USER docker
+newgrp docker
+```
+
+**If this error occurs:**
+```bash
+ERROR: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+```
+**Run this command:**
+```bash
+systemctl start docker
 ```
 
 ## Documentation
