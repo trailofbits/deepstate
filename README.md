@@ -333,6 +333,7 @@ We have not yet applied DeepState to many targets, but it was responsible for fi
 - https://github.com/Blosc/c-blosc2/issues/93
 - https://github.com/Blosc/c-blosc2/issues/94
 - **https://github.com/Blosc/c-blosc2/issues/95** (bug causing compression engine to return incorrect uncompressed data) **FIXED**
+- **https://github.com/FooBarWidget/boyer-moore-horspool/issues/4** (implementation of Turbo version of Boyer-Moore string search can fail to find present string)
 
 ## License
 
