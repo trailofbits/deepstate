@@ -79,7 +79,7 @@ class Ensembler(FuzzerFrontend):
     # TODO(alan): other execution options
 
     #parser.add_argument("--fuzzers", type=str, \
-    #  help="Comma-seperated string of fuzzers to ensemble with (overrides default ensemble).")
+    #  help="Comma-separated string of fuzzers to ensemble with (overrides default ensemble).")
 
     #parser.add_argument("--abort_on_crash", action="store_true", \
     #  help="Stop ensembler when any base fuzzer returns a crash.")
@@ -132,7 +132,7 @@ class Ensembler(FuzzerFrontend):
   @staticmethod
   def _init_fuzzers(ret_all=False):
     """
-    Initialize a pre-defined ensemble of fuzzer objects. Return all subcasses if
+    Initialize a pre-defined ensemble of fuzzer objects. Return all subclasses if
     param is set.
 
     Default fuzzer ensemble (four cores):

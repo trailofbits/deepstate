@@ -13,7 +13,7 @@ class CrashFuzzerTest(deepstate_base.DeepStateFuzzerTestCase):
     def do_compile(tempdir, test_source_file):
       """
       Compile test_source_file using frontend API
-      temdir is a workspace 
+      tempdir is a workspace 
       """
       # prepare args
       output_test_name = path.join(tempdir, Path(test_source_file).stem)

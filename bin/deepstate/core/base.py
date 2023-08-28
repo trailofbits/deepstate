@@ -120,7 +120,7 @@ class AnalysisBackend(object):
 
       # TODO: instead of parsing out arguments, we should consume JSON compilation databases instead
       compile_group.add_argument("--compiler_args", type=str,
-        help="Linker flags (space seperated) to include for external libraries.")
+        help="Linker flags (space separated) to include for external libraries.")
 
       compile_group.add_argument("--out_test_name", type=str,
         help=("Set name of generated instrumented binary. Default is `out`. "

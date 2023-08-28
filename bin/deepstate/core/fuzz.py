@@ -747,7 +747,7 @@ class FuzzerFrontend(AnalysisBackend):
           run_one_fuzzer_process = False
           run_fuzzer = False
 
-        # bad things happed, inform user and exit
+        # bad things happened, inform user and exit
         except Exception:
           L.error(traceback.format_exc())      
           L.error("Exception during fuzzer %s run.", self.name)

@@ -446,7 +446,7 @@ class SymexFrontend(AnalysisBackend):
       self.abandon_test()
 
   def api_concretize_data(self, begin_ea, end_ea):
-    """Implements the `Deeptate_ConcretizeData` API function, which lets the
+    """Implements the `Deepstate_ConcretizeData` API function, which lets the
     programmer concretize some data in the exclusive range
     `[begin_ea, end_ea)`."""
     begin_ea = self.concretize(begin_ea, constrain=True)
@@ -465,7 +465,7 @@ class SymexFrontend(AnalysisBackend):
     return begin_ea
 
   def api_concretize_cstr(self, begin_ea):
-    """Implements the `Deeptate_ConcretizeCStr` API function, which lets the
+    """Implements the `Deepstate_ConcretizeCStr` API function, which lets the
     programmer concretize a NUL-terminated string starting at `begin_ea`."""
     begin_ea = self.concretize(begin_ea, constrain=True)
     str_bytes, end_ea = self.read_c_string(begin_ea, concretize=False)

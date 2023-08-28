@@ -31,7 +31,7 @@ enum {
   DeepState_StreamSize = 1048576
 };
 
-/* Formatting options availale to the streaming API. */
+/* Formatting options available to the streaming API. */
 struct DeepState_StreamFormatOptions {
   /* int radix; */
   int hex;

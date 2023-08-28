@@ -152,7 +152,7 @@ def hook_function(project, ea, cls):
 
 
 class IsSymbolicUInt(angr.SimProcedure):
-  """Implements DeepState_IsSymblicUInt, which returns 1 if its input argument
+  """Implements DeepState_IsSymbolicUInt, which returns 1 if its input argument
   has more then one solutions, and zero otherwise."""
   def run(self, arg):
     return DeepAngr(procedure=self).api_is_symbolic_uint(arg)
@@ -195,7 +195,7 @@ class SoftFail(angr.SimProcedure):
 
 
 class ConcretizeData(angr.SimProcedure):
-  """Implements the `Deeptate_ConcretizeData` API function, which lets the
+  """Implements the `Deepstate_ConcretizeData` API function, which lets the
   programmer concretize some data in the exclusive range
   `[begin_ea, end_ea)`."""
   def run(self, begin_ea, end_ea):
@@ -203,21 +203,21 @@ class ConcretizeData(angr.SimProcedure):
 
 
 class ConcretizeCStr(angr.SimProcedure):
-  """Implements the `Deeptate_ConcretizeCStr` API function, which lets the
+  """Implements the `Deepstate_ConcretizeCStr` API function, which lets the
     programmer concretize a NUL-terminated string starting at `begin_ea`."""
   def run(self, begin_ea):
     return DeepAngr(procedure=self).api_concretize_cstr(begin_ea)
 
 
 class MinUInt(angr.SimProcedure):
-  """Implements the `Deeptate_MinUInt` API function, which lets the
+  """Implements the `Deepstate_MinUInt` API function, which lets the
     programmer ask for the minimum satisfiable value of an unsigned integer."""
   def run(self, val):
     return DeepAngr(procedure=self).api_min_uint(val)
 
 
 class MaxUInt(angr.SimProcedure):
-  """Implements the `Deeptate_MaxUInt` API function, which lets the
+  """Implements the `Deepstate_MaxUInt` API function, which lets the
     programmer ask for the minimum satisfiable value of a signed integer."""
   def run(self, val):
     return DeepAngr(procedure=self).api_max_uint(val)

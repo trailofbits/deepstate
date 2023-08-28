@@ -137,7 +137,7 @@ class LibFuzzer(FuzzerFrontend):
     with open(self.output_file, "rb") as f:
       for line in f:
         # libFuzzer under DeepState have broken output
-        # splitted into multiple lines, preceeded with "EXTERNAL:"
+        # splitted into multiple lines, preceded with "EXTERNAL:"
         if line.startswith(b"EXTERNAL: "):
           line = line.split(b":", 1)[1].strip()
           if line.startswith(b"#"):

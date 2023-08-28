@@ -229,26 +229,26 @@ def hook_SoftFail(state):
 
 
 def hook_ConcretizeData(state, begin_ea, end_ea):
-  """Implements the `Deeptate_ConcretizeData` API function, which lets the
+  """Implements the `Deepstate_ConcretizeData` API function, which lets the
   programmer concretize some data in the exclusive range
   `[begin_ea, end_ea)`."""
   return DeepManticore(state).api_concretize_data(begin_ea, end_ea)
 
 
 def hook_ConcretizeCStr(state, begin_ea):
-  """Implements the `Deeptate_ConcretizeCStr` API function, which lets the
+  """Implements the `Deepstate_ConcretizeCStr` API function, which lets the
     programmer concretize a NUL-terminated string starting at `begin_ea`."""
   return DeepManticore(state).api_concretize_cstr(begin_ea)
 
 
 def hook_MinUInt(state, val):
-  """Implements the `Deeptate_MinUInt` API function, which lets the
+  """Implements the `Deepstate_MinUInt` API function, which lets the
   programmer ask for the minimum satisfiable value of an unsigned integer."""
   return DeepManticore(state).api_min_uint(val)
 
 
 def hook_MaxUInt(state, val):
-  """Implements the `Deeptate_MaxUInt` API function, which lets the
+  """Implements the `Deepstate_MaxUInt` API function, which lets the
   programmer ask for the minimum satisfiable value of a signed integer."""
   return DeepManticore(state).api_max_uint(val)
 
@@ -315,7 +315,7 @@ def done_test(_, state, reason):
       L.error("State %s terminated due to internal error: %s", state._id, reason)
 
       # Don't raise new `TerminateState` exception
-      super(DeepManticore, mc).ubandon_test()
+      super(DeepManticore, mc).abandon_test()
 
   mc.report()
 
