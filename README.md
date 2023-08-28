@@ -92,7 +92,7 @@ Inspecting `TCAS_driver.cpp` and `Makefile` will give a good idea of how DeepSta
 * Provides high-level strategies for improving symbolic execution/fuzzing effectiveness
   * Pumping (novel to DeepState) to pick concrete values when symbolic execution is too expensive
   * Automatic decomposition of integer compares to guide coverage-driven fuzzers
-  * Stong support for automated [swarm testing](https://agroce.github.io/issta12.pdf)
+  * Strong support for automated [swarm testing](https://agroce.github.io/issta12.pdf)
 
 To put it another way, DeepState sits at the intersection of
 *property-based testing*, *traditional unit testing*, *fuzzing*, and

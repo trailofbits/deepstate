@@ -204,7 +204,7 @@ not useful for symbolic execution.
 #### OneOf
 `OneOf` is an
 operator that takes as argument an arbitrary number of lambda
-expressions. In each call to `OneOf`, a random lambda is choosen
+expressions. In each call to `OneOf`, a random lambda is chosen
 and executed. This allows you to non-deterministically execute
 chunks of code and apply [swarm testing](/docs/swarm_testing.md).
 
@@ -260,7 +260,7 @@ The `OneOfP` form can also be used for arrays or vectors, by providing the list 
 
 ```cpp
 const char *compressors[] = {"blosclz", "lz4", "lz4hc", "zlib", "zstd"};
-compress(in_buffer, out_buffer, OneOfP({0.8, 0.001}, commpressors));
+compress(in_buffer, out_buffer, OneOfP({0.8, 0.001}, compressors));
 ```
 
 For this kind of `OneOfP`, in addition to the -1 method of specifying "omitted" probabilities,
@@ -351,7 +351,7 @@ that it also takes a range, after the generation expression, e.g.:
 ```
 int x = DeepState_IntInRange(-10, 10);
 int y;
-ASSIGN_SATSIFYING_IN_RANGE(y, DeepState_IntInRange(-10, 10), -10, 10, y >= x);
+ASSIGN_SATISFYING_IN_RANGE(y, DeepState_IntInRange(-10, 10), -10, 10, y >= x);
 ```
 
 Now `x` and `y` will both be guaranteed to fall in the range -10 to

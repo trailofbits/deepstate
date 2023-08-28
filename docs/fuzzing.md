@@ -91,7 +91,7 @@ with value set to the location of fuzzer's executables
 
 All this  rather complicated setup may be considerably simplified by using Docker.
 Just build the image (changing OS in `./docker/base/Dockerfile` if needed)
-and use it with your project. All the fuzzers and evironment variables will be there.
+and use it with your project. All the fuzzers and environment variables will be there.
 
 ### Fuzzer executor usage
 
@@ -308,7 +308,7 @@ Resuming:
 Statistics:
 * Prints some informations to stdout (rather mysterious)
 * Produces some files like `.coverage` (also mysterious)
-* Executor doesn't parse any of above at the momen
+* Executor doesn't parse any of above at the moment
 
 
 ### Angora
