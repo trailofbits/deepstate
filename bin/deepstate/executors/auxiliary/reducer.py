@@ -504,13 +504,14 @@ def main():
                   newTest += bytesi
                   newTest += currentTest[cutj[1] + 1:]
                   newTest = bytearray(newTest)
-                  r = writeAndRunCandidate(newTest)
-                  if checks(r):
-                    print("Structured swap @ byte", cuti[0], "[" + " ".join(map(str, bytesi)) + "]", "with",
-                            cutj[0], "[" + " ".join(map(str, bytesj)) + "]")
-                    changed = True
-                    updateCurrent(newTest)
-                    break
+                  if newTest != currentTest:
+                    r = writeAndRunCandidate(newTest)
+                    if checks(r):
+                      print("Structured swap @ byte", cuti[0], "[" + " ".join(map(str, bytesi)) + "]",
+                              "with", cutj[0], "[" + " ".join(map(str, bytesj)) + "]")
+                      changed = True
+                      updateCurrent(newTest)
+                      break
               if changed:
                 break
             if changed:
