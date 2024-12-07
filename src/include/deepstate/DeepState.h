@@ -1119,7 +1119,7 @@ static int DeepState_Run(void) {
     return DeepState_RunSingleSavedTestDir();
   }
 
-  if (FLAGS_fuzz) || (FLAGS_random) {
+  if (FLAGS_fuzz || FLAGS_random) {
     return DeepState_Fuzz();
   }
 
