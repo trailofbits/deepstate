@@ -856,7 +856,7 @@ bool DeepState_CatchAbandoned(void) {
 int DeepState_Fuzz(void){
   DeepState_LogFormat(DeepState_LogInfo, "Starting fuzzing");
 
-  if (!HAS_FLAG_min_log_level) {
+  if (!HAS_FLAG_min_log_level && !HAS_FLAG_random) {
     FLAGS_min_log_level = 2;
   }
 
