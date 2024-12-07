@@ -83,6 +83,7 @@ DECLARE_bool(abort_on_fail);
 DECLARE_bool(exit_on_fail);
 DECLARE_bool(verbose_reads);
 DECLARE_bool(fuzz);
+DECLARE_bool(random);
 DECLARE_bool(fuzz_save_passing);
 DECLARE_bool(fork);
 DECLARE_bool(list_tests);
@@ -702,7 +703,7 @@ static void DeepState_RunTest(struct DeepState_TestInfo *test) {
   } else {
     DeepState_LogFormat(DeepState_LogTrace, "Passed: %s", test->test_name);
     if (HAS_FLAG_output_test_dir) {
-      if (!FLAGS_fuzz || FLAGS_fuzz_save_passing) {
+      if (!FLAGS_fuzz || FLAGS_fuzz_save_passing || FLAGS_random) {
 	DeepState_SavePassingTest();
       }
     }
@@ -1118,7 +1119,7 @@ static int DeepState_Run(void) {
     return DeepState_RunSingleSavedTestDir();
   }
 
-  if (FLAGS_fuzz) {
+  if (FLAGS_fuzz) || (FLAGS_random) {
     return DeepState_Fuzz();
   }
 

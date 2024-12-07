@@ -53,6 +53,7 @@ DEFINE_bool(direct_run, ExecutionGroup, false, "Run test function directly.");
 
 /* Fuzzing and symex related options, baked in to perform analysis-related tasks without auxiliary tools */
 DEFINE_bool(fuzz, AnalysisGroup, false, "Perform brute force unguided fuzzing.");
+DEFINE_bool(random, AnalysisGroup, false, "Run one test with random inputs.");
 DEFINE_bool(fuzz_save_passing, AnalysisGroup, false, "Save passing tests during fuzzing.");
 DEFINE_bool(fork, AnalysisGroup, true, "Fork when running a test.");
 DEFINE_int(seed, AnalysisGroup, 0, "Seed for brute force fuzzing (uses time if not set).");
@@ -931,10 +932,16 @@ int DeepState_Fuzz(void){
 
     current = (long)time(NULL);
     diff = current-start;
+
+    if ((FLAGS_random) && (i > 0)) {
+      break;
+    }
   }
 
-  DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests (%u tests/second) with %d failed/%d passed/%d abandoned tests",
-		      i, i/diff, num_failed_tests, num_passed_tests, num_abandoned_tests);
+  if (!FLAGS_random) {
+    DeepState_LogFormat(DeepState_LogInfo, "Done fuzzing! Ran %u tests (%u tests/second) with %d failed/%d passed/%d abandoned tests",
+			i, i/diff, num_failed_tests, num_passed_tests, num_abandoned_tests);
+  }
   return num_failed_tests;
 }
 
