@@ -284,6 +284,9 @@ extern const char *DeepState_ConcretizeCStr(const char *begin);
 /* Allocate and return a pointer to `num_bytes` symbolic bytes. */
 extern void *DeepState_Malloc(size_t num_bytes);
 
+/* Allocate all the concrete inputs and return a pointer to `num_bytes` symbolic bytes. */
+extern void *DeepState_MallocAll(size_t *num_bytes);
+
 /* Allocate and return a pointer to `num_bytes` symbolic bytes.
    Ptr will be freed by DeepState at end of test. */
 extern void *DeepState_GCMalloc(size_t num_bytes);

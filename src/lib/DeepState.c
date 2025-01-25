@@ -3,8 +3,7 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
+ * You may obtain a copy of the Licen
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -91,6 +90,9 @@ static struct DeepState_TestInfo *DeepState_DrFuzzTest = NULL;
 /* Initialize global input buffer and index / initialized index. */
 volatile uint8_t DeepState_Input[DeepState_InputSize] = {};
 uint32_t DeepState_InputIndex = 0;
+
+uint32_t DeepState_ConcreteInputIndex = 0;
+
 uint32_t DeepState_InputInitialized = 0;
 
 /* Used if we need to generate on-the-fly data while we fuzz */
@@ -385,6 +387,14 @@ void *DeepState_Malloc(size_t num_bytes) {
   return data;
 }
 
+/* Allocate all the available concrete input, update the `num_bytes` pointer and return
+ * a pointer to symbolic bytes. */
+void *DeepState_MallocAll(size_t *num_bytes) {
+  *num_bytes = DeepState_ConcreteInputIndex;
+  DeepState_ConcreteInputIndex = 0;
+  return DeepState_Malloc(*num_bytes);
+}
+  
 /* Allocate and return a pointer to `num_bytes` symbolic bytes. */
 void *DeepState_GCMalloc(size_t num_bytes) {
   void *data = malloc(num_bytes);
@@ -1030,6 +1040,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   DeepState_SwarmConfigsIndex = 0;
 
   memcpy((void *) DeepState_Input, (void *) Data, Size);
+  DeepState_ConcreteInputIndex = Size;
   DeepState_InputInitialized = Size;
 
   DeepState_Begin(test);
