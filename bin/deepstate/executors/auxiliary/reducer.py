@@ -297,14 +297,17 @@ def main():
   initialSize = float(len(currentTest))
   iteration = 0
 
-  def updateCurrent(newTest):
+  def updateCurrent(newTest, lastRunResult):
       global currentTest, s
+      # Ensure this is actually shrinking size or simplifying
+      assert ((len(newTest) < len(currentTest)) or
+                  (newTest < currentTest)), "New test is neither smaller nor simpler!"
       currentTest = newTest
-      fixRangeConversions(currentTest, rangeConversions(r))
+      fixRangeConversions(currentTest, rangeConversions(lastRunResult))
       print("Writing reduced test with", len(currentTest), "bytes to", out)
       with open(out, 'wb') as outf:
         outf.write(currentTest)
-      s = augmentWithDelims(structure(r), currentTest)
+      s = augmentWithDelims(structure(lastRunResult), currentTest)
       percent = 100.0 * ((initialSize - len(currentTest)) / initialSize)
       print(round(time.time()-start, 2), "secs /",
               candidateRuns, "execs /", str(round(percent, 2)) + "% reduction")
@@ -360,7 +363,7 @@ def main():
             if checks(r):
               print("Structured deletion reduced test to", len(newTest), "bytes")
               changed = True
-              updateCurrent(newTest)
+              updateCurrent(newTest, r)
               break
         lastOneOfRemovalTest = bytearray(currentTest)
         passInfo("Structured deletion")
@@ -380,7 +383,7 @@ def main():
             if checks(r):
               print("Structure edge deletion reduced test to", len(newTest), "bytes")
               changed = True
-              updateCurrent(newTest)
+              updateCurrent(newTest, r)
               break
         lastEdgeRemovalTest = bytearray(currentTest)
         passInfo("Structured edge deletion")
@@ -399,7 +402,7 @@ def main():
               if checks(r):
                 print("Removed", k, "byte(s) @", str(b) + ": reduced test to", len(newTest), "bytes")
                 changed = True
-                updateCurrent(newTest)
+                updateCurrent(newTest, r)
                 startingPos = b
                 break
             if not changed:
@@ -409,7 +412,7 @@ def main():
                 if checks(r):
                   print("Removed", k, "byte(s) @", str(b) + ": reduced test to", len(newTest), "bytes")
                   changed = True
-                  updateCurrent(newTest)
+                  updateCurrent(newTest, r)
                   startingPos = b
                   break
           lastChunkRemovalTest[k] = bytearray(currentTest)
@@ -432,7 +435,7 @@ def main():
               if checks(r):
                 print("Reduced byte", b, "by 1 and deleted", k, "bytes, reducing test to", len(newTest), "bytes")
                 changed = True
-                updateCurrent(newTest)
+                updateCurrent(newTest, r)
                 break
           lastReduceAndDeleteTest[k] = bytearray(currentTest)
           passInfo(str(k) + "-byte reduce and delete")
@@ -457,7 +460,7 @@ def main():
                   print("Byte range removal of bytes", str(b) + "-" + str(v - 1),
                           "reduced test to", len(newTest), "bytes")
                   changed = True
-                  updateCurrent(newTest)
+                  updateCurrent(newTest, r)
                   startingPos = b
                   break
               if changed:
@@ -475,7 +478,7 @@ def main():
                     print("Byte range removal of bytes", str(b) + "-" + str(v - 1),
                             "reduced test to", len(newTest), "bytes")
                     changed = True
-                    updateCurrent(newTest)
+                    updateCurrent(newTest, r)
                     startingPos = b
                     break
                 if changed:
@@ -510,7 +513,7 @@ def main():
                       print("Structured swap @ byte", cuti[0], "[" + " ".join(map(str, bytesi)) + "]",
                               "with", cutj[0], "[" + " ".join(map(str, bytesj)) + "]")
                       changed = True
-                      updateCurrent(newTest)
+                      updateCurrent(newTest, r)
                       break
               if changed:
                 break
@@ -534,7 +537,7 @@ def main():
                 if checks(r):
                   print("Reduced byte", b, "from", currentTest[b], "to", v)
                   changed = True
-                  updateCurrent(newTest)
+                  updateCurrent(newTest, r)
                   startingPos = b + 1
                   break
               if changed:
@@ -549,7 +552,7 @@ def main():
                 if checks(r):
                   print("Reduced byte", b, "from", currentTest[b], "to", v)
                   changed = True
-                  updateCurrent(newTest)
+                  updateCurrent(newTest, r)
                   startingPos = b + 1
                   break
               if changed:
@@ -591,7 +594,7 @@ def main():
                     if checks(r):
                       print("Byte pattern", tuple(ba), "at", b1, "and", b2, "changed to", tuple(banew))
                       changed = True
-                      updateCurrent(newTest)
+                      updateCurrent(newTest, r)
                       break
                   if changed:
                     break
