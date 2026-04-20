@@ -777,11 +777,137 @@ void DeepState_Warn_srand(unsigned int seed) {
               "srand under DeepState has no effect: rand is re-defined as DeepState_Int");
 }
 
-/* Right now "fake" a hexdigest by just using random bytes.  Not ideal. */
+static uint32_t DeepState_RotateLeft32(uint32_t value, uint32_t distance) {
+  return (value << distance) | (value >> (32U - distance));
+}
+
+static void DeepState_MD5(const volatile uint8_t *data, size_t size,
+                          uint8_t digest[16]) {
+  static const uint32_t shifts[] = {
+    7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+    5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
+    4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
+    6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21
+  };
+  static const uint32_t constants[] = {
+    0xd76aa478U, 0xe8c7b756U, 0x242070dbU, 0xc1bdceeeU,
+    0xf57c0fafU, 0x4787c62aU, 0xa8304613U, 0xfd469501U,
+    0x698098d8U, 0x8b44f7afU, 0xffff5bb1U, 0x895cd7beU,
+    0x6b901122U, 0xfd987193U, 0xa679438eU, 0x49b40821U,
+    0xf61e2562U, 0xc040b340U, 0x265e5a51U, 0xe9b6c7aaU,
+    0xd62f105dU, 0x02441453U, 0xd8a1e681U, 0xe7d3fbc8U,
+    0x21e1cde6U, 0xc33707d6U, 0xf4d50d87U, 0x455a14edU,
+    0xa9e3e905U, 0xfcefa3f8U, 0x676f02d9U, 0x8d2a4c8aU,
+    0xfffa3942U, 0x8771f681U, 0x6d9d6122U, 0xfde5380cU,
+    0xa4beea44U, 0x4bdecfa9U, 0xf6bb4b60U, 0xbebfbc70U,
+    0x289b7ec6U, 0xeaa127faU, 0xd4ef3085U, 0x04881d05U,
+    0xd9d4d039U, 0xe6db99e5U, 0x1fa27cf8U, 0xc4ac5665U,
+    0xf4292244U, 0x432aff97U, 0xab9423a7U, 0xfc93a039U,
+    0x655b59c3U, 0x8f0ccc92U, 0xffeff47dU, 0x85845dd1U,
+    0x6fa87e4fU, 0xfe2ce6e0U, 0xa3014314U, 0x4e0811a1U,
+    0xf7537e82U, 0xbd3af235U, 0x2ad7d2bbU, 0xeb86d391U
+  };
+
+  uint32_t a0 = 0x67452301U;
+  uint32_t b0 = 0xefcdab89U;
+  uint32_t c0 = 0x98badcfeU;
+  uint32_t d0 = 0x10325476U;
+  size_t padded_size = size + 1U;
+  uint8_t *message = NULL;
+
+  while ((padded_size % 64U) != 56U) {
+    ++padded_size;
+  }
+
+  message = calloc(padded_size + 8U, sizeof(uint8_t));
+  if (message == NULL) {
+    DeepState_Abandon("Can't allocate memory for saved test hashing.");
+  }
+
+  for (size_t i = 0; i < size; ++i) {
+    message[i] = data[i];
+  }
+  message[size] = 0x80U;
+
+  uint64_t bit_size = (uint64_t) size * 8U;
+  for (size_t i = 0; i < 8U; ++i) {
+    message[padded_size + i] = (uint8_t) (bit_size >> (8U * i));
+  }
+
+  for (size_t offset = 0; offset < (padded_size + 8U); offset += 64U) {
+    uint32_t words[16];
+    for (size_t i = 0; i < 16U; ++i) {
+      size_t word_offset = offset + (i * 4U);
+      words[i] = ((uint32_t) message[word_offset]) |
+                 ((uint32_t) message[word_offset + 1U] << 8U) |
+                 ((uint32_t) message[word_offset + 2U] << 16U) |
+                 ((uint32_t) message[word_offset + 3U] << 24U);
+    }
+
+    uint32_t a = a0;
+    uint32_t b = b0;
+    uint32_t c = c0;
+    uint32_t d = d0;
+
+    for (uint32_t i = 0; i < 64U; ++i) {
+      uint32_t mix = 0U;
+      uint32_t word_index = 0U;
+
+      if (i < 16U) {
+        mix = (b & c) | ((~b) & d);
+        word_index = i;
+      } else if (i < 32U) {
+        mix = (d & b) | ((~d) & c);
+        word_index = ((5U * i) + 1U) % 16U;
+      } else if (i < 48U) {
+        mix = b ^ c ^ d;
+        word_index = ((3U * i) + 5U) % 16U;
+      } else {
+        mix = c ^ (b | (~d));
+        word_index = (7U * i) % 16U;
+      }
+
+      uint32_t next_d = d;
+      d = c;
+      c = b;
+      b += DeepState_RotateLeft32(a + mix + constants[i] + words[word_index],
+                                  shifts[i]);
+      a = next_d;
+    }
+
+    a0 += a;
+    b0 += b;
+    c0 += c;
+    d0 += d;
+  }
+
+  free(message);
+
+  uint32_t state[] = {a0, b0, c0, d0};
+  for (size_t i = 0; i < 4U; ++i) {
+    digest[(i * 4U)] = (uint8_t) (state[i] & 0xffU);
+    digest[(i * 4U) + 1U] = (uint8_t) ((state[i] >> 8U) & 0xffU);
+    digest[(i * 4U) + 2U] = (uint8_t) ((state[i] >> 16U) & 0xffU);
+    digest[(i * 4U) + 3U] = (uint8_t) ((state[i] >> 24U) & 0xffU);
+  }
+}
+
 void makeFilename(char *name, size_t size) {
   const char *entities = "0123456789abcdef";
-  for (int i = 0; i < size; i++) {
-    name[i] = entities[rand()%16];
+  uint8_t digest[16];
+  size_t hex_size = size;
+
+  if (hex_size > (sizeof(digest) * 2U)) {
+    hex_size = sizeof(digest) * 2U;
+  }
+
+  DeepState_MD5(DeepState_Input, DeepState_InputIndex, digest);
+  for (size_t i = 0; i < hex_size; ++i) {
+    uint8_t nibble = digest[i / 2U];
+    if ((i % 2U) == 0U) {
+      nibble >>= 4U;
+    }
+    name[i] = entities[nibble & 0x0fU];
   }
 }
 
@@ -812,8 +938,8 @@ void writeInputData(char* name, int important) {
 /* Save a passing test to the output test directory. */
 void DeepState_SavePassingTest(void) {
   char name[48];
-  makeFilename(name, 40);
-  name[40] = 0;
+  makeFilename(name, 32);
+  name[32] = 0;
   strncat(name, ".pass", 48);
   writeInputData(name, 0);
 }
@@ -821,8 +947,8 @@ void DeepState_SavePassingTest(void) {
 /* Save a failing test to the output test directory. */
 void DeepState_SaveFailingTest(void) {
   char name[48];
-  makeFilename(name, 40);
-  name[40] = 0;
+  makeFilename(name, 32);
+  name[32] = 0;
   strncat(name, ".fail", 48);
   writeInputData(name, 1);
 }
@@ -830,8 +956,8 @@ void DeepState_SaveFailingTest(void) {
 /* Save a crashing test to the output test directory. */
 void DeepState_SaveCrashingTest(void) {
   char name[48];
-  makeFilename(name, 40);
-  name[40] = 0;
+  makeFilename(name, 32);
+  name[32] = 0;
   strncat(name, ".crash", 48);
   writeInputData(name, 1);
 }
