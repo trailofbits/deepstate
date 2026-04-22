@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include "deepstate/RandGen.h"
 #include "deepstate/DeepState.h"
 #include "deepstate/Option.h"
 #include "deepstate/Log.h"
@@ -99,6 +99,9 @@ uint32_t DeepState_InternalFuzzing = 0;
 /* Swarm related state. */
 uint32_t DeepState_SwarmConfigsIndex = 0;
 struct DeepState_SwarmConfig *DeepState_SwarmConfigs[DEEPSTATE_MAX_SWARM_CONFIGS];
+
+/* pRNG seed */
+DeepStateRng DeepState_Rng;
 
 /* Jump buffer for returning to `DeepState_Run`. */
 jmp_buf DeepState_ReturnToRun = {};
@@ -779,10 +782,10 @@ void DeepState_Warn_srand(unsigned int seed) {
 
 /* Right now "fake" a hexdigest by just using random bytes.  Not ideal. */
 void makeFilename(char *name, size_t size) {
-  const char *entities = "0123456789abcdef";
-  for (int i = 0; i < size; i++) {
-    name[i] = entities[rand()%16];
-  }
+    const char *entities = "0123456789abcdef";
+    for (int i = 0; i < size; i++) {
+        name[i] = entities[deepstate_rng_next(&DeepState_Rng) % 16];
+    }
 }
 
 void writeInputData(char* name, int important) {
@@ -861,11 +864,11 @@ int DeepState_Fuzz(void){
   }
 
   if (HAS_FLAG_seed) {
-    srand(FLAGS_seed);
+    deepstate_rng_seed(&DeepState_Rng, (uint32_t)FLAGS_seed);
   } else {
-    unsigned int seed = time(NULL);
+    uint32_t seed = (uint32_t)time(NULL);
     DeepState_LogFormat(DeepState_LogWarning, "No seed provided; using %u", seed);
-    srand(seed);
+    deepstate_rng_seed(&DeepState_Rng, seed);
   }
 
   if (HAS_FLAG_fork) {

@@ -32,6 +32,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <deepstate/RandGen.h>
 #include <deepstate/Platform.h>
 #include <deepstate/Log.h>
 #include <deepstate/Compiler.h>
@@ -102,9 +103,16 @@ enum {
 /* Byte buffer that will contain symbolic data that is used to supply requests
  * for symbolic values (e.g. `int`s). */
 extern volatile uint8_t DeepState_Input[DeepState_InputSize];
+extern DeepStateRng DeepState_Rng;
 
-#define DEEPSTATE_READBYTE ((DeepState_UsingSymExec ? 1 : (DeepState_InputIndex < DeepState_InputInitialized ? 1 : (DeepState_InternalFuzzing ? (DeepState_Input[DeepState_InputIndex] = (char)rand()) : (DeepState_Input[DeepState_InputIndex] = 0)))), DeepState_Input[DeepState_InputIndex++])
-
+#define DEEPSTATE_READBYTE \
+  ((DeepState_UsingSymExec ? 1 \
+    : (DeepState_InputIndex < DeepState_InputInitialized ? 1 \
+      : (DeepState_InternalFuzzing \
+          ? (DeepState_Input[DeepState_InputIndex] = (uint8_t)deepstate_rng_next(&DeepState_Rng)) \
+          : (DeepState_Input[DeepState_InputIndex] = 0)))), \
+  DeepState_Input[DeepState_InputIndex++])
+  
 /* Index into the `DeepState_Input` array that tracks how many input bytes have
  * been consumed. */
 extern uint32_t DeepState_InputIndex;
