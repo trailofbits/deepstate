@@ -143,6 +143,7 @@ class FuzzerFrontend(AnalysisBackend):
     self.blackbox: Optional[bool] = None
     self.fuzzer_args: List[Any] = []
     self.fuzzer_out: bool = False
+    self.abort_on_fail: bool = False
 
     self.sync_cycle: int = 5
     self.sync_out: bool = True
@@ -226,6 +227,10 @@ class FuzzerFrontend(AnalysisBackend):
     parser.add_argument(
       "--fuzzer_args", default=[], nargs='*',
       help="Flags to pass to the fuzzer. Format: `a arg1=val` -> `-a --arg val`.")
+    
+    parser.add_argument(
+      "--abort_on_fail", action="store_true",
+      help="Fuzzer exits immediately on discovery of failiing input")
 
 
     # Parallel / Ensemble Fuzzing
@@ -704,6 +709,18 @@ class FuzzerFrontend(AnalysisBackend):
             run_fuzzer = False
             wait_time = 0
             L.info("Timeout")
+        
+        # abort on fail check 
+        if self.abort_on_fail:
+          crash_path = os.path.join(self.output_test_dir, "the_fuzzer", "crashes")
+          path = Path(crash_path)          
+          if os.path.exists(path):
+            if len(os.listdir(path)) > 0:
+              run_one_fuzzer_process = False
+              run_fuzzer = False
+              L.info("Crash discovered. Check directory for crashes")
+              return 1
+
 
         try:
           # sleep/communicate for `self.sync_cycle` time

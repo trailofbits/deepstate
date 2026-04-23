@@ -114,6 +114,7 @@ Optional arguments:
 --min_log_level   - how much to log (0=DEBUG, 6=CRITICAL)
 --blackbox        - fuzz non-instrumented binary
 --dictionary      - file with words that may enhance fuzzing (fuzzer dependent format)
+--abort_on_fail   - fuzzers exits on first discovered crash
 ```
 
 Each fuzzer creates following files/directories under output directory:
