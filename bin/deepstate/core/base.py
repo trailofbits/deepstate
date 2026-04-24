@@ -184,6 +184,9 @@ class AnalysisBackend(object):
     if args.config:
       _args.update(cls.build_from_config(args.config)) # type: ignore
 
+      # configparser gives us strings -- apply argparse types (issue #311)
+      cls._coerce_config_types(parser, _args)
+
       # Cleanup: force --no_exit_compile to be on, meaning if user specifies a `[test]` section,
       # execution will continue. Delete config as well
       _args["no_exit_compile"] = True # type: ignore
@@ -267,6 +270,32 @@ class AnalysisBackend(object):
           _context[key] = val
 
     return context # type: ignore
+
+
+  @staticmethod
+  def _coerce_config_types(parser: argparse.ArgumentParser,
+                           _args: Dict[str, Any]) -> None:
+    """Apply argparse types to values loaded from a config file (issue #311)."""
+    for action in parser._actions:
+      if action.dest not in _args:
+        continue
+      value = _args[action.dest]
+      if not isinstance(value, str):
+        continue
+
+      if isinstance(action, (argparse._StoreTrueAction, argparse._StoreFalseAction)):
+        v = value.strip().lower()
+        if v in ("true", "1", "yes"):
+          _args[action.dest] = True
+        elif v in ("false", "0", "no"):
+          _args[action.dest] = False
+        else:
+          raise AnalysisBackendError(f"Invalid boolean for --{action.dest}: {value!r}")
+      elif action.type not in (None, str):
+        try:
+          _args[action.dest] = action.type(value)
+        except (ValueError, TypeError):
+          raise AnalysisBackendError(f"Invalid value for --{action.dest}: {value!r}")
 
 
   def init_from_dict(self, _args: Optional[Dict[str, str]] = None) -> None:
