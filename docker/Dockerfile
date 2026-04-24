@@ -29,18 +29,18 @@ ARG make_j
 
 # Angr, Manticore
 # RUN echo 'Installing angr and manticore' \
-#    && sudo add-apt-repository -y ppa:sri-csl/formal-methods \
-#    && sudo apt-get -y update \
-#    && sudo apt-get -y install yices2 \
+#    && add-apt-repository -y ppa:sri-csl/formal-methods \
+#    && apt-get -y update \
+#    && apt-get -y install yices2 \
 #    && pip3 install z3-solver angr git+git://github.com/trailofbits/manticore.git --user
 
 # Eclipser - not deepstate dependent
 COPY --from=Eclipser /home/user/Eclipser/build $DEPS_DIR/eclipser
 RUN echo 'Eclipser - installing dotnet' \
     && wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb \
-    && sudo dpkg -i packages-microsoft-prod.deb \
-    && sudo apt-get update \
-    && sudo apt-get install -y dotnet-sdk-2.2
+    && dpkg -i packages-microsoft-prod.deb \
+    && apt-get update \
+    && apt-get install -y dotnet-sdk-2.2
 COPY --from=Eclipser /home/user/.nuget /home/user/.nuget
 
 # Angora part 1 - not deepstate dependent
@@ -49,7 +49,7 @@ COPY --from=Eclipser /home/user/.nuget /home/user/.nuget
 
 # copy deepstate code here to use cache as much as possible
 COPY . ./deepstate
-RUN sudo chown user:user -R ./deepstate
+RUN chown user:user -R ./deepstate
 WORKDIR ./deepstate
 
 # Angora part 2
@@ -79,14 +79,14 @@ RUN echo 'Building deepstate' \
     && mkdir -p ./build_deepstate && cd ./build_deepstate \
     && CXX=clang++ CC=clang cmake ../ \
     && make -j $make_j \
-    && sudo make install
+    && make install
 
 # libFuzzer
 RUN echo 'Building deepstate with libFuzzer' \
     && mkdir -p build_libfuzzer && cd build_libfuzzer \
     && CXX=clang++ CC=clang cmake -DDEEPSTATE_LIBFUZZER=ON ../ \
     && make -j $make_j \
-    && sudo cp ./libdeepstate_LF.a /usr/local/lib/
+    && cp ./libdeepstate_LF.a /usr/local/lib/
 
 # AFL
 COPY --from=AFL /home/user/afl-2.52b $DEPS_DIR/afl
@@ -95,7 +95,7 @@ RUN echo 'Building deepstate with AFL' \
     && export AFL_HOME="$DEPS_DIR/afl" \
     && CXX="$AFL_HOME/afl-clang++" CC="$AFL_HOME/afl-clang" cmake -DDEEPSTATE_AFL=ON ../ \
     && make -j $make_j \
-    && sudo cp ./libdeepstate_AFL.a /usr/local/lib/
+    && cp ./libdeepstate_AFL.a /usr/local/lib/
 
 # Honggfuzz
 # COPY --from=Honggfuzz /home/user/honggfuzz $DEPS_DIR/honggfuzz
