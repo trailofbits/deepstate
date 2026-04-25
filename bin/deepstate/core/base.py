@@ -2,7 +2,7 @@
 # Copyright (c) 2019 Trail of Bits, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
+# you may not use this file except in compliance with the License.d
 # You may obtain a copy of the License at
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
@@ -182,7 +182,19 @@ class AnalysisBackend(object):
 
     # if configuration is specified, parse and replace argument instantiations
     if args.config:
-      _args.update(cls.build_from_config(args.config)) # type: ignore
+      # Build a type map from argparse's registered actions so config values
+      # get coerced to the correct types (fixes issue #311: configparser returns
+      # all values as strings, causing TypeError
+      type_map: Dict[str, Any] = {}
+      for action in parser._actions:
+        if action.dest and action.type is not None:
+          type_map[action.dest] = action.type
+        elif action.dest and isinstance(action, argparse._StoreTrueAction):
+          type_map[action.dest] = lambda v: v.strip().lower() in ('true', '1', 'yes')
+        elif action.dest and isinstance(action, argparse._StoreFalseAction):
+          type_map[action.dest] = lambda v: v.strip().lower() not in ('true', '1', 'yes')
+
+      _args.update(cls.build_from_config(args.config, type_map=type_map)) # type: ignore
 
       # Cleanup: force --no_exit_compile to be on, meaning if user specifies a `[test]` section,
       # execution will continue. Delete config as well
@@ -206,8 +218,7 @@ class AnalysisBackend(object):
 
 
   @staticmethod
-  def build_from_config(config: str, allowed_keys: Optional[List[str]] = None, include_sections: bool = False) -> Union[Dict[str, Dict[str, Any]], Dict[str, Any]]:
-    """
+  def build_from_config(config: str, allowed_keys: Optional[List[str]] = None, include_sections: bool = False, type_map: Optional[Dict[str, Any]] = None) -> Union[Dict[str, Dict[str, Any]], Dict[str, Any]]:    """
     Simple auxiliary helper that does safe and correct parsing of DeepState configurations. This can be used
     in the following manners:
 
@@ -218,6 +229,8 @@ class AnalysisBackend(object):
     :param config: path to configuration file
     :param allowed_keys: contains allowed keys that should be parsed
     :param include_sections: if true, parse all sections, and return a Dict[str, Dict[str, Any]] where keys are section names
+    :param type_map: optional dict mapping argument names to their expected types (e.g. {"timeout": int}).
+                 Used to coerce config file string values to correct types.
     """
 
     context: Dict[str, Dict[str, Any]] = dict() # type: ignore
@@ -261,10 +274,25 @@ class AnalysisBackend(object):
           if key not in allowed_keys:
             continue
 
-        if isinstance(val, list):
+        #if isinstance(val, list):
+        #  _context[key].append(val)
+        #else:
+         # _context[key] = val
+         if isinstance(val, list):    ## Replaced above with below from lines 269 - 283, applies type coercion
           _context[key].append(val)
         else:
-          _context[key] = val
+          # Coerce the string value to the expected type if a type_map is provided
+          if type_map is not None and key in type_map:
+            expected_type = type_map[key]
+            try:
+              _context[key] = expected_type(val)
+            except (ValueError, TypeError):
+              raise AnalysisBackendError(
+                f"Config file error: cannot convert '{key} = {val}' "
+                f"to expected type '{expected_type.__name__}'"
+              )
+          else:
+            _context[key] = val
 
     return context # type: ignore
 
