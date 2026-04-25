@@ -777,12 +777,16 @@ void DeepState_Warn_srand(unsigned int seed) {
               "srand under DeepState has no effect: rand is re-defined as DeepState_Int");
 }
 
-/* Right now "fake" a hexdigest by just using random bytes.  Not ideal. */
-void makeFilename(char *name, size_t size) {
-  const char *entities = "0123456789abcdef";
-  for (int i = 0; i < size; i++) {
-    name[i] = entities[rand()%16];
+void makeFilename(char *name, size_t size) { 
+  unsigned int hashValue = 0;
+  int maxLength = size;
+  // Iterate through the initialized name
+  for (int i = 0; i < maxLength; i++) {
+      hashValue = hashValue * 31;
+      hashValue += DeepState_Input[i];
   }
+  // Ensure elements are represented in hexadecimal
+  sprintf(name, "%02x", hashValue);
 }
 
 void writeInputData(char* name, int important) {
@@ -809,30 +813,75 @@ void writeInputData(char* name, int important) {
   fclose(fp);
 }
 
+
 /* Save a passing test to the output test directory. */
 void DeepState_SavePassingTest(void) {
-  char name[48];
-  makeFilename(name, 40);
-  name[40] = 0;
-  strncat(name, ".pass", 48);
+  // Default array length
+  int nameLen = 48;
+
+  // If the length of the eventual file name is shorter, use that instead
+  if ((DeepState_InputSize * 2 + 7) < nameLen) {
+      nameLen = DeepState_InputSize;
+  }
+    
+  // Create a name array
+  char name[nameLen];
+
+  // Create a filename
+  makeFilename(name, nameLen);
+
+  // Combine the names
+  strncat(name, ".pass", nameLen);
+
+  // Write the data
   writeInputData(name, 0);
 }
 
+
 /* Save a failing test to the output test directory. */
 void DeepState_SaveFailingTest(void) {
-  char name[48];
-  makeFilename(name, 40);
-  name[40] = 0;
-  strncat(name, ".fail", 48);
+  // Default array length
+  int nameLen = 48;
+
+  // If the length of the eventual file name is shorter, use that instead
+  if ((DeepState_InputSize * 2 + 7) < nameLen) {
+      nameLen = DeepState_InputSize;
+  }
+    
+  // Create a name array
+  char name[nameLen];
+
+  // Create a filename
+  makeFilename(name, nameLen);
+
+  // Combine the names
+  strncat(name, ".fail", nameLen);
+
+  // Write the data
   writeInputData(name, 1);
 }
 
+
 /* Save a crashing test to the output test directory. */
 void DeepState_SaveCrashingTest(void) {
-  char name[48];
-  makeFilename(name, 40);
-  name[40] = 0;
-  strncat(name, ".crash", 48);
+  // Default array length
+  int nameLen = 48;
+
+  // If the length of the eventual file name is shorter, use that instead
+  if ((DeepState_InputSize * 2 + 7) < nameLen) {
+      nameLen = DeepState_InputSize;
+  }
+    
+  // Create a name array
+  char name[nameLen];
+
+  // Create a filename
+  makeFilename(name, nameLen);
+
+  // Combine the names
+  strncat(name, ".crash", nameLen);
+
+  // Write the data
   writeInputData(name, 1);
 }
 
