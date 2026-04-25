@@ -47,6 +47,8 @@ deepstate-afl ./TCAS_AFL -o fuzz_afl --fuzzer_out --timeout 120
 llvm-cov-9 gcov TCAS_driver.cpp  -b
 ```
 
+For more information on running DeepState with a Docker, go to the "Docker" section at the bottom of the README
+
 This runs the AFL++ fuzzer on the TCAS code (https://en.wikipedia.org/wiki/Traffic_collision_avoidance_system), a long-used example program in software testing.  After two minutes of fuzzing, we run a version of the test driver that collects code coverage, and see how much of the code AFL has managed to cover in two minutes.
 
 NOTE 1: The above docker is built using AFL++ instead of AFL for "AFL" fuzzing.  You can use agroce/deepstate_examples instead if for some reason you prefer "classic" AFL.
@@ -114,10 +116,10 @@ yet, without a painful cross-compilation process). No current support for ARM64 
 
 Build:
 
-- CMake
-- GCC and G++ with multilib support
-- Python 3.6 (or newer)
-- Setuptools
+- CMake: Available on most Linux distros, Windows 8, 10, and 11, and MacOS 10.10 or later
+- GCC and G++ with multilib support: Available on Ubuntu 18.04 or later, Debian, Fedora, and Arch Linux. For Windows, MinGW and MSYS2 can be used as alternatives
+- Python 3.6 (or newer): Available on almost all major Linux distros, Windows 8.1 or later, and MacOS 10.9 or later
+- Setuptools: Available on all OS's that can run Python 3.6 or newer
 
 Runtime:
 
@@ -308,6 +310,23 @@ ERROR: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is th
 ```bash
 systemctl start docker
 ```
+
+## Troubleshooting
+
+**I am getting an error when trying to intall DeepState on Linux**
+
+Make sure that you have sudo/installation priveleges on your current system. Additionally, ensure that your
+system has multilib compiler support. Check the file permissions to make sure that you are even able to access
+DeepState in the first place. 
+
+**I am on macOS and am getting an "Architecture not supported" error when trying to run DeepState**
+
+This means that you are likely using a system with an ARM CPU, which is not currently supported by DeepState.
+
+**Where can I find all of the fail states that DeepState discovered?**
+
+DeepState creates a .fail file when it runs and saves it in an output directory within the current folder. This can be used to find bugs or errors
+in your code.
 
 ## Documentation
 
