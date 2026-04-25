@@ -179,13 +179,20 @@ class AnalysisBackend(object):
       target_args_parsed.append((key, val))
     _args['target_args'] = target_args_parsed
 
-
-    # if configuration is specified, parse and replace argument instantiations
     if args.config:
       _args.update(cls.build_from_config(args.config)) # type: ignore
 
+      # Re-apply argparse types to values read from config, since configparser
+      # returns everything as strings (e.g. timeout="36000" instead of 36000).
+      for action in parser._actions:
+        if action.dest in _args and action.type is not None:
+          try:
+            _args[action.dest] = action.type(_args[action.dest])
+          except (ValueError, TypeError):
+            pass
+
       # Cleanup: force --no_exit_compile to be on, meaning if user specifies a `[test]` section,
-      # execution will continue. Delete config as well
+      # execution will continue. Delete config as well.
       _args["no_exit_compile"] = True # type: ignore
       del _args["config"]
 
@@ -200,7 +207,7 @@ class AnalysisBackend(object):
       logger.setLevel(LOG_LEVEL_INT_TO_STR[_args["min_log_level"]])
     else:
       L.debug("Using log level from $DEEPSTATE_LOG.")
-      
+
     cls._ARGS = args
     return cls._ARGS
 
@@ -236,7 +243,8 @@ class AnalysisBackend(object):
       "test"        # configurations for harness execution under analysis tool
     ]
 
-    parser = configparser.SafeConfigParser()
+    # ConfigParser replaces the deprecated SafeConfigParser removed in Python 3.12
+    parser = configparser.ConfigParser()
     parser.read(config)
 
     for section, kv in parser._sections.items(): # type: ignore
@@ -264,7 +272,15 @@ class AnalysisBackend(object):
         if isinstance(val, list):
           _context[key].append(val)
         else:
-          _context[key] = val
+          # configparser returns all values as strings. Try casting to int
+          # then float, falling back to string for non-numeric values.
+          try:
+            _context[key] = int(val)
+          except (ValueError, TypeError):
+            try:
+              _context[key] = float(val)
+            except (ValueError, TypeError):
+              _context[key] = val
 
     return context # type: ignore
 
