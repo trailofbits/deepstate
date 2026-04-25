@@ -339,6 +339,11 @@ class FuzzerFrontend(AnalysisBackend):
       self.compiler_exe = self._search_for_executable(self.compiler_exe)
       L.debug("Will use %s as fuzzer compiler.", self.compiler_exe)
 
+    # added resolver for compile_c_exe
+    if self.compiler_c_exe:
+      self.compiler_c_exe = self._search_for_executable(self.compiler_c_exe)
+      L.debug("Will use %s as C compiler.", self.compiler_c_exe)
+
     # set additional executables
     for exe_name, exe_file in self.EXECUTABLES.items():
       self.EXECUTABLES[exe_name] = self._search_for_executable(exe_file)
@@ -373,13 +378,24 @@ class FuzzerFrontend(AnalysisBackend):
     L.debug("Static library path: %s", lib_path)
 
     # initialize compiler envvars
-    env["CC"] = self.compiler_exe.replace('++', '')
+    # added compiler_c_exe for c file specifically
+    env["CC"] = self.compiler_c_exe if self.compiler_c_exe else self.compiler_exe.replace('++', '')
     env["CXX"] = self.compiler_exe
     L.debug("CC=%s and CXX=%s", env['CC'], env['CXX'])
 
     # initialize command with prepended compiler
-    compiler_args: List[str] = ["-std=c++11", self.compile_test] + flags + ["-o", _out_bin] # type: ignore
-    compile_cmd = [self.compiler_exe] + compiler_args
+    # changing so that -std=c++11 is only used with c++ files
+    is_c_file = self.compile_test.endswith('.c')
+    if is_c_file:
+      chosen_compiler = env["CC"]
+      std_flag = "-std=c11"
+    else:
+      chosen_compiler = env["CXX"]
+      std_flag = "-std=c++11"
+    compiler_args = [std_flag, self.compile_test] + flags + ["-o", _out_bin]
+    compile_cmd = [chosen_compiler] + compiler_args
+    # compiler_args: List[str] = ["-std=c++11", self.compile_test] + flags + ["-o", _out_bin] # type: ignore
+    # compile_cmd = [self.compiler_exe] + compiler_args
     L.debug("Compilation command: %s", compile_cmd)
 
     # call compiler, and deal with exceptions accordingly

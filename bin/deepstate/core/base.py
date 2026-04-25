@@ -72,6 +72,8 @@ class AnalysisBackend(object):
     L.debug("Analysis backend name: %s", self.name)
 
     self.compiler_exe = self.EXECUTABLES.pop("COMPILER", None)
+    # added c compiler pop
+    self.compiler_c_exe = self.EXECUTABLES.pop("COMPILER_C", None)
 
     # parsed argument attributes
     self.binary: Optional[str] = None

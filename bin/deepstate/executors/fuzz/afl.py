@@ -29,7 +29,8 @@ class AFL(FuzzerFrontend):
   """ Defines AFL fuzzer frontend """
 
   NAME = "AFL"
-  EXECUTABLES = {"FUZZER": "afl-fuzz", "COMPILER": "afl-clang++"}
+  # added COMPILER_C for C files
+  EXECUTABLES = {"FUZZER": "afl-fuzz", "COMPILER": "afl-clang++", "COMPILER_C": "afl-clang"}
 
   ENVVAR = "AFL_HOME"
   REQUIRE_SEEDS = True
